@@ -1,37 +1,65 @@
-# 荔枝头
+# 🦞 荔枝头 · Litchi Head
 
-#### 介绍
-多智能体投资决策平台产品
+> 多智能体投资决策平台 —— 让每个投资者拥有自己的 AI 投研团队
 
-#### 软件架构
-软件架构说明
+## 项目定位
 
+中国首个开源的多智能体投资协作平台，融合**多智能体协同**、**用户共创**与**自动化交易**，让专业级量化分析触达每一位投资者。
 
-#### 安装教程
+## 项目文档
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+设计文档位于 [docs/](docs/) 目录：
 
-#### 使用说明
+| 文档 | 说明 |
+|------|------|
+| [初版要求.md](docs/初版要求.md) | 原始产品需求文档 |
+| [设计方案-v1.0-改进版.md](docs/设计方案-v1.0-改进版.md) | 改进版完整设计方案 |
+| [技术实现方案-AI驱动版.md](docs/技术实现方案-AI驱动版.md) | AI 驱动开发方案（主文档）|
+| [技术实现方案-增强补充.md](docs/技术实现方案-增强补充.md) | 补充模块（日志/配置/测试等）|
+| [调研报告-竞品分析.md](docs/调研报告-多智能体投资决策平台竞品分析.md) | 竞品调研报告 |
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## 快速开始
 
-#### 参与贡献
+```bash
+# 环境要求：Python 3.12 + Node.js 18+
+git clone https://github.com/your/litchi-head.git
+cd litchi-head
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+# 创建虚拟环境
+conda create -n litchi python=3.12
+conda activate litchi
 
+# 安装依赖
+pip install -e ".[dev]"
 
-#### 特技
+# 配置 API Key
+cp .env.example .env
+# 编辑 .env 填入你的 API Key
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+# 运行测试
+pytest
+```
+
+## 项目结构
+
+```
+src/
+├── agents/       # Agent 定义（新闻/行情/大师/教育等）
+├── core/         # 核心框架（编排器、通信协议）
+├── debate/       # 辩论引擎（四组辩论、质疑机制）
+├── memory/       # 记忆系统（三层记忆、反思机制）
+├── data/         # 数据采集（行情、新闻）
+├── backtest/     # 回测引擎
+├── risk/         # 风控模块
+└── utils/        # 工具函数（LLM、日志、配置）
+```
+
+## 阶段规划
+
+| 阶段 | 时间 | 目标 |
+|------|------|------|
+| Phase 0 | 第 1-3 周 | 开源基建：核心编排框架 + 基础 Agent |
+| Phase 1 | 第 4-12 周 | MVP：完整辩论 + 数据采集 + 前端 |
+| Phase 2 | 第 13-20 周 | 增强版辩论 + 记忆 + 多引擎回测 |
+| Phase 3 | 第 21-32 周 | 商业化：开源社区 + 付费版 |
+| Phase 4 | 第 33-48 周 | 全球化 + 强化学习进化 |

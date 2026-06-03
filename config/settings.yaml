@@ -1,0 +1,22 @@
+# 应用配置（不包含密钥）
+# 密钥请放 .env 文件
+
+app:
+  name: "litchi-head"
+  version: "0.1.0"
+  debug: true
+
+debate:
+  max_concurrent_agents: 10
+  timeout_seconds: 120
+  max_rounds: 3
+  enable_cross_challenge: true
+
+risk:
+  max_single_position: 0.2
+  max_daily_loss: 0.05
+  min_liquidity_yuan: 10000000
+
+memory:
+  backend: "json"
+  max_recent_trades: 30

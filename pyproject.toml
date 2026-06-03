@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "litchi-head"
+version = "0.1.0"
+description = "多智能体投资决策平台"
+requires-python = ">=3.12"
+dependencies = [
+    # LLM 框架
+    "langgraph>=0.3.0",
+    "langchain>=0.3.0",
+    "langchain-deepseek>=0.1.0",
+    "langchain-openai>=0.3.0",
+    "langchain-community>=0.3.0",
+
+    # 配置
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "python-dotenv>=1.0",
+    "pyyaml>=6.0",
+
+    # HTTP
+    "httpx>=0.27",
+
+    # 数据处理
+    "pandas>=2.0",
+    "numpy>=1.26",
+
+    # 工具
+    "tenacity>=8.0",     # 重试机制
+    "cachetools>=5.0",   # 缓存
+
+    # 金融数据
+    "akshare>=1.14",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-mock>=3.14",
+    "pytest-vcr>=1.0",
+    "ruff>=0.6",
+    "pre-commit>=3.0",
+    "ipython>=8.0",
+]
+frontend = [
+    "streamlit>=1.35",
+    "plotly>=5.22",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src"]
