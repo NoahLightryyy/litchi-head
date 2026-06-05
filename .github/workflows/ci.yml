@@ -33,4 +33,4 @@ jobs:
         run: pyright src/
 
       - name: Pytest (测试)
-        run: pytest -v --tb=short
+        run: PYTHONPATH=src pytest -v --tb=short
