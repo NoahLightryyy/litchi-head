@@ -37,3 +37,6 @@ Thumbs.db
 
 # Project specific
 *.pkl
+
+# Claude Code (local AI dev environment)
+.claude/

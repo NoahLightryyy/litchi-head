@@ -79,6 +79,3 @@ pythonPlatform = "All"
 reportMissingImports = true
 reportMissingTypeStubs = false
 reportMissingModuleSource = false
-extraPaths = [
-    "C:/Users/HUAWEI/AppData/Local/Programs/Python/Python313/Lib/site-packages",
-]
