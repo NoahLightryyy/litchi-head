@@ -1,14 +1,14 @@
 """Agent 基类 —— 所有 Agent 的统一接口"""
 
+import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
-import asyncio
+from typing import Optional
 
-from src.utils.logger import AgentLogger
-from src.utils.config import settings
 from src.core.protocol import AgentMessage
+from src.utils.config import settings
+from src.utils.logger import AgentLogger
 
 
 @dataclass
@@ -52,7 +52,7 @@ class AgentResult:
 class BaseAgent(ABC):
     """所有 Agent 的抽象基类"""
 
-    def __init__(self, name: str, config: dict = None):
+    def __init__(self, name: str, config: dict | None = None):
         self.name = name
         self.config = config or {}
         self.logger = AgentLogger(f"agent.{name}")

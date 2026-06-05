@@ -1,9 +1,8 @@
 """日志系统 —— 多 Agent 调试的核心工具"""
 
-import sys
 import logging
+import sys
 from pathlib import Path
-from typing import Optional
 
 
 class AgentLogger:
@@ -58,7 +57,7 @@ class AgentLogger:
     def error(self, msg: str, **extra):
         self.logger.error(msg, extra={"extra": extra})
 
-    def agent_action(self, action: str, agent: str, detail: dict = None):
+    def agent_action(self, action: str, agent: str, detail: dict | None = None):
         """记录 Agent 的关键动作"""
         detail_str = f" | {detail}" if detail else ""
         self.info(f"[{agent}] {action}{detail_str}")

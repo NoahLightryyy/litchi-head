@@ -45,6 +45,7 @@ dev = [
     "ruff>=0.6",
     "pre-commit>=3.0",
     "ipython>=8.0",
+    "pyright>=1.1.380",
 ]
 frontend = [
     "streamlit>=1.35",
@@ -68,3 +69,16 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 source = ["src"]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+include = ["src"]
+exclude = ["**/__pycache__"]
+pythonVersion = "3.13"
+pythonPlatform = "All"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportMissingModuleSource = false
+extraPaths = [
+    "C:/Users/HUAWEI/AppData/Local/Programs/Python/Python313/Lib/site-packages",
+]

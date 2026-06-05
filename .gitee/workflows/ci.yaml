@@ -1,0 +1,32 @@
+# litchi-head CI Pipeline
+# Gitee Go 流水线 — 每次 push 自动进行代码质量检查
+
+version: '1.0'
+name: ci-pipeline
+displayName: CI Pipeline
+
+triggers:
+  push:
+    branches:
+      include:
+        - '*'
+  pull_request:
+    branches:
+      include:
+        - main
+
+stages:
+  - stage:
+    name: checks
+    displayName: Code Quality Checks
+    steps:
+      - step: build@python
+        name: lint_and_test
+        displayName: Ruff + Pyright + Pytest
+        pythonVersion: '3.12'
+        commands:
+          - pip install --upgrade pip
+          - pip install -e ".[dev]"
+          - ruff check .
+          - pyright src/
+          - pytest -v --tb=short
