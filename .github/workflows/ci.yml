@@ -33,6 +33,4 @@ jobs:
         run: pyright src/
 
       - name: Pytest (测试)
-        env:
-          PYTHONPATH: ${{ github.workspace }}
         run: python -m pytest -v --tb=short

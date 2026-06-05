@@ -37,6 +37,12 @@ dependencies = [
 ]
 
 
+[tool.setuptools.packages.find]
+where = ["."]
+namespaces = false
+include = ["src*"]
+exclude = ["tests*"]
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
