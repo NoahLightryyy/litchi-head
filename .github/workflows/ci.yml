@@ -35,10 +35,4 @@ jobs:
       - name: Pytest (测试)
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: |
-          echo "=== sys.path check ==="
-          python -c "import sys; [print(p) for p in sys.path]"
-          echo "=== import test ==="
-          python -c "from src.agents.base import AgentContext; print('IMPORT OK')" || echo "IMPORT FAILED"
-          echo "=== pytest ==="
-          python -m pytest -v --tb=short || echo "PYTEST_EXIT_CODE=$?"
+        run: python -m pytest -v --tb=short
