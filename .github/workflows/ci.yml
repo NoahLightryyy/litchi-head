@@ -33,10 +33,4 @@ jobs:
         run: pyright src/
 
       - name: Pytest (测试)
-        run: |
-          echo "=== site-packages ==="
-          python -c "import litchi_head; print('PKG:', litchi_head.__file__)"
-          echo "=== import test ==="
-          python -c "from src.agents.base import AgentContext; print('IMPORT OK')" || echo "IMPORT FAILED"
-          echo "=== pytest ==="
-          python -m pytest -v --tb=short
+        run: python -m pytest -v --tb=short
