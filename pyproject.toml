@@ -36,11 +36,6 @@ dependencies = [
     "akshare>=1.14",
 ]
 
-
-[tool.setuptools.packages.find]
-where = ["."]
-namespaces = false
-
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
