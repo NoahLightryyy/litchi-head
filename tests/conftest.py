@@ -1,3 +1,5 @@
+# ruff: noqa: E402 — sys.path 操作在标准 import 之前，是 src layout conftest 的必要模式
+
 """
 pytest 共享配置 —— 测试基座 (TD-004)
 
