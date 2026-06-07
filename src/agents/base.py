@@ -1,5 +1,7 @@
 """Agent 基类 —— 所有 Agent 的统一接口"""
 
+from __future__ import annotations
+
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -23,9 +25,20 @@ T = TypeVar("T")
 
 @dataclass
 class AgentContext:
-    """Agent 运行的上下文"""
+    """Agent 运行的上下文
+
+    TD-014 新增辩论槽位：
+    - peer_outputs: 辩论时接收其他 Agent 的输出
+    - current_round: 当前辩论轮次
+    - target_audience: 输出目标（"user" / "debate_group" / "master_vote"）
+
+    向后兼容：三个字段均有默认值，现有代码不传则行为不变。
+    """
     session_id: str
     input_data: dict
+    peer_outputs: list["AgentResult"] = field(default_factory=list)
+    current_round: int = 0
+    target_audience: str = "user"
     memory: dict = field(default_factory=dict)
     config: dict = field(default_factory=dict)
 

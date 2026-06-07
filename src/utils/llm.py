@@ -15,8 +15,13 @@
         output_model=Analysis,
         agent_name="news_agent",
     )
+
+    # 自定义 LLM 参数（TD-012）
+    config = LLMConfig(temperature=0.7, max_tokens=4096)
+    reply = await llm_service.ainvoke("分析", llm_config=config)
 """
 
+from dataclasses import dataclass
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -38,6 +43,39 @@ from src.utils.cost_tracker import cost_tracker
 from src.utils.logger import AgentLogger
 
 logger = AgentLogger("llm_service")
+
+
+# ── LLMConfig ──────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class LLMConfig:
+    """LLM 调用配置 —— 定义一次调用的模型参数
+
+    默认值与当前硬编码值（temperature=0.3, max_tokens=8192）一致，
+    不传或传 None 时行为完全不变（向后兼容）。
+    """
+
+    temperature: float = 0.3
+    max_tokens: int = 8192
+    model: str | None = None          # None = 用 provider 默认模型
+    stream: bool = False
+    reasoning_effort: str | None = None  # DeepSeek 推理强度标识
+
+    @property
+    def is_default(self) -> bool:
+        """是否与当前硬编码默认值一致
+
+        用于缓存策略判断：默认配置按 provider 缓存，
+        非默认配置每次都新建实例。
+        """
+        return (
+            self.temperature == 0.3
+            and self.max_tokens == 8192
+            and self.stream is False
+            and self.reasoning_effort is None
+        )
+
 
 # 结构化输出调用无法获取 BaseMessage，用于占位费用记录
 _FALLBACK_RESPONSE = HumanMessage(content="")
@@ -66,11 +104,15 @@ def _build_retry_decorator() -> Any:
 # ── LLM 实例工厂 ─────────────────────────────────────────────
 
 
-def _build_llm(provider: str | None = None) -> BaseChatModel:
-    """根据 provider 创建 LLM 实例
+def _build_llm(
+    provider: str | None = None,
+    config: LLMConfig | None = None,
+) -> BaseChatModel:
+    """根据 provider + 配置创建 LLM 实例
 
     Args:
         provider: "deepseek" | "openai"，默认使用 settings.llm_provider
+        config: LLM 调用配置，None 或默认值 = 当前硬编码行为
 
     Returns:
         BaseChatModel 实例
@@ -80,6 +122,7 @@ def _build_llm(provider: str | None = None) -> BaseChatModel:
         RuntimeError: 缺少对应 API Key
     """
     provider = provider or settings.llm_provider
+    cfg = config or LLMConfig()
 
     match provider:
         case "deepseek":
@@ -88,9 +131,9 @@ def _build_llm(provider: str | None = None) -> BaseChatModel:
                     "DEEPSEEK_API_KEY 未设置，请在 .env 中配置"
                 )
             return ChatDeepSeek(
-                model="deepseek-chat",
-                temperature=0.3,
-                model_kwargs={"max_tokens": 8192},
+                model=cfg.model or "deepseek-chat",
+                temperature=cfg.temperature,
+                model_kwargs={"max_tokens": cfg.max_tokens},
             )
         case "openai":
             if not settings.openai_api_key:
@@ -98,9 +141,9 @@ def _build_llm(provider: str | None = None) -> BaseChatModel:
                     "OPENAI_API_KEY 未设置，请在 .env 中配置"
                 )
             return ChatOpenAI(
-                model="gpt-4o-mini",
-                temperature=0.3,
-                model_kwargs={"max_tokens": 8192},
+                model=cfg.model or "gpt-4o-mini",
+                temperature=cfg.temperature,
+                model_kwargs={"max_tokens": cfg.max_tokens},
             )
         case _:
             raise ValueError(f"不支持的 LLM provider: {provider}")
@@ -146,7 +189,7 @@ class LLMService:
     """统一的 LLM 调用入口
 
     职责：
-    1. 管理 LLM 实例（按 provider 创建/缓存）
+    1. 管理 LLM 实例（按 provider 创建/缓存，config 感知）
     2. 提供文本调用和结构化输出两种接口
     3. 自动记录 token 用量和费用
     4. 网络错误时自动重试（指数退避）
@@ -157,14 +200,26 @@ class LLMService:
 
     # ── 实例管理 ──────────────────────────────────────────
 
-    def get_llm(self, provider: str | None = None) -> BaseChatModel:
-        """获取 LLM 实例（带缓存）
+    def get_llm(
+        self,
+        provider: str | None = None,
+        config: LLMConfig | None = None,
+    ) -> BaseChatModel:
+        """获取 LLM 实例（配置感知的缓存策略）
 
-        相同 provider 复用同一实例（减少重复初始化开销）。
+        缓存策略：
+        - config=None 或 config.is_default → 按 provider 缓存（与当前行为一致）
+        - config 非默认值 → 每次都新建（不同 Agent 不同 temperature 不冲突）
         """
         provider = provider or settings.llm_provider
+
+        # 非默认配置 → 不缓存，每次新建
+        if config is not None and not config.is_default:
+            return _build_llm(provider, config)
+
+        # 默认配置/无配置 → 按 provider 缓存
         if provider not in self._instances:
-            self._instances[provider] = _build_llm(provider)
+            self._instances[provider] = _build_llm(provider, config)
         return self._instances[provider]
 
     def clear_cache(self) -> None:
@@ -181,6 +236,7 @@ class LLMService:
         provider: str | None = None,
         agent_name: str = "unknown",
         session_id: str = "",
+        llm_config: LLMConfig | None = None,
     ) -> str:
         """纯文本调用（无结构化输出）
 
@@ -190,11 +246,12 @@ class LLMService:
             provider: 模型提供商，默认使用 settings.llm_provider
             agent_name: Agent 名称（用于费用记录）
             session_id: 会话 ID（用于费用记录）
+            llm_config: LLM 调用配置，None 或默认值 = 当前行为
 
         Returns:
             模型返回的文本内容
         """
-        llm = self.get_llm(provider)
+        llm = self.get_llm(provider, llm_config)
         messages = []
         if system_prompt:
             messages.append(SystemMessage(content=system_prompt))
@@ -214,6 +271,7 @@ class LLMService:
         provider: str | None = None,
         agent_name: str = "unknown",
         session_id: str = "",
+        llm_config: LLMConfig | None = None,
     ) -> BaseModel:
         """带结构化输出的 LLM 调用
 
@@ -224,6 +282,7 @@ class LLMService:
             provider: 模型提供商，默认使用 settings.llm_provider
             agent_name: Agent 名称（用于费用记录）
             session_id: 会话 ID（用于费用记录）
+            llm_config: LLM 调用配置，None 或默认值 = 当前行为
 
         Returns:
             output_model 的实例（已验证）
@@ -231,7 +290,7 @@ class LLMService:
         Raises:
             ValueError: LLM 返回内容无法解析为 output_model
         """
-        llm = self.get_llm(provider)
+        llm = self.get_llm(provider, llm_config)
         structured_llm = llm.with_structured_output(output_model, include_raw=False)
 
         messages = []

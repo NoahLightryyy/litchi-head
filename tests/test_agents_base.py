@@ -26,6 +26,60 @@ class TestAgentContext:
         ctx.memory["key"] = "val"
         assert ctx.memory["key"] == "val"
 
+    # ── 辩论槽位（TD-014 新增） ────────────────────────────
+
+    def test_peer_outputs_defaults_to_empty(self):
+        """peer_outputs 默认应为空列表"""
+        ctx = AgentContext(session_id="s1", input_data={})
+        assert ctx.peer_outputs == []
+
+    def test_current_round_defaults_to_zero(self):
+        """current_round 默认应为 0"""
+        ctx = AgentContext(session_id="s1", input_data={})
+        assert ctx.current_round == 0
+
+    def test_target_audience_defaults_to_user(self):
+        """target_audience 默认应为 'user'"""
+        ctx = AgentContext(session_id="s1", input_data={})
+        assert ctx.target_audience == "user"
+
+    def test_peer_outputs_can_hold_agent_results(self):
+        """peer_outputs 可以持有 AgentResult 对象"""
+        r1 = AgentResult(agent_name="a", data={"v": 1}, confidence=0.9)
+        r2 = AgentResult(agent_name="b", data={"v": 2}, confidence=0.8)
+        ctx = AgentContext(
+            session_id="s1",
+            input_data={},
+            peer_outputs=[r1, r2],
+        )
+        assert len(ctx.peer_outputs) == 2
+        assert ctx.peer_outputs[0].agent_name == "a"
+        assert ctx.peer_outputs[0].data["v"] == 1
+        assert ctx.peer_outputs[1].agent_name == "b"
+
+    def test_current_round_can_be_set(self):
+        """current_round 可被设置为任意非负整数"""
+        ctx = AgentContext(session_id="s1", input_data={}, current_round=3)
+        assert ctx.current_round == 3
+        ctx.current_round += 1
+        assert ctx.current_round == 4
+
+    def test_target_audience_can_be_set(self):
+        """target_audience 可设为 'user'/'debate_group'/'master_vote'"""
+        ctx = AgentContext(
+            session_id="s1", input_data={}, target_audience="debate_group"
+        )
+        assert ctx.target_audience == "debate_group"
+        ctx.target_audience = "master_vote"
+        assert ctx.target_audience == "master_vote"
+
+    def test_backward_compatible_construction(self):
+        """不加新参数构造时，行为与 TD-014 之前完全一致"""
+        ctx = AgentContext(session_id="s1", input_data={"q": "test"})
+        assert ctx.peer_outputs == []
+        assert ctx.current_round == 0
+        assert ctx.target_audience == "user"
+
 
 # ═══════════════════════════════════════════════════════════════════
 # AgentResult
