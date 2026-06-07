@@ -40,8 +40,9 @@ class TestXiaoZhiInit:
         agent = XiaoZhiAgent(name="my_edu_agent")
         assert agent.name == "my_edu_agent"
 
-    def test_init_creates_knowledge_base(self):
-        agent = XiaoZhiAgent()
+    def test_init_creates_knowledge_base(self, tmp_path):
+        """使用临时路径避免真实知识库数据干扰"""
+        agent = XiaoZhiAgent(knowledge_base_path=str(tmp_path))
         assert hasattr(agent, "knowledge_base")
         # 知识库应能正常使用（search 返回 list，空知识库返回空列表）
         assert agent.knowledge_base.search("测试") == []
