@@ -23,10 +23,12 @@ env/
 logs/
 *.log
 
-# Data files
-data/
+# Data files (ignore direct children, then un-ignore specific dirs)
+data/*
 !data/master_corpus/
+!data/master_corpus/**
 !data/knowledge_base/
+!data/knowledge_base/**
 
 # Test cassettes (recorded LLM responses)
 tests/cassettes/

@@ -4,11 +4,21 @@ import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from src.core.protocol import AgentMessage
+from pydantic import BaseModel, Field
+
 from src.utils.config import settings
 from src.utils.logger import AgentLogger
+
+if TYPE_CHECKING:
+    from src.core.protocol import AgentMessage
+
+# ──────────────────────────────────────────────
+# 泛型类型变量
+# ──────────────────────────────────────────────
+
+T = TypeVar("T")
 
 
 @dataclass
@@ -20,19 +30,30 @@ class AgentContext:
     config: dict = field(default_factory=dict)
 
 
-@dataclass
-class AgentResult:
-    """Agent 的标准输出格式"""
+class AgentResult(BaseModel, Generic[T]):
+    """Agent 的标准输出格式（Pydantic + 泛型）
+
+    用法：
+        AgentResult()                     → data: dict（向后兼容）
+        AgentResult[NewsOutput](...)      → data: NewsOutput | dict
+
+    泛型化后 Pyright 可静态校验：
+        result.data.summary      ✅（Typed）
+        result.data.non_existent ❌（编译报错）
+    """
     agent_name: str = ""
     session_id: str = ""
     success: bool = True
-    data: dict = field(default_factory=dict)
+    data: dict | T = Field(default_factory=dict)
     confidence: float = 0.0
     reasoning: str = ""
-    error: Optional[str] = None
+    error: str | None = None
     latency_ms: float = 0.0
 
-    def to_message(self) -> AgentMessage:
+    def to_message(self) -> "AgentMessage":
+        # 延迟导入避免循环依赖
+        from src.core.protocol import AgentMessage
+
         return AgentMessage(
             sender=self.agent_name,
             receiver="orchestrator",
@@ -40,7 +61,7 @@ class AgentResult:
             session_id=self.session_id,
             payload={
                 "success": self.success,
-                "data": self.data,
+                "data": self.data.model_dump() if isinstance(self.data, BaseModel) else self.data,
                 "confidence": self.confidence,
                 "reasoning": self.reasoning,
                 "error": self.error,
@@ -56,6 +77,15 @@ class BaseAgent(ABC):
         self.name = name
         self.config = config or {}
         self.logger = AgentLogger(f"agent.{name}")
+
+    def get_tools(self) -> list[Any]:
+        """返回 Agent 可用的工具列表
+
+        Phase 0 返回空列表，Phase 1 接入 LangChain Tool 时确定具体类型。
+        ADR-009 约定：LangChain 0.3+ 的 Tool 类型跨版本有变化，
+        因此返回 list[Any] 而非具体类型，避免后续升级困难。
+        """
+        return []
 
     @abstractmethod
     async def run(self, ctx: AgentContext) -> AgentResult:

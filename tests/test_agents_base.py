@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
+from pydantic import BaseModel
 
 from src.agents.base import AgentContext, AgentResult, BaseAgent
 
@@ -75,6 +76,44 @@ class TestAgentResult:
         r1 = AgentResult(agent_name="a", session_id="s1")
         r2 = AgentResult(agent_name="a", session_id="s1")
         assert r1.to_message().message_id != r2.to_message().message_id
+
+
+# ═══════════════════════════════════════════════════════════════════
+# AgentResult Generic（类型化输出）
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestAgentResultGeneric:
+    """验证 AgentResult[Generic[T]] 的类型化能力"""
+
+    class _TestOutput(BaseModel):
+        """Generic 测试用的模拟输出模型"""
+        summary: str
+        score: float
+
+    def test_generic_with_pydantic_model(self):
+        """创建泛型 AgentResult，验证 data 字段的类型化访问"""
+        result = AgentResult[self._TestOutput](
+            agent_name="gen_agent",
+            data=self._TestOutput(summary="测试摘要", score=0.85),
+            confidence=0.85,
+        )
+        # Pyright 应能推断 data 类型
+        assert result.data.summary == "测试摘要"  # type: ignore[union-attr]
+        assert result.data.score == 0.85  # type: ignore[union-attr]
+        assert result.agent_name == "gen_agent"
+
+    def test_generic_to_message_serializes_base_model(self):
+        """验证泛型 data 经 to_message() 后被正确序列化为 dict"""
+        result = AgentResult[self._TestOutput](
+            agent_name="serial_agent",
+            session_id="s1",
+            data=self._TestOutput(summary="序列化测试", score=0.9),
+        )
+        msg = result.to_message()
+        assert isinstance(msg.payload["data"], dict)
+        assert msg.payload["data"]["summary"] == "序列化测试"
+        assert msg.payload["data"]["score"] == 0.9
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -174,6 +213,17 @@ class TestBaseAgent:
         result = await agent.run_safe(ctx)
         assert result.latency_ms > 0
         assert isinstance(result.latency_ms, float)
+
+    def test_get_tools_returns_list(self):
+        """get_tools() 应返回 list"""
+        agent = _ConcreteAgent("tool_agent")
+        tools = agent.get_tools()
+        assert isinstance(tools, list)
+
+    def test_get_tools_default_empty(self):
+        """get_tools() 默认应返回空列表"""
+        agent = _ConcreteAgent("tool_agent")
+        assert agent.get_tools() == []
 
     def test_run_raises_not_implemented(self):
         """直接调用抽象方法应抛 NotImplementedError"""
