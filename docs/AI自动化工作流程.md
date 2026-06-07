@@ -229,7 +229,7 @@ skip_no_key = pytest.mark.skipif(
 ## 会话结束 checklist
 
 ### ☑️ 文档更新
-- [ ] AI 工作日志已更新（`docs/ai-work-logs/YYYY-MM-DD.md`）
+- [ ] AI 工作日志已更新（`docs/ai-work-logs/YYYY/MM/DD/YYYY-MM-DD.md`）
 - [ ] 日志 README 索引已更新（如有新增文件）
 - [ ] 债务日志已更新（如有新增/变更债务）
 - [ ] 相关的设计文档已同步更新
@@ -248,7 +248,7 @@ skip_no_key = pytest.mark.skipif(
 
 ### 5.2 日志模板
 
-每次会话结束必须创建/更新日志文件 `docs/ai-work-logs/YYYY-MM-DD.md`：
+每次会话结束必须创建/更新日志文件 `docs/ai-work-logs/YYYY/MM/DD/YYYY-MM-DD.md`：
 
 ```markdown
 # AI 工作日志 — YYYY-MM-DD
@@ -315,7 +315,7 @@ skip_no_key = pytest.mark.skipif(
 
 ### 7.1 AI 工作日志
 
-- **文件名**：`docs/ai-work-logs/YYYY-MM-DD.md`
+- **文件名**：`docs/ai-work-logs/YYYY/MM/DD/YYYY-MM-DD.md`
 - **单日多次对话**：`YYYY-MM-DD-N.md`（N=1,2,3...）
 - **每次会话都写**：即使只做了小改动
 - **内容要求**：记录做了什么、改了什么、为什么、下一步建议
