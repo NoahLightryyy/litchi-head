@@ -68,7 +68,9 @@
 - [ ] 检查 `docs/ai-work-logs/README.md` 了解最近工作
 - [ ] 检查 `docs/技术债务与架构决策/技术债务日志.md` 最新债务
 - [ ] 检查当前 git 状态（是否有未提交变更）
-- [ ] 确认 `.env` 配置是否完整
+- [ ] 确认 `.env` 配置是否完整（API Key 等）
+- [ ] 确认 `.gitignore` 包含 `.env`（防误上传）
+- [ ] 确认 `.env` 未被 Git 追踪（`git check-ignore .env`）
 - [ ] 根据任务类型启用对应子代理（详见 §3.3）
 ```
 
@@ -129,6 +131,52 @@
 
 > 对于复杂任务，可同时启动多个子代理并行工作（如安全审查 + 代码审查同时进行）。
 
+### Agent 不可用时降级方案
+
+Agent 依赖外部 API，偶发不可用时有降级预案：
+
+| 场景 | 默认 Agent | 降级方案 |
+|------|-----------|---------|
+| 🔍 代码审查 | `code-reviewer` | 手动审查，收紧标准（CRITICAL/HIGH 必修复） |
+| 🏗️ 规划 | `planner` | 改用`EnterPlanMode`模式，手动分解任务 |
+| 🧪 TDD | `tdd-guide` | 按照文档 §3.1 标准步骤人工执行 RED→GREEN→IMPROVE |
+| 🔒 安全审查 | `security-reviewer` | 运行 `bandit -r src/` 后手动审查结果 |
+| 📖 文档 | `doc-updater` | 按模板手工创建/更新文件 |
+
+> 降级不意味着降低质量门槛——审查标准不变，只是从 AI 助审变为人工审核。
+
+---
+
+### 3.4 集成测试规范
+
+真实外部依赖（LLM API、数据库、第三方服务）的集成测试需遵守：
+
+| 规则 | 说明 |
+|------|------|
+| `@pytest.mark.integration` | 所有调用真实 API 的测试必须标记此 marker |
+| `@skip_no_key` 装饰器 | 环境变量未配置时自动跳过，保证 CI 通过 |
+| `tmp_path` 隔离 | 测试使用临时目录，不写真实数据目录 |
+| 独立文件 | 集成测试与单元测试分文件存放（`test_integration_*.py`） |
+| 无 `src/` 改动 | 新增集成测试原则上不应修改业务代码 |
+
+**skip_no_key 标准实现**：
+
+```python
+def _has_api_key() -> bool:
+    try:
+        from src.utils.config import settings
+        return bool(settings.deepseek_api_key)
+    except Exception:
+        return False
+
+skip_no_key = pytest.mark.skipif(
+    not _has_api_key(),
+    reason="需要 API Key（在 .env 中配置）",
+)
+```
+
+> 集成测试不参与覆盖率统计，但须保证无 API Key 时零失败。
+
 ---
 
 ## 4. 每次审视必查清单
@@ -163,6 +211,7 @@
 - [ ] 新增功能是否有对应的文档说明？
 - [ ] 配置项变化是否更新了 `.env.example`？
 - [ ] AI 工作日志是否需要更新？
+- [ ] 交接文档（`docs/AI会话交接文档.md`）是否需要同步更新？
 
 ### 4.5 安全层面
 
@@ -189,6 +238,7 @@
 - [ ] Ruff 检查通过
 - [ ] Pyright 检查通过
 - [ ] Git 工作区干净或有合理的未提交变更
+- [ ] `git status` 确认 ahead commits 已标记「待推送」
 
 ### ☑️ 任务闭环
 - [ ] 已完成本次目标任务
@@ -317,6 +367,6 @@ AI 工作日志  ←引用→  债务日志（记录新增/变更了哪些债务
 
 ---
 
-> **文档版本**：v1.1
+> **文档版本**：v1.2
 > **创建日期**：2026-06-05
-> **最近更新**：2026-06-05 — 四同步原则、代码审查步骤、Agent 编排指引、测试要求强化
+> **最近更新**：2026-06-07 — §2.1 API Key 安全检查、§3.3 Agent 降级方案、§3.4 集成测试规范、§4.4 交接文档审视、§5.1 ahead commits 标记
