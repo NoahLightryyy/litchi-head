@@ -3,7 +3,8 @@
 接收 MasterSkill 插件盘 + KnowledgeBase + LLM，模拟投资大师的人格进行问答。
 
 职责链：
-    SkillDisk（人格定义）→ MasterAgent（通用执行器）→ KnowledgeBase（知识检索）→ LLM（生成回答）
+    SkillDisk（人格定义）→ MasterAgent（通用执行器）
+    → KnowledgeBase（知识检索）→ LLM（结构化分析输出）
 
 用法：
     # 方式 1：直接传入 skill
@@ -23,12 +24,28 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
+
+from pydantic import BaseModel, Field
 
 from src.agents.base import AgentContext, AgentResult, BaseAgent
 from src.memory.knowledge_base import DEFAULT_BASE_PATH, KnowledgeBase
 from src.memory.skill_disk import MasterSkill, SkillDisk
 from src.utils.llm import llm_service
+
+
+class InvestmentAnalysis(BaseModel):
+    """投资大师结构化分析输出
+
+    由 LLM 通过 invoke_structured 生成，包含评级、评分、证据链。
+    """
+
+    rating: str = Field(description="投资评级：看涨 / 看跌 / 中性 / 谨慎 / 观望")
+    score: int = Field(description="信心评分（1-100）", ge=1, le=100)
+    summary: str = Field(description="一句话核心观点（不超过 60 字）")
+    analysis: str = Field(description="详细分析（含逻辑推理和市场逻辑）")
+    key_evidence: list[str] = Field(description="关键证据或支撑逻辑列表（3-5 条）")
+    risk_warning: str | None = Field(default=None, description="风险提示（可选）")
 
 
 class MasterAgent(BaseAgent):
@@ -146,30 +163,44 @@ class MasterAgent(BaseAgent):
                 "如果对某些内容不确定，请坦诚说明。"
             )
 
-        # ── 3. LLM 调用 ───────────────────────────────────
+        # ── 3. LLM 结构化调用 ──────────────────────────────
         system_prompt = self.get_system_prompt()
-        answer = await llm_service.ainvoke(
+        raw_analysis = await llm_service.invoke_structured(
             prompt=prompt,
+            output_model=InvestmentAnalysis,
             system_prompt=system_prompt,
             agent_name=self.name,
             session_id=ctx.session_id,
         )
+        analysis = cast(InvestmentAnalysis, raw_analysis)
 
         # ── 4. 组装结果 ───────────────────────────────────
-        confidence = 0.6 + (0.3 if has_knowledge else 0.0)
+        # 向后兼容：answer 保留为文本摘要+分析
+        answer_text = f"{analysis.summary}\n\n{analysis.analysis}"
+        if analysis.risk_warning:
+            answer_text += f"\n\n⚠️ 风险提示：{analysis.risk_warning}"
+
+        # 置信度：知识命中 + LLM 自身评分加权
+        knowledge_confidence = 0.3 if has_knowledge else 0.0
+        llm_confidence = analysis.score / 100
+        confidence = min(0.6 + knowledge_confidence * 0.5 + llm_confidence * 0.3, 0.95)
+
         return AgentResult(
             data={
-                "answer": answer,
+                "answer": answer_text,
                 "skill_id": self.skill.skill_id,
                 "skill_name": self.skill.name,
                 "knowledge_sources": (
                     [r["source"] for r in knowledge_results] if has_knowledge else []
                 ),
+                # 结构化字段
+                "analysis": analysis.model_dump(),
             },
-            confidence=min(confidence, 0.95),
+            confidence=confidence,
             reasoning=(
                 f"大师 [{self.skill.name}] "
                 f"知识检索{'命中' if has_knowledge else '未命中'}，"
-                f"共 {len(knowledge_results)} 条相关结果"
+                f"共 {len(knowledge_results)} 条相关结果，"
+                f"LLM 评级: {analysis.rating} (评分: {analysis.score})"
             ),
         )

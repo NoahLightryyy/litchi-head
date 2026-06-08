@@ -1,11 +1,12 @@
 """MasterAgent（通用大师 Agent）单元测试"""
 
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.agents.base import AgentContext, AgentResult
-from src.agents.master_agent import MasterAgent
+from src.agents.master_agent import InvestmentAnalysis, MasterAgent
 from src.memory.skill_disk import MasterSkill, SkillDisk
 
 # ── 测试用大师 Skill ─────────────────────────
@@ -55,6 +56,23 @@ def agent_with_skill(tmp_path):
 def agent_with_skill_id(tmp_path):
     """通过 skill_id 创建（使用临时知识库路径）"""
     return MasterAgent(skill_id="buffett", knowledge_base_path=str(tmp_path))
+
+
+# ── 结构化分析测试辅助 ──────────────────────────
+
+
+def _make_analysis(**overrides: Any) -> InvestmentAnalysis:
+    """创建测试用 InvestmentAnalysis 实例"""
+    kwargs: dict[str, Any] = dict(
+        rating="看涨",
+        score=75,
+        summary="安全边际是价值投资的核心",
+        analysis="安全边际指的是市场价格与内在价值之间的差额。安全边际越大，投资风险越低。",
+        key_evidence=["安全边际 = 内在价值 - 市场价格", "格雷厄姆提出的核心概念"],
+        risk_warning=None,
+    )
+    kwargs.update(overrides)
+    return InvestmentAnalysis(**kwargs)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -164,7 +182,7 @@ class TestMasterAgentRunValidation:
 
 
 class TestMasterAgentRunWithMockLLM:
-    """Mock LLM 流程测试"""
+    """Mock LLM 流程测试（结构化输出）"""
 
     async def test_run_searches_knowledge_base(self, agent_with_skill, ctx):
         """验证 run 会调用知识库搜索"""
@@ -174,10 +192,10 @@ class TestMasterAgentRunWithMockLLM:
             wraps=agent_with_skill.knowledge_base.search,
         ) as mock_search:
             with patch(
-                "src.agents.master_agent.llm_service.ainvoke",
+                "src.agents.master_agent.llm_service.invoke_structured",
                 new_callable=AsyncMock,
             ) as mock_llm:
-                mock_llm.return_value = "安全边际是价值投资的核心概念..."
+                mock_llm.return_value = _make_analysis()
                 await agent_with_skill.run(ctx)
 
                 mock_search.assert_called_once()
@@ -187,10 +205,13 @@ class TestMasterAgentRunWithMockLLM:
     async def test_run_passes_knowledge_to_llm(self, agent_with_skill, ctx):
         """验证 LLM 调用包含知识库上下文"""
         with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
+            "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = "安全边际是..."
+            mock_llm.return_value = _make_analysis(
+                summary="安全边际是关键",
+                analysis="安全边际 = 内在价值 - 市场价格",
+            )
 
             # 注入知识到知识库
             agent_with_skill.knowledge_base.chunks = [
@@ -210,17 +231,20 @@ class TestMasterAgentRunWithMockLLM:
             prompt = call_kwargs.get("prompt", call_args[0] if call_args else "")
             assert "安全边际" in prompt
 
-            # 验证返回结果
+            # 验证返回结果包含分析内容
             assert result.success is True
-            assert result.data.get("answer") == "安全边际是..."
+            assert "安全边际是关键" in str(result.data.get("answer", ""))
 
     async def test_run_no_knowledge_found(self, agent_with_skill, ctx):
         """无知识命中时降级为纯 LLM 回答"""
         with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
+            "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = "基于我的理解，安全边际是..."
+            mock_llm.return_value = _make_analysis(
+                summary="基于我的理解",
+                analysis="安全边际是价值投资的核心概念",
+            )
 
             # 知识库为空 → 无命中
             result = await agent_with_skill.run(ctx)
@@ -233,9 +257,10 @@ class TestMasterAgentRunWithMockLLM:
     async def test_run_sets_confidence_with_knowledge(self, agent_with_skill, ctx):
         """知识命中时 confidence 较高"""
         with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
+            "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
-        ):
+        ) as mock_llm:
+            mock_llm.return_value = _make_analysis(score=85)
             agent_with_skill.knowledge_base.chunks = [
                 {
                     "text": "安全边际是核心概念",
@@ -247,46 +272,54 @@ class TestMasterAgentRunWithMockLLM:
             agent_with_skill.knowledge_base._rebuild_embeddings()
 
             result = await agent_with_skill.run(ctx)
-            # 有知识命中时 confidence >= 0.85（0.6 基础 + 0.3 知识命中 - 上限 0.95）
-            assert result.confidence >= 0.85
+            # 知识命中 + LLM 评分 → 置信度较高
+            assert result.confidence >= 0.7
             assert result.confidence <= 0.95
 
     async def test_run_sets_confidence_without_knowledge(self, agent_with_skill, ctx):
-        """无知识命中时 confidence 较低"""
+        """无知识命中 + 低 LLM 评分时 confidence 较低"""
         with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
-            new_callable=AsyncMock,
-        ):
-            # 知识库为空
-            result = await agent_with_skill.run(ctx)
-            # 无知识命中时 confidence = 0.6
-            assert result.confidence == 0.6
-
-    async def test_run_returns_structured_result(self, agent_with_skill, ctx):
-        """返回结果包含大师标识和回答"""
-        with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
+            "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = "安全边际是..."
+            mock_llm.return_value = _make_analysis(score=60)
+            # 知识库为空
+            result = await agent_with_skill.run(ctx)
+            # 无知识命中 + score=60 → confidence = 0.6 + 0 + 0.6*0.3 = 0.78
+            assert result.confidence == 0.78
+
+    async def test_run_returns_structured_result(self, agent_with_skill, ctx):
+        """返回结果包含大师标识和结构化分析"""
+        with patch(
+            "src.agents.master_agent.llm_service.invoke_structured",
+            new_callable=AsyncMock,
+        ) as mock_llm:
+            analysis = _make_analysis(rating="看涨", score=90)
+            mock_llm.return_value = analysis
             result = await agent_with_skill.run(ctx)
 
             assert isinstance(result, AgentResult)
             assert result.success is True
-            assert result.data.get("answer") == "安全边际是..."
+            # 向后兼容字段
+            assert isinstance(result.data.get("answer"), str)
             assert result.data.get("skill_id") == "buffett"
             assert result.data.get("skill_name") == "沃伦·巴菲特"
             assert "knowledge_sources" in result.data
+            # 结构化字段
+            assert "analysis" in result.data
+            assert result.data["analysis"]["rating"] == "看涨"
+            assert result.data["analysis"]["score"] == 90
 
-    async def test_reasoning_contains_skill_name(self, agent_with_skill, ctx):
-        """reasoning 字段包含大师名"""
+    async def test_reasoning_contains_skill_name_and_rating(self, agent_with_skill, ctx):
+        """reasoning 字段包含大师名和评级"""
         with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
+            "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = "..."
+            mock_llm.return_value = _make_analysis(rating="看涨")
             result = await agent_with_skill.run(ctx)
             assert "巴菲特" in result.reasoning
+            assert "看涨" in result.reasoning
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -302,10 +335,10 @@ class TestMasterAgentDifferentSkills:
         agent = MasterAgent(skill=_BUFFETT_LITE)
         ctx = AgentContext(session_id="s1", input_data={"question": "如何选股？"})
         with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
+            "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = "寻找有护城河的公司..."
+            mock_llm.return_value = _make_analysis()
             result = await agent.run(ctx)
             assert result.data.get("skill_id") == "buffett"
             assert result.data.get("skill_name") == "沃伦·巴菲特"
@@ -315,10 +348,10 @@ class TestMasterAgentDifferentSkills:
         agent = MasterAgent(skill=_MUNGER_LITE)
         ctx = AgentContext(session_id="s1", input_data={"question": "如何避免投资错误？"})
         with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
+            "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = "反过来想，总是反过来想..."
+            mock_llm.return_value = _make_analysis()
             result = await agent.run(ctx)
             assert result.data.get("skill_id") == "munger"
             assert result.data.get("skill_name") == "查理·芒格"
@@ -334,10 +367,10 @@ class TestMasterAgentDifferentSkills:
         ]:
             ctx = AgentContext(session_id="s1", input_data={"question": "test"})
             with patch(
-                "src.agents.master_agent.llm_service.ainvoke",
+                "src.agents.master_agent.llm_service.invoke_structured",
                 new_callable=AsyncMock,
             ) as mock_llm:
-                mock_llm.return_value = "..."
+                mock_llm.return_value = _make_analysis()
                 await agent.run(ctx)
                 call_args, call_kwargs = mock_llm.call_args
                 sys_prompt = call_kwargs.get("system_prompt", "")
@@ -355,13 +388,16 @@ class TestMasterAgentRunSafe:
     async def test_run_safe_success(self, agent_with_skill, ctx):
         """run_safe 成功返回结果"""
         with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
+            "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = "安全边际是..."
+            mock_llm.return_value = _make_analysis(
+                summary="安全边际是关键",
+                analysis="详细分析内容",
+            )
             result = await agent_with_skill.run_safe(ctx)
             assert result.success is True
-            assert result.data.get("answer") == "安全边际是..."
+            assert "安全边际是关键" in str(result.data.get("answer", ""))
             assert result.agent_name == "master"
             assert result.session_id == "test-session"
             assert result.latency_ms >= 0  # 耗时记录
@@ -369,7 +405,7 @@ class TestMasterAgentRunSafe:
     async def test_run_safe_llm_error(self, agent_with_skill, ctx):
         """LLM 异常时 run_safe 返回错误"""
         with patch(
-            "src.agents.master_agent.llm_service.ainvoke",
+            "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
             mock_llm.side_effect = Exception("LLM 调用异常")

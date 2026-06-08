@@ -21,6 +21,7 @@
     reply = await llm_service.ainvoke("分析", llm_config=config)
 """
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -260,6 +261,57 @@ class LLMService:
         response = await self._call_with_retry(llm, messages)
         _record_usage(llm, response, agent_name, session_id)
         return response.content
+
+    # ── 流式调用 ─────────────────────────────────────────
+
+    async def astream(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        provider: str | None = None,
+        agent_name: str = "unknown",
+        session_id: str = "",
+        llm_config: LLMConfig | None = None,
+    ) -> AsyncIterator[str]:
+        """流式文本调用，逐 token 返回内容
+
+        使用 LLM 的 astream 方法逐 token 实时输出。
+        流结束后记录 token 用量（当前使用 fallback 值）。
+
+        Args:
+            prompt: 用户提示词
+            system_prompt: 可选的系统提示词
+            provider: 模型提供商，默认使用 settings.llm_provider
+            agent_name: Agent 名称（用于费用记录）
+            session_id: 会话 ID（用于费用记录）
+            llm_config: LLM 调用配置
+
+        Yields:
+            模型返回的文本片段
+
+        Examples:
+            async for chunk in llm_service.astream("你好"):
+                print(chunk, end="")
+        """
+        llm = self.get_llm(provider, llm_config)
+        messages: list[BaseMessage] = []
+        if system_prompt:
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=prompt))
+
+        async for chunk in llm.astream(messages):
+            content = chunk.content if isinstance(chunk.content, str) else ""
+            if content:
+                yield content
+
+        # 流结束后记录费用（当前使用 fallback，无法获取准确 token 用量）
+        if agent_name != "unknown":
+            _record_usage(
+                llm,
+                _FALLBACK_RESPONSE,
+                agent_name,
+                session_id,
+            )
 
     # ── 结构化输出 ────────────────────────────────────────
 

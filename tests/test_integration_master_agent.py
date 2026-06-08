@@ -121,6 +121,15 @@ class TestMasterAgentRealLLM:
             for keyword in ["安全边际", "margin", "价值", "低于", "价格", "内在价值"]
         )
 
+        # 结构化输出验证
+        analysis = result.data.get("analysis", {})
+        assert isinstance(analysis, dict)
+        assert "rating" in analysis
+        assert "score" in analysis
+        assert "summary" in analysis
+        assert "analysis" in analysis
+        assert "key_evidence" in analysis
+
     async def test_munger_answers_with_distinct_style(self, tmp_path):
         """芒格 Agent 风格不同，验证身份区隔"""
         agent = MasterAgent(
@@ -143,6 +152,11 @@ class TestMasterAgentRealLLM:
         answer = result.data.get("answer", "")
         assert isinstance(answer, str)
         assert len(answer) > 50
+
+        # 结构化输出验证
+        analysis = result.data.get("analysis", {})
+        assert isinstance(analysis, dict)
+        assert "rating" in analysis
 
     async def test_with_knowledge_base_context(self, tmp_path):
         """知识库命中时，回答应引用知识内容"""
@@ -177,8 +191,8 @@ class TestMasterAgentRealLLM:
         answer = result.data.get("answer", "")
         assert len(answer) > 50
 
-        # 知识命中 → confidence 应 >= 0.85
-        assert result.confidence >= 0.85
+        # 知识命中 → confidence 较高（知识 0.15 + LLM score/100*0.3 + 基础 0.6）
+        assert result.confidence >= 0.7
 
         # 结果应包含知识来源
         sources = result.data.get("knowledge_sources", [])
@@ -205,7 +219,11 @@ class TestMasterAgentRealLLM:
         answer = result.data.get("answer", "")
         assert len(answer) > 50
 
-        # 无知识命中 → 纯 LLM 回答
-        assert result.confidence == 0.6
+        # 无知识命中 → 纯 LLM 结构化回答
         sources = result.data.get("knowledge_sources", [])
         assert len(sources) == 0
+
+        # 结构化输出存在
+        analysis = result.data.get("analysis", {})
+        assert isinstance(analysis, dict)
+        assert "rating" in analysis

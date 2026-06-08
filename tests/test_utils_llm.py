@@ -354,3 +354,134 @@ class TestLLMServiceConfigCache:
             )
             assert result.x == "hello"  # type: ignore[attr-defined]
             mock_get.assert_called_with(None, LLMConfig(temperature=0.1))
+
+
+class TestLLMServiceStream:
+    """LLMService 流式异步调用测试（TD-013）"""
+
+    @pytest.mark.asyncio
+    async def test_astream_yields_content(self):
+        """基础流式调用：逐 token 返回内容"""
+        svc = LLMService()
+        mock_llm = AsyncMock()
+
+        async def _mock_astream(_messages):
+            yield MagicMock(content="Hello")
+            yield MagicMock(content=" World")
+
+        mock_llm.astream = _mock_astream
+
+        with patch("src.utils.llm._record_usage") as mock_record:
+            with patch.object(svc, "get_llm", return_value=mock_llm):
+                chunks = [c async for c in svc.astream(
+                    prompt="test", agent_name="a", session_id="s",
+                )]
+                assert chunks == ["Hello", " World"]
+                mock_record.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_astream_with_system_prompt(self):
+        """流式调用传递 system_prompt"""
+        svc = LLMService()
+        mock_llm = AsyncMock()
+        collected_messages = []
+
+        async def _mock_astream(messages):
+            collected_messages.extend(messages)
+            yield MagicMock(content="reply")
+
+        mock_llm.astream = _mock_astream
+
+        with patch("src.utils.llm._record_usage"):
+            with patch.object(svc, "get_llm", return_value=mock_llm):
+                chunks = [c async for c in svc.astream(
+                    prompt="question", system_prompt="be concise",
+                )]
+                assert chunks == ["reply"]
+                assert len(collected_messages) == 2
+                assert collected_messages[0].content == "be concise"
+                assert collected_messages[1].content == "question"
+
+    @pytest.mark.asyncio
+    async def test_astream_passes_config(self):
+        """astream 正确传递 llm_config 给 get_llm"""
+        svc = LLMService()
+        mock_llm = AsyncMock()
+
+        async def _mock_astream(_messages):
+            yield MagicMock(content="chunk")
+
+        mock_llm.astream = _mock_astream
+
+        with patch("src.utils.llm._record_usage"):
+            with patch.object(svc, "get_llm", return_value=mock_llm) as mock_get:
+                chunks = [c async for c in svc.astream(
+                    prompt="test", llm_config=LLMConfig(temperature=0.7),
+                )]
+                assert chunks == ["chunk"]
+                mock_get.assert_called_with(None, LLMConfig(temperature=0.7))
+
+    @pytest.mark.asyncio
+    async def test_astream_skips_empty_content(self):
+        """跳过空内容片段"""
+        svc = LLMService()
+        mock_llm = AsyncMock()
+
+        async def _mock_astream(_messages):
+            yield MagicMock(content="A")
+
+            yield MagicMock(content="")
+
+            yield MagicMock(content="B")
+
+        mock_llm.astream = _mock_astream
+
+        with patch("src.utils.llm._record_usage"):
+            with patch.object(svc, "get_llm", return_value=mock_llm):
+                chunks = [c async for c in svc.astream(prompt="test")]
+                assert chunks == ["A", "B"]
+
+    @pytest.mark.asyncio
+    async def test_astream_records_usage_with_agent_name(self):
+        """指定 agent_name 时流结束后记录费用"""
+        svc = LLMService()
+        mock_llm = AsyncMock()
+
+        async def _mock_astream(_messages):
+            yield MagicMock(content="data")
+
+        mock_llm.astream = _mock_astream
+        mock_llm.model = "test-model"
+
+        recorded = {}
+
+        def _fake_record(llm, resp, agent, sid, **kwargs):
+            recorded["agent"] = agent
+            recorded["sid"] = sid
+
+        with patch("src.utils.llm._record_usage", side_effect=_fake_record) as mock_record:
+            with patch.object(svc, "get_llm", return_value=mock_llm):
+                chunks = [c async for c in svc.astream(
+                    prompt="test", agent_name="stream_agent", session_id="sess1",
+                )]
+                assert chunks == ["data"]
+                mock_record.assert_called_once()
+                assert recorded["agent"] == "stream_agent"
+                assert recorded["sid"] == "sess1"
+
+    @pytest.mark.asyncio
+    async def test_astream_no_record_when_unknown(self):
+        """agent_name=unknown 时跳过费用记录"""
+        svc = LLMService()
+        mock_llm = AsyncMock()
+
+        async def _mock_astream(_messages):
+            yield MagicMock(content="data")
+
+        mock_llm.astream = _mock_astream
+
+        with patch("src.utils.llm._record_usage") as mock_record:
+            with patch.object(svc, "get_llm", return_value=mock_llm):
+                chunks = [c async for c in svc.astream(prompt="test")]
+                assert chunks == ["data"]
+                mock_record.assert_not_called()

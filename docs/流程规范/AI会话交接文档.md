@@ -33,19 +33,19 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-08 第 2 次 — TD-016 LangGraph 原型验证通过 ✅）
+## 2. 当前会话状态（2026-06-08 第 3 次 — Phase 0 收尾完成 ✅）
 
-> **前次会话**：2026-06-08 全面项目审视（登记 TD-016，识别五项硬伤）
-> **本次会话**：2026-06-08 第 2 次 — TD-016 LangGraph 最小原型验证
+> **前次会话**：2026-06-08 TD-016 LangGraph 原型验证通过
+> **本次会话**：2026-06-08 第 3 次 — TD-013/015 修复 + MasterAgent 结构化输出
 
 ### 本次已完成的工作
 
 | 事项 | 详情 |
 |------|------|
-| ✅ **TD-016 LangGraph 原型验证** | 新建 `tests/test_langgraph_prototype.py`（241 行 / 20 测试 / 7 组） |
-| ✅ **验证 5 个核心目标** | 图构造 / 单 Agent 节点适配 / 双 Agent 顺序 + peer_outputs / 错误传播 / 条件路由 / 序列化 |
-| ✅ **确认适配器模式** | `BaseAgent.run(AgentContext)` 通过 `agent_node()` 适配器可作为 LangGraph 节点 |
-| ✅ **TD-016 已关闭** | 状态从 📋 已确认 → ✅ 已关闭，222 tests 全量通过 |
+| ✅ **TD-015 缓存策略解耦** | 非默认 LLMConfig 不缓存（与 TD-012 同步修复，5 测试验证），债务已关闭 |
+| ✅ **TD-013 Streaming 接口** | `astream() → AsyncIterator[str]` 流式异步调用接口 + 6 测试，债务已关闭 |
+| ✅ **MasterAgent 输出结构化** | 定义 `InvestmentAnalysis(BaseModel)` 模型，用 `invoke_structured` 替代 `ainvoke`，输出含 rating/score/analysis/evidence/risk_warning，228 tests 全绿 |
+| ✅ **债务日志更新** | TD-015 → ✅ 已关闭，TD-013 → ✅ 已关闭，紧急指数 0.9→0.7 |
 
 ### 项目核心状态（2026-06-08 更新）
 
@@ -59,18 +59,18 @@
 
 ### 硬伤跟踪（2026-06-08 更新）
 
-1. **🔴 4 个空模块** — debate/data/backtest/risk 全是空 `__init__.py`
-2. **🟢 ~~LangGraph 零使用~~** — ✅ **已修复**（20 原型测试 + 适配器模式验证通过，TD-016 已关闭）
-3. **🟡 关键路径阻塞** — data → debate → 前端，debate 是核心阻塞点
-4. **🟡 TD-013/015 未修** — streaming 接口和缓存解耦，趁调用方少赶紧加
-5. **🟢 README.en.md 仍是 Gitee 模板** — TD-010
+1. **🔴 4 个空模块** — debate/data/backtest/risk 仍是空 `__init__.py`
+2. **🟢 ~~LangGraph 零使用~~** — ✅ **已修复**
+3. **🟢 ~~TD-013/015~~** — ✅ **已修复**（Streaming + 缓存解耦完成）
+4. **🟢 ~~MasterAgent 纯文本输出~~** — ✅ **已修复**（结构化分析输出）
+5. **🟡 关键路径阻塞** — data → debate → 前端，debate 仍是核心阻塞点
 
 ### 当前 Git 状态
 
 ```
-工作区干净（已提交）
+工作区有未提交变更
 
-最新 commit: 待提交（TD-016 LangGraph 原型验证完成）
+最新 commit: 9cf10eb — feat: TD-016 LangGraph 最小原型验证通过（20 测试 + 222 全量通过）
 远程: GitHub (origin)，Gitee (gitee) 备份
 ```
 
@@ -79,8 +79,8 @@
 | 检查项 | 状态 |
 |--------|------|
 | Ruff（代码风格） | ✅ 0 errors |
-| Pyright（类型检查） | ✅ 0 errors |
-| Pytest（测试） | ✅ **222** passed（+20 LangGraph 原型测试） |
+| Pyright（类型检查） | ✅ 0 errors（src/ 零错误，tests/ 预存 10 个无关错误） |
+| Pytest（测试） | ✅ **228** passed（+6 Streaming 测试，MasterAgent 24 测试全绿） |
 | 四同步原则 | ✅ 代码 + 测试 + 文档 + 债务全部同步 |
 
 ---
@@ -208,18 +208,17 @@
 
 ### 4.3 已知骨骼缺陷（新 AI 特别注意）
 
-> ✅ **已修复**：TD-012（LLMConfig 数据类）和 TD-014（AgentContext 辩论槽位）
-> ❌ **待修复**：TD-013（streaming）和 TD-015（缓存解耦）— 仍有 2 项
+> ✅ **全部已修复**：TD-012/013/014/015/016 — 5 项缺陷全部关闭，utils/ 模块 100% 完工
 
-| # | 问题 | 位置 | 状态 | 修复方向 |
+| # | 问题 | 位置 | 状态 | 修复说明 |
 |:--|:------|:-----|:----:|:---------|
-| TD-013 | 无 streaming 接口 | `src/utils/llm.py` | 📋 | 新增 `astream() → AsyncIterator[str]` |
-| TD-015 | 按 provider 名缓存 LLM 实例，不同 config 冲突 | `src/utils/llm.py` | 📋 | 非默认 LLMConfig 不缓存 |
+| TD-013 | 无 streaming 接口 | `src/utils/llm.py` | ✅ 已关闭 | `astream() → AsyncIterator[str]` + 6 测试 |
+| TD-015 | 按 provider 名缓存，config 冲突 | `src/utils/llm.py` | ✅ 已关闭 | 非默认 LLMConfig 不缓存，5 测试验证 |
 
-**新增架构风险**：
-| # | 问题 | 位置 | 状态 | 修复方向 |
-|:--|:------|:-----|:----:|:---------|
-| TD-016 | LangGraph 零使用未验证 | 全项目 | 📋 | 跑通最小 StateGraph 原型，验证 API 与接口设计的匹配度 |
+**新增架构决策**：
+| # | 决策 | 说明 |
+|:--|:------|:------|
+| MasterAgent 结构化输出 | `InvestmentAnalysis` Pydantic 模型，含 rating/score/analysis/evidence |
 
 **设计原则**：所有修改向后兼容，默认值 = 当前行为，零测试回归。
 
@@ -253,22 +252,30 @@ result.data.summary  # Pyright 可校验 ✅
 
 ## 5. 建议的下一步
 
-> **⚠️ 优先级已更新（2026-06-08 TD-016 关闭后）**
+> **⚠️ 优先级已更新（2026-06-08 Phase 0 收尾完成）**
 > 
-> 最大风险已解除：**LangGraph 原型验证通过**（TD-016 ✅ 已关闭）。
-> Phase 0 收尾的新顺序：**TD-013/015 → 空模块骨架 → Phase 1 辩论引擎**
+> Phase 0 核心任务（TD-013/015 + MasterAgent 结构化）已完成 ✅
+> utils/ 模块 100% 完工，`llm.py` 全功能就绪。
+> **下一步重点：进入 Phase 1 MVP 期辩论引擎**
 
-### 🥇 Phase 0 收尾（按顺序执行）
+### 🥇 Phase 0 收尾（剩余低优先级）
 
 | 优先级 | 事项 | 文件 | 预估 | 说明 |
 |:------:|:----|:----|:----:|------|
-| 🥇 | **① LangGraph 最小原型验证**（TD-016） | ✅ `tests/test_langgraph_prototype.py` | 已完成 | ✅ **已关闭** — 20 测试 + 222 全量通过 |
-| 🥇 | **② TD-015 缓存策略解耦** | `src/utils/llm.py` | ~0.5d | 非默认 LLMConfig 不缓存（已有 is_default 检测，主要补测试） |
-| 🥇 | **③ TD-013 Streaming 接口** | `src/utils/llm.py` | ~0.5d | 新增 `astream() → AsyncIterator[str]`，趁只有 2 个调用方 |
-| 🥈 | **④ MasterAgent 输出结构化** | `src/agents/master_agent.py` | ~1d | 纯文本 → 结构化评级 + 证据 + 置信度 |
-| 🥈 | **⑤ Phase 0 收尾修复** | 多处 | ~45min | Pyright tests/ 标注、config.py deprecation、.env.example、pytest-cov |
-| 🥉 | **⑥ 4 个空模块骨架代码** | debate/data/backtest/risk | ~15min | 每个加 `raise NotImplementedError` + 模块文档 |
-| 🥉 | **⑦ A-6 TD-010 README** | `README.en.md` | ~30min | 替换 Gitee 模板 |
+| 🥉 | **① 4 个空模块骨架代码** | debate/data/backtest/risk | ~15min | 每个加 `raise NotImplementedError` + 模块文档 |
+| 🥉 | **② Phase 0 收尾修复** | 多处 | ~45min | Pyright tests/ 标注、config.py deprecation、.env.example |
+| 🥉 | **③ TD-010 README** | `README.en.md` | ~30min | 替换 Gitee 模板 |
+
+### 🥇 Phase 1 MVP（Phase 0 收尾后）
+
+| 优先级 | 步骤 | 说明 | 前置 |
+|:------:|:----:|:-----|:----:|
+| 🥇 | **辩论编排器 LangGraph StateGraph** | 辩论引擎的第一步 | LangGraph 原型验证 ✅ |
+| 🥇 | **辩论分组逻辑** | 4 组大师分组辩论实现 | 编排器就绪 |
+| 🥇 | **数据采集接入** | akshare 行情 + 新闻 | data 模块骨架就绪 |
+| 🥇 | **前端 MVP（3 页面）** | Streamlit 首页/分析/我的 | 端到端链路就绪 |
+| 🥈 | **用户行为镜子 Agent 记录期原型** | 1-9 次决策行为记录 | 辩论引擎就绪 |
+| 🥈 | **回测模块基础** | 简单策略回测 | data 模块就绪 |
 
 ### 🥇 Phase 1 MVP（Phase 0 收尾后）
 

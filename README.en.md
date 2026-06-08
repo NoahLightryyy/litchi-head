@@ -1,36 +1,83 @@
-# 荔枝头
+# 🦞 Litchi Head
 
-#### Description
-多智能体投资决策平台产品
+> Multi-Agent Investment Decision Platform — Every investor deserves their own AI research team
 
-#### Software Architecture
-Software architecture description
+## What is Litchi Head?
 
-#### Installation
+Litchi Head is an open-source, multi-agent investment collaboration platform that brings **multi-agent collaboration**, **human-in-the-loop feedback**, and **automated analysis** together. It gives every investor — from retail to professional — access to institutional-grade investment analysis.
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+**The Product Philosophy (a "Grenade"):**
 
-#### Instructions
+> Institutions have nuclear weapons (10 CFAs + Bloomberg + proprietary quant systems).
+> Retail investors only have grenades — but a grenade, once you pull the pin, *works*.
+>
+> Our mission: investor asks one question → 15 seconds later, get a structured multi-dimensional decision card.
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## Architecture
 
-#### Contribution
+```
+User Question → MasterAgent → Multi-Agent Debate → Decision Card
+                    │
+            ┌───────┼───────┐
+         Buffett  Munger   ... (7+ master investors)
+            │         │
+         KnowledgeBase · SkillDisk · LLM (DeepSeek)
+```
 
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+## Tech Stack
 
+| Component | Technology |
+|-----------|------------|
+| AI Orchestration | LangGraph (StateGraph) |
+| Primary LLM | DeepSeek-Chat |
+| Fallback LLM | OpenAI GPT-4o-mini |
+| Data Validation | Pydantic v2 |
+| Frontend | Streamlit (Phase 1) |
+| Data Source | akshare (Phase 1) |
+| CI/CD | GitHub Actions |
 
-#### Gitee Feature
+## Current Status
 
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+| Phase | Status | Description |
+|-------|--------|-------------|
+| **Phase 0 — Infrastructure** | ✅ **Nearly complete** | LLM layer, Agent system, KnowledgeBase, SkillDisk, LangGraph prototype |
+| Phase 1 — MVP | 🔄 Upcoming | Debate engine, data feed, Streamlit frontend (3 pages) |
+| Phase 2+ — Iteration | ⬜ Future | Risk module, backtesting, behavior mirror agent |
+
+**Latest:** 228 tests passing | 8/17 technical debts closed | Urgency index: 0.7/10
+
+## Quick Start
+
+```bash
+# 1. Clone
+git clone https://github.com/changan-university/litchi-head.git
+cd litchi-head
+
+# 2. Setup environment
+cp .env.example .env
+# Edit .env — add your DEEPSEEK_API_KEY
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Run checks
+ruff check src/ tests/
+pyright src/
+python -m pytest
+```
+
+## Project Documentation
+
+| Document | Description |
+|----------|-------------|
+| [AI Workflow](docs/流程规范/AI自动化工作流程.md) | Standard operating procedures for AI sessions |
+| [Architecture Decisions](docs/技术债务与架构决策/架构决策记录.md) | ADR-001 through ADR-010 |
+| [Tech Debt Log](docs/技术债务与架构决策/技术债务日志.md) | Technical debt management system |
+| [Product PRD](docs/产品需求/初版要求.md) | Original product requirements |
+| [Frontend MVP Spec](docs/产品需求/前端MVP需求文档-基于市场对标.md) | Market-benchmarked MVP requirements |
+| [User Behavior Mirror Agent](docs/架构设计/用户行为镜子Agent设计构想.md) | Design for Phase 1+ mirror agent |
+| [Knowledge Retrieval Architecture](docs/架构设计/金融知识检索架构-RAG+GREP双轨方案.md) | RAG + GREP hybrid retrieval |
+
+## License
+
+MIT

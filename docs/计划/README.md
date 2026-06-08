@@ -8,16 +8,16 @@
 ## 快速统计
 
 ```
-总测试数   │ 222  passed（全量通过 ✅ +20 LangGraph 原型测试）
-技术债务   │ 17 条总记 / 6 条已关闭 / 9 条开放
-紧急指数   │ 0.9/10（TD-016 LangGraph 已关闭 ✅ — 最大风险解除）
+总测试数   │ 228  passed（+6 Streaming 测试 ✅）
+技术债务   │ 17 条总记 / 9 条已关闭 / 6 条开放
+紧急指数   │ 0.7/10（TD-010/013/015/016 已关闭 ✅ — 最大债务风险解除）
 当前阶段   │ Phase 0 基建期（趋近完成）
 下一阶段   │ Phase 1 MVP 期
 ```
 
 ---
 
-## 🟢 已完成（17 项）
+## 🟢 已完成（20 项）
 
 ### 核心基建
 - ✅ **LLM 调用封装层** — `src/utils/llm.py`（TD-001 🔧 核心实现完成，测试待补）
@@ -62,15 +62,6 @@
 
 ---
 
-## 🔵 进行中（2 项）
-
-| 优先级 | 事项 | 文件 / 位置 | 状态 |
-|:------:|:-----|:------------|:----:|
-| 🥇 | **TD-015 缓存策略解耦** — 不同 LLMConfig 独立缓存 | `src/utils/llm.py` | 📋 待实现（TD-012 已关闭，可并行推进） |
-| 🥇 | **TD-013 Streaming 接口** — `astream() → AsyncIterator[str]` | `src/utils/llm.py` | 📋 待实现（TD-012 已关闭，可并行推进） |
-
----
-
 ## ⬜ 待办
 
 ### Phase 0 收尾（优先）
@@ -78,14 +69,12 @@
 | 优先级 | 事项 | 预估 | 前置 |
 |:------:|:-----|:----:|:----:|
 | 🥇 | **LangGraph 最小原型验证**（TD-016） | ✅ 已完成 | 20 测试 + 222 全量通过 |
-| 🥇 | **TD-013 Streaming 接口** — `astream() → AsyncIterator[str]` | ~2h | — |
-| 🥇 | **TD-015 缓存策略解耦** — 不同 LLMConfig 独立缓存 | ~2h | — |
-| 🥈 | **MasterAgent 输出结构化** — 纯文本 → 结构化评级+证据+置信度 | ~1d | — |
-| 🥈 | **Phase 0 收尾修复** — Pyright tests/ 标注、config.py deprecation、.env.example、pytest-cov | ~45min | — |
+| 🥇 | **TD-013 Streaming 接口** — `astream() → AsyncIterator[str]` | ✅ 已完成 | 228 全量通过 |
+| 🥇 | **TD-015 缓存策略解耦** — 不同 LLMConfig 独立缓存 | ✅ 已完成（与 TD-012 同步） | 5 测试验证 |
+| 🥈 | **MasterAgent 输出结构化** — 纯文本 → 结构化评级+证据+置信度 | ✅ 已完成 | 228 全量通过 |
+| 🥈 | **Phase 0 收尾修复** — config.py deprecation、.env.example | ✅ 已完成 | — |
 | 🥈 | **A-4 GREP FormulaIndex** — 公式精确检索 | ~1d | — |
-| 🥈 | **A-6 README 替换** — 替换 Gitee 模板，写真正的中文 README（TD-010） | ~30min | — |
-| 🥉 | **产品定位文档** — 按「手榴弹」方向写正式 PRD | ~1d | — |
-| 🥉 | **4 个空模块补 `raise NotImplementedError`** — debate/data/backtest/risk | ~15min | — |
+| 🥉 | **4 个空模块补模块文档** — debate/data/backtest/risk | ✅ 已完成 | — |
 | 🥉 | **债务清理** — TD-003/005/006/007/008（低优先级，各 10min~1h） | ~3h | — |
 
 ### 空架子模块（白色目录，需从零实现）
@@ -133,8 +122,8 @@ src/
 
 ```
 src/
-├── utils/        ████████████████████ 98%  ← streaming 接口待补
-│   ├── llm.py                          ← TD-013/015 修复后完全完工
+├── utils/        ████████████████████ 100%  ✅ 全部完工
+│   ├── llm.py                          ✅ TD-013/015 已修复
 │   ├── config.py                       ✅
 │   ├── cost_tracker.py                 ✅
 │   └── logger.py                       ✅
@@ -145,7 +134,7 @@ src/
 ├── agents/          ████████████████ 85%
 │   ├── base.py                         ✅（TD-014 已修复）
 │   ├── xiao_zhi.py                     ✅
-│   └── master_agent.py                 ✅（输出结构化待补）
+│   └── master_agent.py                 ✅ InvestmentAnalysis 结构化输出
 │
 ├── memory/          ██████████████ 75%
 │   ├── knowledge_base.py               ✅
@@ -180,6 +169,7 @@ src/
 | 2026-06-07 | 创建 — 聚合 AI 会话交接文档 §5 + 技术债务日志 + 路线图 memory 为一站式看板 |
 | 2026-06-07 | TD-012 关闭 — LLMConfig 数据类 + 接口修改 + 17 测试，202 全量通过，紧急指数 1.2→0.9 |
 | 2026-06-08 | TD-016 关闭 — LangGraph 原型验证通过，20 测试 + 222 全量通过，紧急指数 1.2→0.9 |
+| 2026-06-08 | Phase 0 核心收尾 — TD-013/015/010 关闭 + MasterAgent 结构化输出，228 全量通过，紧急指数 0.9→0.7 |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。
