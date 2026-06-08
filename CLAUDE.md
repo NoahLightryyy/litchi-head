@@ -36,20 +36,37 @@
 | 架构决策记录 | `docs/技术债务与架构决策/架构决策记录.md` |
 | 设计文档 | `docs/架构设计/` · `docs/产品需求/` · `docs/调研分析/` |
 
-## 环境变量配置（子 Agent 使用 Claude 必配）
+## 环境变量配置（两套 Key，不可混用）
 
-因 DeepSeek 不支持 Claude 原生参数 `reasoning_effort`，子 Agent（planner/Explore/code-reviewer 等）需通过 **Anthropic 中转服务** 调用 Claude。
-当前使用 **灵算（lingsuan.top）** 作为中转，费用低、支付宝/微信可支付。
+### Claude Code 主会话（DeepSeek 开发）
+
+主界面显示 `deepseek-chat · API Usage Billing` 时，**全局** `ANTHROPIC_BASE_URL` 必须指向 DeepSeek，不能填灵算：
 
 ```bash
-# ~/.bashrc 或 Windows 用户环境变量（重启 Claude Code 生效）
-export ANTHROPIC_API_KEY="你的灵算 Key"
-export ANTHROPIC_BASE_URL="https://lingsuan.top"
-export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
-export CLAUDE_CODE_ATTRIBUTION_HEADER=0
+# Windows 用户环境变量（修改后必须完全退出并重启 Claude Code）
+DEEPSEEK_API_KEY=sk-你的DeepSeek密钥
+ANTHROPIC_AUTH_TOKEN=sk-你的DeepSeek密钥   # 与上面相同
+ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
 ```
 
-> 应用代码中 `src/utils/llm.py` 支持 provider="anthropic" 分支，使用 `.env` 中的 `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL`。
+> 若把 `ANTHROPIC_BASE_URL` 设为 `lingsuan.top`，主会话会把 DeepSeek Key 发到灵算 → **401 API Key 无效**。
+
+### Python 应用代码（`.env`）
+
+`src/utils/llm.py` 的 `provider="anthropic"` 分支走灵算，与 Claude Code 主会话隔离：
+
+```bash
+DEEPSEEK_API_KEY=sk-你的DeepSeek密钥
+LLM_PROVIDER=deepseek
+ANTHROPIC_AUTH_TOKEN=sk-你的灵算密钥
+ANTHROPIC_BASE_URL=https://lingsuan.top
+```
+
+### 子 Agent（Claude Code 内置）
+
+Claude Code 的 `ANTHROPIC_BASE_URL` 是**会话级**配置，同一进程内主会话与子 Agent 共用同一端点。
+当前版本**无法**在同一 Claude Code 会话中做到「主会话 DeepSeek + 子 Agent 灵算 Claude」。
+子 Agent 会跟随主会话走 DeepSeek；灵算 Key 仅用于 `.env` 中 Python 代码显式指定 `provider="anthropic"` 时。
 
 ## 快速命令
 
