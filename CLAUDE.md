@@ -36,6 +36,21 @@
 | 架构决策记录 | `docs/技术债务与架构决策/架构决策记录.md` |
 | 设计文档 | `docs/架构设计/` · `docs/产品需求/` · `docs/调研分析/` |
 
+## 环境变量配置（子 Agent 使用 Claude 必配）
+
+因 DeepSeek 不支持 Claude 原生参数 `reasoning_effort`，子 Agent（planner/Explore/code-reviewer 等）需通过 **Anthropic 中转服务** 调用 Claude。
+当前使用 **灵算（lingsuan.top）** 作为中转，费用低、支付宝/微信可支付。
+
+```bash
+# ~/.bashrc 或 Windows 用户环境变量（重启 Claude Code 生效）
+export ANTHROPIC_API_KEY="你的灵算 Key"
+export ANTHROPIC_BASE_URL="https://lingsuan.top"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+export CLAUDE_CODE_ATTRIBUTION_HEADER=0
+```
+
+> 应用代码中 `src/utils/llm.py` 支持 provider="anthropic" 分支，使用 `.env` 中的 `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_BASE_URL`。
+
 ## 快速命令
 
 ```bash
