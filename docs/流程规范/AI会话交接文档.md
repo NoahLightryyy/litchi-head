@@ -28,14 +28,14 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `d01124d` — feat: Phase 1 数据采集层上线 + docs/流程优化同步 |
+| **最新提交** | `cf04e17` — docs: 明确子 Agent 环境变量配置（灵算中转 Claude 模型） |
 
 ---
 
-## 2. 当前会话状态（2026-06-08 第 6 次 — 辩论编排器 MVP 上线 ✅）
+## 2. 当前会话状态（2026-06-08 第 7 次 — 子 Agent 路由配置永久化 ✅）
 
-> **前次会话**：2026-06-08 第 4 次 — Phase 1 data/ 数据层上线
-> **本次会话**：2026-06-08 第 6 次 — Phase 1 debate/ 辩论编排器 + Claude 子代理路由
+> **前次会话**：2026-06-08 第 6 次 — Phase 1 debate/ 辩论编排器 MVP
+> **本次会话**：2026-06-08 第 7 次 — 子 Agent 灵算路由永久化配置
 
 ### 本次已完成的工作
 
@@ -48,13 +48,17 @@
 | ✅ **src/utils/config.py + llm.py** | 添加 Anthropic/ChatAnthropic 支持（灵算中转） |
 | ✅ **.env / .env.example** | 配置灵算 API Key + Base URL |
 | ✅ **质量门禁** | Ruff ✅ Pyright ✅ **300** passed |
+| | **本轮（第 7 次）** |
+| ✅ **Windows 用户环境变量** | ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL → 灵算配置 |
+| ✅ **~/.bashrc 清理** | 清除 DeepSeek 模型映射残留（6 行），对齐灵算 |
+| ✅ **CLAUDE.md 提交** | 子 Agent 灵算配置说明文档完成签入（`cf04e17`） |
 
-### 项目核心状态（2026-06-08 第 6 次）
+### 项目核心状态（2026-06-08 第 7 次）
 
 | 维度 | 评分 | 关键发现 |
 |:----|:----:|:---------|
 | 工程管理 | A | ADR/债务/CI/记忆系统 — 成熟度持续提升 |
-| 代码完成度 | B- | 8 模块中 6 个就绪，2 个空架（backtest/risk） |
+| 代码完成度 | B- | 6 模块就绪，2 空架（backtest/risk），阻塞已清零 |
 | 测试质量 | B+ | **300** 测试全绿（+28 debate 新增） |
 | 文档完整度 | A- | 15+ 份文档，结构清晰 |
 | 产品可演示性 | C- | 分析链路（data→debate）可运行，需前端展示 |
@@ -64,13 +68,15 @@
 1. **🔴 2 个空模块** — backtest/risk（仅 `__init__.py`）
 2. **🟢 ~~data 模块~~** — ✅ **已实现**
 3. **🟢 ~~debate 模块~~** — ✅ **已实现（MVP）**
+4. **🟢 ~~Claude 子代理路由~~** — ✅ **已永久化配置**
 
 ### 当前 Git 状态
 
 ```
-工作区有未提交变更（代码 + 文档 + 日志）
+工作区干净（本次提交 cf04e17）
+ahead origin/main by 2 commits
 
-最新 commit: 7067edf — feat: Phase 0 核心收尾完成（TD-013/015/010 + MasterAgent 结构化）
+最新 commit: cf04e17 — docs: 明确子 Agent 环境变量配置（灵算中转 Claude 模型）
 ```
 
 ### 测试覆盖
@@ -81,6 +87,8 @@
 | `tests/test_data_cache.py` | 11 | DataCache set/get/TTL/delete/clear |
 | `tests/test_data_collector.py` | 15 | DataCollector 6 类数据 + 缓存 + 错误处理 |
 | `tests/test_data_integration.py` | 5（skip） | 真实 akshare 集成测试 |
+| `tests/test_debate_models.py` | 12 | DebateInput/AgentAnalysis/VoteSummary/DebateResult |
+| `tests/test_debate_orchestrator.py` | 16 | DebateOrchestrator StateGraph 三节点 |
 | **全量** | **300 passed, 4 skipped** | |
 
 ---
@@ -94,14 +102,14 @@
   src/utils/       — llm / config / cost_tracker / logger（100%）
   src/core/        — protocol（AgentMessage + MessageRouter）
   src/agents/      — base / xiao_zhi / master_agent（全部通用化）
-  src/data/        — models / cache / collector（Phase 1 ✅ 本期新增）
+  src/data/        — models / cache / collector（Phase 1 ✅）
+  src/debate/      — models / orchestrator（Phase 1 MVP ✅）
 
 部分实现模块（🟡）：
   src/memory/      — knowledge_base（30篇知识）/ skill_disk（7位大师）
                      工作记忆/情景记忆/反思仍为空
 
 空架子模块（⬜）：
-  src/debate/      — 辩论引擎（下一核心目标）
   src/backtest/    — 回测引擎
   src/risk/        — 风控模块
 ```
@@ -188,8 +196,8 @@ klines = collector.get_klines("000001", period="daily")
 
 | 优先级 | 步骤 | 说明 | 前置 |
 |:------:|:----:|:-----|:----:|
-| 🥇 | **辩论编排器** `src/debate/` | LangGraph StateGraph 串联辩论流程（~4-6h） | LangGraph 原型 ✅ + data 模块 ✅ |
-| 🥇 | **data → debate 接驳** | 辩论 Agent 使用 DataCollector 获取实时数据 | 编排器就绪 |
+| 🥇 | **data → debate 接驳** | 辩论 Agent 使用 DataCollector 获取实时数据 | data ✅ + debate ✅ |
+| 🥇 | **端到端链路验证** | 用户问题 → MasterAgent → 多 Agent 辩论 → 决策卡输出 | data→debate 接驳 |
 | 🥈 | **三层记忆 MVP** | JSON 持久化（工作/情景/反思） | — |
 | 🥉 | **前端 MVP** | Streamlit 3 页面 | 端到端链路就绪 |
 
@@ -331,4 +339,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-08 第 4 次（Phase 1 data/ 模块上线 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-08 第 7 次（子 Agent 灵算路由永久化 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
