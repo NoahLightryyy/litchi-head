@@ -28,32 +28,36 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `cf04e17` — docs: 明确子 Agent 环境变量配置（灵算中转 Claude 模型） |
+| **最新提交** | `34eea96` — docs: 环境变量配置回归正轨 — CLAUDE.md 区隔两套 Key + 401 修复日志 |
 
 ---
 
 ## 2. 当前会话状态（2026-06-08 第 7 次 — 子 Agent 路由配置永久化 ✅）
 
-> **前次会话**：2026-06-08 第 6 次 — Phase 1 debate/ 辩论编排器 MVP
-> **本次会话**：2026-06-08 第 7 次 — 子 Agent 灵算路由永久化配置
+> **前次会话**：2026-06-08 第 5 次 — Cursor 救援修复 401（环境变量端点混用）
+> **本次会话**：2026-06-08 第 6 次 — 清理未提交变更 + 状态文档更新
 
 ### 本次已完成的工作
 
 | 事项 | 详情 |
 |------|------|
-| ✅ **src/debate/models.py** | 4 个辩论数据契约（DebateInput/AgentAnalysis/VoteSummary/DebateResult），12 测试 |
-| ✅ **src/debate/orchestrator.py** | DebateOrchestrator + LangGraph StateGraph 三节点（collect_data→master_round→aggregate），16 测试 |
-| ✅ **src/debate/__init__.py** | 公共 API 导出 |
-| ✅ **tests/test_debate_models.py / test_debate_orchestrator.py** | 28 单元测试全绿 |
-| ✅ **src/utils/config.py + llm.py** | 添加 Anthropic/ChatAnthropic 支持（灵算中转） |
-| ✅ **.env / .env.example** | 配置灵算 API Key + Base URL |
-| ✅ **质量门禁** | Ruff ✅ Pyright ✅ **300** passed |
-| | **本轮（第 7 次）** |
-| ✅ **Windows 用户环境变量** | ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL → 灵算配置 |
-| ✅ **~/.bashrc 清理** | 清除 DeepSeek 模型映射残留（6 行），对齐灵算 |
-| ✅ **CLAUDE.md 提交** | 子 Agent 灵算配置说明文档完成签入（`cf04e17`） |
+| | **本轮（第 6 次）** |
+| ✅ **提交未完成变更** | CLAUDE.md + .env.example + 2026-06-08-5.md（401 修复日志） |
+| ✅ **更新 memory** | current-state.md → 反映环境变量回归 DeepSeek 的现状 |
+| ✅ **更新交接文档** | §2 当前状态 + §1 最新提交对齐最新 |
+| ✅ **工作区清理** | 4 commits ahead，干净 |
 
-### 项目核心状态（2026-06-08 第 7 次）
+### 当前配置现状
+
+| 层级 | 配置 | 状态 |
+|------|------|:----:|
+| **Claude Code 主会话** | Windows 用户 env: DeepSeek 端点 + DeepSeek Key | ✅ |
+| **子 Agent（内置）** | 跟随主会话 → DeepSeek（Claude 调用会 401） | ⚠️ |
+| **Python 应用代码** | `.env`: DeepSeek 默认 + 灵算（`provider=anthropic`） | ✅ |
+
+**内核约束**：Claude Code 的 `ANTHROPIC_BASE_URL` 是会话级配置，同一进程无法「主 DeepSeek + 子 Claude」。子 Agent 只能跟随主会话。
+
+### 项目核心状态（2026-06-08 第 8 次）
 
 | 维度 | 评分 | 关键发现 |
 |:----|:----:|:---------|
@@ -68,15 +72,15 @@
 1. **🔴 2 个空模块** — backtest/risk（仅 `__init__.py`）
 2. **🟢 ~~data 模块~~** — ✅ **已实现**
 3. **🟢 ~~debate 模块~~** — ✅ **已实现（MVP）**
-4. **🟢 ~~Claude 子代理路由~~** — ✅ **已永久化配置**
+4. **🟡 子 Agent 不可用** — 跟随主会话走 DeepSeek，Claude 模型调用将 401
 
 ### 当前 Git 状态
 
 ```
-工作区干净（本次提交 cf04e17）
-ahead origin/main by 2 commits
+工作区干净（本次提交 34eea96）
+ahead origin/main by 4 commits
 
-最新 commit: cf04e17 — docs: 明确子 Agent 环境变量配置（灵算中转 Claude 模型）
+最新 commit: 34eea96 — docs: 环境变量配置回归正轨 — CLAUDE.md 区隔两套 Key + 401 修复日志
 ```
 
 ### 测试覆盖
@@ -200,6 +204,12 @@ klines = collector.get_klines("000001", period="daily")
 | 🥇 | **端到端链路验证** | 用户问题 → MasterAgent → 多 Agent 辩论 → 决策卡输出 | data→debate 接驳 |
 | 🥈 | **三层记忆 MVP** | JSON 持久化（工作/情景/反思） | — |
 | 🥉 | **前端 MVP** | Streamlit 3 页面 | 端到端链路就绪 |
+
+### ⚠️ 开发约束
+
+Claude Code 内置子 Agent（planner/code-reviewer/Explore 等）跟随主会话走 DeepSeek 端点，无法调用 Claude 模型。以下辅助功能不可用或受限：
+- **code-reviewer** / **security-reviewer** / **planner** 等代理 → ❌
+- 替代方案：纯 Python 手动实现 / 简化流程（不走子 Agent）
 
 ### 🥉 低优清理
 
@@ -339,4 +349,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-08 第 7 次（子 Agent 灵算路由永久化 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-08 第 8 次（环境变量回归 DeepSeek + 清理未提交变更） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
