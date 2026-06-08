@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     llm_provider: str = "deepseek"
     deepseek_api_key: str = ""
     openai_api_key: str = ""
+    anthropic_api_key: str = ""
+    anthropic_auth_token: str = ""  # 灵算等中转服务使用此字段
+    anthropic_base_url: str = ""
 
     # ── 辩论配置 ──
     max_concurrent_agents: int = 10

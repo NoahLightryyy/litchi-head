@@ -22,51 +22,48 @@
 | 字段 | 值 |
 |------|-----|
 | **项目名称** | litchi-head — 多智能体投资决策平台 |
-| **当前阶段** | Phase 1 MVP 期（data/ 已上线，debate/ 待启动） |
+| **当前阶段** | Phase 1 MVP 期（data/ + debate/ 均已上线，backtest/risk 待启动） |
 | **技术栈** | Python 3.12+ / LangGraph / DeepSeek-Chat / Pydantic / akshare / FAISS |
 | **代码位置** | `e:\litchi-head` |
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `7067edf` — feat: Phase 0 核心收尾完成（TD-013/015/010 + MasterAgent 结构化） |
+| **最新提交** | `d01124d` — feat: Phase 1 数据采集层上线 + docs/流程优化同步 |
 
 ---
 
-## 2. 当前会话状态（2026-06-08 第 4 次 — Phase 1 数据层上线 ✅）
+## 2. 当前会话状态（2026-06-08 第 6 次 — 辩论编排器 MVP 上线 ✅）
 
-> **前次会话**：2026-06-08 第 3 次 — Phase 0 收尾完成
-> **本次会话**：2026-06-08 第 4 次 — Phase 1 data/ 模块完整实现
+> **前次会话**：2026-06-08 第 4 次 — Phase 1 data/ 数据层上线
+> **本次会话**：2026-06-08 第 6 次 — Phase 1 debate/ 辩论编排器 + Claude 子代理路由
 
 ### 本次已完成的工作
 
 | 事项 | 详情 |
 |------|------|
-| ✅ **src/data/models.py** | 5 个 Pydantic 数据契约（StockInfo/StockQuote/KLine/NewsItem/BoardInfo），17 测试 |
-| ✅ **src/data/cache.py** | DataCache 内存 TTL 缓存层（30s~1h 可配），11 测试 |
-| ✅ **src/data/collector.py** | DataCollector 封装 6 类 akshare 数据（行情/K线/新闻/板块/股票列表），15 测试 |
-| ✅ **src/data/__init__.py** | 模块文档 + 公共 API 导出 |
-| ✅ **tests/test_data_models.py / test_data_cache.py / test_data_collector.py** | 43 单元测试全绿 |
-| ✅ **tests/test_data_integration.py** | 集成测试框架（按数据源独立 skip，代理环境自动跳过） |
-| ✅ **质量门禁** | Ruff ✅ Pyright ✅ 272 passed |
-| ✅ **文档同步** | 工作日志 + current-state + roadmap + 交接文档全部更新 |
-| ✅ **新增债务** | **0** — 四同步执行良好 |
-| ✅ **工作流复盘** | §9 新增工作流优化建议章节 |
+| ✅ **src/debate/models.py** | 4 个辩论数据契约（DebateInput/AgentAnalysis/VoteSummary/DebateResult），12 测试 |
+| ✅ **src/debate/orchestrator.py** | DebateOrchestrator + LangGraph StateGraph 三节点（collect_data→master_round→aggregate），16 测试 |
+| ✅ **src/debate/__init__.py** | 公共 API 导出 |
+| ✅ **tests/test_debate_models.py / test_debate_orchestrator.py** | 28 单元测试全绿 |
+| ✅ **src/utils/config.py + llm.py** | 添加 Anthropic/ChatAnthropic 支持（灵算中转） |
+| ✅ **.env / .env.example** | 配置灵算 API Key + Base URL |
+| ✅ **质量门禁** | Ruff ✅ Pyright ✅ **300** passed |
 
-### 项目核心状态（2026-06-08 第 4 次）
+### 项目核心状态（2026-06-08 第 6 次）
 
 | 维度 | 评分 | 关键发现 |
 |:----|:----:|:---------|
 | 工程管理 | A | ADR/债务/CI/记忆系统 — 成熟度持续提升 |
-| 代码完成度 | C+ | 8 模块中 5 个就绪，3 个空架（debate/backtest/risk） |
-| 测试质量 | B+ | **272** 测试全绿（+43 data 新增） |
+| 代码完成度 | B- | 8 模块中 6 个就绪，2 个空架（backtest/risk） |
+| 测试质量 | B+ | **300** 测试全绿（+28 debate 新增） |
 | 文档完整度 | A- | 15+ 份文档，结构清晰 |
-| 产品可演示性 | D | 无可运行 Demo，debate 是核心阻塞点 |
+| 产品可演示性 | C- | 分析链路（data→debate）可运行，需前端展示 |
 
 ### 硬伤跟踪
 
-1. **🔴 3 个空模块** — debate/backtest/risk（仅 `__init__.py`）
-2. **🟢 ~~data 模块~~** — ✅ **已实现**（Phase 1 第一步完成）
-3. **🟡 关键路径阻塞** — debate 是下一核心阻塞点
+1. **🔴 2 个空模块** — backtest/risk（仅 `__init__.py`）
+2. **🟢 ~~data 模块~~** — ✅ **已实现**
+3. **🟢 ~~debate 模块~~** — ✅ **已实现（MVP）**
 
 ### 当前 Git 状态
 
@@ -84,7 +81,7 @@
 | `tests/test_data_cache.py` | 11 | DataCache set/get/TTL/delete/clear |
 | `tests/test_data_collector.py` | 15 | DataCollector 6 类数据 + 缓存 + 错误处理 |
 | `tests/test_data_integration.py` | 5（skip） | 真实 akshare 集成测试 |
-| **全量** | **272 passed, 4 skipped** | |
+| **全量** | **300 passed, 4 skipped** | |
 
 ---
 

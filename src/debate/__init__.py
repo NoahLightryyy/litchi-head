@@ -1,20 +1,23 @@
-"""辩论引擎 —— 多 Agent 投资辩论
+"""辩论引擎 —— 多 Agent 投资辩论编排
 
-4 组大师分组辩论 + 交叉质疑 + 投票聚合。
+辩论编排器（DebateOrchestrator）使用 LangGraph StateGraph 驱动多大师分析流程：
+  1. collect_data — 采集行情 + K线 + 新闻
+  2. master_round — 顺序运行每位投资大师
+  3. aggregate — 加权投票汇总 + 共识生成
 
-Phase 1 实现步骤：
-    1. 辩论编排器 LangGraph StateGraph
-    2. 4 组大师分组辩论逻辑
-    3. 交叉质疑机制
-    4. 投票加权汇总
+用法：
+    orch = DebateOrchestrator()
+    result = await orch.run(DebateInput(stock_code="000001"))
+    print(result.to_summary_dict())
 """
 
+from src.debate.models import AgentAnalysis, DebateInput, DebateResult, VoteSummary
+from src.debate.orchestrator import DebateOrchestrator
 
-class DebateEngine:
-    """辩论编排器（骨架，Phase 1 实现）"""
-
-    def __init__(self) -> None:
-        raise NotImplementedError("DebateEngine 将在 Phase 1 实现")
-
-
-__all__ = ["DebateEngine"]
+__all__ = [
+    "AgentAnalysis",
+    "DebateInput",
+    "DebateOrchestrator",
+    "DebateResult",
+    "VoteSummary",
+]

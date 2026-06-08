@@ -27,6 +27,7 @@ from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_anthropic import ChatAnthropic
 from langchain_deepseek import ChatDeepSeek
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
@@ -146,6 +147,21 @@ def _build_llm(
                 temperature=cfg.temperature,
                 model_kwargs={"max_tokens": cfg.max_tokens},
             )
+        case "anthropic":
+            api_key = settings.anthropic_api_key or settings.anthropic_auth_token
+            if not api_key:
+                raise RuntimeError(
+                    "ANTHROPIC_API_KEY 或 ANTHROPIC_AUTH_TOKEN 未设置，请在 .env 中配置"
+                )
+            kwargs: dict[str, Any] = {
+                "model": cfg.model or "claude-sonnet-4-20250514",
+                "temperature": cfg.temperature,
+                "max_tokens": cfg.max_tokens,
+                "api_key": api_key,
+            }
+            if settings.anthropic_base_url:
+                kwargs["base_url"] = settings.anthropic_base_url
+            return ChatAnthropic(**kwargs)
         case _:
             raise ValueError(f"不支持的 LLM provider: {provider}")
 
