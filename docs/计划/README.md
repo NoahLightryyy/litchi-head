@@ -9,8 +9,8 @@
 
 ```
 总测试数   │ 202  passed（全量通过 ✅）
-技术债务   │ 15 条总记 / 5 条已关闭 / 9 条开放
-紧急指数   │ 0.9/10（TD-012 已关闭，风险进一步降低）
+技术债务   │ 16 条总记 / 5 条已关闭 / 10 条开放
+紧急指数   │ 1.2/10（TD-016 LangGraph 验证 — Phase 0→1 最大风险）
 当前阶段   │ Phase 0 基建期（趋近完成）
 下一阶段   │ Phase 1 MVP 期
 ```
@@ -76,6 +76,9 @@
 
 | 优先级 | 事项 | 预估 | 前置 |
 |:------:|:-----|:----:|:----:|
+| 🥇 | **LangGraph 最小原型验证** — 跑通 StateGraph 确认架构可行（TD-016） | ~0.5d | — |
+| 🥇 | **TD-013 Streaming 接口** — `astream() → AsyncIterator[str]` | ~2h | — |
+| 🥇 | **TD-015 缓存策略解耦** — 不同 LLMConfig 独立缓存 | ~2h | — |
 | 🥈 | **MasterAgent 输出结构化** — 纯文本 → 结构化评级+证据+置信度 | ~1d | — |
 | 🥈 | **Phase 0 收尾修复** — Pyright tests/ 标注、config.py deprecation、.env.example、pytest-cov | ~45min | — |
 | 🥈 | **A-4 GREP FormulaIndex** — 公式精确检索 | ~1d | — |
