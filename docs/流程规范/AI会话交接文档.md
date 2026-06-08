@@ -16,93 +16,59 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `c26ae20` — docs: AI 工作日志按日分文件夹重组 + 全面项目审查 |
+| **最新提交** | `d7e9d69` — docs: 全面项目审视 + 登记 TD-016 LangGraph 验证缺口 |
 
 ---
 
-## 2. 当前会话状态（2026-06-07 第 7 次对话——镜子 Agent 构想 + 前端调研 + 项目批判性重评）
+## 2. 当前会话状态（2026-06-08 全面项目审视——登记 TD-016，识别五项硬伤）
+
+> **前次会话**：2026-06-07 第 7 次（镜子 Agent 构想 + 前端调研 + 项目批判性重评）
+> **本次会话**：2026-06-08 全面项目审视
 
 ### 本次已完成的工作
 
 | 事项 | 详情 |
 |------|------|
-| ✅ **用户行为镜子 Agent 设计构想** | 完整设计文档 `docs/架构设计/用户行为镜子Agent设计构想.md` — 9 章（哲学/定位/旅程/解锁/数据/架构/输出/计划/FAQ） |
-| ✅ **竞品前端调研** | 调研 TradingAgents/AI Hedge Fund/Vibe-Trading 前端方案，提取共性 |
-| ✅ **前端 MVP 需求文档** | `docs/产品需求/前端MVP需求文档-基于市场对标.md` — 3 页线框图 + 数据契约 + 做/不做清单 |
-| ✅ **项目批判性重评** | 修正"工程管理是护城河"→"产品叙事是护城河"。4 处硬伤：LangGraph 零使用、4空目录、镜子冷启动、无英文 README |
-| ✅ **"框架先行+AI填肉"模式确认** | 你管骨架（接口/类型/契约），AI 管填肉。框架先行策略正确，但 LangGraph 最小原型需尽快验证 |
-| ✅ **作者信息记录** | 长安大学大三（人工智能中外合办），项目用于留学申请 + 求职 + 给爸妈用 |
+| ✅ **全面项目审视** | 覆盖全部 18 个源码文件、18 个测试文件、14 份文档、10 条 ADR、15 条债务 |
+| ✅ **新增 TD-016** | LangGraph 零使用未验证 — 从 Phase 0 到 Phase 1 的最大单一风险（S1 严重） |
+| ✅ **识别五项硬伤** | ① 4 个空模块 ② LangGraph 零使用 ③ 关键路径阻塞 ④ TD-013/015 未修 ⑤ README 模板 |
+| ✅ **更新文档体系** | 工作日志 + 债务日志 + 看板 + 日志索引，四同步完成 |
 
-### 本次核心产出：用户行为镜子 Agent
+### 审视核心结论
 
-**定位**：既是镜子，也是最好的老师。不分析市场，分析用户自己的投资行为。
+| 维度 | 评分 | 关键发现 |
+|:----|:----:|:---------|
+| 工程管理 | A- | ADR/债务/CI — 远超同龄人水平 |
+| 代码完成度 | C+ | 7 模块中 4 个是空架子（57% 空洞率） |
+| 测试质量 | B+ | 202 测试全绿，但覆盖率集中在 utils/core/agents |
+| 文档完整度 | A- | 14 份文档，结构清晰 |
+| 产品可演示性 | D | 无可运行 Demo，4 个空模块是最大硬伤 |
 
-```
-镜子说：
-"你的 10 笔交易中，7 笔亏损，3 笔盈利。"
+### 五项硬伤（新 AI 特别注意）
 
-老师 + 镜子说：
-"你的 10 笔交易中，7 笔亏损，3 笔盈利。
- 值得注意的是：3 笔盈利的平均持有 45 天，7 笔亏损的平均持有 3 天。
- 你的问题不是选股，是拿不住。"
-```
-
-**三段式解锁**：📝 记录期(1-9次) → 🔍 对比期(10+次) → 🗣️ 出师期(30+次)
-
-### 本次核心产出：前端 MVP 需求（基于竞品调研）
-
-调研结论：三个竞品前端路线完全不同——
-
-| 竞品 | 前端风格 | 反映的定位 | 我们搬不搬 |
-|:----|:---------|:-----------|:----------:|
-| TradingAgents | Streamlit 表单+决策卡+进度条 | 投研工具 | ✅ 参考风格 |
-| AI Hedge Fund | React Flow 拖拽工作流 | 量化研究员工作台 | ❌ 和手榴弹冲突 |
-| Vibe-Trading | React 19 聊天+回测图表 | 量化策略工作室 | ❌ 无后端支持 |
-
-**前端设计原则**：「决策卡」—— 快、清晰、一屏看完。3 个页面：首页（市场）→ 分析页（核心）→ 我的页面。
-
-### 项目批判性重评（2026-06-07 本次修正）
-
-```
-旧判断："工程管理是护城河"
-新判断："工程管理是基础，产品叙事才是护城河"
-
-镜子 Agent 是当前项目最有可能建立叙事差异化的点。
-但时间窗口可能只有 6-12 个月——竞品也在进化。
-```
-
-**评分（以大三学生留学/求职为评价标准）**：
-
-| 维度 | 评分 | 说明 |
-|:----|:----:|:-----|
-| 技术深度 | A- | 多 Agent + RAG + 辩论架构，远超大多本科项目 |
-| 工程规范 | A | ADR/债务/CI/类型系统 — 拉开差距的地方 |
-| 产品完成度 | C | 4个空目录是硬伤，LangGraph 零使用 |
-| 可展示性 | C | 无前端，无 Demo，招生官没法一眼看懂 |
-| 含金量（做完） | A | 如果能跑通端到端 Demo，留学/求职都是加分项 |
+1. **🔴 4 个空模块** — debate/data/backtest/risk 全是空 `__init__.py`
+2. **🔴 LangGraph 零使用** — ADR-002 选了但没跑过一行 StateGraph → TD-016
+3. **🟡 关键路径阻塞** — data → debate → 前端，debate 是核心阻塞点
+4. **🟡 TD-013/015 未修** — streaming 接口和缓存解耦，趁调用方少赶紧加
+5. **🟢 README.en.md 仍是 Gitee 模板** — TD-010
 
 ### 当前 Git 状态
 
 ```
-工作区有修改（未提交）
-变更文件：
-  M docs/ai-work-logs/README.md                     ← 日志索引新增
-  M docs/技术债务与架构决策/架构决策记录.md           ← 新增 ADR-010
-  M docs/技术债务与架构决策/技术债务日志.md           ← 新增 TD-012~015
-  ?? docs/ai-work-logs/2026/06/07/2026-06-07-6.md  ← 本次工作日志
+工作区干净（已提交）
 
-最新 commit: c26ae20 — docs: AI 工作日志按日分文件夹重组 + 全面项目审查
-远程: GitHub (origin)
+最新 commit: d7e9d69 — docs: 全面项目审视 + 登记 TD-016 LangGraph 验证缺口
+远程: GitHub (origin)，Gitee (gitee) 备份
 ```
 
 ### 三同步检查
 
 | 检查项 | 状态 |
 |--------|------|
-| Ruff（代码风格） | ✅ 仅改文档 |
-| Pyright（类型检查） | ✅ 仅改文档 |
-| Pytest（测试） | ✅ 178 passed |
-| 四同步原则 | ✅ 代码(无变更) + 测试(无变更) + 文档(3处) + 债务(已更新) |
+| Ruff（代码风格） | ✅ 0 errors |
+| Pyright（类型检查） | ✅ 0 errors |
+| Pytest（测试） | ✅ 202 passed |
+| 四同步原则 | ✅ 代码 + 测试 + 文档 + 债务全部同步 |
 
 ---
 
@@ -153,29 +119,36 @@
 ### 3.2 技术债务一览
 
 ```
-紧急指数：1.8/10（因本次审查新增 4 条骨骼级债务）
+紧急指数：1.2/10（新增 TD-016 LangGraph 验证后回升）
 
-✅ 已关闭（3 条）：
+✅ 已关闭（5 条）：
   TD-002  AgentResult 泛型化
   TD-009  CI 迁移 GitHub Actions
   TD-011  Pyright 路径硬编码
+  TD-012  LLM 参数硬编码（LLMConfig 数据类 + 17 测试）
+  TD-014  AgentContext 辩论槽位（+3 字段 +7 测试）
 
 🔧 修复中（2 条）：
   TD-001  LLM 封装层（核心完成，模型路由待补）
-  TD-004  测试基座（178 tests，debate 等模块待补）
+  TD-004  测试基座（202 tests，debate 等模块待补）
 
-📋 已确认（12 条）：
+📋 已确认（10 条）：
+  S1 🟠 严重
+  TD-016  LangGraph 零使用未验证 ← Phase 0→1 最大风险，优先处理
+
+  S2 🟡 中等
   TD-003  MessageRouter 内存存储
   TD-005  双配置源（YAML vs Pydantic Settings）
+  TD-013  缺少 streaming 接口
+  TD-015  LLM 缓存不支持多配置
+
+  S3 🟢 轻微
   TD-006  EvidenceItem 无校验
   TD-007  ensure_dirs 未被调用
   TD-008  模型价格硬编码
   TD-010  README 仍为 Gitee 模板
-  ── 本次新增（骨骼级，Phase 0 收尾前应修复）──
-  TD-012  LLM 参数硬编码（temperature/max_tokens 不可按 Agent 覆盖）🟠 S1
-  TD-013  缺少 streaming 接口 🟡 S2
-  TD-014  AgentContext 缺辩论槽位 🟠 S1 ✅ 已修复
-  TD-015  LLM 缓存不支持多配置 🟡 S2
+
+总债务：16 条（5 已关闭 ✅ / 10 开放 / 1 修复中）
 ```
 
 ### 3.3 架构决策（ADR）
@@ -183,7 +156,7 @@
 | ADR | 内容 | 状态 | 代码落地 |
 |-----|------|------|---------|
 | 001 | Pydantic 全栈 | ✅ | AgentResult / AgentMessage ✅ / AgentContext dataclass |
-| 002 | LangGraph 编排 | ✅ | 依赖已装，⚠️ 代码未写（注意：LangGraph 目前零使用） |
+| 002 | LangGraph 编排 | ✅ | 依赖已装，⚠️ 代码未写（TD-016：LangGraph 目前零使用，需尽快验证） |
 | 003 | akshare 数据源 | ✅ | 依赖已装，代码未写 |
 | 004 | Streamlit 前端 | ✅ | 依赖已装，代码未写 |
 | 005 | 四组辩论+大师投票 | ✅ | SkillDisk 7 位大师定义 ✅，debate 引擎代码未写 |
@@ -191,7 +164,7 @@
 | 007 | DeepSeek 主力 LLM | ✅ | src/utils/llm.py 已实现 |
 | 008 | 数据契约协议 | ✅ | AgentResult 已泛型化 + Pydantic 化 ✅ |
 | 009 | MCP 工具扩展 | ✅ | get_tools() 已落地 ✅ |
-| **010** | **Agent 运行时增强** | **✅** | **LLMConfig / streaming / 辩论上下文 / 缓存策略 — 设计已定，代码待实现** |
+| **010** | **Agent 运行时增强** | **🔄** | **LLMConfig ✅ / AgentContext ✅ / Streaming 📋 / 缓存策略 📋 — 2/4 已实现** |
 
 ---
 
@@ -224,14 +197,18 @@
 
 ### 4.3 已知骨骼缺陷（新 AI 特别注意）
 
-以下 4 处是 Phase 0 必须修复的骨骼问题（ADR-010 已设计，代码未实现）：
+> ✅ **已修复**：TD-012（LLMConfig 数据类）和 TD-014（AgentContext 辩论槽位）
+> ❌ **待修复**：TD-013（streaming）和 TD-015（缓存解耦）— 仍有 2 项
 
-| # | 问题 | 位置 | 修复方向 |
-|:--|:------|:-----|:---------|
-| TD-012 | LLM 参数硬编码：temperature=0.3, max_tokens=8192 不可覆盖 | `src/utils/llm.py` | 新增 `LLMConfig` 数据类，`ainvoke()` 加可选参数 |
-| TD-013 | 无 streaming 接口 | `src/utils/llm.py` | 新增 `astream() → AsyncIterator[str]` |
-| TD-014 | AgentContext 只能传 question，无法接收 peer 输出 | `src/agents/base.py` | 加 `peer_outputs`/`current_round`/`target_audience` |
-| TD-015 | 按 provider 名缓存 LLM 实例，不同 config 冲突 | `src/utils/llm.py` | 非默认 LLMConfig 不缓存 |
+| # | 问题 | 位置 | 状态 | 修复方向 |
+|:--|:------|:-----|:----:|:---------|
+| TD-013 | 无 streaming 接口 | `src/utils/llm.py` | 📋 | 新增 `astream() → AsyncIterator[str]` |
+| TD-015 | 按 provider 名缓存 LLM 实例，不同 config 冲突 | `src/utils/llm.py` | 📋 | 非默认 LLMConfig 不缓存 |
+
+**新增架构风险**：
+| # | 问题 | 位置 | 状态 | 修复方向 |
+|:--|:------|:-----|:----:|:---------|
+| TD-016 | LangGraph 零使用未验证 | 全项目 | 📋 | 跑通最小 StateGraph 原型，验证 API 与接口设计的匹配度 |
 
 **设计原则**：所有修改向后兼容，默认值 = 当前行为，零测试回归。
 
@@ -265,44 +242,45 @@ result.data.summary  # Pyright 可校验 ✅
 
 ## 5. 建议的下一步
 
-> **⚠️ 优先级已更新（2026-06-07 本轮会话）**
-> TD-014 已修复 ✅，**TD-012 也已修复 ✅**（LLMConfig 数据类 + 17 测试，202 全量通过）。
-> 剩余 2 项骨骼缺陷：**TD-015 → TD-013**（缓存策略 → streaming，可并行推进）。
+> **⚠️ 优先级已更新（2026-06-08 全面审视后）**
+> 
+> 最大风险变更：**LangGraph 零使用**（TD-016）取代 TD-012/014 成为头号关注。
+> Phase 0 收尾的新顺序：**LangGraph 验证 → TD-013/015 → 空模块骨架 → Phase 1 辩论引擎**
 
-### 立即修复（Phase 0 收尾前应完成）
+### 🥇 Phase 0 收尾（按顺序执行）
 
 | 优先级 | 事项 | 文件 | 预估 | 说明 |
 |:------:|:----|:----|:----:|------|
-| ~~🥇~~ | ~~**TD-014 AgentContext 辩论槽位**~~ | ~~`src/agents/base.py`~~ | ~~~30min~~ | **✅ 已完成**（+3 字段 +7 测试，185 全量通过） |
-| ~~🥇~~ | ~~**TD-012 LLMConfig + 参数暴露**~~ | ~~`src/utils/llm.py`~~ | ~~~1d~~ | **✅ 已完成**（LLMConfig 数据类 + 接口修改 + 29 测试，202 全量通过） |
-| 🥇 | **TD-015 缓存策略解耦** | `src/utils/llm.py` | ~0.5d | 非默认 LLMConfig 不缓存（已有 is_default 检测，主要补测试） |
-| 🥇 | **TD-013 Streaming 接口** | `src/utils/llm.py` | ~0.5d | 新增 `astream() → AsyncIterator[str]` |
-| 🥈 | **MasterAgent 输出结构化** | `src/agents/master_agent.py` | ~1d | 将纯文本改为结构化评级 + 证据 + 置信度 |
-| 🥈 | **Phase 0 收尾修复** | 多处 | ~45min | Pyright tests/ 标注、config.py deprecation、.env.example、pytest-cov |
+| 🥇 | **① LangGraph 最小原型验证**（TD-016） | 新建 `tests/test_langgraph_prototype.py` | ~0.5d | **当前最大风险**。跑通 StateGraph，确认 `BaseAgent.run()` 可作为节点、`AgentContext` 可序列化为 State |
+| 🥇 | **② TD-015 缓存策略解耦** | `src/utils/llm.py` | ~0.5d | 非默认 LLMConfig 不缓存（已有 is_default 检测，主要补测试） |
+| 🥇 | **③ TD-013 Streaming 接口** | `src/utils/llm.py` | ~0.5d | 新增 `astream() → AsyncIterator[str]`，趁只有 2 个调用方 |
+| 🥈 | **④ MasterAgent 输出结构化** | `src/agents/master_agent.py` | ~1d | 纯文本 → 结构化评级 + 证据 + 置信度 |
+| 🥈 | **⑤ Phase 0 收尾修复** | 多处 | ~45min | Pyright tests/ 标注、config.py deprecation、.env.example、pytest-cov |
+| 🥉 | **⑥ 4 个空模块骨架代码** | debate/data/backtest/risk | ~15min | 每个加 `raise NotImplementedError` + 模块文档 |
+| 🥉 | **⑦ A-6 TD-010 README** | `README.en.md` | ~30min | 替换 Gitee 模板 |
 
-### 之后（原计划路径）
+### 🥇 Phase 1 MVP（Phase 0 收尾后）
 
 | 优先级 | 步骤 | 说明 | 前置 |
 |:------:|:----:|:-----|:----:|
-| 🥉 | A-4 GREP FormulaIndex | 公式精确检索 | — |
-| 🥉 | A-6 TD-010 README | 替换 Gitee 模板 | — |
-| 🥉 | 辩论编排器 LangGraph StateGraph | 辩论引擎的第一步 | TD-014 修复后 |
-| 🥉 | 产品定位文档 | 按「手榴弹」方向写正式的 PRD/产品设计 | — |
+| 🥇 | **辩论编排器 LangGraph StateGraph** | 辩论引擎的第一步 | LangGraph 原型验证 ✅ |
+| 🥇 | **辩论分组逻辑** | 4 组大师分组辩论实现 | 编排器就绪 |
+| 🥇 | **数据采集接入** | akshare 行情 + 新闻 | data 模块骨架就绪 |
+| 🥇 | **前端 MVP（3 页面）** | Streamlit 首页/分析/我的 | 端到端链路就绪 |
+| 🥈 | **用户行为镜子 Agent 记录期原型** | 1-9 次决策行为记录 | 辩论引擎就绪 |
+| 🥈 | **回测模块基础** | 简单策略回测 | data 模块就绪 |
 
-### 🆕 未来构想：用户行为镜子 Agent
+### 🆕 未来构想
 
-> 2026-06-07 新增 — 产品构想阶段，见 `docs/架构设计/用户行为镜子Agent设计构想.md`
+| 事项 | 阶段 | 前置 |
+|:-----|:----:|:-----|
+| 用户行为镜子 Agent（对比期/出师期） | Phase 1+ | 辩论引擎就绪 |
+| 风控模块（VaR/波动率） | Phase 2+ | data 模块就绪 |
+| 前端决策卡可视化升级 | Phase 2+ | MVP 前端就绪 |
+| 英文 README | Phase 2+ | Phase 1 MVP 完成 |
 
-**定位**：既是镜子，也是最好的老师。不分析市场，分析用户自己的投资行为。
-
-**核心机制**：
-- 📝 **记录期**（1-9 次决策）：只记录不出声，积累行为基线
-- 🔍 **对比期**（10+ 次决策）：出对比报告，展示"当前操作 vs 你的历史相似操作"
-- 🗣️ **出师期**（30+ 次决策）：可在辩论票中占一个可选席位
-
-**≠ 交易教练**。不做预判、不给指令，只展示模式让用户自行判断。
-
-依赖：辩论引擎就绪 → 出师后可占席位；知识库就绪 → 偏差检测后可关联教育内容。
+> 镜子 Agent 完整设计见 `docs/架构设计/用户行为镜子Agent设计构想.md`（9 章）
+> 前端 MVP 需求见 `docs/产品需求/前端MVP需求文档-基于市场对标.md`（3 页线框图）
 
 ### 🆕 前端 MVP 需求（基于市场对标）
 
@@ -411,5 +389,5 @@ git commit -m "<type>: <description>"
 
 ---
 
-> **最后更新**：2026-06-07 (TD-012 修复 — LLMConfig 数据类 + 17 测试，202 全量通过) | **创建目的**：会话交接
+> **最后更新**：2026-06-08 (全面项目审视 — 新增 TD-016 LangGraph 验证缺口，五项硬伤识别) | **创建目的**：会话交接
 > **如何更新**：每次会话结束时，更新 §2（当前状态）+ §5（下一步）+ 本页页尾日期
