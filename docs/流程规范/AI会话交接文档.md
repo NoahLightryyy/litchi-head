@@ -79,10 +79,12 @@
 ### 当前 Git 状态
 
 ```
-工作区干净（本次提交 aaa6daf）
-up to date with origin/main
+工作区干净（最新提交 e79d14c）
+ahead origin/main by 2 commits（网络原因暂未推送）
 
-最新 commit: aaa6daf — feat: _run_single_master 接入市场简报 + 结构化下传
+最新 commit: e79d14c — style: Ruff 自动修复 — import 排序 + 行长修正
+待推送:  0b94a07 docs + e79d14c style
+需要在原设备上手动 git push
 ```
 
 ### 测试覆盖
