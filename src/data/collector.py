@@ -320,4 +320,85 @@ def _safe_int(row: pd.Series, key: str) -> int:
         return 0
 
 
-__all__ = ["DataCollector"]
+def format_market_brief(
+    stock_code: str,
+    stock_name: str,
+    quote: StockQuote | None = None,
+    klines: list[KLine] | None = None,
+    news: list[NewsItem] | None = None,
+) -> str:
+    """生成市场简报文本
+
+    将结构化行情/K线/新闻数据格式化为自然语言段落，
+    供 LLM 直接消费。
+
+    Args:
+        stock_code: 股票代码
+        stock_name: 股票名称
+        quote: 个股实时行情（已过滤）
+        klines: K 线数据
+        news: 新闻列表
+
+    Returns:
+        格式化文本，以 "📊 市场简报" 开头
+    """
+    if stock_name:
+        header = f"📊 市场简报 — {stock_name} ({stock_code})"
+    else:
+        header = f"📊 市场简报 — {stock_code}"
+
+    lines = [header]
+    lines.append("━" * 30)
+    has_data = False
+
+    # ── 实时行情 ──
+    if quote is not None:
+        has_data = True
+        parts = [f"最新价 {quote.price:.2f} 元"]
+        if quote.change_pct:
+            parts.append(f"涨幅 {quote.change_pct:+.2f}%")
+        parts.append(f"成交量 {quote.volume:,} 手")
+        lines.append("【实时行情】" + " | ".join(parts))
+
+    # ── 近期走势（基于 K 线） ──
+    if klines and len(klines) >= 2:
+        has_data = True
+        closes = [k.close for k in klines if k.close > 0]
+        if len(closes) >= 2:
+            avg_price = sum(closes) / len(closes)
+            lines.append(
+                f"【近期走势】近 {len(klines)} 个交易日 | "
+                f"收盘价 {closes[-1]:.2f} → {closes[0]:.2f} | "
+                f"均价 {avg_price:.2f}"
+            )
+
+    # ── 关键价位 ──
+    if quote is not None:
+        has_data = True
+        parts = []
+        if quote.open_:
+            parts.append(f"今开 {quote.open_:.2f}")
+        if quote.prev_close:
+            parts.append(f"昨收 {quote.prev_close:.2f}")
+        if quote.high:
+            parts.append(f"最高 {quote.high:.2f}")
+        if quote.low:
+            parts.append(f"最低 {quote.low:.2f}")
+        if parts:
+            lines.append("【关键价位】" + " | ".join(parts))
+
+    # ── 新闻摘要 ──
+    if news:
+        has_data = True
+        news_lines = [f"【新闻摘要】（{min(len(news), 5)} 条）"]
+        for n in news[:5]:
+            news_lines.append(f"  • {n.title or '(无标题)'}")
+        lines.extend(news_lines)
+
+    if not has_data:
+        lines.append("暂无可用数据")
+
+    return "\n".join(lines)
+
+
+__all__ = ["DataCollector", "format_market_brief"]

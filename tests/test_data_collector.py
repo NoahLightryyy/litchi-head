@@ -210,3 +210,104 @@ class TestCacheIntegration:
             quotes = collector.get_realtime_quotes()
         assert len(stocks) == 3
         assert len(quotes) == 2
+
+
+# ── Tests: format_market_brief ─────────────────────────────────────────
+
+
+class TestFormatMarketBrief:
+    """format_market_brief 函数验证"""
+
+    def test_full_data(self):
+        """提供完整行情+K线+新闻"""
+        from src.data.collector import format_market_brief
+        from src.data.models import KLine, NewsItem, StockQuote
+
+        quote = StockQuote(
+            code="000001", name="平安银行", price=12.50,
+            change_pct=2.46, volume=1000000, change=0.30, amount=1.25e7,
+            high=12.80, low=12.30, open_=12.40, prev_close=12.20,
+        )
+        klines = [
+            KLine(date="2026-06-05", open=12.40, close=12.50, high=12.80, low=12.30, volume=500000, amount=6.25e6),
+            KLine(date="2026-06-04", open=12.30, close=12.35, high=12.50, low=12.20, volume=450000, amount=5.58e6),
+            KLine(date="2026-06-03", open=12.10, close=12.20, high=12.30, low=12.05, volume=400000, amount=4.88e6),
+        ]
+        news = [
+            NewsItem(code="000001", title="平安银行发布年报", date="2026-06-05", source="东方财富"),
+            NewsItem(code="000001", title="平安银行数字化转型", date="2026-06-04", source="证券时报"),
+        ]
+
+        result = format_market_brief(
+            stock_code="000001",
+            stock_name="平安银行",
+            quote=quote,
+            klines=klines,
+            news=news,
+        )
+
+        assert "📊 市场简报 — 平安银行 (000001)" in result
+        assert "最新价 12.50 元" in result
+        assert "涨幅 +2.46%" in result
+        assert "平安银行发布年报" in result
+        assert "平安银行数字化转型" in result
+
+    def test_no_data(self):
+        """无任何数据"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(
+            stock_code="000001",
+            stock_name="平安银行",
+        )
+
+        assert "暂无可用数据" in result
+
+    def test_quote_only(self):
+        """仅行情数据（无K线/新闻）"""
+        from src.data.collector import format_market_brief
+        from src.data.models import StockQuote
+
+        quote = StockQuote(
+            code="000001", name="平安银行", price=12.50,
+            change_pct=2.46, volume=1000000, change=0.30, amount=1.25e7,
+            high=12.80, low=12.30, open_=12.40, prev_close=12.20,
+        )
+
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行", quote=quote,
+        )
+
+        assert "实时行情" in result
+        assert "暂无可用数据" not in result
+
+    def test_no_news(self):
+        """有行情+K线但无新闻"""
+        from src.data.collector import format_market_brief
+        from src.data.models import KLine, StockQuote
+
+        quote = StockQuote(
+            code="000001", name="平安银行", price=12.50,
+            change_pct=2.46, volume=1000000, change=0.30, amount=1.25e7,
+            high=12.80, low=12.30, open_=12.40, prev_close=12.20,
+        )
+        klines = [
+            KLine(date="2026-06-05", open=12.40, close=12.50, high=12.80, low=12.30, volume=500000, amount=6.25e6),
+            KLine(date="2026-06-04", open=12.30, close=12.35, high=12.50, low=12.20, volume=450000, amount=5.58e6),
+        ]
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行", quote=quote, klines=klines,
+        )
+
+        assert "实时行情" in result
+        assert "近期走势" in result
+        assert "新闻" not in result
+
+    def test_empty_stock_name(self):
+        """股票名为空时降级"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(stock_code="000001", stock_name="")
+
+        assert "000001" in result
+        assert "暂无可用数据" in result
