@@ -136,6 +136,30 @@ class TestCollectDataNode:
         assert md.get("quotes") == []
         assert md.get("klines") == []
 
+    def test_collect_data_node_has_brief(self, mock_collector):
+        """market_data 包含 brief 和 quote 字段"""
+        state: DebateState = {
+            "session_id": "test-brief",
+            "debate_input": {
+                "stock_code": "000001",
+                "stock_name": "平安银行",
+            },
+            "current_round": 0,
+            "analyses": {},
+            "market_data": {},
+            "vote_summary": {},
+            "errors": [],
+        }
+        result = collect_data_node(state, mock_collector)
+        md = result["market_data"]
+        assert "brief" in md, "缺少 brief 字段"
+        assert isinstance(md["brief"], str), "brief 应为字符串"
+        assert len(md["brief"]) > 0, "brief 不应为空"
+        # mock collector 返回空列表 → 简报应为"暂无可用数据"
+        assert "暂无可用数据" in md["brief"]
+        # quote 应为 None（空数据时）
+        assert md["quote"] is None
+
 
 class TestMasterRoundNode:
     """make_master_round_node 验证"""

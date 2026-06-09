@@ -20,7 +20,7 @@ from langgraph.graph import END, StateGraph
 
 from src.agents.base import AgentContext
 from src.agents.master_agent import MasterAgent
-from src.data.collector import DataCollector
+from src.data.collector import DataCollector, format_market_brief
 from src.data.models import KLine, NewsItem, StockQuote
 from src.debate.models import AgentAnalysis, DebateInput, DebateResult, VoteSummary
 from src.memory.skill_disk import MasterSkill, SkillDisk
@@ -85,8 +85,26 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
     except Exception:
         pass
 
+    # 按个股过滤行情
+    target_quote: StockQuote | None = None
+    for q in quotes:
+        if q.code == code:
+            target_quote = q
+            break
+
+    # 生成市场简报
+    brief = format_market_brief(
+        stock_code=code,
+        stock_name=inp.get("stock_name", ""),
+        quote=target_quote,
+        klines=klines,
+        news=news,
+    )
+
     return {
         "market_data": {
+            "brief": brief,
+            "quote": target_quote.model_dump() if target_quote else None,
             "quotes": [q.model_dump() for q in quotes],
             "klines": [k.model_dump() for k in klines],
             "news": [n.model_dump() for n in news],
