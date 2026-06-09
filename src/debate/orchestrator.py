@@ -134,12 +134,9 @@ async def _run_single_master(
 
     # 构建增强问题（附加上下文）
     enhanced = question
-    news_list = market_data.get("news", [])
-    if news_list:
-        news_summary = "\n".join(
-            [f"- {n.get('title', '')}" for n in news_list[:5]]
-        )
-        enhanced += f"\n\n相关新闻：\n{news_summary}"
+    brief = market_data.get("brief", "")
+    if brief:
+        enhanced += f"\n\n📊 以下为当前市场数据：\n{brief}"
 
     try:
         agent = MasterAgent(
@@ -152,6 +149,7 @@ async def _run_single_master(
                 "question": enhanced,
                 "stock_code": stock_code,
                 "stock_name": stock_name,
+                "market_data": market_data,
             },
             current_round=1,
             target_audience="debate_group",
