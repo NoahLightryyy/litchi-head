@@ -1,7 +1,7 @@
 # litchi-head — AI 项目指令
 
 > 多智能体投资决策平台（LangGraph + DeepSeek）
-> 当前阶段：Phase 0 基建期
+> 当前阶段：Phase 1 MVP 期（data → debate 接驳完成）
 
 ---
 
@@ -76,6 +76,12 @@ make check     # 一键检查（lint + type + test）
 make lint      # Ruff 代码风格
 make type      # Pyright 类型检查
 make test      # Pytest 测试
+
+# Docker 开发环境（跨设备一致性）
+make docker-build   # 构建开发镜像
+make docker-test    # 在容器中跑测试
+make docker-check   # 在容器中全量检查
+make docker-shell   # 进入容器 bash
 
 # Windows PowerShell
 .\scripts\check.ps1

@@ -1,0 +1,29 @@
+# ── litchi-head 开发环境（Docker Compose） ───────────────────────────
+# 用法：
+#   docker compose build          # 构建镜像
+#   docker compose run --rm dev pytest tests/ -v    # 跑测试
+#   docker compose run --rm dev make check          # 全量检查
+#   docker compose run --rm dev bash                # 进入容器
+
+services:
+  dev:
+    build: .
+    image: litchi-head:dev
+    container_name: litchi-head-dev
+    working_dir: /app
+
+    # 挂载源码（容器内直接编辑，无需 rebuild）
+    volumes:
+      - .:/app
+
+    # 从宿主 .env 读取 API Key 等配置
+    env_file:
+      - .env
+
+    # akshare 需要访问东方财富等 API
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+    # 默认命令：跑测试
+    command: python -m pytest -v --tb=short
