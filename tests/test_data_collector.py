@@ -229,13 +229,28 @@ class TestFormatMarketBrief:
             high=12.80, low=12.30, open_=12.40, prev_close=12.20,
         )
         klines = [
-            KLine(date="2026-06-05", open=12.40, close=12.50, high=12.80, low=12.30, volume=500000, amount=6.25e6),
-            KLine(date="2026-06-04", open=12.30, close=12.35, high=12.50, low=12.20, volume=450000, amount=5.58e6),
-            KLine(date="2026-06-03", open=12.10, close=12.20, high=12.30, low=12.05, volume=400000, amount=4.88e6),
+            KLine(
+                date="2026-06-05", open=12.40, close=12.50,
+                high=12.80, low=12.30, volume=500000, amount=6.25e6,
+            ),
+            KLine(
+                date="2026-06-04", open=12.30, close=12.35,
+                high=12.50, low=12.20, volume=450000, amount=5.58e6,
+            ),
+            KLine(
+                date="2026-06-03", open=12.10, close=12.20,
+                high=12.30, low=12.05, volume=400000, amount=4.88e6,
+            ),
         ]
         news = [
-            NewsItem(code="000001", title="平安银行发布年报", date="2026-06-05", source="东方财富"),
-            NewsItem(code="000001", title="平安银行数字化转型", date="2026-06-04", source="证券时报"),
+            NewsItem(
+                code="000001", title="平安银行发布年报",
+                date="2026-06-05", source="东方财富",
+            ),
+            NewsItem(
+                code="000001", title="平安银行数字化转型",
+                date="2026-06-04", source="证券时报",
+            ),
         ]
 
         result = format_market_brief(
@@ -292,8 +307,14 @@ class TestFormatMarketBrief:
             high=12.80, low=12.30, open_=12.40, prev_close=12.20,
         )
         klines = [
-            KLine(date="2026-06-05", open=12.40, close=12.50, high=12.80, low=12.30, volume=500000, amount=6.25e6),
-            KLine(date="2026-06-04", open=12.30, close=12.35, high=12.50, low=12.20, volume=450000, amount=5.58e6),
+            KLine(
+                date="2026-06-05", open=12.40, close=12.50,
+                high=12.80, low=12.30, volume=500000, amount=6.25e6,
+            ),
+            KLine(
+                date="2026-06-04", open=12.30, close=12.35,
+                high=12.50, low=12.20, volume=450000, amount=5.58e6,
+            ),
         ]
         result = format_market_brief(
             stock_code="000001", stock_name="平安银行", quote=quote, klines=klines,
