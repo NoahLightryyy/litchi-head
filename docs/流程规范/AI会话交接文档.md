@@ -28,24 +28,25 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `34eea96` — docs: 环境变量配置回归正轨 — CLAUDE.md 区隔两套 Key + 401 修复日志 |
+| **最新提交** | `aaa6daf` — feat: _run_single_master 接入市场简报 + 结构化下传 |
 
 ---
 
-## 2. 当前会话状态（2026-06-08 第 7 次 — 子 Agent 路由配置永久化 ✅）
+## 2. 当前会话状态（2026-06-09 — data → debate 接驳实现 ✅）
 
-> **前次会话**：2026-06-08 第 5 次 — Cursor 救援修复 401（环境变量端点混用）
-> **本次会话**：2026-06-08 第 6 次 — 清理未提交变更 + 状态文档更新
+> **前次会话**：2026-06-08 第 6 次 — 清理未提交变更 + 状态文档更新
+> **本次会话**：2026-06-09 — data → debate 接驳（format_market_brief + 行情过滤 + 简报下传）
 
 ### 本次已完成的工作
 
 | 事项 | 详情 |
 |------|------|
-| | **本轮（第 6 次）** |
-| ✅ **提交未完成变更** | CLAUDE.md + .env.example + 2026-06-08-5.md（401 修复日志） |
-| ✅ **更新 memory** | current-state.md → 反映环境变量回归 DeepSeek 的现状 |
-| ✅ **更新交接文档** | §2 当前状态 + §1 最新提交对齐最新 |
-| ✅ **工作区清理** | 4 commits ahead，干净 |
+| | **本轮（2026-06-09）** |
+| ✅ **format_market_brief()** | 纯函数，将行情/K线/新闻格式化为自然语言简报（5 测试） |
+| ✅ **collect_data_node 过滤** | 按个股过滤行情 + 调用 format_market_brief 生成简报 |
+| ✅ **_run_single_master 接驳** | 简报拼入 question + 结构化数据传入 AgentContext |
+| ✅ **三提交推送** | `c41ca2d` + `6eefe9c` + `aaa6daf` → origin/main |
+| ✅ **文档更新** | 工作日志 + 看板 + 交接文档 + 日志索引 |
 
 ### 当前配置现状
 
@@ -57,30 +58,31 @@
 
 **内核约束**：Claude Code 的 `ANTHROPIC_BASE_URL` 是会话级配置，同一进程无法「主 DeepSeek + 子 Claude」。子 Agent 只能跟随主会话。
 
-### 项目核心状态（2026-06-08 第 8 次）
+### 项目核心状态（2026-06-09 — data→debate 接驳完成）
 
 | 维度 | 评分 | 关键发现 |
 |:----|:----:|:---------|
 | 工程管理 | A | ADR/债务/CI/记忆系统 — 成熟度持续提升 |
-| 代码完成度 | B- | 6 模块就绪，2 空架（backtest/risk），阻塞已清零 |
-| 测试质量 | B+ | **300** 测试全绿（+28 debate 新增） |
-| 文档完整度 | A- | 15+ 份文档，结构清晰 |
-| 产品可演示性 | C- | 分析链路（data→debate）可运行，需前端展示 |
+| 代码完成度 | B | 6 模块就绪 + data→debate 链路接驳完成，2 空架（backtest/risk） |
+| 测试质量 | B+ | **305+** 测试全绿（+5 format_market_brief 新增） |
+| 文档完整度 | A- | 16+ 份文档，结构清晰 |
+| 产品可演示性 | C | 分析链路（data→debate）可运行（含市场简报），需前端展示 |
 
 ### 硬伤跟踪
 
 1. **🔴 2 个空模块** — backtest/risk（仅 `__init__.py`）
 2. **🟢 ~~data 模块~~** — ✅ **已实现**
 3. **🟢 ~~debate 模块~~** — ✅ **已实现（MVP）**
-4. **🟡 子 Agent 不可用** — 跟随主会话走 DeepSeek，Claude 模型调用将 401
+4. **🟢 ~~data→debate 接驳~~** — ✅ **format_market_brief + 行情过滤 + 结构化下传**
+5. **🟡 子 Agent 不可用** — 跟随主会话走 DeepSeek，Claude 模型调用将 401
 
 ### 当前 Git 状态
 
 ```
-工作区干净（本次提交 34eea96）
-ahead origin/main by 4 commits
+工作区干净（本次提交 aaa6daf）
+up to date with origin/main
 
-最新 commit: 34eea96 — docs: 环境变量配置回归正轨 — CLAUDE.md 区隔两套 Key + 401 修复日志
+最新 commit: aaa6daf — feat: _run_single_master 接入市场简报 + 结构化下传
 ```
 
 ### 测试覆盖
@@ -89,11 +91,11 @@ ahead origin/main by 4 commits
 |---------|:------:|---------|
 | `tests/test_data_models.py` | 17 | StockInfo/StockQuote/KLine/NewsItem/BoardInfo |
 | `tests/test_data_cache.py` | 11 | DataCache set/get/TTL/delete/clear |
-| `tests/test_data_collector.py` | 15 | DataCollector 6 类数据 + 缓存 + 错误处理 |
+| `tests/test_data_collector.py` | 20 | DataCollector 6 类数据 + 缓存 + format_market_brief |
 | `tests/test_data_integration.py` | 5（skip） | 真实 akshare 集成测试 |
 | `tests/test_debate_models.py` | 12 | DebateInput/AgentAnalysis/VoteSummary/DebateResult |
-| `tests/test_debate_orchestrator.py` | 16 | DebateOrchestrator StateGraph 三节点 |
-| **全量** | **300 passed, 4 skipped** | |
+| `tests/test_debate_orchestrator.py` | 17 | DebateOrchestrator StateGraph + brief/quote 字段验证 |
+| **全量** | **305+ passed, 4 skipped** | |
 
 ---
 
@@ -200,8 +202,8 @@ klines = collector.get_klines("000001", period="daily")
 
 | 优先级 | 步骤 | 说明 | 前置 |
 |:------:|:----:|:-----|:----:|
-| 🥇 | **data → debate 接驳** | 辩论 Agent 使用 DataCollector 获取实时数据 | data ✅ + debate ✅ |
-| 🥇 | **端到端链路验证** | 用户问题 → MasterAgent → 多 Agent 辩论 → 决策卡输出 | data→debate 接驳 |
+| 🥇 | **端到端链路验证** | 用户问题 → MasterAgent → 多 Agent 辩论 → 决策卡输出（含市场简报） | data→debate 接驳 ✅ |
+| 🥇 | **全量测试验证** | 在原设备上 `python -m pytest tests/ -v` 确认 305+ 全部通过 | 接驳完成 |
 | 🥈 | **三层记忆 MVP** | JSON 持久化（工作/情景/反思） | — |
 | 🥉 | **前端 MVP** | Streamlit 3 页面 | 端到端链路就绪 |
 
@@ -349,4 +351,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-08 第 8 次（环境变量回归 DeepSeek + 清理未提交变更） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-09（data→debate 接驳 — format_market_brief + 行情过滤 + 结构化下传） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行

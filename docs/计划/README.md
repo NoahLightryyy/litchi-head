@@ -56,6 +56,7 @@
 - ✅ **数据采集层** `src/data/` — DataCollector + Cache + 5 个 Pydantic 模型（43 测试）
 - ✅ **辩论编排器 MVP** `src/debate/` — LangGraph StateGraph 驱动（三节点：collect_data→master_round→aggregate，28 测试）
 - ✅ **data → debate 链路可行性验证** — 编排器 MVP 全链路跑通，300 passed
+- ✅ **data → debate 接驳** — format_market_brief 市场简报 + 行情过滤 + 结构化下传
 
 ### 项目治理
 - ✅ **远程仓库迁移** — Gitee → GitHub，保留 Gitee 为备份远程
@@ -98,13 +99,13 @@ src/
 | 2️⃣ | **辩论分组** — 4 组大师分组辩论逻辑 | 编排器 ✅ |
 | 3️⃣ | **交叉质疑** — Agent 之间互相质疑机制 | 辩论基础 ✅ |
 | 4️⃣ | **投票聚合** — 大师投票加权汇总 | 质疑机制就绪 |
-| 5️⃣ | **data → debate 接驳** — 辩论 Agent 使用 DataCollector 获取实时数据 | data ✅ + debate ✅ |
+| 5️⃣ | **data → debate 接驳** — format_market_brief + 行情过滤 + 结构化下传 | ✅ 已完成 |
 
 ### Phase 1 MVP
 
 | 优先级 | 事项 | 依赖 | 预估 |
 |:------:|:-----|:----|:----:|
-| 🥇 | **data → debate 接驳** — 辩论 Agent 使用 DataCollector 获取实时数据 | data ✅ + debate ✅ | ~1d |
+| 🥇 | **data → debate 接驳** — format_market_brief + 行情过滤 + 结构化下传 | ✅ 已完成 | — |
 | 🥇 | **端到端链路验证** — 用户问题 → MasterAgent → 多 Agent 辩论 → 决策卡输出 | data→debate 接驳 | ~2d |
 | 🥇 | **前端 MVP（3 页面）** — 首页/分析页/我的页面（Streamlit） | 端到端链路就绪 | ~3d |
 | 🥈 | **用户行为镜子 Agent** — 记录期（1-9 次决策）MVP | 辩论引擎就绪 | ~2d |
@@ -178,6 +179,7 @@ src/
 | 2026-06-08 | Phase 1 数据采集层上线 — DataCollector + Cache + Models，43 测试，272 total |
 | 2026-06-08 | 辩论编排器 MVP 上线 — LangGraph StateGraph + 28 测试，300 total |
 | 2026-06-08 | 子 Agent 灵算路由永久化 — Windows User env + .bashrc 对齐，阻塞清零 |
+| 2026-06-09 | data → debate 接驳实现 — format_market_brief + 行情过滤 + 结构化下传 |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。
