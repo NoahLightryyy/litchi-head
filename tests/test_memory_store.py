@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from src.memory.store import JsonFileStore, MemoryItem, MemoryStore
+from src.memory.store import JsonFileStore, MemoryItem, MemoryStore, MemoryStoreError
 
 
 class TestMemoryItem:
@@ -201,3 +201,45 @@ class TestJsonFileStore:
 
         keys = await store.list_keys(namespace=("working", "test"))
         assert sorted(keys) == ["k1", "k2"]
+
+    # ── Task 5: 错误处理与边界情况 ──
+
+    @pytest.mark.asyncio
+    async def test_empty_namespace_raises(self, tmp_path: Path):
+        """空 namespace 抛出 ValueError"""
+        store = JsonFileStore(base_path=tmp_path)
+        with pytest.raises(ValueError, match="namespace 不能为空"):
+            await store.put("k", "v", namespace=())
+
+    @pytest.mark.asyncio
+    async def test_corrupted_json_file(self, tmp_path: Path):
+        """损坏的 JSON 文件抛出 MemoryStoreError"""
+        store = JsonFileStore(base_path=tmp_path)
+        file_path = tmp_path / "working" / "test.json"
+        file_path.parent.mkdir(parents=True)
+        file_path.write_text("不是一个合法的 JSON", encoding="utf-8")
+
+        with pytest.raises(MemoryStoreError):
+            await store.get("k", namespace=("working", "test"))
+
+    @pytest.mark.asyncio
+    async def test_file_with_only_newlines(self, tmp_path: Path):
+        """空 JSONL 文件不报错"""
+        store = JsonFileStore(base_path=tmp_path)
+        file_path = tmp_path / "episodic" / "test.jsonl"
+        file_path.parent.mkdir(parents=True)
+        file_path.write_text("\n\n\n", encoding="utf-8")
+
+        result = await store.get("anything", namespace=("episodic", "test"))
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_put_empty_value(self, tmp_path: Path):
+        """value 可以是 None 或空结构"""
+        store = JsonFileStore(base_path=tmp_path)
+        item = await store.put("null_val", None, namespace=("working", "test"))
+        assert item.value is None
+
+        retrieved = await store.get("null_val", namespace=("working", "test"))
+        assert retrieved is not None
+        assert retrieved.value is None
