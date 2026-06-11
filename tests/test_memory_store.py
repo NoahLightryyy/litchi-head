@@ -129,3 +129,75 @@ class TestJsonFileStore:
         retrieved = await store.get("k", namespace=deep_ns)
         assert retrieved is not None
         assert retrieved.value == "v"
+
+    # ── Task 4: search / delete / list ──
+
+    @pytest.mark.asyncio
+    async def test_search_by_prefix(self, tmp_path: Path):
+        """search() 用 namespace 前缀匹配"""
+        store = JsonFileStore(base_path=tmp_path)
+        await store.put("k1", "v1", namespace=("working", "a"))
+        await store.put("k2", "v2", namespace=("working", "b"))
+        await store.put("k3", "v3", namespace=("episodic", "a"))
+
+        results = await store.search(namespace=("working",))
+        assert len(results) == 2
+        keys = {r.key for r in results}
+        assert keys == {"k1", "k2"}
+
+    @pytest.mark.asyncio
+    async def test_search_empty_namespace(self, tmp_path: Path):
+        """空 namespace 返回所有"""
+        store = JsonFileStore(base_path=tmp_path)
+        await store.put("k1", "v1", namespace=("a",))
+        await store.put("k2", "v2", namespace=("b",))
+        results = await store.search(namespace=())
+        assert len(results) == 2
+
+    @pytest.mark.asyncio
+    async def test_search_empty_result(self, tmp_path: Path):
+        """搜索不存在的 namespace 返回空列表"""
+        store = JsonFileStore(base_path=tmp_path)
+        results = await store.search(namespace=("nonexistent",))
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_delete_existing(self, tmp_path: Path):
+        """删除存在的 key"""
+        store = JsonFileStore(base_path=tmp_path)
+        await store.put("k1", "v1", namespace=("working", "test"))
+        deleted = await store.delete("k1", namespace=("working", "test"))
+        assert deleted is True
+        result = await store.get("k1", namespace=("working", "test"))
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent(self, tmp_path: Path):
+        """删除不存在的 key 返回 False"""
+        store = JsonFileStore(base_path=tmp_path)
+        deleted = await store.delete("nothing", namespace=("working", "test"))
+        assert deleted is False
+
+    @pytest.mark.asyncio
+    async def test_list_namespaces(self, tmp_path: Path):
+        """list_namespaces 返回所有已创建的 namespace"""
+        store = JsonFileStore(base_path=tmp_path)
+        await store.put("k1", "v1", namespace=("a", "b"))
+        await store.put("k2", "v2", namespace=("a", "c"))
+        await store.put("k3", "v3", namespace=("d",))
+
+        namespaces = await store.list_namespaces()
+        assert ("a", "b") in namespaces
+        assert ("a", "c") in namespaces
+        assert ("d",) in namespaces
+
+    @pytest.mark.asyncio
+    async def test_list_keys(self, tmp_path: Path):
+        """list_keys 返回指定 namespace 下的所有 key"""
+        store = JsonFileStore(base_path=tmp_path)
+        await store.put("k1", "v1", namespace=("working", "test"))
+        await store.put("k2", "v2", namespace=("working", "test"))
+        await store.put("not_me", "v3", namespace=("other",))
+
+        keys = await store.list_keys(namespace=("working", "test"))
+        assert sorted(keys) == ["k1", "k2"]

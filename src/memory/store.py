@@ -186,7 +186,7 @@ class JsonFileStore(MemoryStore):
             with open(path, encoding="utf-8") as f:
                 return json.load(f)
 
-    # ── Task 4 实现 ──
+    # ── search / delete / list ──
 
     async def search(
         self,
@@ -194,13 +194,119 @@ class JsonFileStore(MemoryStore):
         query: str | None = None,
         k: int = 10,
     ) -> list[MemoryItem]:
-        return []
+        results: list[MemoryItem] = []
+
+        if not self._base_path.exists():
+            return []
+
+        for suffix in (".json", ".jsonl"):
+            for fpath in self._base_path.rglob(f"*{suffix}"):
+                rel_path = fpath.relative_to(self._base_path)
+                ns = tuple(rel_path.with_suffix("").parts)
+
+                # namespace 前缀匹配
+                if len(ns) < len(namespace):
+                    continue
+                if ns[: len(namespace)] != namespace:
+                    continue
+
+                items = await self._search_in_file(fpath, ns)
+                results.extend(items)
+
+        return results[:k]
+
+    async def _search_in_file(
+        self, path: Path, ns: tuple[str, ...]
+    ) -> list[MemoryItem]:
+        if not path.exists():
+            return []
+        try:
+            async with self._lock_for(path):
+                data = await asyncio.to_thread(self._read_all, path)
+        except (json.JSONDecodeError, OSError) as e:
+            raise MemoryStoreError(f"读取记忆文件失败: {path}") from e
+
+        items: list[MemoryItem] = []
+        if path.suffix == ".jsonl":
+            for record in data:
+                ts = datetime.fromisoformat(record["timestamp"])
+                items.append(MemoryItem(
+                    key=record["key"],
+                    value=record.get("data"),
+                    namespace=ns,
+                    created_at=ts,
+                    updated_at=ts,
+                ))
+        else:
+            for key, val in data.items():
+                items.append(MemoryItem(
+                    key=key,
+                    value=val,
+                    namespace=ns,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                ))
+        return items
 
     async def delete(self, key: str, namespace: tuple[str, ...] = ()) -> bool:
-        return False
+        path = self._file_path(namespace)
+        if not path.exists():
+            return False
+
+        async with self._lock_for(path):
+            try:
+                data = await asyncio.to_thread(self._read_all, path)
+            except (json.JSONDecodeError, OSError) as e:
+                raise MemoryStoreError(f"读取记忆文件失败: {path}") from e
+
+            if path.suffix == ".jsonl":
+                original_count = len(data) if isinstance(data, list) else 0
+                data_list = [r for r in data if r.get("key") != key]
+                if len(data_list) == original_count:
+                    return False
+                await asyncio.to_thread(self._write_jsonl, path, data_list)
+            else:
+                if key not in data:
+                    return False
+                del data[key]
+                await asyncio.to_thread(self._write_json, path, data)
+
+        return True
 
     async def list_namespaces(self) -> list[tuple[str, ...]]:
-        return []
+        namespaces: set[tuple[str, ...]] = set()
+        if not self._base_path.exists():
+            return []
+        for suffix in (".json", ".jsonl"):
+            for fpath in self._base_path.rglob(f"*{suffix}"):
+                rel = fpath.relative_to(self._base_path)
+                ns = tuple(rel.with_suffix("").parts)
+                namespaces.add(ns)
+        return sorted(namespaces)
 
     async def list_keys(self, namespace: tuple[str, ...] = ()) -> list[str]:
-        return []
+        path = self._file_path(namespace)
+        if not path.exists():
+            return []
+
+        async with self._lock_for(path):
+            try:
+                data = await asyncio.to_thread(self._read_all, path)
+            except (json.JSONDecodeError, OSError) as e:
+                raise MemoryStoreError(f"读取记忆文件失败: {path}") from e
+
+        if path.suffix == ".jsonl":
+            return [r["key"] for r in data]
+        else:
+            return list(data.keys())
+
+    # ── 文件写入辅助 ──
+
+    def _write_json(self, path: Path, data: dict) -> None:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def _write_jsonl(self, path: Path, data: list[dict]) -> None:
+        with open(path, "w", encoding="utf-8") as f:
+            for record in data:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
