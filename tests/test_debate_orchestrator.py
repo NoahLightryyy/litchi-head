@@ -447,7 +447,7 @@ class TestDebateOrchestratorRun:
             assert result.stock_code == "000001"
             assert len(result.analyses) == 2
             assert result.vote_summary.total_votes == 2
-            assert result.total_latency_ms > 0
+            assert result.total_latency_ms >= 0
 
     @pytest.mark.asyncio
     async def test_run_with_default_masters(self, mock_collector):

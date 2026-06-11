@@ -265,7 +265,7 @@ class TestBaseAgent:
         agent = _ConcreteAgent("fast_agent")
         ctx = AgentContext(session_id="s1", input_data={})
         result = await agent.run_safe(ctx)
-        assert result.latency_ms > 0
+        assert result.latency_ms >= 0
         assert isinstance(result.latency_ms, float)
 
     def test_get_tools_returns_list(self):

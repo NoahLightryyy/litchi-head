@@ -25,7 +25,6 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_deepseek import ChatDeepSeek
@@ -152,6 +151,13 @@ def _build_llm(
             if not api_key:
                 raise RuntimeError(
                     "ANTHROPIC_API_KEY 或 ANTHROPIC_AUTH_TOKEN 未设置，请在 .env 中配置"
+                )
+            # 惰性导入：langchain_anthropic 仅在使用时加载（TD-012）
+            try:
+                from langchain_anthropic import ChatAnthropic  # type: ignore  # noqa: I001
+            except ImportError:
+                raise RuntimeError(
+                    "使用 Anthropic provider 需要安装 langchain-anthropic：pip install langchain-anthropic"
                 )
             kwargs: dict[str, Any] = {
                 "model": cfg.model or "claude-sonnet-4-20250514",
