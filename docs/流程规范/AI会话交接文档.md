@@ -28,32 +28,36 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `cc2f77e` — chore: 全量回归验证 — memory MVP 29 测试通过 |
+| **最新提交** | `d4bf1ad` — docs: 更新 README 主页 — 记忆存储 MVP + 331 tests + 11 ADRs |
 
 ---
 
-## 2. 当前会话状态（2026-06-11 — 竞品调研 → ADR-011 → 设计文档 → 实现计划 ✅）
+## 2. 当前会话状态（2026-06-11 — TradingAgents 源码深度分析 ✅）
 
-> **前次会话**：2026-06-11 第 1 次 — 命名空间记忆存储系统架构设计（竞品调研 + ADR + 设计文档 + 实现计划）
-> **本次会话**：2026-06-11 第 2 次 — **命名空间记忆存储 MVP 交付**（MemoryStore + JsonFileStore + MemoryManager，29 测试）
+> **前次会话**：2026-06-11 第 3 次 — 行业 battle line 知识库 + 9个功能模块文件夹
+> **本次会话**：2026-06-11 第 4 次 — **TradingAgents 源码深度分析（方向A：辩论深度进化）**
 
 ### 本次已完成的工作
 
 | 事项 | 详情 |
 |------|------|
-| | **第 1 次会话** |
-| ✅ **竞品调研** | TradingAgents-CN(5-lane) / LangMem(BaseStore) / TradingGPT(三层衰减) |
-| ✅ **ADR-011 新增** | 命名空间记忆存储系统 — 可插拔 MemoryStore 接口 + 三层命名空间 |
-| ✅ **设计文档** | `docs/架构设计/2026-06-11-memory-store-design.md`（10 章节） |
-| ✅ **流程规范 §1.3** | 重大决策三步法（调研→对照→由人决策）写入流程规范 |
-| ✅ **实现计划** | `docs/superpowers/plans/2026-06-11-memory-store-mvp.md`（8 个 Task） |
-| | **第 2 次会话（MVP 交付）** |
-| ✅ **Task 1-8 全部完成** | TDD 模式 8 个 Task，从 MemoryItem 模型到全量回归 |
-| ✅ **MemoryItem 模型** | Pydantic BaseModel，key/value/namespace/timestamps/score |
-| ✅ **MemoryStore 接口** | ABC 定义 get/put/search/delete/list_namespaces/list_keys |
-| ✅ **JsonFileStore 实现** | 零外部依赖，JSON（upsert）/ JSONL（append-only），asyncio 锁 |
-| ✅ **MemoryManager 封装** | remember/recall/recall_all_agents/get_profile/update_profile/get_session_context |
-| ✅ **测试全覆盖** | 23 存储测试 + 6 Manager 测试 = 29 新增 |
+| ✅ **TradingAgents 源码拉取+全量阅读** | 拉取 v0.2.4 全部 60+ Python 文件，深度阅读 10+ 核心文件（编排层/辩论 Agent/评审/风控/记忆） |
+| ✅ **4 层可落地项提取** | 多轮对抗、强制立场/信息隔离、独立评审、风控辩论+记忆，逐层评估在 litchi-head 的技术约束下的可移植性 |
+| ✅ **可落地项分发到 5 个模块** | 02-辩论决策（D1-D4）、03-记忆与反思（M1-M2）、05-风控管理（R1）、01-数据采集（C1）|
+| ✅ **各模块 README 更新** | 研究问题新增 + 深挖方向重排优先级 |
+| ✅ **TradingAgents 源码分析报告** | 写入 `docs/调研分析/功能模块/02-辩论决策引擎/TradingAgents源码分析/README.md` |
+
+### 关键分析结论
+
+**可采纳项**：
+- **多轮对抗辩论**：TradingAgents 的核心机制靠 Prompt 约束而非复杂代码，DeepSeek 成本为 GPT-4o 的 1/10 → 经济可行
+- **独立评审层**：Research Manager 只看辩论历史做裁决，可与你的 aggregate 数学加权共存 → 双维度交叉验证
+- **记忆注入**：你的 MemoryStore 比 TradingAgents 的纯文本更先进，差的是"Agent 自动接入"这一层
+- **风控辩论**：与你的辩论编排是同一套模式 → 可复用 `debate/` 基础设施
+
+**不采纳项**：
+- **信息隔离**（Analyst只看数据，Researcher只看报告）：大师需要全貌做风格化判断 → 改为简报分区输出
+- **单 Bull/Bear 对抗**：你的四组大师架构本身就是差异化优势
 
 ### 当前配置现状
 
@@ -65,15 +69,15 @@
 
 **内核约束**：Claude Code 的 `ANTHROPIC_BASE_URL` 是会话级配置，同一进程无法「主 DeepSeek + 子 Claude」。子 Agent 只能跟随主会话。
 
-### 项目核心状态（2026-06-11 — 命名空间记忆存储 MVP 交付）
+### 项目核心状态
 
 | 维度 | 评分 | 关键发现 |
 |:----|:----:|:---------|
 | 工程管理 | A | ADR/债务/CI/记忆系统 — 成熟度持续提升 |
-| 代码完成度 | B+ | 7 模块就绪（+ memory MVP），data→debate→memory 三大核心全部上线 |
-| 测试质量 | B+ | **331 passed, 8 skipped**（历史新高） |
-| 文档完整度 | A- | 16+ 份文档，结构清晰 |
-| 产品可演示性 | C | 分析链路（data→debate）可运行，需前端展示 |
+| 代码完成度 | B+ | 7 模块就绪（+ memory MVP），三大核心全部上线 |
+| 测试质量 | B+ | 331 passed, 8 skipped |
+| 文档完整度 | A | 16+ 份文档 + 行业知识库 + 9个模块文件夹 + **TradingAgents 源码分析** |
+| 产品可演示性 | C | 分析链路可运行，需前端展示 |
 
 ### 硬伤跟踪
 
@@ -82,32 +86,34 @@
 3. **🟢 ~~debate 模块~~** — ✅ **已实现（MVP）**
 4. **🟢 ~~data→debate 接驳~~** — ✅ **format_market_brief + 行情过滤 + 结构化下传**
 5. **🟡 子 Agent 不可用** — 跟随主会话走 DeepSeek，Claude 模型调用将 401
+6. **🟢 ~~行业对标体系~~** — ✅ **7条战线知识库 + 9个功能模块文件夹 + TradingAgents 源码分析**
 
 ### 当前 Git 状态
 
 ```
-工作区干净（最新提交 cc2f77e）
-与 origin/main 同步（5 ahead）
+工作区有未提交变更：
+  M docs/ai-work-logs/README.md
+  M docs/流程规范/AI自动化工作流程.md
+  M docs/流程规范/AI会话交接文档.md
+  M docs/流程规范/会话交接提示.md
+  ?? docs/ai-work-logs/2026/06/11/2026-06-11-3.md
+  ?? docs/ai-work-logs/2026/06/11/2026-06-11-4.md          ← 本次新增
+  ?? docs/调研分析/功能模块/                               ← 功能模块体系
+  ?? docs/调研分析/行业开源方案对照知识库.md
 
-最新 commit: cc2f77e — chore: 全量回归验证 — memory MVP 29 测试通过
-待推送: 5 commits ahead of origin/main
+最新 commit: d4bf1ad — docs: 更新 README 主页 — 记忆存储 MVP + 331 tests + 11 ADRs
 ```
-
-> 注意：`docs/superpowers/plans/2026-06-11-memory-store-mvp.md` 已入库。
 
 ### 测试覆盖
 
 | 测试文件 | 测试数 | 覆盖内容 |
 |---------|:------:|---------|
-| `tests/test_data_models.py` | 17 | StockInfo/StockQuote/KLine/NewsItem/BoardInfo |
-| `tests/test_data_cache.py` | 11 | DataCache set/get/TTL/delete/clear |
-| `tests/test_data_collector.py` | 20 | DataCollector 6 类数据 + 缓存 + format_market_brief |
-| `tests/test_data_integration.py` | 5（skip） | 真实 akshare 集成测试 |
-| `tests/test_debate_models.py` | 12 | DebateInput/AgentAnalysis/VoteSummary/DebateResult |
-| `tests/test_debate_orchestrator.py` | 17 | DebateOrchestrator StateGraph + brief/quote 字段验证 |
-| `tests/test_memory_store.py` | **23** | **🏆 新增 — MemoryItem + MemoryStore ABC + JsonFileStore** |
-| `tests/test_memory_manager.py` | **6** | **🏆 新增 — MemoryManager 高层封装** |
-| **全量** | **331 passed, 8 skipped** | **🏆 历史新高（+29）** |
+| `tests/test_data_*.py` | 48+5 skip | 数据层全部（models/cache/collector/integration） |
+| `tests/test_debate_*.py` | 29 | 辩论编排器 MVP |
+| `tests/test_memory_*.py` | 29 | MemoryStore + MemoryManager MVP |
+| `tests/test_agents_*.py` | 58+4 skip | 全部 Agent（base/xiao_zhi/master） |
+| 其他 | 78 | 冒烟/通信/费用/知识库/Skill |
+| **全量** | **331 passed, 8 skipped** | |
 
 ---
 
@@ -209,22 +215,26 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级
+## 5. 下一步优先级（2026-06-11 更新：TradingAgents 源码分析后）
 
-### 🥇 Phase 1 MVP 核心链路
+### 🥇 辩论深度进化（方向 A — 本次分析完成，可落地项已分发）
 
-| 优先级 | 步骤 | 说明 | 前置 |
-|:------:|:----:|:-----|:----:|
-| ✅ | **记忆存储 MVP 实现** | ✅ **已完成** — MemoryStore + JsonFileStore + MemoryManager，29 测试 | 架构设计 ✅ |
-| 🥇 | **记忆系统接入 Agent** | MasterAgent/DebateOrchestrator 读写工作记忆 | 记忆存储 MVP ✅ |
-| 🥇 | **端到端链路验证** | 用户问题 → MasterAgent → 多 Agent 辩论 → 决策卡输出 | data→debate 接驳 ✅ |
-| 🥉 | **前端 MVP** | Streamlit 3 页面 | 端到端链路就绪 |
+| 优先级 | 步骤 | 说明 | 涉及模块 | 工作量 |
+|:------:|:----:|:-----|:--------|:------:|
+| ✅ | **TradingAgents 源码分析** | ✅ **已完成** — 4 层可落地项分发到 5 个功能模块 | 文档层 ✅ | — |
+| 🥇 | **D1 第二轮交叉审阅+反驳** | 大师间互相看分析后反驳/补充 | `debate/orchestrator.py` | 中 |
+| 🥇 | **D3 独立评审 Agent** | aggregate 前加 LLM 评审 | `debate/models.py` + `orchestrator.py` | 中 |
+| 🥇 | **M1 历史决策注入** | MemoryManager 接入 Agent prompt | `memory/manager.py` + `debate/` | 中 |
+| 🥈 | **D2 强制输出方向** | 每位大师末尾加方向判断 | 大师提示词模板 | 小 |
+| 🥈 | **D4 结构化评审扩展** | VoteSummary 增加评审修正字段 | `debate/models.py` | 小 |
+| 🥈 | **C1 简报分区输出** | format_market_brief 按区块分区 | `data/collector.py` | 小 |
+| 📌 | **R1 三层风控辩论** | Phase 2 准备 | `src/risk/` + `debate/` | 大（Phase 2）|
 
 ### ⚠️ 当前会话约束
 
-本会话**已完成记忆存储 MVP 全部 8 个 Task 交付**。新会话需注意：
-1. 记忆存储核心代码已就位：`src/memory/store.py` + `src/memory/manager.py`
-2. 下一步是**记忆系统接入 Agent**（MasterAgent/DebateOrchestrator 读写工作记忆）
+本会话**已完成 TradingAgents 源码深度分析 + 可落地项分发**。新会话如需开始实施，注意：
+1. 新核心资产：`docs/调研分析/功能模块/02-辩论决策引擎/TradingAgents源码分析/README.md`（完整源码分析）
+2. 各模块 README 已更新工作项优先级，可直接按优先级开始实施
 3. 无法使用子 Agent（DeepSeek API 限制），用 Inline Execution 模式
 
 ### ⚠️ 开发约束
@@ -323,7 +333,23 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ## 8. 文件索引
 
-### src/data/（本期新增）
+### 本期新增文档
+
+| 文档 | 说明 |
+|------|------|
+| `docs/调研分析/行业开源方案对照知识库.md` | 7条战线全景知识库（全面重写） |
+| `docs/调研分析/功能模块/01-数据采集/README.md` | 战线关联模块 README |
+| `docs/调研分析/功能模块/02-辩论决策引擎/README.md` | 战线关联模块 README |
+| `docs/调研分析/功能模块/03-记忆与反思/README.md` | 战线关联模块 README |
+| `docs/调研分析/功能模块/04-Agent编排/README.md` | 战线关联模块 README |
+| `docs/调研分析/功能模块/05-风控管理/README.md` | 战线关联模块 README |
+| `docs/调研分析/功能模块/06-交易执行/README.md` | 战线关联模块 README（预留） |
+| `docs/调研分析/功能模块/07-因子研究/README.md` | 战线关联模块 README（预留） |
+| `docs/调研分析/功能模块/08-回测仿真/README.md` | 战线关联模块 README（预留） |
+| `docs/调研分析/功能模块/09-人格与提示词/README.md` | 战线关联模块 README |
+| `docs/调研分析/功能模块/02-辩论决策引擎/TradingAgents源码分析/README.md` | **🏆 本次新增 — TradingAgents v0.2.4 完整源码深度分析报告** |
+
+### src/data/（上期新增）
 
 | 文件 | 说明 |
 |------|------|
@@ -371,4 +397,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-11（第 2 次会话 — 记忆存储 MVP 交付，331 tests） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-11（第 4 次会话 — TradingAgents 源码深度分析，4 层可落地项分发 5 个模块） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行

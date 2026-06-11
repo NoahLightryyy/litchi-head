@@ -11,7 +11,14 @@
     print(result.to_summary_dict())
 """
 
-from src.debate.models import AgentAnalysis, DebateInput, DebateResult, VoteSummary
+from src.debate.models import (
+    AgentAnalysis,
+    DebateInput,
+    DebateResult,
+    PeerReviewRound,
+    RebuttalAnalysis,
+    VoteSummary,
+)
 from src.debate.orchestrator import DebateOrchestrator
 
 __all__ = [
@@ -19,5 +26,7 @@ __all__ = [
     "DebateInput",
     "DebateOrchestrator",
     "DebateResult",
+    "PeerReviewRound",
+    "RebuttalAnalysis",
     "VoteSummary",
 ]
