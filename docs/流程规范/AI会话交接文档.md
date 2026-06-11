@@ -28,28 +28,32 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `3bac576` — docs: 补充关键代码路径判断准则 — 触及 LLM/契约/编排/风控/API/缓存/State 自动升为完整模式 |
+| **最新提交** | `cc2f77e` — chore: 全量回归验证 — memory MVP 29 测试通过 |
 
 ---
 
 ## 2. 当前会话状态（2026-06-11 — 竞品调研 → ADR-011 → 设计文档 → 实现计划 ✅）
 
-> **前次会话**：2026-06-09 第 2 次 — 多设备环境修复 + 惰性导入 + 302 测试全量通过
-> **本次会话**：2026-06-11 — 命名空间记忆存储系统架构设计（竞品调研 + ADR + 设计文档 + 流程规范 §1.3 + 实现计划）
+> **前次会话**：2026-06-11 第 1 次 — 命名空间记忆存储系统架构设计（竞品调研 + ADR + 设计文档 + 实现计划）
+> **本次会话**：2026-06-11 第 2 次 — **命名空间记忆存储 MVP 交付**（MemoryStore + JsonFileStore + MemoryManager，29 测试）
 
 ### 本次已完成的工作
 
 | 事项 | 详情 |
 |------|------|
 | | **第 1 次会话** |
-| ✅ **提交遗留变更** | `b7146fe` — 惰性导入ChatAnthropic + Windows断言鲁棒性 + 文档同步 |
-| ✅ **文档同步** | 工作日志 + 交接文档 + 看板 + 债务日志 + 日志索引 |
-| | **第 2 次会话（核心）** |
 | ✅ **竞品调研** | TradingAgents-CN(5-lane) / LangMem(BaseStore) / TradingGPT(三层衰减) |
 | ✅ **ADR-011 新增** | 命名空间记忆存储系统 — 可插拔 MemoryStore 接口 + 三层命名空间 |
 | ✅ **设计文档** | `docs/架构设计/2026-06-11-memory-store-design.md`（10 章节） |
 | ✅ **流程规范 §1.3** | 重大决策三步法（调研→对照→由人决策）写入流程规范 |
 | ✅ **实现计划** | `docs/superpowers/plans/2026-06-11-memory-store-mvp.md`（8 个 Task） |
+| | **第 2 次会话（MVP 交付）** |
+| ✅ **Task 1-8 全部完成** | TDD 模式 8 个 Task，从 MemoryItem 模型到全量回归 |
+| ✅ **MemoryItem 模型** | Pydantic BaseModel，key/value/namespace/timestamps/score |
+| ✅ **MemoryStore 接口** | ABC 定义 get/put/search/delete/list_namespaces/list_keys |
+| ✅ **JsonFileStore 实现** | 零外部依赖，JSON（upsert）/ JSONL（append-only），asyncio 锁 |
+| ✅ **MemoryManager 封装** | remember/recall/recall_all_agents/get_profile/update_profile/get_session_context |
+| ✅ **测试全覆盖** | 23 存储测试 + 6 Manager 测试 = 29 新增 |
 
 ### 当前配置现状
 
@@ -61,15 +65,15 @@
 
 **内核约束**：Claude Code 的 `ANTHROPIC_BASE_URL` 是会话级配置，同一进程无法「主 DeepSeek + 子 Claude」。子 Agent 只能跟随主会话。
 
-### 项目核心状态（2026-06-11 — 命名空间记忆存储架构设计完成）
+### 项目核心状态（2026-06-11 — 命名空间记忆存储 MVP 交付）
 
 | 维度 | 评分 | 关键发现 |
 |:----|:----:|:---------|
 | 工程管理 | A | ADR/债务/CI/记忆系统 — 成熟度持续提升 |
-| 代码完成度 | B | 6 模块就绪 + data→debate 链路接驳完成，2 空架（backtest/risk） |
-| 测试质量 | B+ | **302 passed, 8 skipped**（首次突破 300+） |
+| 代码完成度 | B+ | 7 模块就绪（+ memory MVP），data→debate→memory 三大核心全部上线 |
+| 测试质量 | B+ | **331 passed, 8 skipped**（历史新高） |
 | 文档完整度 | A- | 16+ 份文档，结构清晰 |
-| 产品可演示性 | C | 分析链路（data→debate）可运行（含市场简报），需前端展示 |
+| 产品可演示性 | C | 分析链路（data→debate）可运行，需前端展示 |
 
 ### 硬伤跟踪
 
@@ -82,11 +86,11 @@
 ### 当前 Git 状态
 
 ```
-工作区干净（最新提交 08e7031）
-与 origin/main 同步（0 ahead）
+工作区干净（最新提交 cc2f77e）
+与 origin/main 同步（5 ahead）
 
-最新 commit: 08e7031 — docs: 记忆存储 MVP 实现计划
-待推送: 无（已同步）
+最新 commit: cc2f77e — chore: 全量回归验证 — memory MVP 29 测试通过
+待推送: 5 commits ahead of origin/main
 ```
 
 > 注意：`docs/superpowers/plans/2026-06-11-memory-store-mvp.md` 已入库。
@@ -101,7 +105,9 @@
 | `tests/test_data_integration.py` | 5（skip） | 真实 akshare 集成测试 |
 | `tests/test_debate_models.py` | 12 | DebateInput/AgentAnalysis/VoteSummary/DebateResult |
 | `tests/test_debate_orchestrator.py` | 17 | DebateOrchestrator StateGraph + brief/quote 字段验证 |
-| **全量** | **302 passed, 8 skipped** | |
+| `tests/test_memory_store.py` | **23** | **🏆 新增 — MemoryItem + MemoryStore ABC + JsonFileStore** |
+| `tests/test_memory_manager.py` | **6** | **🏆 新增 — MemoryManager 高层封装** |
+| **全量** | **331 passed, 8 skipped** | **🏆 历史新高（+29）** |
 
 ---
 
@@ -119,7 +125,8 @@
 
 部分实现模块（🟡）：
   src/memory/      — knowledge_base（30篇知识）/ skill_disk（7位大师）
-                     工作记忆/情景记忆/反思仍为空
+                     store（MemoryStore + JsonFileStore  ✅ MVP）
+                     manager（MemoryManager  ✅ MVP）
 
 空架子模块（⬜）：
   src/backtest/    — 回测引擎
@@ -208,17 +215,17 @@ klines = collector.get_klines("000001", period="daily")
 
 | 优先级 | 步骤 | 说明 | 前置 |
 |:------:|:----:|:-----|:----:|
-| 🥇 | **记忆存储 MVP 实现** | 按实现计划执行 8 个 Task | 架构设计 ✅ + 实现计划 ✅ |
+| ✅ | **记忆存储 MVP 实现** | ✅ **已完成** — MemoryStore + JsonFileStore + MemoryManager，29 测试 | 架构设计 ✅ |
+| 🥇 | **记忆系统接入 Agent** | MasterAgent/DebateOrchestrator 读写工作记忆 | 记忆存储 MVP ✅ |
 | 🥇 | **端到端链路验证** | 用户问题 → MasterAgent → 多 Agent 辩论 → 决策卡输出 | data→debate 接驳 ✅ |
-| 🥈 | **记忆系统接入 Agent** | MasterAgent/DebateOrchestrator 读写工作记忆 | 记忆存储 MVP |
 | 🥉 | **前端 MVP** | Streamlit 3 页面 | 端到端链路就绪 |
 
 ### ⚠️ 当前会话约束
 
-本会话**上下文耗尽，未交付代码**。新会话需要：
-1. 加载 `docs/superpowers/plans/2026-06-11-memory-store-mvp.md`（实现计划）
-2. 无法使用子 Agent（DeepSeek API 限制），用 Inline Execution 模式直接执行 8 个 Task
-3. 任务 1→2→3→4→5 有串行依赖，6→7→8 是收尾，不可打乱
+本会话**已完成记忆存储 MVP 全部 8 个 Task 交付**。新会话需注意：
+1. 记忆存储核心代码已就位：`src/memory/store.py` + `src/memory/manager.py`
+2. 下一步是**记忆系统接入 Agent**（MasterAgent/DebateOrchestrator 读写工作记忆）
+3. 无法使用子 Agent（DeepSeek API 限制），用 Inline Execution 模式
 
 ### ⚠️ 开发约束
 
@@ -364,4 +371,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-11（第 2 次会话 — 命名空间记忆存储架构设计 + ADR-011 + 实现计划） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-11（第 2 次会话 — 记忆存储 MVP 交付，331 tests） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行

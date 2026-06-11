@@ -8,10 +8,10 @@
 ## 快速统计
 
 ```
-总测试数   │ 302  passed（历史新高 ✅）
+总测试数   │ 331  passed（历史新高 ✅）
 技术债务   │ 17 条总记 / 10 条已关闭 / 7 条开放
 紧急指数   │ 0.6/10（持续下降，所有高风险债务已修复）
-当前阶段   │ Phase 1 MVP 期（data/ + debate/ 已上线）
+当前阶段   │ Phase 1 MVP 期（data/ + debate/ + memory/ 已上线）
 ```
 
 ---
@@ -66,6 +66,9 @@
 - ✅ **工作日志索引** — `docs/ai-work-logs/README.md`
 - ✅ **子 Agent 灵算路由永久化** — Windows 用户 env + .bashrc 对齐，阻塞清零
 
+### Phase 1 新增
+- ✅ **命名空间记忆存储 MVP** — MemoryStore(ABC) + JsonFileStore + MemoryManager（29 测试）
+
 ---
 
 ## ⬜ 待办
@@ -109,7 +112,7 @@ src/
 | 🥇 | **端到端链路验证** — 用户问题 → MasterAgent → 多 Agent 辩论 → 决策卡输出 | data→debate 接驳 | ~2d |
 | 🥇 | **前端 MVP（3 页面）** — 首页/分析页/我的页面（Streamlit） | 端到端链路就绪 | ~3d |
 | 🥈 | **用户行为镜子 Agent** — 记录期（1-9 次决策）MVP | 辩论引擎就绪 | ~2d |
-| 🥈 | **记忆系统 MVP** — 三层记忆 JSON 持久化 | — | ~2d |
+| ✅ | **记忆系统 MVP** — MemoryStore + JsonFileStore + MemoryManager（29 测试）| — | 🎉 已完成 |
 | 🥈 | **回测模块基础** — 简单策略回测 | data 就绪 | ~2d |
 
 ### Phase 2+ 迭代
@@ -142,9 +145,11 @@ src/
 │   ├── xiao_zhi.py                     ✅
 │   └── master_agent.py                 ✅ InvestmentAnalysis 结构化输出
 │
-├── memory/          ██████████████ 75%
+├── memory/          ████████████████████ 95%
 │   ├── knowledge_base.py               ✅
-│   └── skill_disk.py                   ✅
+│   ├── skill_disk.py                   ✅
+│   ├── store.py                        ✅ MVP（MemoryStore + JsonFileStore）
+│   └── manager.py                      ✅ MVP（MemoryManager 语义化接口）
 │
 ├── debate/          ████████████████████ 100%  ✅ 编排器 MVP 上线（28 测试）
 ├── data/            ████████████████████ 100%  ✅ 采集器 + 缓存 + 模型（43 测试）
@@ -181,6 +186,7 @@ src/
 | 2026-06-08 | 子 Agent 灵算路由永久化 — Windows User env + .bashrc 对齐，阻塞清零 |
 | 2026-06-09 | data → debate 接驳实现 — format_market_brief + 行情过滤 + 结构化下传 |
 | 2026-06-11 | 命名空间记忆存储架构设计 — ADR-011 + 设计文档 + 实现计划 + 流程规范 §1.3 竞品调研原则 |
+| 2026-06-11 | 命名空间记忆存储 MVP 实现 — MemoryStore + JsonFileStore + MemoryManager，29 测试，331 passed |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。
