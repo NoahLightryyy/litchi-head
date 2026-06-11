@@ -1,13 +1,10 @@
 """tests for MemoryItem, MemoryStore ABC, and JsonFileStore"""
 
 from datetime import datetime
-
-import pytest
-from pydantic import ValidationError
-
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from src.memory.store import JsonFileStore, MemoryItem, MemoryStore, MemoryStoreError
 

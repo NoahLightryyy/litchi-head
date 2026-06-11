@@ -117,6 +117,7 @@ class JsonFileStore(MemoryStore):
             raise MemoryStoreError(f"读取记忆文件失败: {path}") from e
 
         if path.suffix == ".jsonl":
+            assert isinstance(data, list)
             for record in reversed(data):
                 if record.get("key") == key:
                     return MemoryItem(
@@ -128,6 +129,7 @@ class JsonFileStore(MemoryStore):
                     )
             return None
         else:
+            assert isinstance(data, dict)
             if key not in data:
                 return None
             return MemoryItem(
@@ -228,6 +230,7 @@ class JsonFileStore(MemoryStore):
 
         items: list[MemoryItem] = []
         if path.suffix == ".jsonl":
+            assert isinstance(data, list)
             for record in data:
                 ts = datetime.fromisoformat(record["timestamp"])
                 items.append(MemoryItem(
@@ -238,6 +241,7 @@ class JsonFileStore(MemoryStore):
                     updated_at=ts,
                 ))
         else:
+            assert isinstance(data, dict)
             for key, val in data.items():
                 items.append(MemoryItem(
                     key=key,
@@ -260,12 +264,14 @@ class JsonFileStore(MemoryStore):
                 raise MemoryStoreError(f"读取记忆文件失败: {path}") from e
 
             if path.suffix == ".jsonl":
-                original_count = len(data) if isinstance(data, list) else 0
+                assert isinstance(data, list)
+                original_count = len(data)
                 data_list = [r for r in data if r.get("key") != key]
                 if len(data_list) == original_count:
                     return False
                 await asyncio.to_thread(self._write_jsonl, path, data_list)
             else:
+                assert isinstance(data, dict)
                 if key not in data:
                     return False
                 del data[key]
@@ -296,8 +302,10 @@ class JsonFileStore(MemoryStore):
                 raise MemoryStoreError(f"读取记忆文件失败: {path}") from e
 
         if path.suffix == ".jsonl":
+            assert isinstance(data, list)
             return [r["key"] for r in data]
         else:
+            assert isinstance(data, dict)
             return list(data.keys())
 
     # ── 文件写入辅助 ──
