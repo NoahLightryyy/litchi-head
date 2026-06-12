@@ -124,6 +124,12 @@ class VoteSummary(BaseModel):
     - confidence: 共识置信度（基于一致性和专家信心）
     - adjustments_applied: 是否使用了第二轮反驳调整后的值
     - direction_distribution: 方向分布统计（D2: {Bullish/Bearish/Neutral: 数量}）
+    - review_score: 独立评审的评分（D4: 来自 IndependentReview）
+    - review_rating: 独立评审的评级（D4）
+    - review_quality: 独立评审的整体质量评分（D4）
+    - weight_adjustments: 独立评审建议的权重调整记录（D4）
+    - review_notes: 评审说明摘要（D4: consistency + risk + recommendation）
+    - consensus_support: 独立评审对当前共识的支持度（D4: 0.0-1.0）
     """
 
     total_votes: int = 0
@@ -134,6 +140,13 @@ class VoteSummary(BaseModel):
     confidence: float = 0.0
     adjustments_applied: bool = False
     direction_distribution: dict[str, int] = Field(default_factory=dict)
+    # ── D4: 评审修正字段 ─────────────────────────────
+    review_score: int = 0
+    review_rating: str = ""
+    review_quality: float = 0.0
+    weight_adjustments: dict[str, float] = Field(default_factory=dict)
+    review_notes: str = ""
+    consensus_support: float = 0.5
 
 
 class IndependentReview(BaseModel):
@@ -225,6 +238,16 @@ class DebateResult(BaseModel):
                 result["发现偏差"] = rr.identified_biases
             if rr.blind_spots:
                 result["盲区提示"] = rr.blind_spots
+        # ── D4: 展示评审修正字段 ────────────────────
+        if vs.review_score > 0:
+            result["评审修正评分"] = vs.review_score
+            result["评审修正评级"] = vs.review_rating
+            result["评审修正质量"] = vs.review_quality
+            result["评审共识支持度"] = vs.consensus_support
+            if vs.weight_adjustments:
+                result["权重调整"] = vs.weight_adjustments
+            if vs.review_notes:
+                result["评审说明"] = vs.review_notes
         return result
 
 

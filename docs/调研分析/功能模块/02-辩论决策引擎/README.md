@@ -271,13 +271,21 @@
 - 历史记忆含方向标签 `[Bullish]`
 - 31 个新测试，436 全量通过，零回归
 
-### 🥈 D4 — VoteSummary 结构化扩展（辩论模块）
-**来源**：TradingAgents structured output | **工作量**：小 | **影响范围**：`debate/models.py`
+### ✅ D4 — VoteSummary 结构化扩展（辩论模块 ✅ 实施完成）
+**来源**：TradingAgents structured output | **工作量**：小 | **影响范围**：`debate/models.py` + `orchestrator.py`
 
 扩展 `VoteSummary` 模型增加评审修正字段。
 
-- Prior to D3 实施：先预留字段（`review_score`, `adjusted_weight`, `review_notes`）
-- 与 D3 联动：D3 实施后填充这些字段
+- [x] `VoteSummary.review_score` — 独立评审评分
+- [x] `VoteSummary.review_rating` — 独立评审评级
+- [x] `VoteSummary.review_quality` — 评审整体质量
+- [x] `VoteSummary.weight_adjustments` — 权重调整记录
+- [x] `VoteSummary.review_notes` — 评审说明摘要（一致性+风险+聚合建议+偏差）
+- [x] `VoteSummary.consensus_support` — 共识支持度
+- [x] `aggregate_node` 自动从 `review_report` 吸收
+- [x] `to_summary_dict()` 展示
+- [x] 完全向后兼容：无 review_report 时全部默认值
+- [x] **已验证**：15 个新测试，全量 451 通过，零回归
 
 ### 📌 长期
 - 结合 TradingAgents"多轮对抗" + "独立评审" + "三维风控" + 你自己的"四组大师辩论"，形成独特范式

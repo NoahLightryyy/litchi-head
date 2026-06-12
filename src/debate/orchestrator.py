@@ -812,6 +812,40 @@ async def aggregate_node(state: DebateState) -> dict:
         for a in successful
     )
 
+    # ── D4: 从 review_report 吸收评审修正字段 ──────────
+    rrpt_raw = state.get("review_report", {})
+    review_score = 0
+    review_rating = ""
+    review_quality = 0.0
+    weight_adjustments: dict[str, float] = {}
+    review_notes_parts: list[str] = []
+    consensus_support = 0.5
+    if rrpt_raw and isinstance(rrpt_raw, dict):
+        try:
+            review = IndependentReview(**rrpt_raw)
+            review_score = review.independent_score
+            review_rating = review.independent_rating
+            review_quality = round(review.overall_quality, 2)
+            weight_adjustments = review.weight_suggestions
+
+            # 合成评审说明摘要
+            if review.consistency_observation:
+                review_notes_parts.append(f"一致性: {review.consistency_observation[:100]}")
+            if review.key_risks_synthesis:
+                review_notes_parts.append(f"风险综合: {review.key_risks_synthesis[:100]}")
+            if review.aggregation_recommendation:
+                review_notes_parts.append(f"聚合建议: {review.aggregation_recommendation[:100]}")
+            if review.identified_biases:
+                review_notes_parts.append(
+                    f"发现偏差: {'; '.join(review.identified_biases[:3])}"
+                )
+
+            consensus_support = review.consensus_support
+        except Exception:
+            pass  # 解析失败时使用默认值
+
+    review_notes = " | ".join(review_notes_parts) if review_notes_parts else ""
+
     return {
         "vote_summary": VoteSummary(
             total_votes=len(successful),
@@ -822,6 +856,13 @@ async def aggregate_node(state: DebateState) -> dict:
             confidence=round(min(confidence, 0.95), 2),
             adjustments_applied=adjustments_applied,
             direction_distribution=dir_dist,
+            # ── D4: 评审修正字段 ─────────────────────
+            review_score=review_score,
+            review_rating=review_rating,
+            review_quality=review_quality,
+            weight_adjustments=weight_adjustments,
+            review_notes=review_notes,
+            consensus_support=round(consensus_support, 2),
         )
     }
 
