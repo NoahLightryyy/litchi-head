@@ -37,7 +37,9 @@ from src.utils.llm import llm_service
 class InvestmentAnalysis(BaseModel):
     """投资大师结构化分析输出
 
-    由 LLM 通过 invoke_structured 生成，包含评级、评分、证据链。
+    由 LLM 通过 invoke_structured 生成，包含评级、评分、证据链、强制方向判断。
+    direction 字段要求大师必须给出明确的 Bullish/Bearish/Neutral 方向判断，
+    不可留空或输出其他值。Neutral 必须在分析中说明理由。
     """
 
     rating: str = Field(description="投资评级：看涨 / 看跌 / 中性 / 谨慎 / 观望")
@@ -46,6 +48,14 @@ class InvestmentAnalysis(BaseModel):
     analysis: str = Field(description="详细分析（含逻辑推理和市场逻辑）")
     key_evidence: list[str] = Field(description="关键证据或支撑逻辑列表（3-5 条）")
     risk_warning: str | None = Field(default=None, description="风险提示（可选）")
+    direction: str = Field(
+        default="Neutral",
+        pattern=r"^(Bullish|Bearish|Neutral)$",
+        description=(
+            "强制输出方向判断：Bullish（看涨）/ Bearish（看跌）"
+            "/ Neutral（中性）。Neutral 必须在分析中说明理由"
+        ),
+    )
 
 
 class MasterAgent(BaseAgent):
@@ -163,7 +173,16 @@ class MasterAgent(BaseAgent):
                 "如果对某些内容不确定，请坦诚说明。"
             )
 
-        # ── 3. LLM 结构化调用 ──────────────────────────────
+        # ── 3. 方向约束注入（D2：强制输出方向判断）────────────
+        prompt += (
+            "\n\n【强制方向判断】你必须在回答末尾的 direction 字段中明确输出：\n"
+            "- Bullish —— 看涨，认为该股票有上行空间\n"
+            "- Bearish —— 看跌，认为该股票有下行风险\n"
+            "- Neutral —— 中性，无明显方向偏好\n"
+            "若选择 Neutral（中性），必须在分析正文中说明保持中立的理由。"
+        )
+
+        # ── 4. LLM 结构化调用 ──────────────────────────────
         system_prompt = self.get_system_prompt()
         raw_analysis = await llm_service.invoke_structured(
             prompt=prompt,
@@ -175,6 +194,10 @@ class MasterAgent(BaseAgent):
         analysis = cast(InvestmentAnalysis, raw_analysis)
 
         # ── 4. 组装结果 ───────────────────────────────────
+        # 方向验证
+        if analysis.direction not in ("Bullish", "Bearish", "Neutral"):
+            analysis.direction = "Neutral"
+
         # 向后兼容：answer 保留为文本摘要+分析
         answer_text = f"{analysis.summary}\n\n{analysis.analysis}"
         if analysis.risk_warning:
@@ -194,8 +217,11 @@ class MasterAgent(BaseAgent):
                     [r["source"] for r in knowledge_results] if has_knowledge else []
                 ),
                 # 结构化字段
-                "analysis": analysis.model_dump(),
+                "analysis": {
+                **analysis.model_dump(),
+                "direction": analysis.direction,
             },
+        },
             confidence=confidence,
             reasoning=(
                 f"大师 [{self.skill.name}] "

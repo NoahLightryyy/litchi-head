@@ -14,7 +14,8 @@
 from __future__ import annotations
 
 import time
-from typing import Any, TypedDict
+from datetime import date
+from typing import Any, TypedDict, cast
 
 from langgraph.graph import END, StateGraph
 
@@ -22,16 +23,22 @@ from src.agents.base import AgentContext
 from src.agents.master_agent import MasterAgent
 from src.data.collector import DataCollector, format_market_brief
 from src.data.models import KLine, NewsItem, StockQuote
-from src.utils.llm import llm_service
 from src.debate.models import (
     AgentAnalysis,
     DebateInput,
     DebateResult,
+    IndependentReview,
     PeerReviewRound,
     RebuttalAnalysis,
     VoteSummary,
 )
 from src.memory.skill_disk import MasterSkill, SkillDisk
+from src.memory.store import MemoryItem, MemoryStore
+from src.utils.llm import llm_service
+
+# ── 模块级常量 ─────────────────────────────────────────────
+
+_MAX_HISTORY_FETCH = 20  # 查询历史决策的最大条数
 
 # ── LangGraph State ──────────────────────────────────────────────
 
@@ -47,7 +54,9 @@ class DebateState(TypedDict):
         market_data:    采集的市场数据缓存
         vote_summary:   投票汇总（由 aggregate 节点写入）
         review_round:   第二轮交叉审阅结果（由 review_round 节点写入）
+        review_report:  独立评审报告（由 review_report 节点写入）
         errors:         错误记录
+        history_context: 历史决策上下文文本（注入到大师 prompt）
     """
 
     session_id: str
@@ -57,7 +66,9 @@ class DebateState(TypedDict):
     market_data: dict
     vote_summary: dict  # 序列化的 VoteSummary
     review_round: dict  # 序列化的 PeerReviewRound
+    review_report: dict  # 序列化的 IndependentReview
     errors: list[str]
+    history_context: str  # 历史决策上下文（注入到大师 prompt）
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
@@ -122,6 +133,70 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
     }
 
 
+def _format_history_context(items: list[MemoryItem], stock_code: str) -> str:
+    """将历史决策记忆格式化为 prompt 插入文本
+
+    从 MemoryStore 查询到的历史决策条目格式化成可读的上下文，
+    注入到大师 prompt 末尾，帮助大师参考历史分析记录。
+
+    Args:
+        items: 历史决策 MemoryItem 列表
+        stock_code: 当前股票代码
+
+    Returns:
+        格式化后的历史上下文文本（无相关记录时返回 ""）
+    """
+    if not items:
+        return ""
+
+    # 过滤与当前股票相关的历史决策，取最近的 5 条
+    relevant = []
+    for item in items:
+        val = item.value if isinstance(item.value, dict) else {}
+        if val.get("stock_code") == stock_code:
+            relevant.append(val)
+
+    if not relevant:
+        return ""
+
+    lines = ["", "📜 历史决策参考：", "━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+    lines.append("以下是本系统对该股票的历史分析记录（仅供参考，独立判断应基于当前市场数据）：")
+    lines.append("")
+
+    for i, decision in enumerate(reversed(relevant[-5:]), 1):
+        ts = str(decision.get("timestamp", "未知日期"))[:10]
+        lines.append(f"──── 历史决策 #{i}（{ts}）────")
+        lines.append(f"  问题：{decision.get('question', '未知')}")
+        lines.append(f"  共识：{decision.get('consensus', '未知')}")
+        lines.append(f"  平均评分：{decision.get('average_score', 'N/A')}")
+        lines.append(f"  置信度：{decision.get('confidence', 'N/A')}")
+        lines.append(f"  参与大师数：{decision.get('total_votes', 0)}")
+
+        analyses = decision.get("analyses_summary", [])
+        if analyses:
+            lines.append("  大师观点：")
+            for a in analyses:
+                summary_snippet = (a.get("summary", "") or "")[:80]
+                direction_str = a.get("direction", "")
+                dir_tag = f" [{direction_str}]" if direction_str else ""
+                if summary_snippet:
+                    lines.append(
+                        f"    · {a.get('skill_name', '未知')}："
+                        f"{a.get('rating', '')}{dir_tag} — "
+                        f"{a.get('score', 0)}分 — {summary_snippet}"
+                    )
+                else:
+                    lines.append(
+                        f"    · {a.get('skill_name', '未知')}："
+                        f"{a.get('rating', '')}{dir_tag} — "
+                        f"{a.get('score', 0)}分"
+                    )
+        lines.append("")
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    return "\n".join(lines)
+
+
 async def _run_single_master(
     skill: MasterSkill,
     session_id: str,
@@ -129,6 +204,7 @@ async def _run_single_master(
     stock_code: str,
     stock_name: str,
     market_data: dict,
+    history_context: str = "",
 ) -> AgentAnalysis:
     """运行一位大师的分析，返回 AgentAnalysis
 
@@ -136,17 +212,20 @@ async def _run_single_master(
         skill: 大师 Skill
         question: 分析问题
         market_data: 市场数据缓存
+        history_context: 历史决策上下文（注入到 prompt 末尾）
 
     Returns:
         结构化分析结果
     """
     start = time.monotonic()
 
-    # 构建增强问题（附加上下文）
+    # 构建增强问题（附加上下文 + 历史决策）
     enhanced = question
     brief = market_data.get("brief", "")
     if brief:
         enhanced += f"\n\n📊 以下为当前市场数据：\n{brief}"
+    if history_context:
+        enhanced += f"\n\n{history_context}"
 
     try:
         agent = MasterAgent(
@@ -193,10 +272,16 @@ async def _run_single_master(
             analysis_text = analysis_raw.get("analysis", "")
             key_evidence = analysis_raw.get("key_evidence", [])
             risk_warning = analysis_raw.get("risk_warning")
+            direction = analysis_raw.get("direction", "Neutral")
         else:
             rating, score, summary, analysis_text, key_evidence, risk_warning = (
                 "中性", 50, "", "", [], None
             )
+            direction = "Neutral"
+
+        # 方向值规范化
+        if direction not in ("Bullish", "Bearish", "Neutral"):
+            direction = "Neutral"
 
         elapsed = (time.monotonic() - start) * 1000
         return AgentAnalysis(
@@ -211,6 +296,7 @@ async def _run_single_master(
             risk_warning=risk_warning,
             confidence=result.confidence,
             latency_ms=elapsed,
+            direction=direction,
         )
 
     except Exception as e:
@@ -238,6 +324,7 @@ async def _run_review_for_master(
     own_analysis: AgentAnalysis,
     peer_analyses: list[AgentAnalysis],
     market_data: dict,
+    history_context: str = "",
 ) -> RebuttalAnalysis:
     """运行一位大师的第二轮交叉审阅 —— 回应同行分析
 
@@ -249,6 +336,7 @@ async def _run_review_for_master(
         own_analysis: 该大师的第一轮分析结果
         peer_analyses: 其他大师的分析列表
         market_data: 市场数据缓存
+        history_context: 历史决策上下文（注入到 review prompt）
 
     Returns:
         结构化反驳/补充意见
@@ -261,6 +349,7 @@ async def _run_review_for_master(
             peers_text += (
                 f"\n--- 同行 {i}：{peer.skill_name}（{peer.agent_name}）---\n"
                 f"评级：{peer.rating}（评分：{peer.score}）\n"
+                f"方向：{peer.direction}\n"
                 f"核心观点：{peer.summary}\n"
                 f"分析：{peer.analysis[:500]}\n"
                 f"关键证据：{'; '.join(peer.key_evidence)}\n"
@@ -289,6 +378,8 @@ async def _run_review_for_master(
 
         if brief:
             review_prompt += f"\n📊 市场背景：\n{brief}\n"
+        if history_context:
+            review_prompt += f"\n{history_context}\n"
 
         review_prompt += (
             "\n请基于以上所有信息，重新审视你的原始判断。请输出结构化回应：\n"
@@ -307,13 +398,13 @@ async def _run_review_for_master(
             "你可以坚持原有判断，也可以调整。关键是要给出有逻辑支撑的理由。"
         )
 
-        raw = await llm_service.invoke_structured(
+        raw = cast(RebuttalAnalysis, await llm_service.invoke_structured(
             prompt=review_prompt,
             output_model=RebuttalAnalysis,
             system_prompt=system_prompt,
             agent_name=f"master.{skill.skill_id}",
             session_id=session_id,
-        )
+        ))
         elapsed = (time.monotonic() - start) * 1000
         # invoke_structured 返回的是已验证的 RebuttalAnalysis 实例，直接使用
         return RebuttalAnalysis(
@@ -333,6 +424,128 @@ async def _run_review_for_master(
         return RebuttalAnalysis(
             agent_name=f"master.{skill.skill_id}",
         )
+
+
+async def _run_independent_review(
+    session_id: str,
+    question: str,
+    successful_analyses: list[AgentAnalysis],
+    rebuttals: list[RebuttalAnalysis],
+    market_data: dict,
+    history_context: str = "",
+) -> IndependentReview:
+    """运行独立评审 Agent —— 以裁判视角评估所有大师的分析质量
+
+    读取所有大师的分析和（可选的）第二轮反驳，由独立的 LLM 评审人格
+    对辩论整体质量、分析一致性、集体偏差等做出结构化评估。
+    失败时返回默认 IndependentReview（不中断流程）。
+
+    Args:
+        session_id: 会话标识
+        question: 辩论问题
+        successful_analyses: 所有成功大师的分析
+        rebuttals: 第二轮交叉审阅的反驳列表（可能为空）
+        market_data: 市场数据缓存
+        history_context: 历史决策上下文（注入到评审 prompt）
+
+    Returns:
+        结构化评审报告
+    """
+    start = time.monotonic()
+    try:
+        # 构建大师分析摘要
+        analyses_text = ""
+        for i, a in enumerate(successful_analyses, 1):
+            analyses_text += (
+                f"\n--- 大师 {i}：{a.skill_name}（{a.agent_name}）---\n"
+                f"评级：{a.rating}（评分：{a.score}）\n"
+                f"方向：{a.direction}\n"
+                f"核心观点：{a.summary}\n"
+                f"分析：{a.analysis[:600]}\n"
+                f"关键证据：{'; '.join(a.key_evidence)}\n"
+                f"置信度：{a.confidence}\n"
+            )
+            if a.risk_warning:
+                analyses_text += f"风险提示：{a.risk_warning}\n"
+
+        # 构建反驳摘要
+        rebuttals_text = ""
+        if rebuttals:
+            rebuttals_text = "\n--- 第二轮交叉审阅（大师同行反驳）---\n"
+            for i, r in enumerate(rebuttals, 1):
+                rebuttals_text += (
+                    f"{i}. {r.agent_name}：共识度 {r.original_agreement}，"
+                    f"反驳：{r.rebuttal[:200]}\n"
+                )
+                if r.adjusted_score is not None:
+                    rebuttals_text += f"   调整后评分：{r.adjusted_score}\n"
+
+        # 构建评审 prompt
+        brief = market_data.get("brief", "")
+        review_prompt = (
+            f"你是一位独立的投资评审专家。请对以下关于「{question}」的投资辩论进行评审。\n\n"
+            f"--- 大师分析 ---"
+            f"{analyses_text}\n"
+        )
+        if rebuttals_text:
+            review_prompt += f"{rebuttals_text}\n"
+        if brief:
+            review_prompt += f"\n📊 市场背景：\n{brief}\n"
+        if history_context:
+            review_prompt += f"\n{history_context}\n"
+
+        review_prompt += (
+            "\n请以独立裁判的视角评审这场辩论，输出结构化评审报告：\n"
+            "1. overall_quality: 辩论整体质量（0.0-1.0）\n"
+            "2. independent_rating: 基于全部信息的独立评级（看涨/看跌/中性/谨慎/观望）\n"
+            "3. independent_score: 独立评分（1-100）\n"
+            "4. confidence: 对你评审结论的置信度（0.0-1.0）\n"
+            "5. consensus_support: 你是否支持当前共识？0.0=强烈反对, 1.0=强烈支持\n"
+            "6. quality_assessments: 对每位大师分析质量的评估\n"
+            "7. weight_suggestions: 对每位大师的权重调整建议（乘数，0.0-2.0。"
+            "1.0=不变，<1.0=降低权重，>1.0=提高权重）\n"
+            "8. identified_biases: 你发现的所有大师共有的集体偏见\n"
+            "9. blind_spots: 所有分析中缺失的关键视角\n"
+            "10. key_risks_synthesis: 关键风险综合\n"
+            "11. consistency_observation: 分析间一致性的观察\n"
+            "12. aggregation_recommendation: 对聚合方式的建议\n"
+        )
+
+        system_prompt = (
+            "你是一位冷静、客观的投资评审专家。你的职责是独立评估辩论质量，"
+            "不受任何大师立场影响。如果发现集体偏见或盲点，请明确指出。"
+            "你的评审将对最终投票聚合产生直接影响。"
+        )
+
+        raw = cast(IndependentReview, await llm_service.invoke_structured(
+            prompt=review_prompt,
+            output_model=IndependentReview,
+            system_prompt=system_prompt,
+            agent_name="independent_reviewer",
+            session_id=session_id,
+        ))
+        elapsed = (time.monotonic() - start) * 1000
+
+        return IndependentReview(
+            reviewer_style="independent_reviewer",
+            overall_quality=raw.overall_quality,
+            independent_rating=raw.independent_rating,
+            independent_score=raw.independent_score,
+            confidence=raw.confidence,
+            consensus_support=raw.consensus_support,
+            quality_assessments=raw.quality_assessments,
+            weight_suggestions=raw.weight_suggestions,
+            identified_biases=raw.identified_biases,
+            blind_spots=raw.blind_spots,
+            key_risks_synthesis=raw.key_risks_synthesis,
+            consistency_observation=raw.consistency_observation,
+            aggregation_recommendation=raw.aggregation_recommendation,
+            latency_ms=round(elapsed, 0),
+        )
+
+    except Exception:
+        # 失败时返回默认值，不阻塞流程
+        return IndependentReview()
 
 
 def make_master_round_node(skills: list[MasterSkill]):
@@ -356,6 +569,7 @@ def make_master_round_node(skills: list[MasterSkill]):
         stock_name = inp.get("stock_name", "")
         md = state.get("market_data", {})
         sid = state.get("session_id", "")
+        history_ctx = state.get("history_context", "")
 
         all_analyses: dict[str, AgentAnalysis] = {}
         all_errors: list[str] = []
@@ -368,6 +582,7 @@ def make_master_round_node(skills: list[MasterSkill]):
                 stock_code=code,
                 stock_name=stock_name,
                 market_data=md,
+                history_context=history_ctx,
             )
             key = f"master.{skill.skill_id}"
             all_analyses[key] = analysis
@@ -413,6 +628,7 @@ def make_review_round_node(skills: list[MasterSkill]):
 
         inp = state.get("debate_input", {})
         sid = state.get("session_id", "")
+        history_ctx = state.get("history_context", "")
 
         rebuttals: list[RebuttalAnalysis] = []
         for analysis in successful:
@@ -430,12 +646,64 @@ def make_review_round_node(skills: list[MasterSkill]):
                 own_analysis=analysis,
                 peer_analyses=peers,
                 market_data=state.get("market_data", {}),
+                history_context=history_ctx,
             )
             rebuttals.append(rebuttal)
 
         return {"review_round": PeerReviewRound(rebuttals=rebuttals).model_dump()}
 
     return review_round_node
+
+
+def make_review_report_node():
+    """创建独立评审节点 —— 以裁判视角评估所有大师的分析质量
+
+    在 master_round（+ review_round）之后运行。读取所有成功大师的分析和
+    第二轮反驳，由独立的 LLM 评审人格生成结构化评审报告。
+    失败/无成功大师时返回空评审（不中断流程）。
+
+    Returns:
+        异步节点函数 (state) -> dict
+    """
+
+    async def review_report_node(state: DebateState) -> dict:
+        """运行独立评审，评估辩论整体质量"""
+        all_analyses: dict[str, AgentAnalysis] = state.get("analyses", {})
+        successful = [a for a in all_analyses.values() if a.success]
+
+        # 无成功大师时，返回空评审
+        if not successful:
+            return {"review_report": IndependentReview(
+                overall_quality=0.0,
+                independent_score=0,
+            ).model_dump()}
+
+        # 解析 review_round（如果有）
+        rr_raw = state.get("review_round", {})
+        rebuttals: list[RebuttalAnalysis] = []
+        if rr_raw and isinstance(rr_raw, dict):
+            try:
+                prr = PeerReviewRound(**rr_raw)
+                rebuttals = prr.rebuttals
+            except Exception:
+                pass
+
+        inp = state.get("debate_input", {})
+        sid = state.get("session_id", "")
+        history_ctx = state.get("history_context", "")
+
+        review = await _run_independent_review(
+            session_id=sid,
+            question=inp.get("question", ""),
+            successful_analyses=successful,
+            rebuttals=rebuttals,
+            market_data=state.get("market_data", {}),
+            history_context=history_ctx,
+        )
+
+        return {"review_report": review.model_dump()}
+
+    return review_report_node
 
 
 async def aggregate_node(state: DebateState) -> dict:
@@ -478,8 +746,19 @@ async def aggregate_node(state: DebateState) -> dict:
         except Exception:
             pass  # 解析失败时保持原行为
 
-    # 评级分布
+    # 解析 review_report（如果有），提取 weight_suggestions
+    rrpt_raw = state.get("review_report", {})
+    weight_suggestions: dict[str, float] = {}
+    if rrpt_raw and isinstance(rrpt_raw, dict) and rrpt_raw.get("weight_suggestions"):
+        try:
+            review = IndependentReview(**rrpt_raw)
+            weight_suggestions = review.weight_suggestions
+        except Exception:
+            pass  # 解析失败时保持原行为
+
+    # 评级分布 + 方向分布
     dist: dict[str, int] = {}
+    dir_dist: dict[str, int] = {}
     total_score = 0
     weighted_score_sum = 0.0
     total_weight = 0.0
@@ -489,8 +768,14 @@ async def aggregate_node(state: DebateState) -> dict:
 
         # 确定使用的评分、评级和置信度
         if rebuttal is not None:
-            use_rating = rebuttal.adjusted_rating if rebuttal.adjusted_rating is not None else a.rating
-            use_score = rebuttal.adjusted_score if rebuttal.adjusted_score is not None else a.score
+            use_rating = (
+                rebuttal.adjusted_rating
+                if rebuttal.adjusted_rating is not None else a.rating
+            )
+            use_score = (
+                rebuttal.adjusted_score
+                if rebuttal.adjusted_score is not None else a.score
+            )
             use_confidence = (
                 rebuttal.adjusted_confidence if rebuttal.adjusted_confidence is not None
                 else a.confidence
@@ -500,10 +785,14 @@ async def aggregate_node(state: DebateState) -> dict:
             use_score = a.score
             use_confidence = a.confidence
 
+        # 应用 weight_suggestion（如果有）
+        weight_factor = weight_suggestions.get(a.agent_name, 1.0)
+
         dist[use_rating] = dist.get(use_rating, 0) + 1
+        dir_dist[a.direction] = dir_dist.get(a.direction, 0) + 1
         total_score += use_score
-        weighted_score_sum += use_score * use_confidence
-        total_weight += use_confidence
+        weighted_score_sum += use_score * use_confidence * weight_factor
+        total_weight += use_confidence * weight_factor
 
     avg_score = total_score / len(successful)
     weighted_score = weighted_score_sum / total_weight if total_weight > 0 else avg_score
@@ -532,6 +821,7 @@ async def aggregate_node(state: DebateState) -> dict:
             consensus=consensus,
             confidence=round(min(confidence, 0.95), 2),
             adjustments_applied=adjustments_applied,
+            direction_distribution=dir_dist,
         )
     }
 
@@ -560,6 +850,7 @@ class DebateOrchestrator:
         data_collector: DataCollector | None = None,
         skill_disk: SkillDisk | None = None,
         skill_ids: list[str] | None = None,
+        memory_store: MemoryStore | None = None,
     ):
         """初始化辩论编排器
 
@@ -567,9 +858,12 @@ class DebateOrchestrator:
             data_collector: 数据采集器，不传则新建
             skill_disk: 大师 Skill 盘，不传则新建
             skill_ids: 参与辩论的大师 ID 列表，None 则使用默认加载的大师
+            memory_store: 记忆存储实例（可选）。提供后，
+                辩论前自动查询历史决策注入 prompt，辩论后自动保存结果。
         """
         self.data_collector = data_collector or DataCollector()
         self.skill_disk = skill_disk or SkillDisk()
+        self.memory_store = memory_store
 
         # 加载大师列表
         if skill_ids is not None:
@@ -589,7 +883,8 @@ class DebateOrchestrator:
         """构建 LangGraph 计算图
 
         collect_data → master_round（顺序执行所有大师） → review_round（交叉审阅+反驳）
-        → aggregate（加权投票汇总，吸收反驳调整） → END
+        → review_report（独立 LLM 评审） → aggregate（加权投票汇总，吸收 rebuttal + 评审权重）
+        → END
 
         Returns:
             未编译的 StateGraph
@@ -617,9 +912,16 @@ class DebateOrchestrator:
         )
         graph.add_edge("master_round", "review_round")
 
-        # 投票聚合节点（吸收反驳调整）
+        # 独立评审节点：裁判视角评估所有大师分析质量
+        graph.add_node(
+            "review_report",
+            make_review_report_node(),
+        )
+        graph.add_edge("review_round", "review_report")
+
+        # 投票聚合节点（吸收反驳调整 + 评审权重建议）
         graph.add_node("aggregate", aggregate_node)
-        graph.add_edge("review_round", "aggregate")
+        graph.add_edge("review_report", "aggregate")
 
         graph.add_edge("aggregate", END)
 
@@ -631,6 +933,53 @@ class DebateOrchestrator:
             graph = self._build_graph()
             self._compiled_graph = graph.compile()
         return self._compiled_graph
+
+    async def _save_decision_to_memory(self, result: DebateResult) -> None:
+        """将当前辩论结果保存到记忆存储（不阻塞辩论流程）
+
+        Args:
+            result: 已完成的辩论结果
+        """
+        if not self.memory_store:
+            return
+
+        decision = {
+            "stock_code": result.stock_code,
+            "stock_name": result.stock_name,
+            "question": result.question,
+            "timestamp": date.today().isoformat(),
+            "consensus": result.vote_summary.consensus,
+            "average_score": result.vote_summary.average_score,
+            "weighted_score": result.vote_summary.weighted_score,
+            "confidence": result.vote_summary.confidence,
+            "total_votes": result.vote_summary.total_votes,
+            "analyses_summary": [
+                {
+                    "agent_name": a.agent_name,
+                    "skill_name": a.skill_name,
+                    "rating": a.rating,
+                    "score": a.score,
+                    "summary": a.summary,
+                    "direction": a.direction,
+                }
+                for a in result.analyses
+            ],
+        }
+        if result.review_report is not None:
+            decision["review_report"] = {
+                "overall_quality": result.review_report.overall_quality,
+                "independent_rating": result.review_report.independent_rating,
+                "independent_score": result.review_report.independent_score,
+            }
+
+        try:
+            await self.memory_store.put(
+                key=result.stock_code,
+                value=decision,
+                namespace=("episodic", "debate"),
+            )
+        except Exception:
+            pass  # 记忆存储失败不阻塞
 
     async def run(self, debate_input: DebateInput) -> DebateResult:
         """执行一轮辩论
@@ -644,6 +993,21 @@ class DebateOrchestrator:
         app = self._get_graph()
         overall_start = time.monotonic()
 
+        # 查询历史决策注入
+        history_context = ""
+        if self.memory_store:
+            try:
+                items = await self.memory_store.search(
+                    namespace=("episodic", "debate"),
+                    query="",
+                    k=_MAX_HISTORY_FETCH,
+                )
+                history_context = _format_history_context(
+                    items, debate_input.stock_code
+                )
+            except Exception:
+                pass  # 记忆查询失败不阻塞辩论
+
         initial_state: DebateState = {
             "session_id": debate_input.session_id,
             "debate_input": debate_input.model_dump(),
@@ -652,7 +1016,9 @@ class DebateOrchestrator:
             "market_data": {},
             "vote_summary": {},
             "review_round": {},
+            "review_report": {},
             "errors": [],
+            "history_context": history_context,
         }
 
         final_state = await app.ainvoke(initial_state)
@@ -671,7 +1037,16 @@ class DebateOrchestrator:
             except Exception:
                 pass
 
-        return DebateResult(
+        # 解析 review_report（如果有）
+        rrpt_raw = final_state.get("review_report", {})
+        review_report = None
+        if rrpt_raw and isinstance(rrpt_raw, dict) and rrpt_raw.get("overall_quality", 0) > 0:
+            try:
+                review_report = IndependentReview(**rrpt_raw)
+            except Exception:
+                pass
+
+        result = DebateResult(
             session_id=debate_input.session_id,
             stock_code=debate_input.stock_code,
             stock_name=debate_input.stock_name,
@@ -679,8 +1054,14 @@ class DebateOrchestrator:
             analyses=analyses,
             vote_summary=vote_summary,
             review_round=review_round,
+            review_report=review_report,
             total_latency_ms=round(total_latency, 0),
         )
+
+        # 保存决策到记忆存储（不阻塞，方法内部已处理 None 情况）
+        await self._save_decision_to_memory(result)
+
+        return result
 
 
 __all__ = [
@@ -689,4 +1070,6 @@ __all__ = [
     "aggregate_node",
     "collect_data_node",
     "make_master_round_node",
+    "make_review_report_node",
+    "make_review_round_node",
 ]

@@ -110,6 +110,7 @@ class AgentAnalysis(BaseModel):
     success: bool = True
     error: str | None = None
     latency_ms: float = 0.0
+    direction: str = "Neutral"  # D2: 强制方向判断（Bullish/Bearish/Neutral）
 
 
 class VoteSummary(BaseModel):
@@ -122,6 +123,7 @@ class VoteSummary(BaseModel):
     - consensus: 众数评级（最多人选的评级）
     - confidence: 共识置信度（基于一致性和专家信心）
     - adjustments_applied: 是否使用了第二轮反驳调整后的值
+    - direction_distribution: 方向分布统计（D2: {Bullish/Bearish/Neutral: 数量}）
     """
 
     total_votes: int = 0
@@ -131,6 +133,46 @@ class VoteSummary(BaseModel):
     consensus: str = "中性"
     confidence: float = 0.0
     adjustments_applied: bool = False
+    direction_distribution: dict[str, int] = Field(default_factory=dict)
+
+
+class IndependentReview(BaseModel):
+    """独立评审 Agent 的输出
+
+    在 master_round（+ review_round）之后运行，以独立裁判视角评审所有大师
+    的分析质量和一致性。输出结构化评估和聚合建议。
+
+    Attributes:
+        reviewer_style: 评审风格标识
+        overall_quality: 辩论整体质量评分 (0.0-1.0)
+        independent_rating: 独立评级（基于全部信息的判断）
+        independent_score: 独立评分 (1-100)
+        confidence: 对本评审的置信度 (0.0-1.0)
+        consensus_support: 对当前共识的支持度 (0.0-1.0)
+        quality_assessments: 对每位大师分析质量的评估
+        weight_suggestions: 对每位大师的权重调整建议（乘数，0.0-2.0）
+        identified_biases: 发现的集体偏见列表
+        blind_spots: 所有分析中缺失的关键视角
+        key_risks_synthesis: 关键风险综合
+        consistency_observation: 分析间一致性的观察
+        aggregation_recommendation: 对聚合方式的建议
+        latency_ms: 调用耗时（毫秒）
+    """
+
+    reviewer_style: str = "independent_reviewer"
+    overall_quality: float = 0.0
+    independent_rating: str = "中性"
+    independent_score: int = 0
+    confidence: float = 0.0
+    consensus_support: float = 0.5
+    quality_assessments: dict[str, str] = Field(default_factory=dict)
+    weight_suggestions: dict[str, float] = Field(default_factory=dict)
+    identified_biases: list[str] = Field(default_factory=list)
+    blind_spots: list[str] = Field(default_factory=list)
+    key_risks_synthesis: str = ""
+    consistency_observation: str = ""
+    aggregation_recommendation: str = ""
+    latency_ms: float = 0.0
 
 
 class DebateResult(BaseModel):
@@ -141,6 +183,7 @@ class DebateResult(BaseModel):
     - 所有大师的分析
     - 投票汇总
     - 第二轮交叉审阅（可选，D1 功能）
+    - 独立评审报告（可选，D3 功能）
     - 总耗时
     """
 
@@ -151,6 +194,7 @@ class DebateResult(BaseModel):
     analyses: list[AgentAnalysis] = Field(default_factory=list)
     vote_summary: VoteSummary = Field(default_factory=VoteSummary)
     review_round: PeerReviewRound | None = None
+    review_report: IndependentReview | None = None
     total_latency_ms: float = 0.0
 
     def to_summary_dict(self) -> dict[str, Any]:
@@ -166,10 +210,21 @@ class DebateResult(BaseModel):
             "加权评分": round(vs.weighted_score, 1),
             "置信度": round(vs.confidence, 2),
             "评级分布": vs.rating_distribution,
+            "方向分布": vs.direction_distribution,
             "总耗时(ms)": round(self.total_latency_ms, 0),
         }
         if self.review_round is not None:
             result["交叉审阅"] = len(self.review_round) > 0
+        if self.review_report is not None:
+            rr = self.review_report
+            result["独立评审"] = True
+            result["评审质量"] = rr.overall_quality
+            result["评审评级"] = rr.independent_rating
+            result["评审评分"] = rr.independent_score
+            if rr.identified_biases:
+                result["发现偏差"] = rr.identified_biases
+            if rr.blind_spots:
+                result["盲区提示"] = rr.blind_spots
         return result
 
 
@@ -177,6 +232,7 @@ __all__ = [
     "AgentAnalysis",
     "DebateInput",
     "DebateResult",
+    "IndependentReview",
     "PeerReviewRound",
     "RebuttalAnalysis",
     "VoteSummary",

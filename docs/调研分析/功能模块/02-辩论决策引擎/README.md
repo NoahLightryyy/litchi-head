@@ -56,10 +56,10 @@
 
 | 源码 | 说明 |
 |------|------|
-| `src/debate/orchestrator.py` | 编排器：LangGraph StateGraph 驱动全流程 |
-| `src/debate/models.py` | 辩论数据模型（DebateInput / DebateResult / AgentAnalysis 等） |
+| `src/debate/orchestrator.py` | 编排器：LangGraph StateGraph 驱动全流程（5 节点，含 M1 历史注入 + D2 方向约束） |
+| `src/debate/models.py` | 辩论数据模型（DebateInput / DebateResult / AgentAnalysis / IndependentReview 等） |
+| `src/memory/store.py` | MemoryStore 抽象接口 + JsonFileStore 实现（M1 接入点） |
 | `src/agents/master_agent.py` | 通用 MasterAgent（通过配置控制行为） |
-| `src/agents/base.py` | Agent 基类（AgentContext） |
 
 ## 行业参照项目
 
@@ -71,22 +71,32 @@
 
 ## 架构对照分析
 
-### 你现在的架构（单轮分析 + 直接汇总）
+### 你现在的架构（M1 历史决策注入 + D2 方向约束已接入）
 
 ```
-┌──────────────────────────────────────────────────┐
-│  collect_data（采集数据）                           │
-│       ↓                                           │
-│  master_round（顺序调各位大师独立分析）               │
-│    ├─ 大师A：生成 AgentAnalysis                     │
-│    ├─ 大师B：生成 AgentAnalysis                     │
-│    └─ 大师C：生成 AgentAnalysis                     │
-│       ↓                                           │
-│  aggregate（投票加权汇总 → DebateResult）           │
-└──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  MemoryStore.search("episodic", "debate")                      │
+│    → _format_history_context()                                 │
+│    → 注入 DebateState.history_context                          │
+│       ↓                                                       │
+│  collect_data（采集数据）                                       │
+│       ↓                                                       │
+│  master_round（顺序调各位大师独立分析，prompt 含历史上下文）       │
+│    ├─ 大师A：生成 AgentAnalysis（含 📜 历史决策 + 🧭 方向约束）   │
+│    ├─ 大师B：生成 AgentAnalysis（含 📜 历史决策 + 🧭 方向约束）   │
+│    └─ 大师C：生成 AgentAnalysis（含 📜 历史决策 + 🧭 方向约束）   │
+│       ↓                                                       │
+│  review_round（第二轮交叉审阅，prompt 含历史上下文 + 方向展示）    │
+│       ↓                                                       │
+│  review_report（独立评审，prompt 含历史上下文 + 方向分布）         │
+│       ↓                                                       │
+│  aggregate（投票加权汇总 → VoteSummary.direction_distribution）  │
+│       ↓                                                       │
+│  _save_decision_to_memory() → MemoryStore.put()                │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-特点：单轮、分析==评审合一、无交叉审阅、无强制立场。
+特点：单轮、分析==评审合一、无交叉审阅、D2 强制方向已接入。
 
 ### TradingAgents 的做法（核心可借鉴）
 
@@ -135,7 +145,17 @@
 
 ---
 
-## 关键研究问题（2026-06-11 第 5 次更新：D1 实施完成）
+## 关键研究问题（2026-06-12 第 8 次更新：D2 强制输出方向完成）
+
+### M1 — 历史决策注入 ✅ 实施完成
+- [x] **已实施**：`MemoryStore` 接入辩论编排器，大师 prompt 自动注入历史决策参考。
+- [x] **查询**：辩论前自动查询 `("episodic", "debate")` 命名空间下的历史决策。
+- [x] **格式化**：`_format_history_context()` 将 MemoryItem 列表转为可读的 LLM prompt 文本。
+- [x] **注入点**：同时注入大师分析（master_round）、交叉审阅（review_round）、独立评审（review_report）三级 prompt。
+- [x] **保存**：辩论结束后 `_save_decision_to_memory()` 自动保存共识/评分/大师摘要。
+- [x] **异常熔断**：所有 MemoryStore 操作在 try/except 中，失败不阻塞辩论。
+- [x] **向后兼容**：`memory_store=None` 时行为完全不变。
+- [x] **结论**：低成本高收益——修改 orchestrator.py 约 80 行新增代码，22 个测试，零回归。历史记忆让大师有了"自我复盘"能力。
 
 ### D1 — 多轮对抗辩论 ✅ 实施完成
 - [x] **已分析**：TradingAgents 的多轮对抗靠 Prompt 约束，不是靠复杂逻辑——Bull/Bear Prompt 中写"你必须反驳对方观点"。
@@ -143,17 +163,24 @@
 - [x] **已验证**：8 次 LLM 调用（4 位大师×2轮）token 成本可控，360 测试全通过，DeepSeek 成本是 GPT-4o 的 1/10。
 - [x] **结论**：TradingAgents 的"看到完整论点→要求反驳"机制已适配移植。关键代码见 `orchestrator.py:_run_review_for_master()`。
 
-### D2 — 强制立场与信息隔离
+### D2 — 强制立场与信息隔离 ✅ 实施完成
 - [x] **已分析**：TradingAgents 用角色分配（Bull/Bear）实现强制立场，不给中立选项。
-- [ ] 你的大师是保留"可以中立"的选项，还是强制输出方向？建议：保留中立但要说明理由。
-- [ ] TradingAgents 的信息隔离（Analyst 只看数据，Researcher 只看报告）适用于你的场景吗？
-- [x] **结论**：信息隔离不直接适用于四组大师场景——大师需要全貌来做风格化判断。建议改用"简报分区输出"（见 01-数据采集）。
+- [x] **已实施**：大师 prompt 末尾加固化的 direction 约束（Bullish/Bearish/Neutral）。
+- [x] **Pydantic 验证**：`InvestmentAnalysis.direction` 使用 `pattern=r"^(Bullish|Bearish|Neutral)$"` 约束。
+- [x] **归一化**：无效 direction 值在 orchestrator 层规范化为 Neutral，防止下游异常。
+- [x] **聚合**：`VoteSummary.direction_distribution` 自动统计方向分布。
+- [x] **对接 D3**：review_round 和 review_report prompt 均展示大师方向分布。
+- [x] **31 个新测试**：模型/映射/聚合/集成/兼容全覆盖，436 全量通过，零回归。
+- [x] **结论**：最小改动（prompt 末尾加约束 + 一个 Pydantic 字段），低风险高收益。每位大师必须选方向，评审层直接可看到方向分布。
+- [ ] TradingAgents 的信息隔离（Analyst 只看数据，Researcher 只看报告）适用于你的场景吗？ — **暂不实施**：大师需要全貌来做风格化判断。
 
-### D3 — 独立评审层
-- [x] **已分析**：TradingAgents 的 Research Manager 只看辩论历史，不看原始数据，用 Pydantic 结构化输出约束结果。
-- [ ] 你的 aggregate 步骤是否拆为两步：LLM 评审（论证质量）→ 加权汇总（一致性检验）？
-- [ ] 独立评审的 Key 设计：是否可以看到原始评分？是否可以看到辩论历史？
-- [ ] 评审结果是否需要动态影响大师权重？还是只参与最终综合判定？
+### D3 — 独立评审层 ✅ 实施完成
+- [x] **已实施**：在 `review_round → aggregate` 之间插入 `review_report` 节点。
+- [x] **模型**：`IndependentReview(BaseModel)` — 13 字段，含裁判独立评级/权重建议/偏见识别。
+- [x] **聚合升级**：`weight_suggestions` 作为置信度乘数影响 `weighted_score`，无需修改原始评分。
+- [x] **向后兼容**：`review_report=None` 时 aggregate 行为不变。
+- [x] **已验证**：23 个新测试，全量 383 通过，零回归。
+- [x] **结论**：独立 LLM 评审人格 = 双维度交叉验证（数学加权 + 裁判判断），实现成本低回报高。
 
 ### D4 — 结构化评审输出
 - [ ] VoteSummary 是否需要扩展评审修正字段？（review_score / adjusted_weights / review_notes）
@@ -176,9 +203,9 @@
 | `./ContestTrade源码分析/` | ContestTrade 内部竞赛机制的源码阅读笔记 |
 | `./AI Hedge Fund大师分析/` | AI Hedge Fund 的大师人格+投票机制分析 |
 
-## 深挖方向建议（2026-06-11 第 5 次更新：D1 实施 ✅）
+## 深挖方向建议（2026-06-12 第 8 次更新：D2 强制输出方向 ✅）
 
-> 以下优先级基于 TradingAgents 源码分析的结论，按"低改动高收益"排序。
+> 以下优先级基于 TradingAgents 源码分析和 MemoryStore MVP 的结论，按"低改动高收益"排序。
 
 ### ✅ D1 — 第二轮交叉审阅+反驳（已完成）
 **来源**：TradingAgents 多轮对抗 | **工作量**：中 | **涉及文件**：`debate/orchestrator.py` + `debate/models.py`
@@ -203,22 +230,46 @@
 - 约束：DeepSeek 单次 8K tokens 以内，8 次调用可控
 - 不更改现有大师人格定义，只加一轮"反驳"prompt
 
-### 🥇 D3 — 独立评审 Agent（辩论模块）
+### ✅ D3 — 独立评审 Agent（辩论模块 ✅ 实施完成）
 **来源**：TradingAgents Research Manager | **工作量**：中 | **影响范围**：`debate/models.py` + `orchestrator.py`
 
-`aggregate` 步骤前加一层 LLM 评审：评审 Agent 看辩论记录后输出结构化评审报告。
+在 `review_round → aggregate` 之间插入 `review_report` 节点。独立 LLM 评审人格阅读所有大师分析 + 反驳后输出结构化评审报告。
 
-- 评审不看原始数据，只看大师分析+辩论记录
-- 输出格式：`ReviewReport(BaseModel)` — 评分修正 + 综合推荐 + 分歧点分析
-- 现有 aggregate 逻辑升级为"LLM 评审 + 数学加权"双重验证
+**实施情况**（2026-06-12）：
+- `IndependentReview(BaseModel)` — 13 字段（裁判独立评级/权重建议/偏见识别/盲点提示等）
+- `_run_independent_review()` — 辅助函数，构建包含大师分析+反驳的评审 prompt
+- `make_review_report_node()` — LangGraph 节点工厂，失败/无大师时返回空评审
+- `aggregate` 升级 — `weight_suggestions` 作为置信度乘数，不修改原始评分
+- 图结构：`master_round → review_round → review_report → aggregate`
+- 完全向后兼容：`review_report` 为空时 aggregate 行为不变
+- `DebateResult.to_summary_dict()` 含独立评审信息
+- 23 个新测试，383 全量通过，零回归
 
-### 🥇 D2 — 强制输出方向（辩论模块 ↔ 人格模块）
-**来源**：TradingAgents 强制立场 | **工作量**：小 | **影响范围**：大师提示词模板
+### ✅ M1 — 历史决策注入（辩论模块 ✅ 实施完成）
+**来源**：MemoryStore MVP 向下游消费 | **工作量**：小 | **影响范围**：`debate/orchestrator.py` + `memory/store.py`
+
+**实施情况**（2026-06-12）：
+- `_format_history_context()` — 记忆条目 → 可读的 LLM prompt 文本，支持逆序/过滤/截断
+- `DebateState.history_context` — LangGraph state 字段，自动传递到所有节点
+- `DebateOrchestrator.__init__(memory_store)` — 可选参数，向后兼容
+- `_save_decision_to_memory()` — 辩论结果自动保存到 `("episodic", "debate")` 命名空间
+- 三级 prompt 注入：master_round + review_round + review_report 均获得历史上下文
+- 异常熔断：所有 MemoryStore 操作失败不阻塞辩论流程
+- 22 个新测试，405 全量通过，零回归
+
+### ✅ D2 — 强制输出方向（辩论模块 ✅ 实施完成）
+**来源**：TradingAgents 强制立场 | **工作量**：小 | **影响范围**：大师提示词模板 + 模型定义
 
 每位大师的分析末尾必须输出 `Bullish/Bearish/Neutral` 方向判断，Neutral 必须说明理由。
 
-- 不改大师人格，只在 prompt 末尾加一条格式约束
-- 对接 D3 评审层：评审可以直接看到各大师的方向分布
+**实施情况**（2026-06-12）：
+- `InvestmentAnalysis.direction` 新增 Pydantic pattern 约束字段 (Bullish/Bearish/Neutral)
+- `MasterAgent.run()` prompt 末尾加"强制方向判断"段落
+- 落盘归一化：无效 direction 值被规范化为 Neutral
+- `AgentAnalysis.direction` + `VoteSummary.direction_distribution` 追踪
+- review_round + review_report prompt 均展示大师方向分布
+- 历史记忆含方向标签 `[Bullish]`
+- 31 个新测试，436 全量通过，零回归
 
 ### 🥈 D4 — VoteSummary 结构化扩展（辩论模块）
 **来源**：TradingAgents structured output | **工作量**：小 | **影响范围**：`debate/models.py`
