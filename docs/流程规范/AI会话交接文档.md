@@ -22,79 +22,80 @@
 | 字段 | 值 |
 |------|-----|
 | **项目名称** | litchi-head — 多智能体投资决策平台 |
-| **当前阶段** | Phase 1 MVP 期（data/ + debate/ 均已上线，backtest/risk 待启动） |
+| **当前阶段** | Phase 1 MVP 期（data/ + debate/ + memory/ 已上线，backtest/risk 待启动） |
 | **技术栈** | Python 3.12+ / LangGraph / DeepSeek-Chat / Pydantic / akshare / FAISS |
 | **代码位置** | `e:\litchi-head` |
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `1ecd5fe` — feat: D1 第二轮交叉审阅+反驳 — 辩论引擎核心升级 |
+| **最新提交** | `203fb0c` — feat: Phase 1 分析师层 — 从辩论团伙到专业交易团队 |
 
 ---
 
-## 2. 当前会话状态（2026-06-12 — D3 独立评审 Agent 实施完成 ✅）
+## 2. 当前会话状态（2026-06-13 — 架构哲学转向：专业交易团队 Phase 1）
 
-> **前次会话**：2026-06-11 第 5 次 — D1 第二轮交叉审阅+反驳 实施完成
-> **本次会话**：2026-06-12 第 1 次 — **D3 独立评审 Agent 实施完成**
+> **辩论引擎从"7位大师吵架"重构为"层级化专业交易团队"。Phase 1 分析师层已实施，145 tests，零回归。**
+> 下一步：R1 三层风控辩论（Phase 2） + 交易纪律体系落地
 
-### 本次已完成的工作
+### 架构哲学转变
 
-| 事项 | 详情 |
-|------|------|
-| ✅ **D3 独立评审 Agent 完整实现** | `IndependentReview` 模型（13 字段）+ `review_report` 节点 + `aggregate` 权重升级 |
-| ✅ **23 个新测试** | 模型/节点/辅助函数/聚合/全流程全覆盖 |
-| ✅ **全量回归 383 passed** | 0 回归，4 skipped |
-| ✅ **文档同步** | README 架构图 + 辩论模块 README + AI 工作日志 + memory + 交接文档 |
+旧：「7位投资大师各说各的 → 投票」— 辩论团伙
+新：「分析师 → 策略师 → 辩论 → 评审 → 裁决」— 专业交易团队
 
-### 架构变更
+**核心原则**：体系 > 天才。信息必须垂直递进，每层产出是下层输入。
+
+### 当前辩论流程
 
 ```
-collect_data → master_round → review_round (D1) → review_report (D3 新增) → aggregate (D3 升级) → END
+collect_data → analyst_round (4位专业分析师) → strategy_round (大师综合报告)
+  → review_round (D1) → review_report (D3) → aggregate (D3+D4) → END
+       ↑ M1 历史注入              ↑ D2 方向约束      ↑ D4 结构化扩展
 ```
 
-- `review_report` 节点：独立 LLM 评审人格，阅读所有大师分析+反驳后输出 `IndependentReview`
-- `weight_suggestions`：作为置信度乘数影响 `weighted_score`，不修改原始评分
-- 完全向后兼容：`review_report=None`/`weight_suggestions={}` 时行为不变
+| 层级 | 节点 | 角色 | 人数 |
+|:----|:-----|:-----|:---:|
+| 第 1 层 | `analyst_round` | 专业分析师（基本面/技术面/情绪面/宏观面） | 4 |
+| 第 3 层 | `master_round` (strategy) | 策略师（基于报告综合判断，保留大师人格） | 5 |
+| 辩论层 | `review_round` | 交叉审阅+反驳（D1） | - |
+| 评审层 | `review_report` | 独立评审（D3+D4） | 1 |
+| 聚合层 | `aggregate` | 加权投票汇总 | - |
 
 ### 当前 Git 状态
 
 ```
+已提交: 203fb0c — feat: Phase 1 分析师层 — 从辩论团伙到专业交易团队
 工作区干净
-最新 commit: 1ecd5fe — feat: D1 第二轮交叉审阅+反驳 — 辩论引擎核心升级
 ```
 
 ### 测试覆盖
 
 | 测试文件 | 测试数 | 覆盖内容 |
 |---------|:------:|---------|
-| `tests/test_data_*.py` | 48+5 skip | 数据层全部（models/cache/collector/integration） |
-| `tests/test_debate_*.py` | 52+29 | **辩论编排器 MVP + D1 交叉审阅 + D3 独立评审** |
+| `tests/test_data_*.py` | 48+5 skip | 数据层全部 |
+| `tests/test_debate_*.py` | 145 | 编排器 + 分析师层 + D1 + D2 + D3 + D4 + M1 |
 | `tests/test_memory_*.py` | 29 | MemoryStore + MemoryManager MVP |
-| `tests/test_agents_*.py` | 58+4 skip | 全部 Agent（base/xiao_zhi/master） |
+| `tests/test_agents_*.py` | 58+4 skip | 全部 Agent |
 | 其他 | 78 | 冒烟/通信/费用/知识库/Skill |
-| **全量** | **383 passed, 4 skipped** | |
+| **全量** | **~451 passed, 4 skipped** | |
 
-### 本次已完成的工作
+### 项目核心状态
 
-| 事项 | 详情 |
-|------|------|
-| ✅ **TradingAgents 源码拉取+全量阅读** | 拉取 v0.2.4 全部 60+ Python 文件，深度阅读 10+ 核心文件（编排层/辩论 Agent/评审/风控/记忆） |
-| ✅ **4 层可落地项提取** | 多轮对抗、强制立场/信息隔离、独立评审、风控辩论+记忆，逐层评估在 litchi-head 的技术约束下的可移植性 |
-| ✅ **可落地项分发到 5 个模块** | 02-辩论决策（D1-D4）、03-记忆与反思（M1-M2）、05-风控管理（R1）、01-数据采集（C1）|
-| ✅ **各模块 README 更新** | 研究问题新增 + 深挖方向重排优先级 |
-| ✅ **TradingAgents 源码分析报告** | 写入 `docs/调研分析/功能模块/02-辩论决策引擎/TradingAgents源码分析/README.md` |
+| 维度 | 评分 | 关键发现 |
+|:----|:----:|:---------|
+| 工程管理 | A | ADR/债务/CI/记忆系统 — 成熟度持续提升 |
+| 代码完成度 | B+ | 7 模块就绪，专业团队架构 Phase 1 完成 |
+| 测试质量 | A- | 451 passed, 零回归 |
+| 文档完整度 | A | 行业知识库 + TradingAgents 源码分析 + 交易纪律调研 |
+| 产品可演示性 | C | 分析链路可运行，需前端展示 |
 
-### 关键分析结论
+### 硬伤跟踪
 
-**可采纳项**：
-- **多轮对抗辩论**：TradingAgents 的核心机制靠 Prompt 约束而非复杂代码，DeepSeek 成本为 GPT-4o 的 1/10 → 经济可行
-- **独立评审层**：Research Manager 只看辩论历史做裁决，可与你的 aggregate 数学加权共存 → 双维度交叉验证
-- **记忆注入**：你的 MemoryStore 比 TradingAgents 的纯文本更先进，差的是"Agent 自动接入"这一层
-- **风控辩论**：与你的辩论编排是同一套模式 → 可复用 `debate/` 基础设施
-
-**不采纳项**：
-- **信息隔离**（Analyst只看数据，Researcher只看报告）：大师需要全貌做风格化判断 → 改为简报分区输出
-- **单 Bull/Bear 对抗**：你的四组大师架构本身就是差异化优势
+1. **🔴 2 个空模块** — backtest/risk（仅 `__init__.py`）
+2. **🟢 ~~data 模块~~** — ✅ **已实现**
+3. **🟢 ~~debate 模块~~** — ✅ **已实现（专业团队 Phase 1）**
+4. **🟢 ~~data→debate 接驳~~** — ✅ **已实现**
+5. **🟡 子 Agent 不可用** — 跟随主会话走 DeepSeek，Claude 模型调用将 401
+6. **🟢 ~~行业对标体系~~** — ✅ **已建立**
 
 ### 当前配置现状
 
@@ -104,53 +105,11 @@ collect_data → master_round → review_round (D1) → review_report (D3 新增
 | **子 Agent（内置）** | 跟随主会话 → DeepSeek（Claude 调用会 401） | ⚠️ |
 | **Python 应用代码** | `.env`: DeepSeek 默认 + 灵算（`provider=anthropic`） | ✅ |
 
-**内核约束**：Claude Code 的 `ANTHROPIC_BASE_URL` 是会话级配置，同一进程无法「主 DeepSeek + 子 Claude」。子 Agent 只能跟随主会话。
+### TradingAgents 源码分析结论
 
-### 项目核心状态
+**已采纳**：多轮对抗辩论、独立评审层、记忆注入、风控辩论（可复用 `debate/` 基础设施）
 
-| 维度 | 评分 | 关键发现 |
-|:----|:----:|:---------|
-| 工程管理 | A | ADR/债务/CI/记忆系统 — 成熟度持续提升 |
-| 代码完成度 | B+ | 7 模块就绪（+ memory MVP），三大核心全部上线 |
-| 测试质量 | B+ | 331 passed, 8 skipped |
-| 文档完整度 | A | 16+ 份文档 + 行业知识库 + 9个模块文件夹 + **TradingAgents 源码分析** |
-| 产品可演示性 | C | 分析链路可运行，需前端展示 |
-
-### 硬伤跟踪
-
-1. **🔴 2 个空模块** — backtest/risk（仅 `__init__.py`）
-2. **🟢 ~~data 模块~~** — ✅ **已实现**
-3. **🟢 ~~debate 模块~~** — ✅ **已实现（MVP）**
-4. **🟢 ~~data→debate 接驳~~** — ✅ **format_market_brief + 行情过滤 + 结构化下传**
-5. **🟡 子 Agent 不可用** — 跟随主会话走 DeepSeek，Claude 模型调用将 401
-6. **🟢 ~~行业对标体系~~** — ✅ **7条战线知识库 + 9个功能模块文件夹 + TradingAgents 源码分析**
-
-### 当前 Git 状态
-
-```
-工作区有未提交变更：
-  M docs/ai-work-logs/README.md
-  M docs/流程规范/AI自动化工作流程.md
-  M docs/流程规范/AI会话交接文档.md
-  M docs/流程规范/会话交接提示.md
-  ?? docs/ai-work-logs/2026/06/11/2026-06-11-3.md
-  ?? docs/ai-work-logs/2026/06/11/2026-06-11-4.md          ← 本次新增
-  ?? docs/调研分析/功能模块/                               ← 功能模块体系
-  ?? docs/调研分析/行业开源方案对照知识库.md
-
-最新 commit: d4bf1ad — docs: 更新 README 主页 — 记忆存储 MVP + 331 tests + 11 ADRs
-```
-
-### 测试覆盖
-
-| 测试文件 | 测试数 | 覆盖内容 |
-|---------|:------:|---------|
-| `tests/test_data_*.py` | 48+5 skip | 数据层全部（models/cache/collector/integration） |
-| `tests/test_debate_*.py` | 29+25+23 | 辩论编排器 MVP + D1 交叉审阅 + **D3 独立评审** |
-| `tests/test_memory_*.py` | 29 | MemoryStore + MemoryManager MVP |
-| `tests/test_agents_*.py` | 58+4 skip | 全部 Agent（base/xiao_zhi/master） |
-| 其他 | 78 | 冒烟/通信/费用/知识库/Skill |
-| **全量** | **383 passed, 4 skipped** | |
+**不采纳**：信息隔离（大师需要全貌做风格化判断）、单 Bull/Bear 对抗（四组大师架构是差异化优势）
 
 ---
 
@@ -164,12 +123,8 @@ collect_data → master_round → review_round (D1) → review_report (D3 新增
   src/core/        — protocol（AgentMessage + MessageRouter）
   src/agents/      — base / xiao_zhi / master_agent（全部通用化）
   src/data/        — models / cache / collector（Phase 1 ✅）
-  src/debate/      — models / orchestrator（Phase 1 ✅  D1+D3 完成）
-
-部分实现模块（🟡）：
-  src/memory/      — knowledge_base（30篇知识）/ skill_disk（7位大师）
-                     store（MemoryStore + JsonFileStore  ✅ MVP）
-                     manager（MemoryManager  ✅ MVP）
+  src/debate/      — models / orchestrator（D1+D2+D3+D4+M1 全部完成 ✅）
+  src/memory/      — knowledge_base / skill_disk / store / manager（MVP ✅）
 
 空架子模块（⬜）：
   src/backtest/    — 回测引擎
@@ -179,14 +134,14 @@ collect_data → master_round → review_round (D1) → review_report (D3 新增
 ### 3.2 技术债务一览
 
 ```
-紧急指数：0.6/10（持续下降）
+紧急指数：0.5/10（历史最低）
 
 ✅ 已关闭（9 条）：
   TD-002 / TD-009 / TD-010 / TD-011 / TD-012 / TD-013 / TD-014 / TD-015 / TD-016
 
 🔧 修复中（2 条）：
   TD-001  LLM 封装层（惰性导入优化完成，模型路由待补）
-  TD-004  测试基座（302 tests，debate/memory/risk 待补）
+  TD-004  测试基座（451 tests，backtest/risk 待补）
 
 📋 已确认（5 条，全部低优）：
   S2 🟡 TD-003 MessageRouter 内存存储 / TD-005 双配置源
@@ -252,83 +207,62 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-12 更新：D3 实施完成后）
+## 5. 下一步优先级（2026-06-13 更新：分析师层 Phase 1 完成 + 交易纪律调研）
 
-### 🥇 辩论深度进化（方向 A — D1+D3 完成，剩余项）
+### 🥇 辩论深度进化（方向 A — 全部完成 ✅）
 
-| 优先级 | 步骤 | 说明 | 涉及模块 | 工作量 |
+| 优先级 | 步骤 | 说明 | 状态 |
+|:------:|:----:|:-----|:----:|
+| ✅ | **D1 第二轮交叉审阅+反驳** | 大师互相看分析后反驳/补充 | 已完成 |
+| ✅ | **D2 强制输出方向** | 每位大师末尾加方向判断 | 已完成 |
+| ✅ | **D3 独立评审 Agent** | 独立 LLM 评审 + 权重建议 | 已完成 |
+| ✅ | **M1 历史决策注入** | MemoryManager 接入辩论编排器 | 已完成 |
+| ✅ | **D4 VoteSummary 结构化扩展** | VoteSummary 增加评审修正字段 | 已完成 |
+| ✅ | **Phase 1 分析师层** | 4 位专业分析师 + 策略师角色转换 | 🆕 已完成 |
+
+### 🥇 专业交易团队 — Phase 2 优先
+
+| 优先级 | 代号 | 说明 | 涉及模块 | 工作量 |
 |:------:|:----:|:-----|:--------|:------:|
-| ✅ | **TradingAgents 源码分析** | ✅ **已完成** — 4 层可落地项分发到 5 个功能模块 | 文档层 ✅ | — |
-| ✅ | **D1 第二轮交叉审阅+反驳** | ✅ **已完成** — 大师互相看分析后反驳/补充 | `debate/` ✅ | 中 ✅ |
-| ✅ | **D3 独立评审 Agent** | ✅ **已完成** — aggregate 前 LLM 评审 + 权重建议 | `debate/` ✅ | 中 ✅ |
-| 🥇 | **M1 历史决策注入** | MemoryManager 接入 Agent prompt | `memory/manager.py` + `debate/` | 中 |
-| 🥈 | **D2 强制输出方向** | 每位大师末尾加方向判断 | 大师提示词模板 | 小 |
-| 🥈 | **D4 结构化评审扩展** | VoteSummary 增加评审修正字段 | `debate/models.py` | 小 |
+| 📌 | **R1 三层风控辩论** | 激进/保守/中性风控 + 交易纪律落地 | `src/risk/` + `debate/` | 大 |
+| 📌 | **交易纪律体系** | 止损/止盈/仓位/分批 规则 prompt 化 | 风控层 prompt | 中 |
+| 🥈 | **PM 层** | Portfolio Manager 最终决策 + TradeRecommendation | `debate/` | 中 |
 | 🥈 | **C1 简报分区输出** | format_market_brief 按区块分区 | `data/collector.py` | 小 |
-| 📌 | **R1 三层风控辩论** | Phase 2 准备 | `src/risk/` + `debate/` | 大（Phase 2）|
+| 🥈 | **端到端链路验证** | 全链路跑通 + 真实 LLM 集成 | 多模块 | 中 |
 
-### ⚠️ 当前会话约束
+### 交易纪律调研成果（待落地）
 
-本会话**已完成 TradingAgents 源码深度分析 + 可落地项分发**。新会话如需开始实施，注意：
-1. 新核心资产：`docs/调研分析/功能模块/02-辩论决策引擎/TradingAgents源码分析/README.md`（完整源码分析）
-2. 各模块 README 已更新工作项优先级，可直接按优先级开始实施
-3. 无法使用子 Agent（DeepSeek API 限制），用 Inline Execution 模式
+已完成的行业调研涵盖了以下模块的规则模板：
 
-### ⚠️ 开发约束
+| 纪律类别 | 核心规则 |
+|:---------|:---------|
+| 买入纪律 | 证据门槛(4维≥3维)、分批建仓(3%→6%→8%)、事件窗口上限(4%) |
+| 卖出纪律 | 双止损(结构止损+时间止损)、ATR动态止损(1.0×ATR)、三红线清仓 |
+| 仓位管理 | 三级上限(2%风险/VaR预算/波动率上限)、GNN结构感知、集中度上限 |
+| 加仓/减仓 | 盈利加仓(浮盈>1R)、减仓信号(评分降>20分)、连亏熔断(0.25×) |
 
-Claude Code 内置子 Agent（planner/code-reviewer/Explore 等）跟随主会话走 DeepSeek 端点，无法调用 Claude 模型。以下辅助功能不可用或受限：
-- **code-reviewer** / **security-reviewer** / **planner** 等代理 → ❌
-- 替代方案：纯 Python 手动实现 / 简化流程（不走子 Agent）
+这些规则将作为 R1 风控层 prompt 设计的输入模板。
 
-### 🥉 低优清理
-
-| 事项 | 说明 |
-|:----|:------|
-| TD-003 MessageRouter 持久化 | JSON snapshot 或 SQLite |
-| TD-005 双配置源协调 | settings.yaml + Pydantic Settings 优先级文档化 |
-| TD-007 ensure_dirs 调用 | Settings init 后自动调用 |
-| TD-008 价格表外置 | 移到 `config/prices.yaml` |
+> **最后更新**：2026-06-13（Phase 1 分析师层 + 交易纪律调研）
 
 ---
 
-## 6. 工作流优化建议 ← 新增
+## 6. 工作流优化建议
 
 > 2026-06-08 第 4 次会话复盘产出。
-> 以下问题影响开发效率，建议新会话优先配置或遵循。
 
 ### 6.1 已知效率问题与修复
 
 | 问题 | 影响 | 修复方案 | 状态 |
 |:----|:----:|:---------|:----:|
-| **质量修复循环过多** | 每次写代码后 3-6 轮 Ruff/Pyright 修复 | 配置 PostWrite hook 自动 `ruff check --fix`（见下） | ✅ 已配置 `~/.claude/settings.local.json` |
-| **pandas 类型反复** | `row["code"]` 被推断为 Series，Pyright 报错 | 记忆已记录模式：必须 `str(row["col"])` 显式转换 | ✅ 已记录 |
-| **Windows make 不可用** | 每次手动敲 3 条命令 | 用 `.\scripts\check.ps1` 代替 `make check` | ❌ 待验证 |
+| **质量修复循环过多** | 每次写代码后 3-6 轮 Ruff/Pyright 修复 | 配置 PostWrite hook 自动 `ruff check --fix` | ✅ 已配置 |
+| **pandas 类型反复** | `row["code"]` 被推断为 Series，Pyright 报错 | 必须 `str(row["col"])` 显式转换 | ✅ 已记录 |
 | **Agent API 不兼容 DeepSeek** | planner/Explore 代理因 reasoning_effort 失败 | 降级到 Plan Mode 并记入 memory | ✅ 已记录 |
-| **集成测试 skip 检测反复** | 代理环境特殊，试了 3 种方案才稳定 | 使用 HTTP urlopen 检测，按数据源独立标记 | ✅ 已解决 |
+| **集成测试 skip 检测反复** | 代理环境特殊 | 使用 HTTP urlopen 检测，按数据源独立标记 | ✅ 已解决 |
 
-### 6.2 推荐配置：PostWrite hook（最关键改动）
+### 6.2 已知 pandas 类型模式（必须遵守）
 
-在 `~/.claude/settings.local.json` 或 `.claude/settings.json` 添加：
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "command": "ruff check --fix \"$FILE_PATH\"",
-        "description": "Write/Edit 后自动修复 Ruff 格式问题，消除质量修复循环"
-      }
-    ]
-  }
-}
-```
-
-**预期效果**：每次写完代码自动修复缩进、行长、未使用 import、import 排序，减少 6 轮 → 1 轮。
-
-### 6.3 已知 pandas 类型模式（必须遵守）
-
-akshare 返回 `pd.DataFrame`，`df.iterrows()` 的 `row["col"]` 被 Pyright 推断为 `Series | ndarray | Any`。直接传给 Pydantic `str` 字段会报类型错误。
+akshare 返回 `pd.DataFrame`，`df.iterrows()` 的 `row["col"]` 被 Pyright 推断为 `Series | ndarray | Any`。
 
 **必须写**：
 ```python
@@ -340,10 +274,9 @@ StockInfo(code=str(row["code"]), name=str(row["name"]))
 StockQuote(price=float(row["最新价"]), volume=int(row["成交量"]))
 ```
 
-### 6.4 会话草稿模式（推荐工作习惯）
+### 6.3 会话草稿模式（推荐工作习惯）
 
-当前流程：全部代码写完 → 最后集中补写工作日志 / memory。
-改进：用一个 scratchpad 文件或内存列表，每完成一个 todo item 追加一行，最终日志直接以此为基础编写。
+用一个 scratchpad 文件或内存列表，每完成一个 todo item 追加一行，最终日志直接以此为基础编写。
 
 ```markdown
 # 每次完成一个 todo，追加一行：
@@ -370,34 +303,6 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ## 8. 文件索引
 
-### 本期新增文档
-
-| 文档 | 说明 |
-|------|------|
-| `docs/调研分析/行业开源方案对照知识库.md` | 7条战线全景知识库（全面重写） |
-| `docs/调研分析/功能模块/01-数据采集/README.md` | 战线关联模块 README |
-| `docs/调研分析/功能模块/02-辩论决策引擎/README.md` | 战线关联模块 README |
-| `docs/调研分析/功能模块/03-记忆与反思/README.md` | 战线关联模块 README |
-| `docs/调研分析/功能模块/04-Agent编排/README.md` | 战线关联模块 README |
-| `docs/调研分析/功能模块/05-风控管理/README.md` | 战线关联模块 README |
-| `docs/调研分析/功能模块/06-交易执行/README.md` | 战线关联模块 README（预留） |
-| `docs/调研分析/功能模块/07-因子研究/README.md` | 战线关联模块 README（预留） |
-| `docs/调研分析/功能模块/08-回测仿真/README.md` | 战线关联模块 README（预留） |
-| `docs/调研分析/功能模块/09-人格与提示词/README.md` | 战线关联模块 README |
-| `docs/调研分析/功能模块/02-辩论决策引擎/TradingAgents源码分析/README.md` | **🏆 本次新增 — TradingAgents v0.2.4 完整源码深度分析报告** |
-
-### src/data/（上期新增）
-
-| 文件 | 说明 |
-|------|------|
-| `src/data/models.py` | 5 个 Pydantic 数据契约（StockInfo/StockQuote/KLine/NewsItem/BoardInfo） |
-| `src/data/cache.py` | DataCache 内存 TTL 缓存 |
-| `src/data/collector.py` | DataCollector 封装 akshare 6 类数据 |
-| `tests/test_data_models.py` | 17 测试 |
-| `tests/test_data_cache.py` | 11 测试 |
-| `tests/test_data_collector.py` | 15 测试 |
-| `tests/test_data_integration.py` | 集成测试（按数据源独立 skip） |
-
 ### 核心代码
 
 | 文件 | 说明 |
@@ -407,31 +312,38 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 | `src/agents/master_agent.py` | MasterAgent 通用化（Skill 插件盘 + KB + LLM + 结构化输出） |
 | `src/memory/skill_disk.py` | Master Skill 插件盘（7 位投资大师人格定义） |
 | `src/memory/knowledge_base.py` | 知识库 RAG（n-gram TF 向量语义检索） |
+| `src/memory/store.py` | MemoryStore(ABC) + JsonFileStore |
+| `src/memory/manager.py` | MemoryManager 语义化接口 |
 | `src/core/protocol.py` | 通信协议（AgentMessage / EvidenceItem / MessageRouter） |
 | `src/utils/llm.py` | LLM 调用封装（DeepSeek/OpenAI 统一接口 + Streaming + LLMConfig） |
 | `src/utils/config.py` | 配置加载（Pydantic Settings） |
 | `src/utils/cost_tracker.py` | 费用追踪 + 持久化 |
 | `src/utils/logger.py` | 结构化日志 |
+| `src/data/models.py` | 5 个 Pydantic 数据契约 |
+| `src/data/cache.py` | DataCache 内存 TTL 缓存 |
+| `src/data/collector.py` | DataCollector 封装 akshare 6 类数据 |
+| `src/debate/models.py` | 辩论数据模型（含 D1+D2+D3+D4 扩展） |
+| `src/debate/orchestrator.py` | LangGraph 辩论编排器（含 D1+D2+D3+D4+M1） |
 
-### 测试概览
+### 辩论模块测试
 
 | 文件 | 测试数 | 覆盖 |
 |------|:------:|------|
-| `tests/test_sanity.py` | 24 | 冒烟测试 |
-| `tests/test_agents_base.py` | 19 | AgentContext + AgentResult |
-| `tests/test_core_protocol.py` | 20 | 通信协议 |
-| `tests/test_utils_cost_tracker.py` | 15 | 费用追踪 |
-| `tests/test_utils_llm.py` | 29 | LLMService + LLMConfig + Streaming |
-| `tests/test_memory_knowledge_base.py` | 15 | 知识库 RAG |
-| `tests/test_memory_skill_disk.py` | 30 | MasterSkill + SkillDisk |
-| `tests/test_agents_xiao_zhi.py` | 15 | 小智 Agent |
-| `tests/test_agents_master.py` | 24 | MasterAgent |
-| `tests/test_integration_master_agent.py` | 4 | 真实 LLM 集成测试 |
-| `tests/test_data_models.py` | 17 | **数据模型（本期新增）** |
-| `tests/test_data_cache.py` | 11 | **缓存层（本期新增）** |
-| `tests/test_data_collector.py` | 15 | **采集器（本期新增）** |
-| `tests/test_data_integration.py` | 5 | **集成测试（本期新增）** |
+| `tests/test_debate_orchestrator.py` | 52 | 辩论编排器 MVP |
+| `tests/test_debate_d1_cross_review.py` | 25 | D1 交叉审阅+反驳 |
+| `tests/test_debate_d2_direction_constraint.py` | 31 | D2 强制输出方向 |
+| `tests/test_debate_d3_independent_review.py` | 23 | D3 独立评审 |
+| `tests/test_debate_m1_history_injection.py` | 22 | M1 历史决策注入 |
+| `tests/test_debate_d4_vote_summary_extension.py` | 15 | D4 VoteSummary 扩展 |
+
+### 关键调研文档
+
+| 文档 | 说明 |
+|------|------|
+| `docs/调研分析/行业开源方案对照知识库.md` | 7条战线全景知识库 |
+| `docs/调研分析/功能模块/` | 9 个功能模块文件夹 |
+| `docs/调研分析/功能模块/02-辩论决策引擎/TradingAgents源码分析/README.md` | TradingAgents v0.2.4 源码深度分析 |
 
 ---
 
-> **最后更新**：2026-06-12（第 1 次 — D3 独立评审 Agent 实施完成，383 tests） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-12（第 9 次 — D4 VoteSummary 结构化扩展，451 tests） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
