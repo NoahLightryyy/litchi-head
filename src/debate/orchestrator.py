@@ -23,8 +23,10 @@ from src.agents.base import AgentContext
 from src.agents.master_agent import MasterAgent
 from src.data.collector import DataCollector, format_market_brief
 from src.data.models import KLine, NewsItem, StockQuote
+from src.debate.analysts import AnalystPersona, get_default_analysts
 from src.debate.models import (
     AgentAnalysis,
+    AnalystReport,
     DebateInput,
     DebateResult,
     IndependentReview,
@@ -57,6 +59,7 @@ class DebateState(TypedDict):
         review_report:  独立评审报告（由 review_report 节点写入）
         errors:         错误记录
         history_context: 历史决策上下文文本（注入到大师 prompt）
+        analyst_reports: 分析师报告（由 analyst_round 节点写入）
     """
 
     session_id: str
@@ -69,6 +72,7 @@ class DebateState(TypedDict):
     review_report: dict  # 序列化的 IndependentReview
     errors: list[str]
     history_context: str  # 历史决策上下文（注入到大师 prompt）
+    analyst_reports: dict  # dict[str, AnalystReport], 分析师层产出
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
@@ -197,6 +201,117 @@ def _format_history_context(items: list[MemoryItem], stock_code: str) -> str:
     return "\n".join(lines)
 
 
+def _format_analyst_reports(reports: dict[str, AnalystReport]) -> str:
+    """将分析师报告格式化为 prompt 插入文本
+
+    供 _run_single_master 使用，将分析师层的结构化报告转换为
+    策略师（大师）阅读的专业报告格式。
+
+    Args:
+        reports: analyst_type → AnalystReport 的映射（如 "analyst.fundamental" → report）
+
+    Returns:
+        格式化后的分析师报告文本（无报告时返回 ""）
+    """
+    if not reports:
+        return ""
+
+    lines = ["", "📋 分析师专题报告：", "━━━━━━━━━━━━━━━━━━━━━━━━━━"]
+
+    for key, report in reports.items():
+        # 从 key 提取类型（如 "analyst.fundamental" → "fundamental"）
+        atype = key.replace("analyst.", "")
+        lines.append(f"\n▶ {atype}——{report.analyst_type}")
+        lines.append(
+            f"  评分：{report.score}/100"
+            f" | 方向：{report.direction_hint}"
+            f" | 置信度：{report.confidence:.0%}"
+        )
+        lines.append(f"  摘要：{report.summary}")
+        if report.key_findings:
+            lines.append("  关键发现：")
+            for f in report.key_findings:
+                lines.append(f"    · {f}")
+        if report.data_evidence:
+            lines.append("  数据支撑：")
+            for e in report.data_evidence:
+                lines.append(f"    · {e}")
+        if report.red_flags:
+            lines.append("  风险信号：")
+            for rf in report.red_flags:
+                lines.append(f"    ⚠ {rf}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+async def _run_single_analyst(
+    persona: AnalystPersona,
+    session_id: str,
+    question: str,
+    stock_code: str,
+    stock_name: str,
+    market_data: dict,
+) -> AnalystReport:
+    """运行一位分析师，返回 AnalystReport
+
+    与 _run_single_master 不同，分析师直接调用 LLM（无 MasterAgent 封装），
+    是专业领域的结构化输出工具。失败时返回默认 AnalystReport（不中断流程）。
+
+    Args:
+        persona: 分析师人格（定义专注领域和方法论）
+        session_id: 会话标识
+        question: 分析问题
+        stock_code: 股票代码
+        stock_name: 股票名称
+        market_data: 市场数据缓存
+
+    Returns:
+        结构化分析报告
+    """
+    start = time.monotonic()
+
+    # 构建分析 prompt（全量数据 + 专注提示）
+    enhanced = question
+    brief = market_data.get("brief", "")
+    if brief:
+        enhanced += f"\n\n📊 以下为当前市场数据：\n{brief}"
+
+    try:
+        raw = cast(AnalystReport, await llm_service.invoke_structured(
+            prompt=enhanced,
+            output_model=AnalystReport,
+            system_prompt=persona.system_prompt,
+            agent_name=f"analyst.{persona.analyst_type}",
+            session_id=session_id,
+        ))
+        elapsed = (time.monotonic() - start) * 1000
+
+        return AnalystReport(
+            analyst_type=persona.analyst_type,
+            key_findings=list(raw.key_findings),
+            data_evidence=list(raw.data_evidence),
+            red_flags=list(raw.red_flags),
+            confidence=raw.confidence,
+            summary=raw.summary,
+            score=raw.score,
+            direction_hint=(
+                raw.direction_hint
+                if raw.direction_hint in ("Bullish", "Bearish", "Neutral")
+                else "Neutral"
+            ),
+            latency_ms=round(elapsed, 0),
+        )
+
+    except Exception as e:
+        elapsed = (time.monotonic() - start) * 1000
+        return AnalystReport(
+            analyst_type=persona.analyst_type,
+            summary=f"分析失败: {str(e)[:100]}",
+            latency_ms=round(elapsed, 0),
+        )
+
+
 async def _run_single_master(
     skill: MasterSkill,
     session_id: str,
@@ -205,25 +320,55 @@ async def _run_single_master(
     stock_name: str,
     market_data: dict,
     history_context: str = "",
+    analyst_reports: dict[str, AnalystReport] | None = None,
 ) -> AgentAnalysis:
-    """运行一位大师的分析，返回 AgentAnalysis
+    """运行一位大师的策略分析，返回 AgentAnalysis
+
+    大师现在作为「策略师」角色——基于分析师层的专业报告进行综合判断，
+    而非直接从原始数据分析。大师的投资哲学用于解读专家报告并形成最终决策。
 
     Args:
         skill: 大师 Skill
+        session_id: 会话标识
         question: 分析问题
+        stock_code: 股票代码
+        stock_name: 股票名称
         market_data: 市场数据缓存
         history_context: 历史决策上下文（注入到 prompt 末尾）
+        analyst_reports: 分析师层产出的结构化报告（策略师的核心输入）
 
     Returns:
         结构化分析结果
     """
     start = time.monotonic()
 
-    # 构建增强问题（附加上下文 + 历史决策）
+    # 构建策略合成 prompt
+    # 策略师的核心输入是分析师报告，市场数据作为辅助上下文
     enhanced = question
+
+    # 1. 分析师报告（策略师的主要输入）
+    if analyst_reports:
+        reports_text = _format_analyst_reports(analyst_reports)
+        enhanced += f"\n{reports_text}"
+
+    # 2. 市场数据（辅助上下文）
     brief = market_data.get("brief", "")
     if brief:
-        enhanced += f"\n\n📊 以下为当前市场数据：\n{brief}"
+        enhanced += f"\n\n📊 当前市场数据（辅助参考）：\n{brief}"
+
+    # 3. 战略合成指示（角色转换关键）
+    if analyst_reports:
+        enhanced += (
+            "\n\n【战略合成指示】\n"
+            "你正在审阅上述专业分析师团队的报告。"
+            "请运用你的投资哲学对这些专家分析进行综合评判，"
+            "形成你自己的最终判断。\n"
+            "注意：分析师报告可能存在分歧或盲区。"
+            "你的角色不是重新分析原始数据，"
+            "而是运用经验和智慧对不同维度的专业分析做出综合裁决。"
+        )
+
+    # 4. 历史决策上下文
     if history_context:
         enhanced += f"\n\n{history_context}"
 
@@ -548,6 +693,54 @@ async def _run_independent_review(
         return IndependentReview()
 
 
+def make_analyst_round_node(personas: list[AnalystPersona]):
+    """创建分析师轮次节点 —— 顺序运行所有分析师
+
+    每位分析师专注一个数据维度（基本面/技术面/情绪面/宏观面），
+    各自产出 AnalystReport。顺序执行以避免 LangGraph 并行写入冲突。
+    失败的分析师返回默认空报告，不阻塞后续流程。
+
+    Args:
+        personas: 参与分析的分析师人格列表
+
+    Returns:
+        异步节点函数 (state) -> dict
+    """
+
+    async def analyst_round_node(state: DebateState) -> dict:
+        """运行所有分析师的专业分析"""
+        inp = state.get("debate_input", {})
+        code = inp.get("stock_code", "")
+        question = inp.get("question", "请分析这只股票的投资价值")
+        stock_name = inp.get("stock_name", "")
+        md = state.get("market_data", {})
+        sid = state.get("session_id", "")
+
+        all_reports: dict[str, AnalystReport] = {}
+        all_errors: list[str] = []
+
+        for persona in personas:
+            report = await _run_single_analyst(
+                persona=persona,
+                session_id=sid,
+                question=question,
+                stock_code=code,
+                stock_name=stock_name,
+                market_data=md,
+            )
+            key = f"analyst.{persona.analyst_type}"
+            all_reports[key] = report
+            if not report.key_findings and report.score == 0:
+                all_errors.append(f"{key} 执行失败或无有效发现")
+
+        return {
+            "analyst_reports": all_reports,
+            "errors": all_errors,
+        }
+
+    return analyst_round_node
+
+
 def make_master_round_node(skills: list[MasterSkill]):
     """创建大师轮次节点 —— 顺序运行所有大师
 
@@ -562,7 +755,7 @@ def make_master_round_node(skills: list[MasterSkill]):
     """
 
     async def master_round_node(state: DebateState) -> dict:
-        """运行所有大师的分析"""
+        """运行所有大师的策略分析（基于分析师报告）"""
         inp = state.get("debate_input", {})
         code = inp.get("stock_code", "")
         question = inp.get("question", "请分析这只股票的投资价值")
@@ -570,6 +763,19 @@ def make_master_round_node(skills: list[MasterSkill]):
         md = state.get("market_data", {})
         sid = state.get("session_id", "")
         history_ctx = state.get("history_context", "")
+        analyst_reports_raw = state.get("analyst_reports", {})
+
+        # 将 state 中的 dict 转换为 AnalystReport 实例
+        analyst_reports: dict[str, AnalystReport] = {}
+        if analyst_reports_raw and isinstance(analyst_reports_raw, dict):
+            for k, v in analyst_reports_raw.items():
+                if isinstance(v, dict):
+                    try:
+                        analyst_reports[k] = AnalystReport(**v)
+                    except Exception:
+                        pass
+                elif isinstance(v, AnalystReport):
+                    analyst_reports[k] = v
 
         all_analyses: dict[str, AgentAnalysis] = {}
         all_errors: list[str] = []
@@ -583,6 +789,7 @@ def make_master_round_node(skills: list[MasterSkill]):
                 stock_name=stock_name,
                 market_data=md,
                 history_context=history_ctx,
+                analyst_reports=analyst_reports,
             )
             key = f"master.{skill.skill_id}"
             all_analyses[key] = analysis
@@ -892,6 +1099,7 @@ class DebateOrchestrator:
         skill_disk: SkillDisk | None = None,
         skill_ids: list[str] | None = None,
         memory_store: MemoryStore | None = None,
+        analyst_personas: list[AnalystPersona] | None = None,
     ):
         """初始化辩论编排器
 
@@ -901,10 +1109,13 @@ class DebateOrchestrator:
             skill_ids: 参与辩论的大师 ID 列表，None 则使用默认加载的大师
             memory_store: 记忆存储实例（可选）。提供后，
                 辩论前自动查询历史决策注入 prompt，辩论后自动保存结果。
+            analyst_personas: 分析师人格列表（可选）。
+                None 则使用 get_default_analysts() 的 4 位默认分析师。
         """
         self.data_collector = data_collector or DataCollector()
         self.skill_disk = skill_disk or SkillDisk()
         self.memory_store = memory_store
+        self.analyst_personas = analyst_personas or get_default_analysts()
 
         # 加载大师列表
         if skill_ids is not None:
@@ -939,12 +1150,19 @@ class DebateOrchestrator:
         )
         graph.set_entry_point("collect_data")
 
-        # 大师轮次节点：顺序运行所有大师
+        # 分析师轮次节点：4 位专业分析师（基本面/技术面/情绪面/宏观面）
+        graph.add_node(
+            "analyst_round",
+            make_analyst_round_node(self.analyst_personas),
+        )
+        graph.add_edge("collect_data", "analyst_round")
+
+        # 大师轮次节点（策略师）：基于分析师报告进行综合判断
         graph.add_node(
             "master_round",
             make_master_round_node(self.master_skills),
         )
-        graph.add_edge("collect_data", "master_round")
+        graph.add_edge("analyst_round", "master_round")
 
         # 第二轮交叉审阅节点：所有大师互相审阅同行分析
         graph.add_node(
@@ -1060,6 +1278,7 @@ class DebateOrchestrator:
             "review_report": {},
             "errors": [],
             "history_context": history_context,
+            "analyst_reports": {},
         }
 
         final_state = await app.ainvoke(initial_state)
@@ -1087,6 +1306,20 @@ class DebateOrchestrator:
             except Exception:
                 pass
 
+        # 解析 analyst_reports（如果有）
+        ar_raw = final_state.get("analyst_reports", {})
+        analyst_reports_result: dict[str, AnalystReport] | None = None
+        if ar_raw and isinstance(ar_raw, dict):
+            try:
+                analyst_reports_result = {
+                    k: AnalystReport(**v) if isinstance(v, dict) else v
+                    for k, v in ar_raw.items()
+                }
+                if not analyst_reports_result:
+                    analyst_reports_result = None
+            except Exception:
+                pass
+
         result = DebateResult(
             session_id=debate_input.session_id,
             stock_code=debate_input.stock_code,
@@ -1096,6 +1329,7 @@ class DebateOrchestrator:
             vote_summary=vote_summary,
             review_round=review_round,
             review_report=review_report,
+            analyst_reports=analyst_reports_result,
             total_latency_ms=round(total_latency, 0),
         )
 
@@ -1110,6 +1344,7 @@ __all__ = [
     "DebateState",
     "aggregate_node",
     "collect_data_node",
+    "make_analyst_round_node",
     "make_master_round_node",
     "make_review_report_node",
     "make_review_round_node",

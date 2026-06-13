@@ -188,6 +188,38 @@ class IndependentReview(BaseModel):
     latency_ms: float = 0.0
 
 
+class AnalystReport(BaseModel):
+    """单个分析师的结构化分析报告
+
+    由 analyst_round 节点中的分析师（AnalystPersona）生成，
+    作为 strategy_round 中策略师（MasterSkill）的核心输入。
+
+    与 AgentAnalysis 不同，AnalystReport 不包含投资评级，
+    而是提供专业维度的分析数据和方向提示。
+
+    Attributes:
+        analyst_type: 分析师类型（fundamental / technical / sentiment / macro）
+        key_findings: 3-5 条关键发现
+        data_evidence: 支撑发现的具体数据点
+        red_flags: 该维度识别的风险信号
+        confidence: 分析师对本报告的置信度 (0.0-1.0)
+        summary: 执行摘要
+        score: 该维度的评分 (1-100)
+        direction_hint: 该维度的方向提示 (Bullish/Bearish/Neutral)
+        latency_ms: 调用耗时（毫秒）
+    """
+
+    analyst_type: str
+    key_findings: list[str] = Field(default_factory=list)
+    data_evidence: list[str] = Field(default_factory=list)
+    red_flags: list[str] = Field(default_factory=list)
+    confidence: float = 0.0
+    summary: str = ""
+    score: int = 0
+    direction_hint: str = "Neutral"
+    latency_ms: float = 0.0
+
+
 class DebateResult(BaseModel):
     """辩论最终结果
 
@@ -208,6 +240,7 @@ class DebateResult(BaseModel):
     vote_summary: VoteSummary = Field(default_factory=VoteSummary)
     review_round: PeerReviewRound | None = None
     review_report: IndependentReview | None = None
+    analyst_reports: dict[str, AnalystReport] | None = None
     total_latency_ms: float = 0.0
 
     def to_summary_dict(self) -> dict[str, Any]:
@@ -248,11 +281,29 @@ class DebateResult(BaseModel):
                 result["权重调整"] = vs.weight_adjustments
             if vs.review_notes:
                 result["评审说明"] = vs.review_notes
+        # ── 分析师报告 ─────────────────────────────
+        if self.analyst_reports:
+            result["分析师报告数"] = len(self.analyst_reports)
+            analyst_scores = {
+                atype: report.score
+                for atype, report in self.analyst_reports.items()
+            }
+            result["分析师评分"] = analyst_scores
+            directions = [
+                r.direction_hint for r in self.analyst_reports.values()
+            ]
+            bullish = sum(1 for d in directions if d == "Bullish")
+            bearish = sum(1 for d in directions if d == "Bearish")
+            neutral = sum(1 for d in directions if d == "Neutral")
+            result["分析师方向分布"] = {
+                "Bullish": bullish, "Bearish": bearish, "Neutral": neutral,
+            }
         return result
 
 
 __all__ = [
     "AgentAnalysis",
+    "AnalystReport",
     "DebateInput",
     "DebateResult",
     "IndependentReview",

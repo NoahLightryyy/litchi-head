@@ -13,7 +13,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,10 +21,10 @@ from src.agents.base import AgentContext
 from src.agents.master_agent import InvestmentAnalysis, MasterAgent
 from src.debate.models import (
     AgentAnalysis,
+    AnalystReport,
     DebateInput,
     DebateResult,
     IndependentReview,
-    PeerReviewRound,
     RebuttalAnalysis,
     VoteSummary,
 )
@@ -35,7 +34,6 @@ from src.debate.orchestrator import (
     aggregate_node,
 )
 from src.memory.skill_disk import MasterSkill
-
 
 # ── 测试用大师 Skill ─────────────────────────
 
@@ -374,8 +372,8 @@ class TestRunSingleMasterDirection:
         """direction 从 analysis_raw 正确提取到 AgentAnalysis"""
         market_data = {"brief": "市场平稳", "quote": None, "quotes": [], "klines": [], "news": []}
 
-        with patch("src.debate.orchestrator.MasterAgent") as MockMaster:
-            agent_instance = MockMaster.return_value
+        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+            agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             agent_instance.run_safe.return_value = MagicMock(
                 success=True,
@@ -408,8 +406,8 @@ class TestRunSingleMasterDirection:
         """无效 direction 被规范化为 Neutral"""
         market_data = {"brief": "", "quote": None, "quotes": [], "klines": [], "news": []}
 
-        with patch("src.debate.orchestrator.MasterAgent") as MockMaster:
-            agent_instance = MockMaster.return_value
+        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+            agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             agent_instance.run_safe.return_value = MagicMock(
                 success=True,
@@ -442,8 +440,8 @@ class TestRunSingleMasterDirection:
         """缺失 direction 字段默认 Neutral"""
         market_data = {"brief": "", "quote": None, "quotes": [], "klines": [], "news": []}
 
-        with patch("src.debate.orchestrator.MasterAgent") as MockMaster:
-            agent_instance = MockMaster.return_value
+        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+            agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             agent_instance.run_safe.return_value = MagicMock(
                 success=True,
@@ -476,8 +474,8 @@ class TestRunSingleMasterDirection:
         """分析失败时 direction 为 Neutral"""
         market_data = {"brief": "", "quote": None, "quotes": [], "klines": [], "news": []}
 
-        with patch("src.debate.orchestrator.MasterAgent") as MockMaster:
-            agent_instance = MockMaster.return_value
+        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+            agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             agent_instance.run_safe.return_value = MagicMock(
                 success=False,
@@ -682,6 +680,17 @@ class TestDirectionFullIntegration:
             question="值得投资吗？",
         )
 
+        # 构建 mock 分析师报告（避免真实 LLM 调用）
+        mock_analyst_report = AnalystReport(
+            analyst_type="fundamental",
+            key_findings=["盈利能力稳健"],
+            data_evidence=["ROE 15%"],
+            confidence=0.7,
+            summary="基本面总体向好",
+            score=72,
+            direction_hint="Bullish",
+        )
+
         # Mock 数据收集（避免真实网络调用）
         with patch.object(
             orchestrator.data_collector, "get_realtime_quotes", return_value=[]
@@ -692,12 +701,19 @@ class TestDirectionFullIntegration:
                 with patch.object(
                     orchestrator.data_collector, "get_news", return_value=[]
                 ):
-                    # Mock LLM 层 — 每位大师返回不同方向
-                    with patch(
-                        "src.utils.llm.llm_service.invoke_structured",
-                        new_callable=AsyncMock,
-                    ) as mock_llm:
-                        # 调用顺序：3 位大师各一次 master_round → 3 位大师各一次 review_round → 1 次 review_report
+                    # Mock 分析师层 + LLM 层
+                    with (
+                        patch(
+                            "src.debate.orchestrator._run_single_analyst",
+                            new_callable=AsyncMock,
+                            return_value=mock_analyst_report,
+                        ),
+                        patch(
+                            "src.utils.llm.llm_service.invoke_structured",
+                            new_callable=AsyncMock,
+                        ) as mock_llm,
+                    ):
+                        # 调用顺序：3 大师 × master_round → 3 × review_round → 1 × review_report
                         mock_llm.side_effect = [
                             # master_round: buffett, munger, dalio
                             InvestmentAnalysis(
@@ -845,8 +861,8 @@ class TestDirectionBackwardCompatibility:
     async def test_debate_orchestrator_no_knowledge_of_direction(self):
         """orchestrator 的 _run_single_master 在无 direction 时默认 Neutral"""
         market_data = {"brief": "", "quote": None, "quotes": [], "klines": [], "news": []}
-        with patch("src.debate.orchestrator.MasterAgent") as MockMaster:
-            agent_instance = MockMaster.return_value
+        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+            agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             # 模拟不含 direction 的旧版 LLM 输出
             agent_instance.run_safe.return_value = MagicMock(
