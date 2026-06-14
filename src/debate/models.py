@@ -248,6 +248,7 @@ class DebateResult(BaseModel):
     review_report: IndependentReview | None = None
     analyst_reports: dict[str, AnalystReport] | None = None
     risk_round: dict | None = None  # 序列化的 RiskRoundResult
+    trader_round: dict | None = None  # 序列化的 TraderRoundResult (T1)
     trade_recommendation: dict | None = None  # 序列化的 TradeRecommendation
     total_latency_ms: float = 0.0
 
@@ -328,6 +329,24 @@ class DebateResult(BaseModel):
                 result["关键警告"] = tr["key_warnings"]
             if tr.get("reasoning"):
                 result["决策理由"] = tr["reasoning"][:300]
+        # ── T1: 交易员层 ─────────────────────────────
+        if self.trader_round:
+            tr_data = self.trader_round
+            tp = tr_data.get("trade_plan", {})
+            if tp:
+                result["交易计划"] = True
+                result["交易方向"] = tp.get("direction", "Neutral")
+                result["交易操作"] = tp.get("action", "hold").upper()
+                result["目标仓位"] = f"{tp.get('total_position_pct', 0):.0%}"
+                result["执行步骤数"] = len(tp.get("execution_steps", []))
+                result["硬止损"] = f"{tp.get('max_drawdown_limit', 0.08):.0%}"
+                result["盈亏比"] = f"{tp.get('risk_reward_ratio', 1.0):.1f}:1"
+                result["仓位方法"] = tp.get("position_sizing_method", "N/A")
+                if tp.get("contingency_plan"):
+                    result["预案"] = tp["contingency_plan"][:200]
+            result["执行摘要"] = tr_data.get("execution_summary", "")
+            if tr_data.get("pm_review_required"):
+                result["需PM复审"] = tr_data.get("pm_review_reason", "")
         return result
 
 

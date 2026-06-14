@@ -7,8 +7,9 @@
   4. review_round — D1 交叉审阅+反驳
   5. review_report — D3 独立评审
   6. aggregate — 加权投票汇总（D4 评审修正字段）
-  7. risk_round（可选） — R1 三层风控审核
-  8. pm_round（可选） — PM 最终裁决
+  8. risk_round（可选） — R1 三层风控审核
+  9. trader_round（可选） — T1 交易员执行规划
+  10. pm_round（可选） — PM 最终裁决
 
 用法：
     orchestrator = DebateOrchestrator()
@@ -16,6 +17,10 @@
 
     # 启用风控层
     orchestrator = DebateOrchestrator(enable_risk=True)
+    result = await orchestrator.run(DebateInput(stock_code="000001"))
+
+    # 启用风控 + 交易员层
+    orchestrator = DebateOrchestrator(enable_risk=True, enable_trader=True)
     result = await orchestrator.run(DebateInput(stock_code="000001"))
     print(result.trade_recommendation["action"])
 """
@@ -83,6 +88,7 @@ class DebateState(TypedDict):
     history_context: str  # 历史决策上下文（注入到大师 prompt）
     analyst_reports: dict  # dict[str, AnalystReport], 分析师层产出
     risk_round: dict  # 序列化的 RiskRoundResult（R1 风控层）
+    trader_round: dict  # 序列化的 TraderRoundResult（T1 交易员层）
     trade_recommendation: dict  # 序列化的 TradeRecommendation（R1 PM 裁决）
 
 
@@ -1100,8 +1106,9 @@ class DebateOrchestrator:
     6. review_report 节点 D3 独立评审
     7. aggregate 节点加权投票汇总
     8. risk_round 节点（可选）R1 三层风控
-    9. pm_round 节点（可选）PM 最终裁决
-    10. 返回 DebateResult
+    9. trader_round 节点（可选）T1 交易员执行规划
+    10. pm_round 节点（可选）PM 最终裁决
+    11. 返回 DebateResult
 
     用法：
         orch = DebateOrchestrator()
@@ -1109,6 +1116,10 @@ class DebateOrchestrator:
 
         # 启用风控层
         orch = DebateOrchestrator(enable_risk=True)
+        result = await orch.run(DebateInput(stock_code="000001"))
+
+        # 启用风控 + 交易员层
+        orch = DebateOrchestrator(enable_risk=True, enable_trader=True)
         result = await orch.run(DebateInput(stock_code="000001"))
     """
 
@@ -1121,6 +1132,7 @@ class DebateOrchestrator:
         analyst_personas: list[AnalystPersona] | None = None,
         enable_risk: bool = False,
         risk_officers: list | None = None,
+        enable_trader: bool = False,
     ):
         """初始化辩论编排器
 
@@ -1132,9 +1144,12 @@ class DebateOrchestrator:
                 辩论前自动查询历史决策注入 prompt，辩论后自动保存结果。
             analyst_personas: 分析师人格列表（可选）。
                 None 则使用 get_default_analysts() 的 4 位默认分析师。
-            enable_risk: 是否启用 R1 三层风控辩论 + PM 裁决（默认 False）
+            enable_risk: 是否启用 R1 三层风控辩论（默认 False）
             risk_officers: 风控官人格列表（可选）。
                 None 且 enable_risk=True 时使用 get_default_risk_officers()。
+            enable_trader: 是否启用 T1 交易员层（默认 False）
+                启用后，交易员将在风控审核后制定多步执行计划，
+                PM 将基于风控+交易员方案做出最终裁决。
         """
         self.data_collector = data_collector or DataCollector()
         self.skill_disk = skill_disk or SkillDisk()
@@ -1142,6 +1157,7 @@ class DebateOrchestrator:
         self.analyst_personas = analyst_personas or get_default_analysts()
         self.enable_risk = enable_risk
         self._risk_officers = risk_officers  # None 表示使用默认
+        self.enable_trader = enable_trader
 
         # 加载大师列表
         if skill_ids is not None:
@@ -1161,7 +1177,7 @@ class DebateOrchestrator:
         """构建 LangGraph 计算图
 
         collect_data → analyst_round → master_round → review_round
-        → review_report → aggregate → (risk_round → pm_round)? → END
+        → review_report → aggregate → (risk_round → trader_round? → pm_round)? → END
 
         Returns:
             未编译的 StateGraph
@@ -1207,7 +1223,7 @@ class DebateOrchestrator:
         graph.add_node("aggregate", aggregate_node)
         graph.add_edge("review_report", "aggregate")
 
-        # ── R1: 三层风控 + PM 裁决（可选）──────────
+        # ── R1: 三层风控 + T1 交易员 + PM 裁决（可选）──────────
         if self.enable_risk:
             from src.risk.orchestrator import (
                 make_pm_round_node,
@@ -1225,12 +1241,30 @@ class DebateOrchestrator:
                 "risk_round",
                 make_risk_round_node(officers),  # type: ignore[arg-type]
             )
-            graph.add_node(
-                "pm_round",
-                make_pm_round_node(),  # type: ignore[arg-type]
-            )
             graph.add_edge("aggregate", "risk_round")
-            graph.add_edge("risk_round", "pm_round")
+
+            # T1 交易员层（可选，在风控和 PM 之间）
+            if self.enable_trader:
+                from src.trader.orchestrator import make_trader_round_node
+
+                graph.add_node(
+                    "trader_round",
+                    make_trader_round_node(),  # type: ignore[arg-type]
+                )
+                graph.add_edge("risk_round", "trader_round")
+
+                graph.add_node(
+                    "pm_round",
+                    make_pm_round_node(),  # type: ignore[arg-type]
+                )
+                graph.add_edge("trader_round", "pm_round")
+            else:
+                graph.add_node(
+                    "pm_round",
+                    make_pm_round_node(),  # type: ignore[arg-type]
+                )
+                graph.add_edge("risk_round", "pm_round")
+
             graph.add_edge("pm_round", END)
         else:
             graph.add_edge("aggregate", END)
@@ -1331,6 +1365,7 @@ class DebateOrchestrator:
             "history_context": history_context,
             "analyst_reports": {},
             "risk_round": {},
+            "trader_round": {},
             "trade_recommendation": {},
         }
 
@@ -1379,6 +1414,12 @@ class DebateOrchestrator:
         if risk_raw and isinstance(risk_raw, dict) and risk_raw.get("assessments"):
             risk_round_result = risk_raw
 
+        # 解析 trader_round（T1 交易员层，如果启用）
+        tdr_raw = final_state.get("trader_round", {})
+        trader_round_result: dict | None = None
+        if tdr_raw and isinstance(tdr_raw, dict) and tdr_raw.get("trade_plan"):
+            trader_round_result = tdr_raw
+
         # 解析 trade_recommendation（R1 PM 裁决，如果启用）
         tr_raw = final_state.get("trade_recommendation", {})
         trade_rec: dict | None = None
@@ -1396,6 +1437,7 @@ class DebateOrchestrator:
             review_report=review_report,
             analyst_reports=analyst_reports_result,
             risk_round=risk_round_result,
+            trader_round=trader_round_result,
             trade_recommendation=trade_rec,
             total_latency_ms=round(total_latency, 0),
         )
