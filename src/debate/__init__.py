@@ -8,10 +8,26 @@
   5. review_report — 独立评审
   6. aggregate — 加权投票汇总 + 共识生成
 
+记忆增强：
+  · M1 历史决策注入 — query ("episodic", "debate") → 注入 prompt
+  · M2 反思闭环 — query ("reflective", "debate") → 注入 prompt
+     事后反思 API: orch.reflect_on_decision(stock_code, outcome)
+
 用法：
     orch = DebateOrchestrator()
     result = await orch.run(DebateInput(stock_code="000001"))
     print(result.to_summary_dict())
+
+    # 事后反思
+    from src.debate.reflection import ActualOutcome
+    reflection = await orch.reflect_on_decision(
+        stock_code="000001",
+        outcome=ActualOutcome(
+            stock_code="000001",
+            price_change_pct=+3.5,
+            actual_direction="Bullish",
+        ),
+    )
 """
 
 from src.debate.analysts import AnalystPersona, get_default_analysts
@@ -26,8 +42,13 @@ from src.debate.models import (
     VoteSummary,
 )
 from src.debate.orchestrator import DebateOrchestrator
+from src.debate.reflection import (
+    ActualOutcome,
+    ReflectionRecord,
+)
 
 __all__ = [
+    "ActualOutcome",
     "AgentAnalysis",
     "AnalystPersona",
     "AnalystReport",
@@ -37,6 +58,7 @@ __all__ = [
     "IndependentReview",
     "PeerReviewRound",
     "RebuttalAnalysis",
+    "ReflectionRecord",
     "VoteSummary",
     "get_default_analysts",
 ]

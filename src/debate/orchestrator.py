@@ -11,6 +11,10 @@
   9. trader_round（可选） — T1 交易员执行规划
   10. pm_round（可选） — PM 最终裁决
 
+记忆增强（可选，提供 memory_store 时自动启用）：
+  · M1 历史决策注入 — 查询过去决策注入到 prompt
+  · M2 反思闭环 — 查询过去反思注入到 prompt（需 enable_reflection=True）
+
 用法：
     orchestrator = DebateOrchestrator()
     result = await orchestrator.run(DebateInput(stock_code="000001"))
@@ -19,10 +23,23 @@
     orchestrator = DebateOrchestrator(enable_risk=True)
     result = await orchestrator.run(DebateInput(stock_code="000001"))
 
-    # 启用风控 + 交易员层
-    orchestrator = DebateOrchestrator(enable_risk=True, enable_trader=True)
+    # 启用风控 + 交易员层 + M2 反思
+    orchestrator = DebateOrchestrator(
+        enable_risk=True, enable_trader=True,
+        memory_store=store, enable_reflection=True,
+    )
     result = await orchestrator.run(DebateInput(stock_code="000001"))
     print(result.trade_recommendation["action"])
+
+    # 事后反思
+    reflection = await orchestrator.reflect_on_decision(
+        stock_code="000001",
+        outcome=ActualOutcome(
+            stock_code="000001",
+            price_change_pct=+3.5,
+            actual_direction="Bullish",
+        ),
+    )
 """
 
 from __future__ import annotations
@@ -47,6 +64,13 @@ from src.debate.models import (
     PeerReviewRound,
     RebuttalAnalysis,
     VoteSummary,
+)
+from src.debate.reflection import (
+    ActualOutcome,
+    ReflectionRecord,
+    _format_reflection_context,
+    _load_decision_from_memory,
+    generate_reflection,
 )
 from src.memory.skill_disk import MasterSkill, SkillDisk
 from src.memory.store import MemoryItem, MemoryStore
@@ -86,6 +110,7 @@ class DebateState(TypedDict):
     review_report: dict  # 序列化的 IndependentReview
     errors: list[str]
     history_context: str  # 历史决策上下文（注入到大师 prompt）
+    reflection_context: str  # M2 反思上下文（注入到大师 prompt）
     analyst_reports: dict  # dict[str, AnalystReport], 分析师层产出
     risk_round: dict  # 序列化的 RiskRoundResult（R1 风控层）
     trader_round: dict  # 序列化的 TraderRoundResult（T1 交易员层）
@@ -337,6 +362,7 @@ async def _run_single_master(
     stock_name: str,
     market_data: dict,
     history_context: str = "",
+    reflection_context: str = "",
     analyst_reports: dict[str, AnalystReport] | None = None,
 ) -> AgentAnalysis:
     """运行一位大师的策略分析，返回 AgentAnalysis
@@ -388,6 +414,10 @@ async def _run_single_master(
     # 4. 历史决策上下文
     if history_context:
         enhanced += f"\n\n{history_context}"
+
+    # 5. M2 反思上下文（从过去的错误中学习）
+    if reflection_context:
+        enhanced += f"\n\n{reflection_context}"
 
     try:
         agent = MasterAgent(
@@ -487,6 +517,7 @@ async def _run_review_for_master(
     peer_analyses: list[AgentAnalysis],
     market_data: dict,
     history_context: str = "",
+    reflection_context: str = "",
 ) -> RebuttalAnalysis:
     """运行一位大师的第二轮交叉审阅 —— 回应同行分析
 
@@ -542,6 +573,8 @@ async def _run_review_for_master(
             review_prompt += f"\n📊 市场背景：\n{brief}\n"
         if history_context:
             review_prompt += f"\n{history_context}\n"
+        if reflection_context:
+            review_prompt += f"\n{reflection_context}\n"
 
         review_prompt += (
             "\n请基于以上所有信息，重新审视你的原始判断。请输出结构化回应：\n"
@@ -595,6 +628,7 @@ async def _run_independent_review(
     rebuttals: list[RebuttalAnalysis],
     market_data: dict,
     history_context: str = "",
+    reflection_context: str = "",
 ) -> IndependentReview:
     """运行独立评审 Agent —— 以裁判视角评估所有大师的分析质量
 
@@ -655,6 +689,8 @@ async def _run_independent_review(
             review_prompt += f"\n📊 市场背景：\n{brief}\n"
         if history_context:
             review_prompt += f"\n{history_context}\n"
+        if reflection_context:
+            review_prompt += f"\n{reflection_context}\n"
 
         review_prompt += (
             "\n请以独立裁判的视角评审这场辩论，输出结构化评审报告：\n"
@@ -780,6 +816,7 @@ def make_master_round_node(skills: list[MasterSkill]):
         md = state.get("market_data", {})
         sid = state.get("session_id", "")
         history_ctx = state.get("history_context", "")
+        reflection_ctx = state.get("reflection_context", "")
         analyst_reports_raw = state.get("analyst_reports", {})
 
         # 将 state 中的 dict 转换为 AnalystReport 实例
@@ -806,6 +843,7 @@ def make_master_round_node(skills: list[MasterSkill]):
                 stock_name=stock_name,
                 market_data=md,
                 history_context=history_ctx,
+                reflection_context=reflection_ctx,
                 analyst_reports=analyst_reports,
             )
             key = f"master.{skill.skill_id}"
@@ -853,6 +891,7 @@ def make_review_round_node(skills: list[MasterSkill]):
         inp = state.get("debate_input", {})
         sid = state.get("session_id", "")
         history_ctx = state.get("history_context", "")
+        reflection_ctx = state.get("reflection_context", "")
 
         rebuttals: list[RebuttalAnalysis] = []
         for analysis in successful:
@@ -871,6 +910,7 @@ def make_review_round_node(skills: list[MasterSkill]):
                 peer_analyses=peers,
                 market_data=state.get("market_data", {}),
                 history_context=history_ctx,
+                reflection_context=reflection_ctx,
             )
             rebuttals.append(rebuttal)
 
@@ -915,6 +955,7 @@ def make_review_report_node():
         inp = state.get("debate_input", {})
         sid = state.get("session_id", "")
         history_ctx = state.get("history_context", "")
+        reflection_ctx = state.get("reflection_context", "")
 
         review = await _run_independent_review(
             session_id=sid,
@@ -923,6 +964,7 @@ def make_review_report_node():
             rebuttals=rebuttals,
             market_data=state.get("market_data", {}),
             history_context=history_ctx,
+            reflection_context=reflection_ctx,
         )
 
         return {"review_report": review.model_dump()}
@@ -1133,6 +1175,7 @@ class DebateOrchestrator:
         enable_risk: bool = False,
         risk_officers: list | None = None,
         enable_trader: bool = False,
+        enable_reflection: bool = False,
     ):
         """初始化辩论编排器
 
@@ -1150,6 +1193,9 @@ class DebateOrchestrator:
             enable_trader: 是否启用 T1 交易员层（默认 False）
                 启用后，交易员将在风控审核后制定多步执行计划，
                 PM 将基于风控+交易员方案做出最终裁决。
+            enable_reflection: 是否启用 M2 反思注入（默认 False）
+                启用后，辩论前自动查询历史反思记忆注入到策略师/评审 prompt。
+                需要同时提供 memory_store。
         """
         self.data_collector = data_collector or DataCollector()
         self.skill_disk = skill_disk or SkillDisk()
@@ -1158,6 +1204,7 @@ class DebateOrchestrator:
         self.enable_risk = enable_risk
         self._risk_officers = risk_officers  # None 表示使用默认
         self.enable_trader = enable_trader
+        self.enable_reflection = enable_reflection
 
         # 加载大师列表
         if skill_ids is not None:
@@ -1278,6 +1325,68 @@ class DebateOrchestrator:
             self._compiled_graph = graph.compile()
         return self._compiled_graph
 
+    async def _save_reflection_to_memory(
+        self, reflection: ReflectionRecord
+    ) -> None:
+        """将反思记录保存到记忆存储（不阻塞调用方）
+
+        Args:
+            reflection: 已生成的反思记录
+        """
+        if not self.memory_store:
+            return
+
+        try:
+            await self.memory_store.put(
+                key=f"{reflection.stock_code}_{reflection.session_id}",
+                value=reflection.model_dump(),
+                namespace=("reflective", "debate"),
+            )
+        except Exception:
+            pass  # 记忆存储失败不阻塞
+
+    async def reflect_on_decision(
+        self,
+        stock_code: str,
+        outcome: ActualOutcome,
+        session_id: str = "",
+    ) -> ReflectionRecord | None:
+        """事后反思入口 —— 加载历史决策 + 对比实际结果 → 生成反思记录
+
+        这是 M2 反思闭环的公开 API。调用方提供股票代码和实际市场结果，
+        编排器从 MemoryStore 加载对应的历史决策、调用 LLM 生成结构化反思、
+        并自动保存到 ("reflective", "debate") 命名空间。
+
+        Args:
+            stock_code: 股票代码（用于查找对应的历史决策）
+            outcome: 实际市场结果
+            session_id: 历史会话标识（可选，用于关联）
+
+        Returns:
+            生成的反思记录（无历史决策或生成失败时返回 None）
+        """
+        if not self.memory_store:
+            return None
+
+        # 1. 加载历史决策
+        decision = await _load_decision_from_memory(
+            self.memory_store, stock_code
+        )
+        if decision is None:
+            return None
+
+        # 2. 生成反思
+        reflection = await generate_reflection(
+            decision_summary=decision,
+            outcome=outcome,
+            session_id=session_id,
+        )
+
+        # 3. 保存反思
+        await self._save_reflection_to_memory(reflection)
+
+        return reflection
+
     async def _save_decision_to_memory(self, result: DebateResult) -> None:
         """将当前辩论结果保存到记忆存储（不阻塞辩论流程）
 
@@ -1352,6 +1461,21 @@ class DebateOrchestrator:
             except Exception:
                 pass  # 记忆查询失败不阻塞辩论
 
+        # 查询反思记忆注入（M2 反思闭环）
+        reflection_context = ""
+        if self.memory_store and self.enable_reflection:
+            try:
+                refl_items = await self.memory_store.search(
+                    namespace=("reflective", "debate"),
+                    query="",
+                    k=_MAX_HISTORY_FETCH,
+                )
+                reflection_context = _format_reflection_context(
+                    refl_items, debate_input.stock_code
+                )
+            except Exception:
+                pass  # 记忆查询失败不阻塞辩论
+
         initial_state: DebateState = {
             "session_id": debate_input.session_id,
             "debate_input": debate_input.model_dump(),
@@ -1363,6 +1487,7 @@ class DebateOrchestrator:
             "review_report": {},
             "errors": [],
             "history_context": history_context,
+            "reflection_context": reflection_context,
             "analyst_reports": {},
             "risk_round": {},
             "trader_round": {},
