@@ -1,15 +1,14 @@
 # 🔄 AI 会话交接文档
 
 > 用途：上下文窗口达到上限，需要切换对话时，新会话从本文档恢复工作状态。
-> **新 AI 启动流程：**
+> **新 AI 启动流程（推荐用 Skill）：**
 > 
 > ```
-> 记忆层自动注入       ← project-identity + architecture-decisions + current-state
->   ↓                  （来自 memory 系统，不需要我读文件）
-> 交接文档 §2 + §5     ← 当前状态 + 下一步（约 3K token）
->   ↓
-> 最新工作日志         ← 前一次会话具体内容
->   ↓
+> 执行 /resume-session Skill     ← 项目级 Skill，自动执行以下三层加载
+>   ├── 记忆层自动注入           ← project-identity + architecture-decisions + current-state
+>   ├── 交接文档 §2 + §5         ← 当前状态 + 下一步（约 3K token）
+>   └── 最新工作日志             ← 前一次会话具体内容
+> 
 > 按需加载（用到才读）← 债务日志 / 设计文档 / 历史日志
 > ```
 > 
@@ -28,14 +27,18 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `203fb0c` — feat: Phase 1 分析师层 — 从辩论团伙到专业交易团队 |
+| **最新提交** | 待提交（本次为上下文优化会话，见工作日志 2026-06-14-4） |
 
 ---
 
-## 2. 当前会话状态（2026-06-14 — M2 反思闭环上线）
+## 2. 当前会话状态（2026-06-14 — 上下文路由优化完成）
 
-> **M2 交易后反思实现** — 竞品最大结构性差距修复。反思闭环（Record → Compare → Reflect → Inject）已接入 9 层链路。
-> 563 tests，全部模块就绪。TD-017 反思闭环缺失 修复中。
+> **上下文路由架构优化** — 规则层 15→2 目录 + resume-session Skill + memory 归档 + TL;DR 摘要。
+> 563 tests，全部模块就绪。预计每次新会话节省 15-20K token。
+
+### 重要：新增 resume-session Skill
+
+**新会话启动直接执行 `/resume-session`**，封装了三层启动流程。不再需要手动读 AI自动化工作流程.md。
 
 ### 架构哲学转变
 
@@ -217,9 +220,9 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-14 更新：M2 反思闭环上线）
+## 5. 下一步优先级（2026-06-14 更新：上下文路由优化完成）
 
-> M2 反思闭环（竞品最大结构性差距）已实现——Record → Compare → Reflect → Inject 四步闭环。后续 P0 为回测引擎基础（支撑 M2 反思需要回测数据验证质量）。
+> 本次为上下文路由优化会话（非功能开发）。规则层 15→2 目录 + resume-session Skill + memory 归档 + TL;DR 摘要。下个功能会话从 resume-session Skill 启动即可。
 
 ### 🥇 专业交易团队 — 下一步（重排后）
 
