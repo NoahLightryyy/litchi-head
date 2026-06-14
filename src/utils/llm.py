@@ -19,6 +19,13 @@
     # 自定义 LLM 参数（TD-012）
     config = LLMConfig(temperature=0.7, max_tokens=4096)
     reply = await llm_service.ainvoke("分析", llm_config=config)
+
+    # 自动复杂度路由（TD-014）
+    reply = await llm_service.ainvoke_auto("分析市场情绪", agent_name="analyst")
+
+    # 强制使用推理模式（复杂任务）
+    config = LLMConfig(model="deepseek-reasoner", reasoning_effort="medium")
+    reply = await llm_service.ainvoke("深度分析", llm_config=config)
 """
 
 from collections.abc import AsyncIterator
@@ -71,7 +78,8 @@ class LLMConfig:
         非默认配置每次都新建实例。
         """
         return (
-            self.temperature == 0.3
+            self.model is None          # 显式指定 model → 非默认
+            and self.temperature == 0.3
             and self.max_tokens == 8192
             and self.stream is False
             and self.reasoning_effort is None
@@ -131,11 +139,18 @@ def _build_llm(
                 raise RuntimeError(
                     "DEEPSEEK_API_KEY 未设置，请在 .env 中配置"
                 )
-            return ChatDeepSeek(
-                model=cfg.model or "deepseek-chat",
-                temperature=cfg.temperature,
-                model_kwargs={"max_tokens": cfg.max_tokens},
-            )
+            model = cfg.model or "deepseek-chat"
+            kwargs: dict[str, Any] = {
+                "model": model,
+                "model_kwargs": {"max_tokens": cfg.max_tokens},
+            }
+            # deepseek-reasoner 不支持 temperature 参数
+            if "reasoner" not in model:
+                kwargs["temperature"] = cfg.temperature
+            # reasoning_effort 仅对 reasoner 模型生效
+            if cfg.reasoning_effort and "reasoner" in model:
+                kwargs["model_kwargs"]["reasoning_effort"] = cfg.reasoning_effort
+            return ChatDeepSeek(**kwargs)
         case "openai":
             if not settings.openai_api_key:
                 raise RuntimeError(
@@ -157,7 +172,8 @@ def _build_llm(
                 from langchain_anthropic import ChatAnthropic  # type: ignore  # noqa: I001
             except ImportError:
                 raise RuntimeError(
-                    "使用 Anthropic provider 需要安装 langchain-anthropic：pip install langchain-anthropic"
+                    "使用 Anthropic provider 需要安装 langchain-anthropic："
+                    "pip install langchain-anthropic"
                 )
             kwargs: dict[str, Any] = {
                 "model": cfg.model or "claude-sonnet-4-20250514",
@@ -334,6 +350,81 @@ class LLMService:
                 agent_name,
                 session_id,
             )
+
+    # ── 自动复杂度路由 ─────────────────────────────────────
+
+    async def ainvoke_auto(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        provider: str | None = None,
+        agent_name: str = "unknown",
+        session_id: str = "",
+        base_config: LLMConfig | None = None,
+    ) -> str:
+        """自动检测复杂度 + 路由到最优模型（TD-014）
+
+        简单问题 → deepseek-chat（快速，无推理开销）
+        复杂问题 → deepseek-reasoner（深度推理模式）
+
+        仅对 DeepSeek provider 生效；其他 provider 直接透传。
+
+        Args:
+            prompt: 用户提示词
+            system_prompt: 可选的系统提示词
+            provider: 模型提供商，默认使用 settings.llm_provider
+            agent_name: Agent 名称（用于费用记录）
+            session_id: 会话 ID（用于费用记录）
+            base_config: 基础 LLM 配置（temperature 等），路由会在此基础上调整
+
+        Returns:
+            模型返回的文本内容
+
+        Examples:
+            # 自动路由（推荐）
+            reply = await llm_service.ainvoke_auto("分析市场情绪")
+
+            # 需要强制推理模式时，显式传入 LLMConfig
+            config = LLMConfig(model="deepseek-reasoner", reasoning_effort="high")
+            reply = await llm_service.ainvoke("复杂分析", llm_config=config)
+        """
+        provider = provider or settings.llm_provider
+
+        # 非 DeepSeek provider → 直接透传，不做复杂度路由
+        if provider != "deepseek":
+            return await self.ainvoke(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                provider=provider,
+                agent_name=agent_name,
+                session_id=session_id,
+                llm_config=base_config,
+            )
+
+        # DeepSeek provider → 复杂度检测 + 路由
+        from src.utils.complexity_router import complexity_router
+
+        llm_config, result = complexity_router.route(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            base_config=base_config,
+        )
+
+        model_label = "reasoner" if "reasoner" in (llm_config.model or "") else "chat"
+        logger.info(
+            f"[auto-route] complexity={result.complexity.value} "
+            f"score={result.score:.2f} model={model_label} "
+            f"reasons={result.reasons}"
+        )
+
+        return await self.ainvoke(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            provider=provider,
+            agent_name=agent_name,
+            session_id=session_id,
+            llm_config=llm_config,
+        )
 
     # ── 结构化输出 ────────────────────────────────────────
 

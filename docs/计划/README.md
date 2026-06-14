@@ -8,10 +8,10 @@
 ## 快速统计
 
 ```
-总测试数   │ 331  passed（历史新高 ✅）
+总测试数   │ 491  passed（历史新高 ✅）
 技术债务   │ 17 条总记 / 10 条已关闭 / 7 条开放
-紧急指数   │ 0.6/10（持续下降，所有高风险债务已修复）
-当前阶段   │ Phase 1 MVP 期（data/ + debate/ + memory/ 已上线）
+紧急指数   │ 0.5/10（历史最低，所有高风险债务已修复）
+当前阶段   │ Phase 1 MVP 期（data/ + debate/ + memory/ 已上线，辩论五模块全部完成）
 ```
 
 ---
@@ -68,6 +68,11 @@
 
 ### Phase 1 新增
 - ✅ **命名空间记忆存储 MVP** — MemoryStore(ABC) + JsonFileStore + MemoryManager（29 测试）
+- ✅ **D1 第二轮交叉审阅+反驳** — 大师互相看分析后反驳/补充（25 测试）
+- ✅ **D3 独立评审 Agent** — IndependentReview + review_report 节点（23 测试）
+- ✅ **M1 历史决策注入** — MemoryManager 接入辩论编排器（22 测试）
+- ✅ **D2 强制输出方向** — Bullish/Bearish/Neutral + direction_distribution（31 测试）
+- ✅ **D4 VoteSummary 结构化扩展** — 6 个评审修正字段（15 测试）
 
 ---
 
@@ -94,36 +99,25 @@ src/
 └── risk/           风控模块     —— VaR / 波动率 / 一票否决
 ```
 
-### 辩论引擎增强（编排器 MVP ✅）
+### 辩论引擎增强（全部完成 ✅）
 
 | 步骤 | 事项 | 前置 |
 |:----:|:-----|:----:|
-| 1️⃣ | **辩论编排器 LangGraph StateGraph** | ✅ 已完成（28 测试） |
-| 2️⃣ | **辩论分组** — 4 组大师分组辩论逻辑 | 编排器 ✅ |
-| 3️⃣ | **交叉质疑** — Agent 之间互相质疑机制 | 辩论基础 ✅ |
-| 4️⃣ | **投票聚合** — 大师投票加权汇总 | 质疑机制就绪 |
-| 5️⃣ | **data → debate 接驳** — format_market_brief + 行情过滤 + 结构化下传 | ✅ 已完成 |
+| 1️⃣ | **辩论编排器 LangGraph StateGraph** | ✅ 已完成（52 测试） |
+| 2️⃣ | **D1 交叉审阅+反驳** | ✅ 已完成（25 测试） |
+| 3️⃣ | **D3 独立评审 Agent** | ✅ 已完成（23 测试） |
+| 4️⃣ | **M1 历史决策注入** | ✅ 已完成（22 测试） |
+| 5️⃣ | **D2 强制输出方向** | ✅ 已完成（31 测试） |
+| 6️⃣ | **D4 VoteSummary 结构化扩展** | ✅ 已完成（15 测试） |
+| 7️⃣ | **data → debate 接驳** | ✅ 已完成 |
 
-### Phase 1 MVP
+### Phase 2+ 当前优先
 
 | 优先级 | 事项 | 依赖 | 预估 |
 |:------:|:-----|:----|:----:|
-| 🥇 | **data → debate 接驳** — format_market_brief + 行情过滤 + 结构化下传 | ✅ 已完成 | — |
-| 🥇 | **端到端链路验证** — 用户问题 → MasterAgent → 多 Agent 辩论 → 决策卡输出 | data→debate 接驳 | ~2d |
-| 🥇 | **前端 MVP（3 页面）** — 首页/分析页/我的页面（Streamlit） | 端到端链路就绪 | ~3d |
-| 🥈 | **用户行为镜子 Agent** — 记录期（1-9 次决策）MVP | 辩论引擎就绪 | ~2d |
-| ✅ | **记忆系统 MVP** — MemoryStore + JsonFileStore + MemoryManager（29 测试）| — | 🎉 已完成 |
-| 🥈 | **回测模块基础** — 简单策略回测 | data 就绪 | ~2d |
-
-### Phase 2+ 迭代
-
-| 事项 | 说明 |
-|:-----|:------|
-| 镜子 Agent 对比期 | 10+ 次决策出对比报告 |
-| 镜子 Agent 出师期 | 辩论席位的可选占位 |
-| 风控模块 | VaR / 波动率计算 |
-| 前端决策卡优化 | 可视化升级 |
-| 英文 README | GitHub 国际化 |
+| 📌 | **R1 三层风控辩论** — 复用辩论基础设施到风控场景 | 辩论引擎就绪 | 大 |
+| 🥈 | **C1 简报分区输出** — format_market_brief 按区块分区 | data 就绪 | 小 |
+| 🥈 | **端到端链路验证** — 全链路真实 LLM 集成测试 | 全部模块 | ~2d |
 
 ---
 
@@ -145,13 +139,9 @@ src/
 │   ├── xiao_zhi.py                     ✅
 │   └── master_agent.py                 ✅ InvestmentAnalysis 结构化输出
 │
-├── memory/          ████████████████████ 95%
-│   ├── knowledge_base.py               ✅
-│   ├── skill_disk.py                   ✅
-│   ├── store.py                        ✅ MVP（MemoryStore + JsonFileStore）
-│   └── manager.py                      ✅ MVP（MemoryManager 语义化接口）
+├── memory/          ████████████████████ 100%  ✅ MVP 完整（Store + Manager + KB + Skills）
 │
-├── debate/          ████████████████████ 100%  ✅ 编排器 MVP 上线（28 测试）
+├── debate/          ████████████████████ 100%  ✅ 辩论五模块全部完成（168 测试）
 ├── data/            ████████████████████ 100%  ✅ 采集器 + 缓存 + 模型（43 测试）
 ├── backtest/        ░░░░░░░░░░ 0%      ← 待实现
 └── risk/            ░░░░░░░░░░ 0%      ← 待实现
@@ -187,6 +177,7 @@ src/
 | 2026-06-09 | data → debate 接驳实现 — format_market_brief + 行情过滤 + 结构化下传 |
 | 2026-06-11 | 命名空间记忆存储架构设计 — ADR-011 + 设计文档 + 实现计划 + 流程规范 §1.3 竞品调研原则 |
 | 2026-06-11 | 命名空间记忆存储 MVP 实现 — MemoryStore + JsonFileStore + MemoryManager，29 测试，331 passed |
+| 2026-06-12 | 辩论深度进化全部完成 — D1+D2+D3+D4+M1 五模块上线，491 passed |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。

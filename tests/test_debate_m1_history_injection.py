@@ -31,7 +31,6 @@ from src.debate.orchestrator import (
 from src.memory.skill_disk import SkillDisk
 from src.memory.store import MemoryItem
 
-
 # ═══════════════════════════════════════════════════════════════════
 # Phase 1: _format_history_context 格式化逻辑
 # ═══════════════════════════════════════════════════════════════════
@@ -246,10 +245,10 @@ class TestHistoryInjection:
         with patch(
             "src.debate.orchestrator.MasterAgent",
             new_callable=MagicMock,
-        ) as MockMaster:
+        ) as mock_master:
             mock_agent = AsyncMock()
             mock_agent.run_safe.return_value = mock_result
-            MockMaster.return_value = mock_agent
+            mock_master.return_value = mock_agent
 
             result = await _run_single_master(
                 skill=buffett_skill,
@@ -263,7 +262,7 @@ class TestHistoryInjection:
 
             assert result.success is True
             # 验证 history_context 被传递给 MasterAgent
-            call_kwargs = MockMaster.call_args.kwargs
+            call_kwargs = mock_master.call_args.kwargs
             assert call_kwargs["skill"] is buffett_skill
 
             # 验证 run_safe 的 input_data 中包含 history_context
@@ -293,10 +292,10 @@ class TestHistoryInjection:
         with patch(
             "src.debate.orchestrator.MasterAgent",
             new_callable=MagicMock,
-        ) as MockMaster:
+        ) as mock_master:
             mock_agent = AsyncMock()
             mock_agent.run_safe.return_value = mock_result
-            MockMaster.return_value = mock_agent
+            mock_master.return_value = mock_agent
 
             _ = await _run_single_master(
                 skill=buffett_skill,

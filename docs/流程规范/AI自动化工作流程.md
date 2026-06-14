@@ -269,6 +269,7 @@ skip_no_key = pytest.mark.skipif(
 |:-------|:----------:|:------------:|:----------:|
 | AI 工作日志 `docs/ai-work-logs/` | ✅ 完整报告 | ✅ 记录发现 | ✅ 简要记录 |
 | 债务日志 `技术债务与架构决策/技术债务日志.md` | ✅ 新债登记+状态变更 | ✅ 按需 | ❌ |
+| 主 README `README.md` | ✅ 同步 badge/架构图/测试数 | ✅ 按需 | ❌ |
 | 项目看板 `docs/计划/README.md` | ✅ 更新统计+待办 | 按需 | ❌ |
 | 会话交接文档 `docs/流程规范/AI会话交接文档.md` | ✅ 更新§2/§3/§5 | 按需 | ❌ |
 | 日志 README 索引 `docs/ai-work-logs/README.md` | ✅ 新增索引行 | ✅ 按需 | 按需 |
@@ -314,6 +315,7 @@ skip_no_key = pytest.mark.skipif(
 
 - [ ] 新增功能是否有对应的文档说明？
 - [ ] 配置项变化是否更新了 `.env.example`？
+- [ ] **主 README（`README.md`）** — 测试 badge/架构图/模块表/Phase 进度是否过期？
 - [ ] 项目看板（`docs/计划/README.md`）是否需要更新？
 - [ ] AI 工作日志是否需要更新？
 - [ ] 债务日志是否需要更新？
@@ -338,6 +340,7 @@ skip_no_key = pytest.mark.skipif(
 ### ☑️ 文档更新
 - [ ] AI 工作日志已更新（`docs/ai-work-logs/YYYY/MM/DD/YYYY-MM-DD.md`）
 - [ ] 日志 README 索引已更新（如有新增日志文件）
+- [ ] **主 README 已更新（`README.md` — badge/架构图/测试数/Phase 进度）**
 - [ ] 项目看板已更新（`docs/计划/README.md` — 快速统计 + 待办状态）
 - [ ] 债务日志已更新（如有新增/变更债务）
 - [ ] 会话交接文档已更新（`docs/流程规范/AI会话交接文档.md` — §2/§3/§5）
@@ -561,7 +564,93 @@ AI 工作日志  ←引用→  债务日志（记录新增/变更了哪些债务
 
 ---
 
+### 3.7 DeepSeek 思考模式策略：按需推理，避免「简单问题也慢」
 
+> 核心原则：**简单问题快速响应，复杂问题深度推理。** 不要用推理模型处理所有请求——这是当前「反应慢、token 不波动」的根因。
+
+#### 背景
+
+DeepSeek 提供两种模型：
+
+| 模型 | 定位 | 速度 | 适用场景 |
+|------|------|------|---------|
+| `deepseek-chat` | 标准对话模型 | ⚡ 快 | 闲聊、简单查询、代码补全、文档更新 |
+| `deepseek-reasoner` | 深度推理模型（R1） | 🐢 慢（有思考过程） | 架构设计、根因分析、多步推理、方案对比 |
+
+当前 Claude Code 主会话使用的 `deepseek-v4-pro` 是推理模型，**默认一直在思考模式**，导致即使是"你好"这样的简单问题也要等很久。这就是「反应慢、token 不波动」的根本原因。
+
+#### 解决：复杂度感知路由
+
+项目新增了 `src/utils/complexity_router.py` 模块，基于启发式规则自动判断任务复杂度，在两种模型间切换：
+
+```
+用户提示词 → ComplexityRouter.detect() → 判定复杂度
+                                            │
+                    ┌───────────────────────┼───────────────────────┐
+                    ▼                       ▼                       ▼
+                 SIMPLE                  MODERATE                COMPLEX
+                    │                       │                       │
+                    ▼                       ▼                       ▼
+            deepseek-chat            deepseek-chat          deepseek-reasoner
+           (快速，无推理)           (快速，无推理)          (深度推理，reasoning_effort=medium)
+```
+
+#### 判定规则
+
+| 信号 | 权重 | 示例 |
+|------|------|------|
+| 3+ 复杂关键词（"架构分析"、"性能瓶颈"、"重构方案"等） | → COMPLEX | "分析系统架构的性能瓶颈并给出重构方案" |
+| 1 复杂关键词 + 推理关键词辅助 | → COMPLEX | "对架构进行全面分析" |
+| 超长提示（>3000 字符）+ 推理关键词 | → COMPLEX | 大段代码 + 分析请求 |
+| 1-2 个推理关键词（"分析"、"设计"、"审查"等） | → MODERATE | "分析一下这个函数" |
+| 纯长度信号（>3000 字符），无推理关键词 | → MODERATE | 大段文档但不要求分析 |
+| 短提示 + 无推理关键词 + "什么是"/"列出"等简单信号 | → SIMPLE | "你好" / "列出所有文件" |
+
+> **启发式规则的局限**：关键词匹配无法 100% 准确。短提示但需要深度推理的，应显式传入 `LLMConfig(model="deepseek-reasoner")`。
+
+#### 使用方式
+
+**1. 代码中自动路由（推荐）**
+
+```python
+from src.utils.llm import llm_service
+
+# 自动检测复杂度 + 路由（默认行为）
+reply = await llm_service.ainvoke_auto("分析市场情绪", agent_name="analyst")
+```
+
+**2. 显式强制推理模式**
+
+```python
+from src.utils.llm import LLMConfig
+
+config = LLMConfig(model="deepseek-reasoner", reasoning_effort="high")
+reply = await llm_service.ainvoke("复杂分析", llm_config=config)
+```
+
+**3. 调节敏感度**
+
+```python
+from src.utils.complexity_router import ComplexityRouter
+
+router = ComplexityRouter()
+router.COMPLEX_SCORE_THRESHOLD = 0.8   # 提高门槛 → 更少触发推理模式
+router.COMPLEX_SCORE_THRESHOLD = 0.5   # 降低门槛 → 更容易触发推理模式
+```
+
+#### Claude Code 主会话的模型选择
+
+Claude Code 主会话通过 `ANTHROPIC_BASE_URL` 走 DeepSeek 端点，模型切换不如代码层灵活。建议：
+
+| 场景 | 操作 |
+|------|------|
+| 日常轻量开发（简单代码修改、文档更新等） | 保持当前配置，但预期会有推理延迟 |
+| 复杂架构决策、深度分析 | 正当使用推理延迟换取质量 |
+| 希望快速交互 | 考虑切换到非推理模型（如果 DeepSeek 端点支持） |
+
+> 根本解决方案是 DeepSeek 的 Anthropic 兼容端点支持类似 Anthropic 的 extended thinking 开关，或 Claude Code 支持按会话动态切换模型。这是上游能力限制，不是本项目的代码问题。
+
+---
 
 ## 8. 突发情况处理
 

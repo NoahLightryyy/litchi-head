@@ -231,8 +231,9 @@ class TestBuildLLMWithConfig:
             mock_s.deepseek_api_key = "sk-test"
             with patch("src.utils.llm.ChatDeepSeek") as mock_ds:
                 _build_llm("deepseek", LLMConfig(model="deepseek-reasoner"))
+                # deepseek-reasoner 不传 temperature（API 不支持）
                 mock_ds.assert_called_once_with(
-                    model="deepseek-reasoner", temperature=0.3,
+                    model="deepseek-reasoner",
                     model_kwargs={"max_tokens": 8192},
                 )
 

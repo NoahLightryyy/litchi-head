@@ -10,8 +10,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
 from src.debate.models import (
@@ -20,7 +18,6 @@ from src.debate.models import (
     IndependentReview,
     VoteSummary,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════
 # Phase 1: VoteSummary 模型 D4 字段
@@ -501,7 +498,6 @@ class TestD4Integration:
     @pytest.mark.asyncio
     async def test_debate_result_includes_d4_fields(self):
         """完整辩论结果包含 D4 字段"""
-        from src.debate.orchestrator import DebateOrchestrator
 
         result = DebateResult(
             session_id="test-d4-int-1",
