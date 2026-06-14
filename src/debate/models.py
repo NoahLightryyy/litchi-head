@@ -10,9 +10,12 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    pass
 
 
 class RebuttalAnalysis(BaseModel):
@@ -229,6 +232,9 @@ class DebateResult(BaseModel):
     - 投票汇总
     - 第二轮交叉审阅（可选，D1 功能）
     - 独立评审报告（可选，D3 功能）
+    - 分析师报告（可选，分析师层产出）
+    - 三层风控审核（可选，R1 功能）
+    - PM 最终交易建议（可选，R1 功能）
     - 总耗时
     """
 
@@ -241,6 +247,8 @@ class DebateResult(BaseModel):
     review_round: PeerReviewRound | None = None
     review_report: IndependentReview | None = None
     analyst_reports: dict[str, AnalystReport] | None = None
+    risk_round: dict | None = None  # 序列化的 RiskRoundResult
+    trade_recommendation: dict | None = None  # 序列化的 TradeRecommendation
     total_latency_ms: float = 0.0
 
     def to_summary_dict(self) -> dict[str, Any]:
@@ -298,6 +306,28 @@ class DebateResult(BaseModel):
             result["分析师方向分布"] = {
                 "Bullish": bullish, "Bearish": bearish, "Neutral": neutral,
             }
+        # ── R1: 风控层 ─────────────────────────────
+        if self.risk_round:
+            rr = self.risk_round
+            result["风控审核"] = True
+            result["风控共识操作"] = rr.get("risk_consensus_action", "hold")
+            result["平均风险评分"] = rr.get("avg_risk_score", 50)
+            min_pct = rr.get("min_position_pct", 0)
+            max_pct = rr.get("max_position_pct", 0)
+            result["仓位范围"] = f"{min_pct:.0%} ~ {max_pct:.0%}"
+            result["纪律违规总数"] = rr.get("total_discipline_violations", 0)
+        if self.trade_recommendation:
+            tr = self.trade_recommendation
+            result["最终建议"] = tr.get("action", "hold").upper()
+            result["建议仓位"] = f"{tr.get('position_size_pct', 0):.0%}"
+            result["止损位"] = f"{tr.get('stop_loss_pct', 0):.0%}"
+            result["止盈位"] = f"{tr.get('take_profit_pct', 0):.0%}"
+            result["风险等级"] = tr.get("risk_level", "中等风险")
+            result["纪律通过"] = tr.get("discipline_checks_passed", True)
+            if tr.get("key_warnings"):
+                result["关键警告"] = tr["key_warnings"]
+            if tr.get("reasoning"):
+                result["决策理由"] = tr["reasoning"][:300]
         return result
 
 

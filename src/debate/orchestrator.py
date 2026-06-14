@@ -2,13 +2,22 @@
 
 核心流程：
   1. collect_data — 采集行情 + K线 + 新闻
-  2. master_round — 顺序调用每位大师（避免 LangGraph 并行写入冲突）
-  3. aggregate — 投票加权汇总
+  2. analyst_round — 4 位专业分析师（基本面/技术面/情绪面/宏观面）
+  3. master_round — 策略师基于分析师报告综合判断
+  4. review_round — D1 交叉审阅+反驳
+  5. review_report — D3 独立评审
+  6. aggregate — 加权投票汇总（D4 评审修正字段）
+  7. risk_round（可选） — R1 三层风控审核
+  8. pm_round（可选） — PM 最终裁决
 
 用法：
     orchestrator = DebateOrchestrator()
     result = await orchestrator.run(DebateInput(stock_code="000001"))
-    print(result.to_summary_dict())
+
+    # 启用风控层
+    orchestrator = DebateOrchestrator(enable_risk=True)
+    result = await orchestrator.run(DebateInput(stock_code="000001"))
+    print(result.trade_recommendation["action"])
 """
 
 from __future__ import annotations
@@ -73,6 +82,8 @@ class DebateState(TypedDict):
     errors: list[str]
     history_context: str  # 历史决策上下文（注入到大师 prompt）
     analyst_reports: dict  # dict[str, AnalystReport], 分析师层产出
+    risk_round: dict  # 序列化的 RiskRoundResult（R1 风控层）
+    trade_recommendation: dict  # 序列化的 TradeRecommendation（R1 PM 裁决）
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
@@ -1083,14 +1094,22 @@ class DebateOrchestrator:
     工作流程：
     1. 接收 DebateInput（股票代码 + 问题）
     2. collect_data 节点采集行情/K线/新闻
-    3. master_round 节点顺序运行多位大师
-    4. aggregate 节点加权投票汇总
-    5. 返回 DebateResult
+    3. analyst_round 节点运行 4 位专业分析师
+    4. master_round 节点策略师基于分析师报告综合判断
+    5. review_round 节点 D1 交叉审阅
+    6. review_report 节点 D3 独立评审
+    7. aggregate 节点加权投票汇总
+    8. risk_round 节点（可选）R1 三层风控
+    9. pm_round 节点（可选）PM 最终裁决
+    10. 返回 DebateResult
 
     用法：
         orch = DebateOrchestrator()
         result = await orch.run(DebateInput(stock_code="000001"))
-        print(result.to_summary_dict())
+
+        # 启用风控层
+        orch = DebateOrchestrator(enable_risk=True)
+        result = await orch.run(DebateInput(stock_code="000001"))
     """
 
     def __init__(
@@ -1100,6 +1119,8 @@ class DebateOrchestrator:
         skill_ids: list[str] | None = None,
         memory_store: MemoryStore | None = None,
         analyst_personas: list[AnalystPersona] | None = None,
+        enable_risk: bool = False,
+        risk_officers: list | None = None,
     ):
         """初始化辩论编排器
 
@@ -1111,11 +1132,16 @@ class DebateOrchestrator:
                 辩论前自动查询历史决策注入 prompt，辩论后自动保存结果。
             analyst_personas: 分析师人格列表（可选）。
                 None 则使用 get_default_analysts() 的 4 位默认分析师。
+            enable_risk: 是否启用 R1 三层风控辩论 + PM 裁决（默认 False）
+            risk_officers: 风控官人格列表（可选）。
+                None 且 enable_risk=True 时使用 get_default_risk_officers()。
         """
         self.data_collector = data_collector or DataCollector()
         self.skill_disk = skill_disk or SkillDisk()
         self.memory_store = memory_store
         self.analyst_personas = analyst_personas or get_default_analysts()
+        self.enable_risk = enable_risk
+        self._risk_officers = risk_officers  # None 表示使用默认
 
         # 加载大师列表
         if skill_ids is not None:
@@ -1134,9 +1160,8 @@ class DebateOrchestrator:
     def _build_graph(self) -> StateGraph:
         """构建 LangGraph 计算图
 
-        collect_data → master_round（顺序执行所有大师） → review_round（交叉审阅+反驳）
-        → review_report（独立 LLM 评审） → aggregate（加权投票汇总，吸收 rebuttal + 评审权重）
-        → END
+        collect_data → analyst_round → master_round → review_round
+        → review_report → aggregate → (risk_round → pm_round)? → END
 
         Returns:
             未编译的 StateGraph
@@ -1182,7 +1207,33 @@ class DebateOrchestrator:
         graph.add_node("aggregate", aggregate_node)
         graph.add_edge("review_report", "aggregate")
 
-        graph.add_edge("aggregate", END)
+        # ── R1: 三层风控 + PM 裁决（可选）──────────
+        if self.enable_risk:
+            from src.risk.orchestrator import (
+                make_pm_round_node,
+                make_risk_round_node,
+            )
+            from src.risk.profiles import get_default_risk_officers
+
+            officers = (
+                self._risk_officers
+                if self._risk_officers is not None
+                else get_default_risk_officers()
+            )
+
+            graph.add_node(
+                "risk_round",
+                make_risk_round_node(officers),  # type: ignore[arg-type]
+            )
+            graph.add_node(
+                "pm_round",
+                make_pm_round_node(),  # type: ignore[arg-type]
+            )
+            graph.add_edge("aggregate", "risk_round")
+            graph.add_edge("risk_round", "pm_round")
+            graph.add_edge("pm_round", END)
+        else:
+            graph.add_edge("aggregate", END)
 
         return graph
 
@@ -1279,6 +1330,8 @@ class DebateOrchestrator:
             "errors": [],
             "history_context": history_context,
             "analyst_reports": {},
+            "risk_round": {},
+            "trade_recommendation": {},
         }
 
         final_state = await app.ainvoke(initial_state)
@@ -1320,6 +1373,18 @@ class DebateOrchestrator:
             except Exception:
                 pass
 
+        # 解析 risk_round（R1 风控层，如果启用）
+        risk_raw = final_state.get("risk_round", {})
+        risk_round_result: dict | None = None
+        if risk_raw and isinstance(risk_raw, dict) and risk_raw.get("assessments"):
+            risk_round_result = risk_raw
+
+        # 解析 trade_recommendation（R1 PM 裁决，如果启用）
+        tr_raw = final_state.get("trade_recommendation", {})
+        trade_rec: dict | None = None
+        if tr_raw and isinstance(tr_raw, dict) and tr_raw.get("action"):
+            trade_rec = tr_raw
+
         result = DebateResult(
             session_id=debate_input.session_id,
             stock_code=debate_input.stock_code,
@@ -1330,6 +1395,8 @@ class DebateOrchestrator:
             review_round=review_round,
             review_report=review_report,
             analyst_reports=analyst_reports_result,
+            risk_round=risk_round_result,
+            trade_recommendation=trade_rec,
             total_latency_ms=round(total_latency, 0),
         )
 
