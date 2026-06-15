@@ -15,8 +15,9 @@ T1 核心模块：在风控审核之后插入交易员执行规划层，
 from __future__ import annotations
 
 import time
-from typing import cast
+from typing import Any, cast
 
+from src.debate.models import VoteSummary
 from src.trader.models import ExecutionStep, TradePlan, TraderRoundResult
 from src.trader.profiles import TraderProfile
 from src.utils.llm import llm_service
@@ -248,31 +249,49 @@ def make_trader_round_node(
 # ── 格式化辅助 ──────────────────────────────────────────────────
 
 
-def _fmt_score(vs: dict) -> str:
+def _vs_get(vs: dict | VoteSummary, key: str, default: Any = None) -> Any:
+    """安全读取 VoteSummary 或 dict 的字段
+
+    兼容两个阶段的数据格式：
+    - aggregate 节点之前：state 中 vote_summary 为 dict
+    - aggregate 节点之后：state 中 vote_summary 为 VoteSummary Pydantic 对象
+    """
+    if isinstance(vs, VoteSummary):
+        return getattr(vs, key, default)
+    return vs.get(key, default)
+
+
+def _fmt_score(vs: dict | VoteSummary) -> str:
     """安全格式化 VoteSummary 中的评分字段"""
-    raw = vs.get("final_score", 0)
+    raw = _vs_get(vs, "weighted_score", 0)
     if isinstance(raw, (int, float)):
         return f"最终评分: {raw:.2f}"
     return f"最终评分: {raw}"
 
 
-def _format_vote_for_trader(vote_summary: dict) -> str:
+def _format_vote_for_trader(vote_summary: dict | VoteSummary) -> str:
     """将 VoteSummary 格式化为交易员可读的文本"""
     if not vote_summary:
         return "（无辩论投票数据）"
 
     vs = vote_summary
+    consensus = _vs_get(vs, "consensus", "N/A")
+    total_votes_val = _vs_get(vs, "total_votes", 0)
+    dd = _vs_get(vs, "direction_distribution", {})
+    support = _vs_get(vs, "consensus_support", 0.0)
+    rn = _vs_get(vs, "review_notes", "")
+
     parts: list[str] = [
         _fmt_score(vs),
-        f"最终信号: {vs.get('final_signal', 'N/A')}",
-        f"参与大师数: {vs.get('participating_masters', 'N/A')}",
-        f"方向分布: {vs.get('direction_distribution', {})}",
+        f"最终信号: {consensus}",
+        f"参与大师数: {total_votes_val}",
+        f"方向分布: {dd}",
     ]
 
-    if vs.get("consensus_support"):
-        parts.append(f"共识支持度: {vs['consensus_support']:.2f}")
-    if vs.get("review_notes"):
-        parts.append(f"评审说明: {vs['review_notes']}")
+    if support:
+        parts.append(f"共识支持度: {support:.2f}")
+    if rn:
+        parts.append(f"评审说明: {rn}")
 
     return "\n".join(parts)
 
