@@ -38,9 +38,10 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-15 — docs 重组全部完成）
+## 2. 当前会话状态（2026-06-15 — P1 桥接层上线）
 
-> **本次完成**：docs/ 目录重组 + `ROUTING.md` 上下文加载策略 + 9 个模块 SPEC 精简 + `.legacy` 清理 + 全路径引用修复。
+> **本次完成**：P1 回测→辩论桥接。`src/trader/bridge.py` — TradePlan→TradeRecord 转换，14 测试。
+> (docs 重组全部完成于前期会话：ROUTING + SPEC 精简 + .legacy + 路径修复)
 
 ### 重要：docs/ 重组 — 新结构图
 
@@ -99,8 +100,9 @@ docs/
 | `tests/test_e2e_full_pipeline.py` | 5 |
 | `tests/test_memory_*.py` | 29 |
 | `tests/test_agents_*.py` | 58+4 skip |
-| 其他 | 78 |
-| **全量** | **617 passed** |
+| `tests/test_trader_bridge.py` 🆕 | 14 | 桥接转换（TradePlan→TradeRecord） |
+| 其他 | 78
+| **全量** | **631 passed** |
 
 ---
 
@@ -202,17 +204,17 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-15 更新：docs 目录重组完成）
+## 5. 下一步优先级（2026-06-15 更新：P1 桥接层完成）
 
-> **本次完成**：docs/ 目录重组 + ROUTING + SPEC 精简 + `.legacy` 清理 + 全路径引用修复全部完成。
-> docs 整理全面收官。下一步进入功能开发阶段。
+> **本次完成**：P1 回测→辩论桥接（TradePlan→TradeRecord 转换器，14 测试）。
+> docs 整理全面收官于前期会话。正式进入功能开发阶段。
 
 ### 🥇 下一步
 
 | 优先级 | 说明 | 涉及范围 | 工作量 |
 |:------:|:-----|:--------:|:-----:|
-| ~~🟡 **P1**~~ | **docs 整理** ✅ 全部完成（2026-06-15） | — | — |
-| 🟡 **P1** | **回测→辩论桥接** — TradePlan → TradeRecord 适配器 | `backtest/` + `debate/` | 中 |
+| 🟡 **P1** | ~~docs 整理~~ ✅ 全部完成 | — | — |
+| 🟡 **P1** | ~~回测→辩论桥接~~ ✅ `src/trader/bridge.py` | — | — |
 | 🟡 **P1** | **M3 信任度评分** — Agent 输出 vs 实际结果追踪 | `debate/` | 中 |
 | ⬇️ **P2** | **C1 简报分区输出** — format_market_brief 按区块分区 | `data/collector.py` | 小 |
 | ⬇️ **P2** | **前端 MVP** — Streamlit 3 页面 | 前端 | ~2d |
@@ -221,11 +223,11 @@ klines = collector.get_klines("000001", period="daily")
 
 ```
 1. `/resume-session` 恢复上下文
-2. ~~docs 整理（ROUTING + SPEC + .legacy + 路径修复）~~ ✅
-3. 继续功能开发（回测→辩论桥接 / M3 信任度评分）
+2. M3 信任度评分 — Agent 输出 vs 实际结果追踪
+3. 或 C1 简报分区 / 前端 MVP
 ```
 
-> **最后更新**：2026-06-15（docs 重组全部完成 — ROUTING + SPEC 精简 + .legacy 清理 + 全路径修复） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-15（P1 桥接层完成 — trade_plan_to_records + 14 tests） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
