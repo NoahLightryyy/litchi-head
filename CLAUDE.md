@@ -96,14 +96,14 @@ ANTHROPIC_MODEL=deepseek-chat
 
 ```
 ┌─ 1. 更新工作日志 ─────────────────────────────────┐
-│  docs/04-changelog/logs/YYYY-MM-DD-N.md           │
+│  docs/04-changelog/logs/YYYY-MM-DD/YYYY-MM-DD-N.md
 │  → 记录本次做了什么、改了哪些文件、测试结果           │
 │  → 标记「上下文耗尽，需续接」                        │
 ├─ 2. 更新债务日志 ─────────────────────────────────┤
 │  docs/01-guides/debt/ROUTER.md → 对应类型文件      │
 │  → 如有新增债务，按模板登记                          │
 ├─ 3. 更新时间线文档 ───────────────────────────────┤
-│  docs/计划/README.md (看板)                         │
+│  docs/00-overview/ROADMAP.md (看板)                 │
 │  docs/01-guides/HANDOVER.md §2 + §5               │
 │  → 同步当前阶段、完成度、下一步优先级                  │
 ├─ 4. 提交当前工作 ──────────────────────────────┤

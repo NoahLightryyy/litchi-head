@@ -14,7 +14,8 @@
 
 | 文件 | 说明 |
 |:-----|:-----|
-| [SPEC.md](SPEC.md) | 规格说明书（战线格局 + TradingAgents 风控方案） |
+| [SPEC.md](SPEC.md) | 模块规格（职责边界、代码结构、数据模型） |
+| [RESEARCH.md](RESEARCH.md) | 调研分析（战线格局、竞品对比、研究问题） |
 
 ## 深挖方向
 

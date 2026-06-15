@@ -12,7 +12,7 @@
 | 03 | 记忆与反思 | `src/memory/` | [03-memory-reflection/](03-memory-reflection/) |
 | 04 | Agent 编排 | `src/agents/` | [04-agent-orchestration/](04-agent-orchestration/) |
 | 05 | 风控管理 | `src/risk/` | [05-risk-management/](05-risk-management/) |
-| 06 | 交易执行 | `src/execution/` | [06-trade-execution/](06-trade-execution/) |
+| 06 | 交易执行 | `src/trader/` | [06-trade-execution/](06-trade-execution/) |
 | 07 | 因子研究 | `src/research/` | [07-factor-research/](07-factor-research/) |
 | 08 | 回测仿真 | `src/backtest/` | [08-backtest-simulation/](08-backtest-simulation/) |
 | 09 | Agent 人格与提示词 | — | [09-agent-persona/](09-agent-persona/) |

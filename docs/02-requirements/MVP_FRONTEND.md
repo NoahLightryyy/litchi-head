@@ -1,295 +1,295 @@
-# 🖥️ 前端 MVP 需求文档 — 基于市场对标
+# Frontend MVP Requirements Document
 
-> 2026-06-07 | 关联：ADR-004（Streamlit MVP 前端）| `docs/架构设计/用户行为镜子Agent设计构想.md`
-> 方法：调研 TradingAgents(70k⭐) / AI Hedge Fund(51k⭐) / Vibe-Trading(9.3k⭐) 前端，提取共性 + 按「手榴弹」定位过滤
-
----
-
-## 目录
-
-- [1. 竞品前端调研结果](#1-竞品前端调研结果)
-- [2. 「手榴弹」过滤：我们要做什么，不做什么](#2-手榴弹过滤我们要做什么不做什么)
-- [3. Phase 1 MVP 页面规划](#3-phase-1-mvp-页面规划)
-- [4. 页面详细设计](#4-页面详细设计)
-- [5. 前端所需的数据契约](#5-前端所需的数据契约)
-- [6. 与后端的关系](#6-与后端的关系)
-- [7. 阶段实施计划](#7-阶段实施计划)
+> 2026-06-07 | Related: ADR-004 (Streamlit MVP Frontend) | `docs/architecture-design/user-behavior-mirror-agent-design-concept.md`
+> Method: Research TradingAgents (70k stars) / AI Hedge Fund (51k stars) / Vibe-Trading (9.3k stars) frontends, extract commonalities + filter by "grenade" positioning
 
 ---
 
-## 1. 竞品前端调研结果
+## Table of Contents
 
-### 1.1 三个竞品的前端方案
-
-| 项目 | Stars | 前端技术栈 | 核心界面风格 |
-|:----|:-----:|:-----------|:------------|
-| **TradingAgents** | 70k⭐ | 原始版 CLI + Rich；中国分支：**Streamlit**（快速原型）和 **Vue 3 + FastAPI**（生产级 SPA） | 表单输入 + 决策卡 + 进度条 + 报告导出 |
-| **AI Hedge Fund** | 51k⭐ | **React 18 + React Flow**（拖拽式 Agent 工作流编辑器） | 多面板工作区 + 节点可视化 + SSE 实时流 |
-| **Vibe-Trading** | 9.3k⭐ | **React 19 + Vite + ECharts**（非 Streamlit） | 聊天式交互 + 回测指标卡片 + 图表展示 |
-
-### 1.2 界面共性（这三个竞品都有的功能）
-
-| 共性功能 | TradingAgents | AI Hedge Fund | Vibe-Trading | 说明 |
-|:--------|:-------------:|:-------------:|:------------:|:-----|
-| **决策卡输出** | ✅ 颜色编码 BUY/SELL/HOLD | ✅ 节点结果弹窗 | ✅ 策略卡片 | 决策卡是所有竞品的核心输出形态 |
-| **实时推理流** | ✅ Streamlit 进度条 0-100% | ✅ SSE 流式展示 Agent 推理过程 | ✅ 步骤式展示 | 用户想看到 Agent "正在思考" |
-| **多面板布局** | ✅ 侧边栏+主区域 | ✅ VSCode 风格多面板 | ✅ 侧边栏+主区域 | 不是单页面，而是有导航结构 |
-| **暗色模式** | ✅ | ✅ | ✅ | 金融类应用标配 |
-| **Agent 状态指示** | ✅ 进度步标签 | ✅ 颜色编码 IDLE→RUNNING→DONE | ✅ 执行步骤指示 | 用户想知道"现在到哪一步了" |
-| **报告导出** | ✅ Markdown/DOCX/PDF | ❌ 无 | ❌ 无 | 付费用户的常见需求 |
-
-### 1.3 差异化功能（单个竞品独有）
-
-| 功能 | 所属竞品 | 说明 | 我们搬不搬？ |
-|:----|:---------|:-----|:------------|
-| **拖拽式 Agent 工作流编辑器** | AI Hedge Fund | React Flow 拖拽连线 | ❌ 不搬。这是给量化研究员用的，不是给散户用的 |
-| **回测指标可视化**（夏普/回撤/胜率卡片） | Vibe-Trading | 回测结果展示 | ❌ Phase 1 不做。我们没有回测引擎 |
-| **聊天式交互** | Vibe-Trading | 用户打字→Agent 回答 | ⚠️ 考虑。和小智 Agent 的教育对话场景匹配 |
-| **多 Agent 并行进度条** | TradingAgents | 0-100% 显示辩论进度 | ✅ 搬。简单实用，用户能感知"系统在工作" |
-| **导出 PDF/DOCX 报告** | TradingAgents | 分析报告导出 | ✅ Phase 2 搬。爸妈可能想保存分析结果 |
+- [1. Competitive Frontend Research Results](#1-competitive-frontend-research-results)
+- [2. "Grenade" Filter: What We Do, What We Don't](#2-grenade-filter-what-we-do-what-we-dont)
+- [3. Phase 1 MVP Page Planning](#3-phase-1-mvp-page-planning)
+- [4. Detailed Page Design](#4-detailed-page-design)
+- [5. Frontend Data Contracts](#5-frontend-data-contracts)
+- [6. Relationship with Backend](#6-relationship-with-backend)
+- [7. Phased Implementation Plan](#7-phased-implementation-plan)
 
 ---
 
-## 2. 「手榴弹」过滤：我们要做什么，不做什么
+## 1. Competitive Frontend Research Results
 
-### 2.1 过滤原则
+### 1.1 Three Competitors' Frontend Solutions
+
+| Project | Stars | Frontend Tech Stack | Core Interface Style |
+|:----|:-----:|:--------------------|:---------------------|
+| **TradingAgents** | 70k stars | Original CLI + Rich; China fork: **Streamlit** (rapid prototype) and **Vue 3 + FastAPI** (production SPA) | Form input + decision card + progress bar + report export |
+| **AI Hedge Fund** | 51k stars | **React 18 + React Flow** (drag-and-drop Agent workflow editor) | Multi-panel workspace + node visualization + SSE real-time stream |
+| **Vibe-Trading** | 9.3k stars | **React 19 + Vite + ECharts** (non-Streamlit) | Chat-style interaction + backtest metric cards + chart display |
+
+### 1.2 Common Interface Features (present in all three competitors)
+
+| Common Feature | TradingAgents | AI Hedge Fund | Vibe-Trading | Description |
+|:--------------|:-------------:|:-------------:|:------------:|:------------|
+| **Decision card output** | ✅ Color-coded BUY/SELL/HOLD | ✅ Node result popup | ✅ Strategy card | Decision card is the core output form across all competitors |
+| **Real-time reasoning stream** | ✅ Streamlit progress bar 0-100% | ✅ SSE streaming Agent reasoning | ✅ Step-by-step display | Users want to see the Agent "thinking" |
+| **Multi-panel layout** | ✅ Sidebar + main area | ✅ VSCode-style multi-panel | ✅ Sidebar + main area | Not a single page, has navigation structure |
+| **Dark mode** | ✅ | ✅ | ✅ | Standard for financial applications |
+| **Agent status indicator** | ✅ Progress step labels | ✅ Color-coded IDLE->RUNNING->DONE | ✅ Execution step indicator | Users want to know "what step are we on" |
+| **Report export** | ✅ Markdown/DOCX/PDF | ❌ None | ❌ None | Common need for paying users |
+
+### 1.3 Differentiated Features (single competitor unique)
+
+| Feature | Source Project | Description | Will We Adopt? |
+|:-------|:--------------|:------------|:--------------|
+| **Drag-and-drop Agent workflow editor** | AI Hedge Fund | React Flow drag-and-drop connections | ❌ No. This is for quant researchers, not retail investors |
+| **Backtest metric visualization** (Sharpe/drawdown/win rate cards) | Vibe-Trading | Backtest result display | ❌ Not in Phase 1. We don't have a backtest engine |
+| **Chat-style interaction** | Vibe-Trading | User types -> Agent responds | Warning. Considering. Matches the educational dialogue scenario with Xiao Zhi Agent |
+| **Multi-Agent parallel progress bar** | TradingAgents | 0-100% showing debate progress | ✅ Yes. Simple and practical, users can perceive "the system is working" |
+| **Export PDF/DOCX report** | TradingAgents | Analysis report export | ✅ Phase 2. Parents may want to save analysis results |
+
+---
+
+## 2. "Grenade" Filter: What We Do, What We Don't
+
+### 2.1 Filtering Principles
 
 ```
-✅ 必须做：散户 15 秒能看懂 → 完成决策
-✅ 可以做：爸妈会用到 → 提升实用性
-❌ 不做：量化研究员才用的 → 增加复杂度
-❌ 不做：需要回测/实盘才能展示的 → 现在没有后端支持
+✅ Must do: Retail investors can understand in 15 seconds -> complete a decision
+✅ Can do: Parents would use -> improve practicality
+❌ Don't do: Only quant researchers would use -> increases complexity
+❌ Don't do: Needs backtesting/live trading to display -> no backend support yet
 ```
 
-### 2.2 我们的前端定位
+### 2.2 Our Frontend Positioning
 
 ```diff
-- AI Hedge Fund 风格：拖拽式工作流编辑器，VSCode 多面板，技术门槛高
-- Vibe-Trading 风格：回测图表，因子分析，量化工具
+- AI Hedge Fund style: drag-and-drop workflow editor, VSCode multi-panel, high technical barrier
+- Vibe-Trading style: backtest charts, factor analysis, quant tools
 
-+ 我们的风格：「决策卡」—— 快、清晰、一屏看完
-+ 参考原型：TradingAgents 的 Streamlit 分支（表单+决策卡+进度条）
-+ 但比它更简洁：去掉技术参数配置，聚焦"输入股票→看分析→做决策"
++ Our style: "Decision Card" -- fast, clear, everything visible on one screen
++ Reference prototype: TradingAgents' Streamlit branch (form + decision card + progress bar)
++ But simpler: remove technical parameter configuration, focus on "input stock -> see analysis -> make decision"
 ```
 
-### 2.3 做/不做清单
+### 2.3 Do/Don't List
 
-| 功能 | 做？ | 理由 |
-|:----|:----:|:-----|
-| 首页：大盘指数 + 快速入口 | ✅ Phase 1 | 爸妈打开看到的第一屏 |
-| 分析页：输入股票→大师分析 | ✅ Phase 1 | 核心功能 |
-| 决策卡：综合判断 + 各维分析 | ✅ Phase 1 | 产品核心输出形态 |
-| 多 Agent 并行进度条 | ✅ Phase 1 | 用户感知"正在分析" |
-| 暗色模式 | ✅ Phase 1 | 金融 App 标配 |
-| 我的页面：镜子 Agent | ✅ Phase 1+ | 镜子 Agent 的前端入口 |
-| 导出的 PDF 报告 | ⏳ Phase 2 | 有价值但不紧急 |
-| 拖拽式 Agent 工作流 | ❌ 不做 | 和"手榴弹"定位冲突 |
-| 回测图表 | ❌ Phase 1 不做 | 后端回测引擎还没写 |
-| 聊天式交互（教育小智） | ⏳ Phase 2 | 需要后端教育 Agent 支持 |
-| 实盘交易界面 | ❌ Phase 1 不做 | 没有实盘对接 |
+| Feature | Do? | Reason |
+|:-------|:---:|:------|
+| Homepage: market indices + quick entry | ✅ Phase 1 | First screen parents see when opening |
+| Analysis page: input stock -> master analysis | ✅ Phase 1 | Core functionality |
+| Decision card: comprehensive judgment + dimensional analysis | ✅ Phase 1 | Product's core output form |
+| Multi-Agent parallel progress bar | ✅ Phase 1 | User perceives "analysis in progress" |
+| Dark mode | ✅ Phase 1 | Standard for financial apps |
+| My page: Mirror Agent | ✅ Phase 1+ | Frontend entry for Mirror Agent |
+| Export PDF report | Paused Phase 2 | Valuable but not urgent |
+| Drag-and-drop Agent workflow | ❌ Never | Conflicts with "grenade" positioning |
+| Backtest charts | ❌ Not Phase 1 | Backend backtest engine not yet written |
+| Chat-style interaction (educational Xiao Zhi) | Paused Phase 2 | Needs backend educational Agent support |
+| Live trading interface | ❌ Not Phase 1 | No live trading integration |
 
 ---
 
-## 3. Phase 1 MVP 页面规划
+## 3. Phase 1 MVP Page Planning
 
-### 3.1 页面结构
-
-```
-导航栏（3 个 Tab）：
-  ┌──────────┬──────────┬──────────┐
-  │ 📊 市场   │ 🔍 分析   │ 👤 我的   │
-  └──────────┴──────────┴──────────┘
-```
-
-就 3 个页面。没有更多。爸妈不需要学习复杂的导航结构。
-
-### 3.2 页面总览
-
-| 页面 | 路由 | 核心功能 | 复杂度 | 优先级 |
-|:----|:----|:---------|:------:|:-----:|
-| **首页：市场** | `/` | 大盘指数 + 热门股票 + 快速入口 | ⭐⭐ | 🥇 |
-| **分析页** | `/analysis?ticker=茅台` | 输入股票 → 大师分析 → 决策卡 | ⭐⭐⭐⭐ | 🥇 |
-| **我的** | `/profile` | 镜子 Agent + 历史记录 + 设置 | ⭐⭐ | 🥈 |
-
-### 3.3 页面间流转
+### 3.1 Page Structure
 
 ```
-首页 ──点击股票──▶ 分析页
-                       │
-                 分析完成后
-                       │
-                       ▼
-                 决策卡展示
-                       │
-            ┌──────────┴──────────┐
-            ▼                     ▼
-        回到首页             我的页面（镜子 Agent）
+Navigation bar (3 Tabs):
+  +----------+----------+----------+
+  | Market   | Analyze  | Profile  |
+  +----------+----------+----------+
+```
+
+Just 3 pages. No more. Parents don't need to learn a complex navigation structure.
+
+### 3.2 Page Overview
+
+| Page | Route | Core Function | Complexity | Priority |
+|:----|:------|:--------------|:----------:|:--------:|
+| **Home: Market** | `/` | Market indices + hot stocks + quick entry | Two stars | Gold |
+| **Analysis page** | `/analysis?ticker=Moutai` | Input stock -> Master analysis -> Decision card | Four stars | Gold |
+| **Profile** | `/profile` | Mirror Agent + history + settings | Two stars | Silver |
+
+### 3.3 Page Flow
+
+```
+Homepage --click stock--> Analysis page
+                               |
+                          Analysis complete
+                               |
+                               v
+                         Decision card display
+                               |
+                    +----------+----------+
+                    v                     v
+              Back to home         Profile page (Mirror Agent)
 ```
 
 ---
 
-## 4. 页面详细设计
+## 4. Detailed Page Design
 
-### 4.1 首页：市场（`/`）
+### 4.1 Homepage: Market (`/`)
 
 ```
-┌─────────────────────────────────────────┐
-│ 📊 市场                         暗色 ☾  │
-│                                           │
-│  上证指数         深证成指         创业板   │
-│  3,168.42        9,712.35       1,856.20  │
-│  ▲ +0.68%        ▼ -0.23%       ▲ +1.02% │
-│                                           │
-│  ──── 热门股票 ────                       │
-│  ┌─────────────────────────────────────┐ │
-│  │ 贵州茅台  600519    ¥1,685.00  ▲2.3%│ │
-│  │ 宁德时代  300750    ¥218.50   ▼0.8%│ │
-│  │ 腾讯控股  00700.HK  ¥380.20   ▲1.5%│ │
-│  │ ...查看更多 ▶                       │ │
-│  └─────────────────────────────────────┘ │
-│                                           │
-│  快速分析                                  │
-│  ┌────────────────────────────────────┐    │
-│  │ 🔍 输入股票名称或代码              │    │
-│  └────────────────────────────────────┘    │
-│                              [开始分析]     │
-└─────────────────────────────────────────┘
++-------------------------------------------------+
+| Market                                    Dark   |
+|                                                     |
+|  Shanghai Composite   Shenzhen Component   ChiNext  |
+|  3,168.42             9,712.35            1,856.20  |
+|  Up +0.68%           Down -0.23%         Up +1.02% |
+|                                                     |
+|  ---- Hot Stocks ----                               |
+|  +-----------------------------------------------+ |
+|  | Kweichow Moutai  600519    1,685.00  Up 2.3%  | |
+|  | CATL             300750    218.50    Down 0.8%  | |
+|  | Tencent          00700.HK  380.20    Up 1.5%   | |
+|  | ...See more >>                                  | |
+|  +-----------------------------------------------+ |
+|                                                     |
+|  Quick Analysis                                     |
+|  +------------------------------------------------+|
+|  | Enter stock name or code                       ||
+|  +------------------------------------------------+|
+|                                        [Start Analyze]|
++-------------------------------------------------+
 ```
 
-**说明**：
-- 大盘指数数据来源：akshare（Phase 1 直接从 akshare 拉，不需要后端缓存）
-- 热门股票：先固定一个热门列表，不依赖后端推荐
-- 搜索框：输入股票名或代码 → 跳转分析页
-- 暗色模式：默认暗色（金融应用惯例），可切换
+**Description**:
+- Market index data source: akshare (Phase 1 pulls directly from akshare, no backend cache needed)
+- Hot stocks: initially fixed list, doesn't depend on backend recommendations
+- Search box: enter stock name or code -> navigate to analysis page
+- Dark mode: dark by default (financial app convention), toggleable
 
-**后端需求**：
-- 不需要后端接口，指数数据前端直调 akshare（或初期模拟数据）
-- 搜索框：本地股票代码映射表（JSON 文件，约 3000 只 A 股常见股票）
+**Backend requirements**:
+- No backend interface needed; index data directly calls akshare from frontend (or initial mock data)
+- Search box: local stock code mapping table (JSON file, about 3000 common A-share stocks)
 
 ---
 
-### 4.2 分析页（`/analysis?ticker=茅台`）
+### 4.2 Analysis Page (`/analysis?ticker=Moutai`)
 
-这是 **核心页面**，也是「手榴弹」价值的直接体现。
+This is the **core page**, the direct embodiment of the "grenade" value.
 
 ```
-┌─────────────────────────────────────────┐
-│ ← 返回                                 │
-│                                           │
-│  贵州茅台 (600519)  ¥1,685.00  ▲2.3%     │
-│                                           │
-│  ⏳ 正在分析...                           │
-│  ▓▓▓▓▓▓▓▓░░░░░░░░ 60%                    │
-│  ├── ✅ 巴菲特     分析完成                 │
-│  ├── 🔄 林奇       正在分析...             │
-│  ├── ⏳ 达利欧     等待中                  │
-│  └── ⏳ 格雷厄姆   等待中                  │
-│                                           │
-│  ──── 当全部完成后显示决策卡 ────          │
-│                                           │
-└─────────────────────────────────────────┘
++-------------------------------------------------+
+| <- Back                                           |
+|                                                     |
+|  Kweichow Moutai (600519)  1,685.00  Up 2.3%       |
+|                                                     |
+|  Analysis in progress...                            |
+|  ==================== 60%                           |
+|  +-- Checkmark Buffet     Analysis complete         |
+|  +-- Spinner Lynch        Analyzing...              |
+|  +-- Hourglass Dalio      Waiting                   |
+|  +-- Hourglass Graham     Waiting                   |
+|                                                     |
+|  ---- Displayed when all complete ----              |
+|                                                     |
++-------------------------------------------------+
 
-                 ↓ 全部完成后
+                 v All complete
 
-┌─────────────────────────────────────────┐
-│  ← 返回                                  │
-│                                           │
-│  贵州茅台 (600519)  ¥1,685.00  ▲2.3%     │
-│                                           │
-│  🃏 综合判断：⚠️ 谨慎持有（置信度 65%）    │
-│                                           │
-│  ┌─────────────────────────────────────┐  │
-│  │ 巴菲特     🟢 估值合理              │  │
-│  │            PE 35x > 历史中位 28x    │  │
-│  │            安全边际不足              │  │
-│  ├─────────────────────────────────────┤  │
-│  │ 林奇       🔴 非典型成长股          │  │
-│  │            PEG 1.8，增速放缓        │  │
-│  │            建议观望                 │  │
-│  ├─────────────────────────────────────┤  │
-│  │ 达利欧     🟡 周期后期              │  │
-│  │            信贷收缩信号             │  │
-│  │            需降低仓位               │  │
-│  └─────────────────────────────────────┘  │
-│                                           │
-│  核心分歧：估值派 vs 宏观派               │
-│   巴菲特看估值认为合理                     │
-│   达利欧看宏观认为需谨慎                   │
-│                                           │
-│  一句话：当前不便宜，但持有 5 年以上        │
-│  可等回调至 1400 建仓                      │
-│                                           │
-│  ┌──────────┐  ┌──────────┐               │
-│  │  详细报告 │  │  再看一只 │               │
-│  └──────────┘  └──────────┘               │
-└─────────────────────────────────────────┘
++-------------------------------------------------+
+|  <- Back                                          |
+|                                                     |
+|  Kweichow Moutai (600519)  1,685.00  Up 2.3%       |
+|                                                     |
+|  Card Comprehensive: Caution Hold (Confidence 65%)  |
+|                                                     |
+|  +-----------------------------------------------+ |
+|  | Buffet     Green Reasonable valuation          | |
+|  |            PE 35x > historical median 28x      | |
+|  |            Insufficient margin of safety       | |
+|  +-----------------------------------------------+ |
+|  | Lynch      Red Atypical growth stock           | |
+|  |            PEG 1.8, growth slowing             | |
+|  |            Recommend wait and see              | |
+|  +-----------------------------------------------+ |
+|  | Dalio      Yellow Late cycle                   | |
+|  |            Credit contraction signal           | |
+|  |            Need to reduce position             | |
+|  +-----------------------------------------------+ |
+|                                                     |
+|  Core Disagreement: Valuation school vs Macro school |
+|   Buffet sees valuation as reasonable               |
+|   Dalio sees macro environment as requiring caution  |
+|                                                     |
+|  One sentence: Not cheap now, but hold for 5+ years  |
+|  Can wait for pullback to 1400 to build position     |
+|                                                     |
+|  +--------------+  +--------------+                  |
+|  | Detailed Report| |  Analyze Another|              |
+|  +--------------+  +--------------+                  |
++-------------------------------------------------+
 ```
 
-**说明**：
-- **进度条阶段**：展示各 Agent 分析状态，让用户感知"系统在工作"
-- **决策卡阶段**：这是核心输出，一屏内展示完整
-- 每位大师一行，独立展开/收起详细推理
-- "核心分歧"和"一句话"是辩论引擎汇总的结果
-- 所有竞品都有类似的决策卡形态——这是行业共识
+**Description**:
+- **Progress bar phase**: Shows each Agent's analysis status, letting users perceive "the system is working"
+- **Decision card phase**: This is the core output, displayed completely within one screen
+- Each master takes one row, can independently expand/collapse detailed reasoning
+- "Core Disagreement" and "One Sentence" are results aggregated by the debate engine
+- All competitors have similar decision card forms -- this is industry consensus
 
-**后端需求**（需要现有后端提供）：
-- `POST /api/analyze` → 触发分析流程 → 返回 session_id
-- `GET /api/analyze/{session_id}/status` → 各 Agent 进度
-- `GET /api/analyze/{session_id}/result` → 最终的 DebateState 结果
+**Backend requirements** (needs existing backend to provide):
+- `POST /api/analyze` -> trigger analysis process -> return session_id
+- `GET /api/analyze/{session_id}/status` -> each Agent's progress
+- `GET /api/analyze/{session_id}/result` -> final DebateState result
 
 ---
 
-### 4.3 我的页面（`/profile`）
+### 4.3 Profile Page (`/profile`)
 
 ```
-┌─────────────────────────────────────────┐
-│ 👤 我的                                   │
-│                                           │
-│  ──── 镜子 Agent ────                    │
-│  你的投资行为分析师                       │
-│  ▓▓▓▓░░░░░░░░░░  了解度 30%              │
-│  已记录 3 次投资行为                      │
-│                                          │
-│  [查看详细分析 →]                        │
-│                                           │
-│  ──── 历史记录 ────                      │
-│  ┌─────────────────────────────────────┐ │
-│  │ 2026-06-07  茅台  谨慎持有 ▓▓▓▓▓    │ │
-│  │ 2026-06-05  五粮液 积极买入 ▓▓▓     │ │
-│  │ 2026-06-01  腾讯   观望    ▓▓▓▓▓▓▓  │ │
-│  └─────────────────────────────────────┘ │
-│                                           │
-│  设置                                      │
-│  ☑ 分析完成时通知                         │
-│  ☐ 启用镜子 Agent（出师后可用）           │
-└─────────────────────────────────────────┘
++-------------------------------------------------+
+| Profile                                          |
+|                                                     |
+|  ---- Mirror Agent ----                            |
+|  Your Investment Behavior Analyst                  |
+|  ================        Understanding 30%         |
+|  3 investment behaviors recorded                   |
+|                                                     |
+|  [View Detailed Analysis ->]                       |
+|                                                     |
+|  ---- History ----                                 |
+|  +-----------------------------------------------+ |
+|  | 2026-06-07  Moutai   Caution Hold =======     | |
+|  | 2026-06-05  Wuliangye Active Buy ===          | |
+|  | 2026-06-01  Tencent   Wait and See =========  | |
+|  +-----------------------------------------------+ |
+|                                                     |
+|  Settings                                           |
+|  [x] Notify when analysis is complete              |
+|  [ ] Enable Mirror Agent (available after graduation)|
++-------------------------------------------------+
 ```
 
-**后端需求**：
-- `GET /api/history` → 用户历史分析记录
-- `GET /api/mirror/profile` → 镜子 Agent 当前了解度/统计数据（Phase 1+）
+**Backend requirements**:
+- `GET /api/history` -> user's historical analysis records
+- `GET /api/mirror/profile` -> Mirror Agent current understanding/stats (Phase 1+)
 
 ---
 
-## 5. 前端所需的数据契约
+## 5. Frontend Data Contracts
 
-这是 **骨头**——前端和后端之间的接口协议。这些定了，AI 就可以分别填前端和后端的肉。
+This is the **backbone** -- the interface protocol between frontend and backend. Once these are set, AI can separately fill in the frontend and backend details.
 
-### 5.1 分析请求/响应
+### 5.1 Analysis Request/Response
 
 ```python
-# ========= 请求 =========
+# ========= Request =========
 
 class AnalysisRequest(BaseModel):
-    """用户发起一次分析"""
-    ticker: str                                  # "600519" 或 "贵州茅台"
+    """User initiates an analysis"""
+    ticker: str                                  # "600519" or "Kweichow Moutai"
     market: str = "A"                            # "A" / "HK" / "US"
 
-# ========= 进度 =========
+# ========= Progress =========
 
 class AgentProgress(BaseModel):
-    """单个 Agent 的分析进度"""
-    agent_name: str                              # "巴菲特" / "林奇"
+    """Single Agent's analysis progress"""
+    agent_name: str                              # "Buffett" / "Lynch"
     status: Literal["pending", "running", "completed", "error"]
     progress_pct: float = 0.0                    # 0-100
     started_at: str | None = None
@@ -297,58 +297,58 @@ class AgentProgress(BaseModel):
     error: str | None = None
 
 class AnalysisStatus(BaseModel):
-    """分析进度查询响应"""
+    """Analysis progress query response"""
     session_id: str
     overall_status: Literal["running", "completed", "error"]
     overall_progress: float                       # 0-100
     agents: list[AgentProgress]
     started_at: str
-    estimated_remaining_sec: int | None = None    # 可选
+    estimated_remaining_sec: int | None = None    # Optional
 
-# ========= 结果 =========
+# ========= Result =========
 
 class MasterOpinion(BaseModel):
-    """单个大师的观点——决策卡的一行"""
-    master_name: str                              # "巴菲特"
+    """Single master's opinion -- one row of the decision card"""
+    master_name: str                              # "Buffett"
     signal: Literal["bullish", "bearish", "neutral", "caution"]
-    signal_label: str                             # "🟢 估值合理" / "🔴 非典型成长股"
-    signal_icon: str = ""                         # "🟢" / "🔴" / "🟡"
+    signal_label: str                             # "Green Reasonable valuation" / "Red Atypical growth stock"
+    signal_icon: str = ""                         # "Green" / "Red" / "Yellow"
     confidence: float                             # 0.0-1.0
-    reasoning: str                                # 核心逻辑一句话
-    detail: str = ""                              # 详细推理（可展开）
-    evidence: list[str] = field(default_factory=list)  # "PE 35x > 历史中位 28x"
+    reasoning: str                                # Core logic in one sentence
+    detail: str = ""                              # Detailed reasoning (expandable)
+    evidence: list[str] = field(default_factory=list)  # "PE 35x > historical median 28x"
 
 class AnalysisResult(BaseModel):
-    """一次分析的完整结果——决策卡的数据源"""
+    """Complete result of one analysis -- data source for decision card"""
     session_id: str
     ticker: str
-    ticker_name: str                              # "贵州茅台"
+    ticker_name: str                              # "Kweichow Moutai"
     price_current: float
     change_pct: float
     
-    # 综合判断
-    verdict: str                                  # "谨慎持有"
+    # Comprehensive judgment
+    verdict: str                                  # "Caution Hold"
     verdict_signal: Literal["positive", "caution", "negative", "neutral"]
     verdict_confidence: float                     # 0.65
     
-    # 各大师观点
+    # Each master's opinion
     opinions: list[MasterOpinion]
     
-    # 辩论汇总
-    core_disagreement: str = ""                   # "估值派 vs 宏观派"
-    one_sentence: str = ""                        # 一句话建议
+    # Debate summary
+    core_disagreement: str = ""                   # "Valuation school vs Macro school"
+    one_sentence: str = ""                        # One-sentence recommendation
     
-    # 元信息
+    # Metadata
     analyzed_at: str
-    agents_used: int                              # 参与分析的大师数量
+    agents_used: int                              # Number of masters participating in analysis
     total_latency_ms: float = 0.0
 ```
 
-### 5.2 历史记录
+### 5.2 History
 
 ```python
 class HistoryItem(BaseModel):
-    """一条历史分析记录"""
+    """One historical analysis record"""
     session_id: str
     ticker: str
     ticker_name: str
@@ -358,110 +358,110 @@ class HistoryItem(BaseModel):
     verdict_confidence: float
 
 class HistoryResponse(BaseModel):
-    """历史记录列表"""
+    """History record list"""
     items: list[HistoryItem]
     total: int
 ```
 
-### 5.3 前端本地数据（不需要后端）
+### 5.3 Frontend Local Data (no backend needed)
 
 ```python
-# 前端本地的股票代码映射表
-# 结构：dict[str, StockInfo]
+# Frontend local stock code mapping table
+# Structure: dict[str, StockInfo]
 class StockInfo(BaseModel):
-    """用于搜索框自动补全"""
+    """Used for search box autocomplete"""
     code: str                                     # "600519"
-    name: str                                     # "贵州茅台"
+    name: str                                     # "Kweichow Moutai"
     market: str                                   # "A" / "HK" / "US"
-    sector: str = ""                              # "白酒"
+    sector: str = ""                              # "Baijiu"
 
-# 存储位置：前端项目内的一个 JSON 文件
-# data/stocks.json — 约 3000 条 A 股 + 200 条港股/美股中概
+# Storage location: JSON file within the frontend project
+# data/stocks.json -- about 3000 A-shares + 200 HK/US Chinese stocks
 ```
 
 ---
 
-## 6. 与后端的关系
+## 6. Relationship with Backend
 
-### 6.1 Phase 1 的数据流
-
-```
-用户在搜索框输入"茅台"
-    │
-    ▼
-前端（Streamlit）
-    │ 1. 从本地 stocks.json 匹配到 "600519"
-    │ 2. POST /api/analyze → 后端触发分析
-    │ 3. 轮询 GET /api/analyze/{id}/status → 展示进度条
-    │ 4. GET /api/analyze/{id}/result → 展示决策卡
-    │
-    ▼
-后端（Python）
-    ├── MasterAgent 调度 7 位大师 Agent
-    ├── 大师并行分析
-    └── 辩论引擎汇总 -> 返回 AnalysisResult
-```
-
-### 6.2 Phase 1 可以提前做的（即使后端还没接好）
-
-| 前端部分 | 后端准备好了吗？ | 怎么办？ |
-|:---------|:---------------|:---------|
-| 首页大盘指数 | ❌ data/ 模块空 | 前端先放模拟数据，接口端 mock |
-| 搜索框 + 股票匹配 | ✅ stocks.json 是前端本地数据 | 不依赖后端 |
-| 决策卡展示 | ⚠️ 辩论引擎未写 | 先写死一个示例 `AnalysisResult`，UI 先做好 |
-| 进度条 | ⚠️ 后端接口未定 | 模拟进度动画 |
-| 镜子 Agent 页面 | ❌ 镜子 Agent 未实现 | 留空占位，显示"即将到来" |
-
-### 6.3 前端和后端的分工原则
+### 6.1 Phase 1 Data Flow
 
 ```
-前端（Streamlit）管：
-  - 页面布局和展示
-  - 用户输入和交互
-  - 本地股票数据（stocks.json）
-  - 调用后端 API 获取分析结果
-  - 调用 akshare 获取指数行情（Phase 1 临时方案）
+User enters "Moutai" in search box
+    |
+    v
+Frontend (Streamlit)
+    | 1. Match to "600519" from local stocks.json
+    | 2. POST /api/analyze -> backend triggers analysis
+    | 3. Poll GET /api/analyze/{id}/status -> display progress bar
+    | 4. GET /api/analyze/{id}/result -> display decision card
+    |
+    v
+Backend (Python)
+    +-- MasterAgent schedules 7 master Agents
+    +-- Masters analyze in parallel
+    +-- Debate engine aggregates -> returns AnalysisResult
+```
 
-后端（现有的 src/）管：
-  - 接收分析请求 → 调度 Agent
-  - 维护辩论状态（DebateState）
-  - 返回结构化的 AnalysisResult
-  - 用户历史记录存储和查询
+### 6.2 What Can Be Done In Advance for Phase 1 (even if backend isn't ready)
+
+| Frontend Part | Backend Ready? | What to Do? |
+|:--------------|:---------------|:------------|
+| Homepage market indices | No data/ module empty | Frontend uses mock data first, mock API |
+| Search box + stock matching | Yes stocks.json is frontend local data | No backend dependency |
+| Decision card display | Warning Debate engine not written | Hardcode a sample AnalysisResult first, build UI |
+| Progress bar | Warning Backend API not determined | Simulate progress animation |
+| Mirror Agent page | No Mirror Agent not implemented | Leave placeholder, show "Coming Soon" |
+
+### 6.3 Frontend and Backend Division of Labor
+
+```
+Frontend (Streamlit) manages:
+  - Page layout and display
+  - User input and interaction
+  - Local stock data (stocks.json)
+  - Calling backend API for analysis results
+  - Calling akshare for index quotes (Phase 1 temporary solution)
+
+Backend (existing src/) manages:
+  - Receiving analysis requests -> scheduling Agents
+  - Maintaining debate state (DebateState)
+  - Returning structured AnalysisResult
+  - User history storage and query
 ```
 
 ---
 
-## 7. 阶段实施计划
+## 7. Phased Implementation Plan
 
-### Phase 1 MVP（7 月前）
+### Phase 1 MVP (Before July)
 
-| 步骤 | 页面 | 预估 | 前置依赖 |
-|:----:|:----|:----:|:---------|
-| ① | 项目骨架 — Streamlit + 页面路由 + 暗色主题 | 2h | 无 |
-| ② | 首页 — 大盘指数 + 热门股票 + 搜索框 | 3h | stocks.json 数据 |
-| ③ | stocks.json — A 股 3000 只股票代码映射 | 1h | 无 |
-| ④ | 分析页进度条 — Agent 状态展示组件 | 2h | AnalysisStatus 数据模型 |
-| ⑤ | 决策卡组件 — MasterOpinion 展示 + 综合判断 | 3h | AnalysisResult 数据模型 |
-| ⑥ | 分析页完整流程 — 输入→等待→展示 | 2h | 后端分析 API（至少 mock） |
-| ⑦ | 我的页面 — 历史记录 + 镜子 Agent 占位 | 2h | 后端历史记录 API |
-| ⑧ | 端到端联调 — 前端接真实后端 | 2h | 辩论引擎至少跑通最小原型 |
+| Step | Page | Estimate | Prerequisites |
+|:----:|:-----|:--------:|:--------------|
+| 1 | Project skeleton -- Streamlit + page routing + dark theme | 2h | None |
+| 2 | Homepage -- market indices + hot stocks + search box | 3h | stocks.json data |
+| 3 | stocks.json -- A-share 3000 stock code mapping | 1h | None |
+| 4 | Analysis page progress bar -- Agent status display component | 2h | AnalysisStatus data model |
+| 5 | Decision card component -- MasterOpinion display + comprehensive judgment | 3h | AnalysisResult data model |
+| 6 | Analysis page complete flow -- input -> wait -> display | 2h | Backend analysis API (at least mock) |
+| 7 | Profile page -- history + Mirror Agent placeholder | 2h | Backend history API |
+| 8 | End-to-end integration -- frontend connected to real backend | 2h | Debate engine at least running minimal prototype |
 
-**总计：约 15-17 小时（如果 AI 写前端，2-3 天日历日）**
+**Total: approx 15-17 hours (if AI writes frontend, 2-3 calendar days)**
 
-### Phase 2（MVP 验证后）
+### Phase 2 (After MVP Validation)
 
-| 事项 | 说明 |
-|:----|:-----|
-| 镜子 Agent 完整页面 | 行为对比报告可视化 |
-| 教育小智对话界面 | 聊天式交互 |
-| 导出 PDF 报告 | reportlab 或 WeasyPrint |
-| 决策卡分享 | 生成分享图片 |
-| 详细 Agent 推理展开 | 折叠/展开每位大师的完整推理链 |
+| Item | Description |
+|:----|:------------|
+| Mirror Agent full page | Behavior comparison report visualization |
+| Educational Xiao Zhi dialogue interface | Chat-style interaction |
+| Export PDF report | reportlab or WeasyPrint |
+| Decision card sharing | Generate shareable image |
+| Detailed Agent reasoning expansion | Collapse/expand each master's full reasoning chain |
 
 ---
 
-## 更新日志
+## Changelog
 
-| 日期 | 操作 | 说明 |
-|:----|:-----|:------|
-| 2026-06-07 | 创建 | 基于 TradingAgents / AI Hedge Fund / Vibe-Trading 前端调研的 MVP 需求文档 |
+| Date | Action | Description |
+|:----|:-------|:------------|
+| 2026-06-07 | Created | MVP requirements document based on TradingAgents / AI Hedge Fund / Vibe-Trading frontend research |

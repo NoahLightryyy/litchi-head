@@ -15,7 +15,8 @@
 
 | 文件 | 说明 |
 |:-----|:-----|
-| [SPEC.md](SPEC.md) | 规格说明书（编排架构对比） |
+| [SPEC.md](SPEC.md) | 模块规格（职责边界、代码结构、数据模型） |
+| [RESEARCH.md](RESEARCH.md) | 调研分析（战线格局、竞品对比、研究问题） |
 | [ADR.md](ADR.md) | 架构决策（ADR-002 LangGraph + ADR-009 MCP 工具扩展） |
 
 ## 对应源码

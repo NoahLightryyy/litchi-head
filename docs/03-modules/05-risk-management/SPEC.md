@@ -1,29 +1,6 @@
 # 功能模块：风控管理
 
-## 所属战线：多 Agent 辩论决策（风控子层）
-
-> 风控不是一条独立战线，而是辩论决策战线的**必要子模块**——在 TradingAgents 中，风控就是辩论流程的第四层（分析师→辩论→交易员→**风控→PM**）。
->
-> [查看战线完整分析](../../行业开源方案对照知识库.md#-战线-1多-agent-辩论决策)
-
-### 在这个战场中的角色
-
-```
-辩论决策战线中，风控是"守门员"角色：
-
-TradingAgents:  分析师 → 辩论 → 交易员提案 → 三层风控辩论 → PM最终裁决
-                                                      ↑
-                                              你目前没有这一层
-
-你现在的流程:  大师分析 → 加权汇总 → trading_decision
-                                       ↑
-                               risk_level 内置在结果里
-                               没有独立风控层
-```
-
-**核心认识**：目前你的风控逻辑散落在 `DebateResult` 里（`risk_level` / `position_size`），没有独立的"风控 Agent"或"风控流程"。这是你和 TradingAgents 在架构上的关键差距。
-
----
+> 交易决策的风险评估、仓位管理、止损止盈、合规检查。R1 三层风控辩论已实现，作为辩论流程的守门员层。
 
 ## 模块定义
 
@@ -34,116 +11,65 @@ TradingAgents:  分析师 → 辩论 → 交易员提案 → 三层风控辩论 
 - ✅ 止损/止盈规则
 - ✅ 多维度风险评估（市场风险/个股风险/流动性风险）
 - ✅ 合规性检查（监管规则、资金约束）
+- ✅ 三层风控辩论（Aggressive / Conservative / Neutral 三方交叉验证）
+- ✅ 交易纪律检查（买入/卖出/仓位/加减仓纪律）
 - ❌ 不负责交易决策生成（那是辩论模块的事）
 - ❌ 不负责实际下单（那是交易执行模块的事）
 
-## 你在 litchi-head 中的位置
+## 代码结构
 
-| 源码 | 说明 |
+| 文件 | 说明 |
 |------|------|
-| `src/debate/models.py` | `DebateResult.risk_level` 评分（内置在结果中） |
-| `src/debate/models.py` | `trading_decision`（direction / confidence / position_size） |
+| `src/risk/__init__.py` | 模块公开接口（RiskAssessment, RiskRoundResult, TradeRecommendation 等） |
+| `src/risk/models.py` | Pydantic 数据契约（RiskAssessment, RiskRoundResult, TradeRecommendation） |
+| `src/risk/orchestrator.py` | 风控编排器：risk_round（三层风控） + pm_round（PM 最终裁决）节点工厂 |
+| `src/risk/profiles.py` | 风控官人格定义（激进/保守/中性）+ 交易纪律体系（买入/卖出/仓位/加减仓） |
 
-> ⚠️ 目前风控逻辑散落在辩论模块中，没有独立的风控层。
-
-## 行业参照项目
-
-| 项目 | 风控方式 | 值得看的 |
-|------|---------|---------|
-| **TradingAgents** | 三层风控辩论（Aggressive / Conservative / Neutral） | 风控不是"一个规则"而是"一场辩论"，三维度交叉验证 |
-| **vnpy** | 内置风控规则引擎 | 生产级的风控体系（交易风控+账户风控+合规检查） |
-
-## 架构对照分析
-
-### 你现在的风控（内置在决策结果中）
+## 架构（当前状态）
 
 ```
-大师分析 → aggregate → DebateResult
-                          ├─ risk_level: 直接评分
-                          ├─ confidence: 置信度
-                          └─ position_size: 仓位建议
+辩论聚合（vote_summary）→ 风控审核（risk_round）→ PM 最终裁决（pm_round）
+                                                                       
+辩论投票汇总 ──────────→ 三层风控审核 ──────────→ Portfolio Manager
+                           │                          │
+                    ┌──────┼──────────┐               ├─ action (buy/sell/hold)
+                    ↓      ↓          ↓               ├─ position_size_pct
+            Aggressive  Conservative  Neutral          ├─ stop_loss_pct
+            (机会成本)   (尾部风险)   (合规性)          ├─ take_profit_pct
+                    │      │          │               ├─ discipline_checks_passed
+                    └──────┼──────────┘               └─ key_warnings
+                           ↓
+                    RiskRoundResult
+                    ├─ risk_consensus_action
+                    ├─ avg_risk_score
+                    ├─ min/max_position_pct
+                    └─ total_discipline_violations
 ```
 
-风险：风控逻辑和决策逻辑耦合在一起，评审 Agent 又当运动员又当裁判。
+风控逻辑不再散落在 `DebateResult` 中，而是通过独立的 `risk_round` + `pm_round` 节点，集成在辩论编排器的末尾。
 
-### TradingAgents 的三层风控辩论（推荐借鉴）
+## 数据契约（关键模型）
 
-```
-交易员提案（交易参数） → 风控层（三个并行）→ Portfolio Manager
+| 模型 | 文件 | 用途 |
+|------|------|------|
+| `RiskAssessment` | `src/risk/models.py` | 单个风控官的结构化风险评估（action, position_size, stop_loss, risk_score, key_risks, discipline_violations 等） |
+| `RiskRoundResult` | `src/risk/models.py` | 三位风控官汇总结果（共识操作、平均风险评分、仓位范围、纪律违规数） |
+| `TradeRecommendation` | `src/risk/models.py` | PM 最终交易建议（action, position_size, stop_loss, take_profit, reasoning, risk_level, confidence, discipline_checks_passed） |
 
-                    ┌──────────────────────┐
-交易员提案 ───────→  │ Aggressive Risk      │ → "这个仓位太小了，可以加到50%"
-  direction: BUY     ├──────────────────────┤
-  size: 30%          │ Conservative Risk    │ → "30%太高了，最多15%，止损5%"
-  stop_loss: 8%      ├──────────────────────┤
-                     │ Neutral Risk         │ → "20%比较合适，止损6%"
-                     └──────────────────────┘
-                               ↓
-                     Portfolio Manager（综合三方+提案 → 最终裁决）
-                       → 批准 / 拒绝 / 调整参数
-```
+## 当前实现状态
 
-**关键设计**：
-1. **否决权** — 风控 Agent 不是"建议权"，是对交易参数的否决权
-2. **多视角** — 激进/保守/中性三方交叉验证，不是单一点评
-3. **参数级调整** — 不只看"买不买"，还看"买多少、在哪止损"
+| 特性 | 状态 | 测试数 |
+|:-----|:----:|:------:|
+| R1 三层风控辩论（risk_round + pm_round） | ✅ 已实现 | 8 |
+| 交易纪律体系（买入/卖出/仓位/加减仓） | ✅ 已实现 | — |
+| 与 DebateOrchestrator 集成（enable_risk 开关） | ✅ 已实现 | — |
+| `enable_risk=False` 向后兼容 | ✅ 已验证 | — |
+| 生产级风控规则引擎（vnpy 参考） | ⬜ Phase 3 | — |
 
-### vnpy 的风控规则引擎（未来实盘参考）
+## 下一步
 
-```
-vnpy 风控体系：
-├─ 交易风控：撤单频率、委托超时、自成交防止
-├─ 账户风控：持仓上限、单品种集中度、总敞口
-├─ 合规风控：监管规则、资金约束
-└─ 接口风控：交易所的连接状态、API限额
-```
+- 🥇 风控辩论与现有辩论模块的深度联动（风控结果回传到辩论上下文）
+- 🥈 生产级风控规则引擎参考 vnpy（交易风控 + 账户风控 + 合规检查）
+- 🥉 更多维度风险指标（VaR、波动率、集中度自动计算）
 
----
-
-## 关键研究问题（2026-06-11 更新：TradingAgents 源码分析后）
-
-### R1 — 三层风控辩论设计
-- [x] **TradingAgents 源码已读**：三层风控（Aggressive/Conservative/Neutral）复用辩论模块的同一套模式——条件路由循环轮换。
-- [ ] 你的风控是否也采用"辩论"形式？还是规则引擎？
-- [ ] 三层风控的 Prompt 方向设计：Aggressive 关注机会成本，Conservative 关注尾部风险，Neutral 关注仓位合规。
-- [ ] Portfolio Manager 综合三方+交易员提案做最终裁决——风控辩论的"边界"在哪？
-
-### 架构层
-- [ ] 风控应该是独立 Agent 还是内置规则引擎？
-- [ ] 单一风控 vs 多维度风控辩论——你选哪个？
-- [x] **TradingAgents 的做法**：风控辩论与你现有的辩论编排完全一致——3 个 Agent 各自输出观点，条件路由控制轮次，最终由 PM 裁决。
-
-### 参数层
-- [ ] position_size 的计算公式（基于置信度？Kelly 公式？固定仓位？）
-- [ ] 你的 `risk_level` 目前是一个评分，未来是否要扩展到多个维度？
-- [ ] 风控的触发条件是事前（预防）还是事后（止损）？
-
----
-
-## 子文件夹说明
-
-| 路径 | 用途 |
-|------|------|
-| `./风控架构设计/` | 独立风控 Agent vs 规则引擎的方案对比 |
-| `./仓位管理模型/` | Kelly 公式、固定比例、动态仓位等模型分析 |
-| `./TradingAgents风控分析/` | TradingAgents 三层风控辩论源码阅读笔记（含关键代码片段） |
-| `./vnpy风控体系/` | vnpy 风控规则引擎的学习笔记（实盘筹备） |
-
-## 深挖方向建议（2026-06-11 更新：TradingAgents 源码分析后）
-
-> **核心发现**：TradingAgents 的风控辩论与其辩论模块是同一套模式——可以复用你的 `debate/` 基础设施来实现。
-
-### 🥇 R1 — 风控辩论框架设计（风控模块 → 辩论模块联动）
-**来源**：TradingAgents 三层风控 | **工作量**：大（Phase 2） | **影响范围**：`src/risk/` + `debate/orchestrator.py`
-
-- 在你的辩论流程末尾集成风控辩论：辩论结果 → 风控辩论 → 修正裁决
-- 直接复用 `debate/orchestrator.py` 的底层编排，风控 Agent 和大师 Agent 本质是一回事
-- 三层风控的 Prompt 方向参考（激进/保守/中性），每层关注不同风险维度
-- 注意：不建议在 Phase 1 MVP 阶段实施，风控模块当前是空架子，先完成辩论深度进化
-
-### 🥈 从辩论模块中抽离风控逻辑（风控模块）
-- 先把 `DebateResult.risk_level` 和 `trading_decision.position_size` 的逻辑独立出来
-- 命名空间上准备：`src/risk/` 目录已有，可以开始设计 model
-
-### 🥉 生产级风控体系（未来）
-- 实盘前参考 vnpy 的风控规则引擎（交易风控+账户风控+合规检查）
+> **关联文档**：[RESEARCH.md](RESEARCH.md) — 调研背景

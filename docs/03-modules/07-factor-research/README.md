@@ -14,4 +14,5 @@ Alpha 因子挖掘、特征工程、AI 模型训练、因子有效性评估。
 
 | 文件 | 说明 |
 |:-----|:-----|
-| [SPEC.md](SPEC.md) | 规格说明书（Qlib/RD-Agent 战线格局） |
+| [SPEC.md](SPEC.md) | 模块规格（职责边界、代码结构、数据模型） |
+| [RESEARCH.md](RESEARCH.md) | 调研分析（战线格局、竞品对比、研究问题） |

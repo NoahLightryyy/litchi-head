@@ -6,13 +6,11 @@
 |:-----|:------|:----:|
 | [WORKFLOW.md](WORKFLOW.md) | AI 自动化工作流程 | 🤖 |
 | [HANDOVER.md](HANDOVER.md) | AI 会话交接文档 | 🤖 |
-| [HANDOVER_TIP.md](HANDOVER_TIP.md) | 会话交接快速提示 | 🤖 |
 | [ENVIRONMENT.md](ENVIRONMENT.md) | 环境配置指南 | 👨‍💻 |
+| [ROUTING.md](ROUTING.md) | ★ 上下文加载策略 — 按任务类型路由文档 | 🤖 |
 | [debt/ROUTER.md](debt/ROUTER.md) | 技术债务路由索引 | 🤖👨‍💻 |
 
 ## 关于路由
 
-> `ROUTING.md` 是计划新增的文件，用于定义：
-> - 什么任务加载哪些文件
-> - 上下文窗口分配策略
-> - 按任务类型的文件优先级
+> `ROUTING.md` 定义了按任务类型的文档加载策略和上下文预算分配。
+> 参见 [ROUTING.md](ROUTING.md)。

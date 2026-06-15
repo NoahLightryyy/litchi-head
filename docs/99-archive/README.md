@@ -16,4 +16,7 @@
 | [RAG_GREP_DUAL_TRACK.md](RAG_GREP_DUAL_TRACK.md) | 金融知识检索 RAG+GREP 双轨方案 |
 | [ARCHITECTURE_CRITIQUE.md](ARCHITECTURE_CRITIQUE.md) | 架构批判与市场对照 |
 | [MEMORY_STORE_DESIGN.md](MEMORY_STORE_DESIGN.md) | 2026-06-11 Memory Store 完整设计文档 |
+| [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) | 行业开源方案对照知识库（各模块 RESEARCH 引用） |
+| [COMPETITOR_RESEARCH.md](COMPETITOR_RESEARCH.md) | 多智能体投资决策平台竞品调研报告 |
+| [REQUIREMENTS_VS_RESEARCH.md](REQUIREMENTS_VS_RESEARCH.md) | 初版要求 vs 竞品调研对比分析 |
 | [superpowers/](superpowers/) | 外部工具工作文件 |
