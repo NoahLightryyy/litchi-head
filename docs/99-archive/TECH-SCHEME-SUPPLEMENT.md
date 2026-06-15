@@ -1,0 +1,1190 @@
+# 技术实现方案-AI驱动版 · 增强补充
+
+> **TL;DR**：日志/配置/测试/部署等基础设施层的补充方案。当前已实现：测试基座、CI 流水线、LLM 配置层。未实现：Docker 部署、监控告警、生产配置管理。
+>
+> **跳过条件**：不涉及基础设施/部署变更 → 不需要读。
+
+> 基于审查报告对原方案的全面补全
+> 插入位置：原方案的各对应章节中
+> 内容性质：P0-P1 级缺失项的完整补充
+
+---
+
+## 补充 A：Windows 环境兼容方案（插入第2章）
+
+### A.1 Windows 特有坑点与解决方案
+
+```bash
+# ⚠️ 坑点1：conda 启动方式
+# 不要直接双击 cmd！
+# 从开始菜单找 "Anaconda Prompt" 或 "Miniforge Prompt"
+# 或者运行后手动初始化：
+C:\Users\rog> conda init powershell
+# 然后重新打开 PowerShell
+
+# ⚠️ 坑点2：路径中的反斜杠
+# Windows 用 \ ，但 Python 字符串里要小心：
+# 正确：path = r"e:\litchi-head\data"
+# 正确：path = "e:/litchi-head/data"  ← 推荐！跨平台兼容
+# 错误：path = "e:\litchi-head\data"  ← \l 会被转义
+
+# ⚠️ 坑点3：长路径问题
+# Windows 默认路径限制 260 字符，项目深了会报错
+# 以管理员身份运行 PowerShell：
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+    -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+
+# ⚠️ 坑点4：Python 编码问题
+# Windows 默认编码是 GBK，可能导致 UTF-8 文件读取失败
+# 设置环境变量（在 PowerShell 中）：
+$env:PYTHONUTF8 = "1"
+# 或者在 Python 启动时加参数：
+# python -X utf8 your_script.py
+
+# ⚠️ 坑点5：faiss-cpu 在 Windows 上的安装
+pip install faiss-cpu --only-binary faiss-cpu
+# 如果还是失败，用 conda 安装：
+conda install -c conda-forge faiss-cpu
+
+# ⚠️ 坑点6：akshare 在 Windows 上的 SSL 问题
+# 如果报 SSL 证书错误，设置：
+$env:PYTHONHTTPSVERIFY = "0"
+```
+
+### A.2 PowerShell 启动脚本
+
+```powershell
+# start_dev.ps1 — 放在项目根目录，双击运行
+Write-Host "🚀 启动开发环境" -ForegroundColor Green
+
+# 激活 conda 环境
+conda activate litchi
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ conda 环境激活失败！" -ForegroundColor Red
+    exit 1
+}
+
+# 设置编码
+$env:PYTHONUTF8 = "1"
+
+# 加载环境变量
+if (Test-Path ".env") {
+    Get-Content ".env" | ForEach-Object {
+        if ($_ -match "^(.*?)=(.*)$") {
+            [Environment]::SetEnvironmentVariable($matches[1], $matches[2], "Process")
+        }
+    }
+    Write-Host "✅ 环境变量已加载" -ForegroundColor Green
+}
+
+# 检查 API Key
+if (-not $env:DEEPSEEK_API_KEY) {
+    Write-Host "⚠️ 警告：DEEPSEEK_API_KEY 未设置" -ForegroundColor Yellow
+}
+
+Write-Host "✅ 开发环境就绪！" -ForegroundColor Green
+
+# 打开 VS Code
+code .
+```
+
+---
+
+## 补充 B：LLM API 成本控制方案（插入第2章，新增 2.4 节）
+
+### B.1 Token 消耗估算
+
+```
+单次完整辩论的 Token 消耗：
+┌────────────────────────────────────┬────────────┬──────────┐
+│ 环节                               │ 输入 Token  │ 输出     │
+├────────────────────────────────────┼────────────┼──────────┤
+│ 4组 × 3分析师 × 初始提案           │ ~16,000    │ ~8,000   │
+│ 4组 × 3轮质疑 × 2轮对话           │ ~12,000    │ ~6,000   │
+│ 4组 × 评审总结                     │ ~6,000     │ ~2,000   │
+│ 8位大师 × 独立分析                  │ ~8,000     │ ~4,000   │
+│ 综合排序                           │ ~2,000     │ ~1,000   │
+├────────────────────────────────────┼────────────┼──────────┤
+│ 合计                               │ ~44,000    │ ~21,000  │
+│ 总量                               │ ≈ 65,000 tokens          │
+└────────────────────────────────────┴────────────┴──────────┘
+
+各模型价格对比（2026年6月）：
+┌────────────────┬──────────────┬────────────┬──────────────┐
+│ 模型           │ 输入 ¥/1M    │ 输出 ¥/1M  │ 单次辩论成本 │
+├────────────────┼──────────────┼────────────┼──────────────┤
+│ DeepSeek-Chat  │ ¥0.5         │ ¥2.0       │ ~¥0.06       │
+│ GPT-4o-mini    │ ¥2.5         │ ¥10.0      │ ~¥0.32       │
+│ Qwen2.5-72B    │ ¥4.0         │ ¥12.0      │ ~¥0.43       │
+│ Claude 3.5     │ ¥10.0        │ ¥30.0      │ ~¥1.07       │
+│ GPT-4o         │ ¥15.0        │ ¥60.0      │ ~¥1.92       │
+└────────────────┴──────────────┴────────────┴──────────────┘
+
+⚡ 省钱建议：
+- 开发测试期：只用 DeepSeek（单次 ¥0.06，一天测100次也就 ¥6）
+- 简单任务（新闻摘要/实体抽取）：用 DeepSeek 或 Qwen
+- 复杂任务（辩论/评审/大师分析）：用 DeepSeek 或 GPT-4o-mini
+- 对比测试时换 GPT-4o/Claude，跑完就切回来
+- 不要用 GPT-4o 做日常调试！
+```
+
+### B.2 模型路由策略
+
+```python
+# src/utils/model_router.py
+"""智能模型路由：简单任务用小模型，复杂任务用大模型"""
+
+from dataclasses import dataclass
+from enum import Enum
+
+class TaskComplexity(Enum):
+    SIMPLE = "simple"        # 新闻摘要、实体抽取
+    MEDIUM = "medium"        # 技术分析、基本面分析
+    COMPLEX = "complex"      # 辩论、评审、大师分析
+    CRITICAL = "critical"    # 最终决策
+
+@dataclass
+class ModelConfig:
+    name: str
+    provider: str
+    input_cost_per_1m: float
+    output_cost_per_1m: float
+    max_tokens: int = 8192
+
+class ModelRouter:
+    """根据任务复杂度路由到合适的模型"""
+    
+    ROUTING_TABLE = {
+        TaskComplexity.SIMPLE: [
+            ModelConfig("deepseek-chat", "deepseek", 0.5, 2.0),
+        ],
+        TaskComplexity.MEDIUM: [
+            ModelConfig("deepseek-chat", "deepseek", 0.5, 2.0),
+            ModelConfig("gpt-4o-mini", "openai", 2.5, 10.0),
+        ],
+        TaskComplexity.COMPLEX: [
+            ModelConfig("gpt-4o-mini", "openai", 2.5, 10.0),
+            ModelConfig("deepseek-chat", "deepseek", 0.5, 2.0),
+        ],
+        TaskComplexity.CRITICAL: [
+            ModelConfig("gpt-4o", "openai", 15, 60),
+            ModelConfig("deepseek-chat", "deepseek", 0.5, 2.0),
+        ],
+    }
+    
+    @classmethod
+    def get_model(cls, complexity: TaskComplexity) -> ModelConfig:
+        """获取推荐模型"""
+        return cls.ROUTING_TABLE[complexity][0]
+
+# ========== 使用示例 ==========
+# 简单任务 → 最便宜
+summary = llm.invoke(prompt, model=ModelRouter.get_model(TaskComplexity.SIMPLE))
+
+# 复杂任务 → 更强模型
+debate_result = llm.invoke(prompt, model=ModelRouter.get_model(TaskComplexity.COMPLEX))
+```
+
+### B.3 Token 用量跟踪器
+
+```python
+# src/utils/cost_tracker.py
+"""跟踪和报告 LLM Token 消耗"""
+
+import json
+from datetime import datetime, date
+from pathlib import Path
+from collections import defaultdict
+
+class CostTracker:
+    """LLM 调用费用跟踪器"""
+    
+    # 模型价格表（¥/1M tokens）
+    PRICES = {
+        "deepseek-chat": {"input": 0.5, "output": 1.0},
+        "gpt-4o-mini": {"input": 2.5, "output": 10.0},
+        "gpt-4o": {"input": 15.0, "output": 60.0},
+        "claude-sonnet-4": {"input": 10.0, "output": 30.0},
+    }
+    
+    def __init__(self, log_dir: str = "data/cost_logs"):
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        self.session_records = []
+    
+    def record(self, model: str, prompt_tokens: int, 
+               completion_tokens: int, agent: str, session_id: str = ""):
+        """记录一次 LLM 调用"""
+        prices = self.PRICES.get(model, {"input": 0.5, "output": 1.0})
+        cost = (prompt_tokens * prices["input"] + 
+                completion_tokens * prices["output"]) / 1_000_000
+        
+        record = {
+            "timestamp": datetime.now().isoformat(),
+            "model": model,
+            "agent": agent,
+            "session_id": session_id,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "cost_yuan": round(cost, 6)
+        }
+        self.session_records.append(record)
+    
+    def session_cost(self, session_id: str) -> float:
+        """某次辩论的总费用"""
+        return round(sum(
+            r["cost_yuan"] for r in self.session_records 
+            if r["session_id"] == session_id
+        ), 4)
+    
+    def daily_report(self) -> str:
+        """生成今日费用报告"""
+        today = date.today().isoformat()
+        today_records = [
+            r for r in self.session_records 
+            if r["timestamp"].startswith(today)
+        ]
+        
+        if not today_records:
+            return "📊 今日暂无 LLM 调用记录"
+        
+        total_cost = sum(r["cost_yuan"] for r in today_records)
+        by_model = defaultdict(float)
+        by_agent = defaultdict(float)
+        
+        for r in today_records:
+            by_model[r["model"]] += r["cost_yuan"]
+            by_agent[r["agent"]] += r["cost_yuan"]
+        
+        report = [
+            f"📊 今日 LLM 费用报告 ({today})",
+            f"总调用次数: {len(today_records)}",
+            f"总费用: ¥{total_cost:.4f}",
+            "",
+            "按模型:"
+        ]
+        for model, cost in sorted(by_model.items(), key=lambda x: -x[1]):
+            report.append(f"  {model}: ¥{cost:.4f}")
+        
+        report.append("")
+        report.append("按Agent:")
+        for agent, cost in sorted(by_agent.items(), key=lambda x: -x[1]):
+            report.append(f"  {agent}: ¥{cost:.4f}")
+        
+        return "\n".join(report)
+    
+    def save_session(self):
+        """保存记录到文件"""
+        if not self.session_records:
+            return
+        filename = self.log_dir / f"{date.today().isoformat()}.jsonl"
+        with open(filename, "a", encoding="utf-8") as f:
+            for record in self.session_records:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        self.session_records = []
+
+# 全局单例
+cost_tracker = CostTracker()
+```
+
+---
+
+## 补充 C：项目配置与密钥管理（插入第7章工具函数部分）
+
+### C.1 目录结构
+
+```
+config/
+├── settings.yaml           # 应用配置（不包含密钥）
+├── prompts/                # 提示词文件（单独管理）
+│   ├── agents/
+│   │   ├── buffett.yaml
+│   │   ├── munger.yaml
+│   │   └── ...
+│   └── debate/
+│       ├── challenge.yaml
+│       └── judge.yaml
+└── risk.yaml               # 风控阈值
+
+.env                        # 密钥文件（不上传到 Git）
+.env.example                # 密钥模板（上传到 Git）
+```
+
+### C.2 配置文件实现
+
+```python
+# src/utils/config.py
+"""统一配置管理"""
+
+import os
+import yaml
+from pathlib import Path
+from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
+
+# 加载 .env 文件
+load_dotenv()
+
+class Settings(BaseSettings):
+    # ── LLM 配置 ──
+    llm_provider: str = "deepseek"
+    deepseek_api_key: str = ""
+    openai_api_key: str = ""
+    anthropic_api_key: str = ""
+    ollama_base_url: str = "http://localhost:11434"
+    
+    # ── 辩论配置 ──
+    max_concurrent_agents: int = 10
+    debate_timeout_seconds: int = 120
+    max_debate_rounds: int = 3
+    enable_cross_group_challenge: bool = True
+    
+    # ── 风控配置 ──
+    max_single_position: float = 0.2
+    max_daily_loss: float = 0.05
+    min_liquidity_yuan: int = 10_000_000
+    
+    # ── 记忆配置 ──
+    memory_backend: str = "json"  # json | sqlite | milvus
+    memory_max_recent_trades: int = 30
+    
+    # ── 数据源配置 ──
+    akshare_username: str = ""
+    akshare_password: str = ""
+    
+    # ── 数据路径 ──
+    data_dir: str = "data"
+    log_dir: str = "logs"
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore"
+
+settings = Settings()
+
+# ── 配置的 YAML 部分 ──
+class ConfigLoader:
+    """加载 YAML 配置文件"""
+    
+    _cache = {}
+    
+    @classmethod
+    def load(cls, path: str) -> dict:
+        """加载 YAML，带缓存"""
+        if path not in cls._cache:
+            full_path = Path("config") / path
+            if full_path.exists():
+                with open(full_path, "r", encoding="utf-8") as f:
+                    cls._cache[path] = yaml.safe_load(f)
+            else:
+                cls._cache[path] = {}
+        return cls._cache[path]
+
+# ========== 使用示例 ==========
+# 密钥（从 .env 自动加载）
+api_key = settings.deepseek_api_key
+
+# 配置值
+timeout = settings.debate_timeout_seconds
+
+# YAML 配置
+risk_cfg = ConfigLoader.load("risk.yaml")
+max_pos = risk_cfg.get("max_single_position", 0.2)
+```
+
+### C.3 .env 文件模板
+
+```bash
+# .env.example — 复制为 .env 并填入真实值
+# ⚠️ 此文件不要提交到 Git！
+
+# LLM API Keys
+DEEPSEEK_API_KEY=sk-your-deepseek-key
+OPENAI_API_KEY=sk-your-openai-key
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
+
+# LLM 设置
+LLM_PROVIDER=deepseek
+
+# 数据源
+AKSHARE_USERNAME=
+AKSHARE_PASSWORD=
+
+# 运行模式
+DEBUG=true
+LOG_LEVEL=DEBUG
+```
+
+### C.4 .gitignore 配置
+
+```gitignore
+# .gitignore 中必须包含：
+.env
+*.log
+data/
+logs/
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/
+```
+
+---
+
+## 补充 D：日志系统实现（插入第7章工具函数部分）
+
+```python
+# src/utils/logger.py
+"""日志系统 —— 多 Agent 调试的核心工具"""
+
+import sys
+import json
+import logging
+from pathlib import Path
+from datetime import datetime
+from typing import Optional
+
+class AgentLogger:
+    """
+    Agent 专用日志器
+    
+    特性：
+    - 每个 Agent 独立的日志文件
+    - 控制台彩色输出（开发期）
+    - JSON 结构化日志（生产期）
+    - 自动记录 Token 消耗
+    """
+    
+    _instances = {}
+    
+    def __new__(cls, name: str, log_dir: str = "logs"):
+        if name not in cls._instances:
+            cls._instances[name] = super().__new__(cls)
+        return cls._instances[name]
+    
+    def __init__(self, name: str, log_dir: str = "logs"):
+        if hasattr(self, '_initialized'):
+            return
+        self._initialized = True
+        
+        self.name = name
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Python 标准 logging
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        
+        # 控制台 handler（带颜色）
+        console = logging.StreamHandler(sys.stdout)
+        console.setLevel(logging.DEBUG)
+        console.setFormatter(ColorFormatter())
+        self.logger.addHandler(console)
+        
+        # 文件 handler
+        file_handler = logging.FileHandler(
+            self.log_dir / f"{name}.log",
+            encoding="utf-8"
+        )
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s | %(name)s | %(levelname)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        ))
+        self.logger.addHandler(file_handler)
+    
+    def debug(self, msg: str, **extra):
+        self.logger.debug(msg, extra={"extra": extra})
+    
+    def info(self, msg: str, **extra):
+        self.logger.info(msg, extra={"extra": extra})
+    
+    def warning(self, msg: str, **extra):
+        self.logger.warning(msg, extra={"extra": extra})
+    
+    def error(self, msg: str, **extra):
+        self.logger.error(msg, extra={"extra": extra})
+    
+    def agent_action(self, action: str, agent: str, detail: dict = None):
+        """记录 Agent 的关键动作"""
+        self.info(f"[{agent}] {action}", extra_data=detail)
+    
+    def llm_call(self, model: str, tokens: int, cost: float, agent: str):
+        """记录 LLM 调用"""
+        self.info(
+            f"LLM call: {model} | tokens={tokens} | cost=¥{cost:.6f} | agent={agent}"
+        )
+
+class ColorFormatter(logging.Formatter):
+    """控制台彩色输出"""
+    
+    COLORS = {
+        'DEBUG': '\033[36m',      # 青色
+        'INFO': '\033[32m',       # 绿色
+        'WARNING': '\033[33m',    # 黄色
+        'ERROR': '\033[31m',      # 红色
+        'CRITICAL': '\033[41m',   # 红底
+        'RESET': '\033[0m'
+    }
+    
+    def format(self, record):
+        color = self.COLORS.get(record.levelname, self.COLORS['RESET'])
+        reset = self.COLORS['RESET']
+        record.levelname = f"{color}{record.levelname}{reset}"
+        return super().format(record)
+
+# ========== 使用示例 ==========
+logger = AgentLogger("debate_engine")
+logger.info("四组辩论开始", session_id="sess_001")
+logger.agent_action("提出方案", "价值组-分析师A", {"ticker": "600519", "weight": 0.3})
+logger.llm_call("deepseek-chat", 1500, 0.002, "价值组-分析师A")
+
+# 输出效果：
+# 14:30:25 | debate_engine | INFO | 四组辩论开始
+# 14:30:28 | debate_engine | INFO | [价值组-分析师A] 提出方案
+# 14:30:35 | debate_engine | INFO | LLM call: deepseek-chat | tokens=1500 | cost=¥0.002
+```
+
+---
+
+## 补充 E：Agent 基类与接口定义（插入第3章）
+
+```python
+# src/agents/base.py
+"""Agent 基类 —— 所有 Agent 的统一接口"""
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Optional
+from datetime import datetime
+import asyncio
+
+from src.utils.logger import AgentLogger
+from src.utils.config import settings
+from src.utils.cost_tracker import cost_tracker
+from src.core.protocol import AgentMessage
+
+@dataclass
+class AgentContext:
+    """Agent 运行的上下文"""
+    session_id: str
+    input_data: dict                    # 输入数据
+    memory: dict = field(default_factory=dict)  # 记忆片段
+    config: dict = field(default_factory=dict)  # Agent 专属配置
+    
+@dataclass
+class AgentResult:
+    """Agent 的标准输出格式"""
+    agent_name: str
+    session_id: str
+    success: bool
+    data: dict                          # 核心输出数据
+    confidence: float = 0.0             # 置信度 0-1
+    reasoning: str = ""                 # 推理过程
+    error: Optional[str] = None         # 错误信息
+    latency_ms: float = 0.0             # 耗时
+    token_usage: dict = field(default_factory=dict)  # Token 消耗
+    
+    def to_message(self) -> AgentMessage:
+        """转换为通信协议消息"""
+        return AgentMessage(
+            sender=self.agent_name,
+            receiver="orchestrator",
+            message_type="report",
+            session_id=self.session_id,
+            payload={
+                "success": self.success,
+                "data": self.data,
+                "confidence": self.confidence,
+                "reasoning": self.reasoning,
+            },
+            confidence=self.confidence,
+        )
+
+class BaseAgent(ABC):
+    """所有 Agent 的抽象基类"""
+    
+    def __init__(self, name: str, config: dict = None):
+        self.name = name
+        self.config = config or {}
+        self.logger = AgentLogger(f"agent.{name}")
+    
+    @abstractmethod
+    async def run(self, ctx: AgentContext) -> AgentResult:
+        """
+        Agent 核心逻辑 —— 子类必须实现
+        
+        实现步骤：
+        1. 从 ctx.input_data 读取输入
+        2. 调用 LLM 或执行计算
+        3. 返回 AgentResult
+        """
+        pass
+    
+    async def run_safe(self, ctx: AgentContext) -> AgentResult:
+        """
+        带完整错误处理的运行入口
+        
+        这个方法是外部调用的入口，内部封装了：
+        - 超时控制
+        - 错误捕获
+        - 日志记录
+        - Token 跟踪
+        """
+        start_time = datetime.now()
+        
+        try:
+            # 超时控制
+            result = await asyncio.wait_for(
+                self.run(ctx),
+                timeout=settings.debate_timeout_seconds
+            )
+            result.agent_name = self.name
+            result.session_id = ctx.session_id
+            result.success = True
+            
+        except asyncio.TimeoutError:
+            self.logger.warning(f"Agent 超时 (>{settings.debate_timeout_seconds}s)")
+            result = AgentResult(
+                agent_name=self.name,
+                session_id=ctx.session_id,
+                success=False,
+                data={},
+                confidence=0.0,
+                error=f"执行超时 ({settings.debate_timeout_seconds}s)"
+            )
+        except Exception as e:
+            self.logger.error(f"Agent 运行失败: {str(e)}")
+            result = AgentResult(
+                agent_name=self.name,
+                session_id=ctx.session_id,
+                success=False,
+                data={},
+                confidence=0.0,
+                error=str(e)
+            )
+        
+        # 记录耗时
+        elapsed = (datetime.now() - start_time).total_seconds() * 1000
+        result.latency_ms = elapsed
+        
+        self.logger.info(
+            f"Agent 完成 | 成功={result.success} | "
+            f"耗时={elapsed:.0f}ms | 置信度={result.confidence:.2f}"
+        )
+        
+        return result
+
+# ========== Agent 实现示例 ==========
+class NewsAnalysisAgent(BaseAgent):
+    """新闻分析 Agent 的实现模板"""
+    
+    async def run(self, ctx: AgentContext) -> AgentResult:
+        news_text = ctx.input_data.get("news", "")
+        # ... LLM 调用逻辑
+        return AgentResult(
+            agent_name=self.name,
+            session_id=ctx.session_id,
+            success=True,
+            data={"summary": "...", "sentiment": "positive"},
+            confidence=0.85,
+            reasoning="基于新闻内容分析..."
+        )
+```
+
+---
+
+## 补充 F：异步并发控制（插入第4章辩论引擎）
+
+```python
+# src/utils/concurrency.py
+"""多 Agent 并发控制 —— 防止 API 限流和资源耗尽"""
+
+import asyncio
+import time
+from typing import Callable, Awaitable
+from dataclasses import dataclass
+
+@dataclass
+class ConcurrencyConfig:
+    """并发策略配置"""
+    max_concurrent: int = 10       # 最大并发 Agent 数
+    max_rpm: int = 300             # 每分钟最大请求数（API 限流）
+    per_agent_delay: float = 0.1   # Agent 之间的启动间隔（秒）
+
+class RateLimiter:
+    """API 速率限制器"""
+    
+    def __init__(self, max_rpm: int = 300):
+        self.max_rpm = max_rpm
+        self.request_times = []
+    
+    async def acquire(self):
+        """获取调用许可，必要时等待"""
+        now = time.time()
+        # 清理 1 分钟前的记录
+        cutoff = now - 60
+        self.request_times = [t for t in self.request_times if t > cutoff]
+        
+        if len(self.request_times) >= self.max_rpm:
+            # 等待最早的请求过期
+            wait_time = self.request_times[0] + 60 - now
+            if wait_time > 0:
+                await asyncio.sleep(wait_time)
+            # 清理后重试
+            self.request_times = self.request_times[1:]
+        
+        self.request_times.append(time.time())
+
+class AgentConductor:
+    """
+    Agent 指挥家 —— 编排多个 Agent 的并发执行
+    
+    用法示例：
+    conductor = AgentConductor(max_concurrent=10)
+    results = await conductor.run_all([
+        ("news_agent", news_agent.run_safe(ctx)),
+        ("market_agent", market_agent.run_safe(ctx)),
+        ("master_buffett", buffett_agent.run_safe(ctx)),
+    ])
+    """
+    
+    def __init__(self, config: ConcurrencyConfig = None):
+        self.config = config or ConcurrencyConfig()
+        self.semaphore = asyncio.Semaphore(self.config.max_concurrent)
+        self.rate_limiter = RateLimiter(self.config.max_rpm)
+    
+    async def run_one(self, name: str, coro) -> tuple:
+        """执行单个 Agent（带并发控制）"""
+        async with self.semaphore:
+            await self.rate_limiter.acquire()
+            await asyncio.sleep(self.config.per_agent_delay)
+            result = await coro
+            return (name, result)
+    
+    async def run_all(self, tasks: list) -> dict:
+        """
+        并行执行多个 Agent
+        
+        输入: [(name1, coro1), (name2, coro2), ...]
+        输出: {name1: result1, name2: result2, ...}
+        """
+        results = await asyncio.gather(
+            *[self.run_one(name, coro) for name, coro in tasks],
+            return_exceptions=True  # 单个失败不影响其他
+        )
+        
+        # 处理结果
+        output = {}
+        for item in results:
+            if isinstance(item, Exception):
+                # 整个 Task 崩溃了（极罕见）
+                name = "unknown"
+                output[name] = item
+            else:
+                name, result = item
+                output[name] = result
+        
+        return output
+
+# ========== 在辩论引擎中的使用示例 ==========
+async def run_full_debate(session_id: str, input_data: dict):
+    """运行完整的四组辩论"""
+    
+    conductor = AgentConductor()
+    
+    # 第1轮：所有分析师并行提方案
+    analyst_tasks = []
+    for group in ["value", "growth", "trend", "quant"]:
+        for i in range(3):  # 每组3个分析师
+            agent = AnalystAgent(f"{group}_analyst_{i}", style=group)
+            ctx = AgentContext(session_id=session_id, input_data=input_data)
+            analyst_tasks.append((f"{group}_{i}", agent.run_safe(ctx)))
+    
+    analyst_results = await conductor.run_all(analyst_tasks)
+    
+    # 第2轮：组内质疑（需要按组串行执行）
+    challenge_results = {}
+    for group in ["value", "growth", "trend", "quant"]:
+        group_results = {
+            k: v for k, v in analyst_results.items() 
+            if k.startswith(group)
+        }
+        # 组内质疑串行
+        challenger = ChallengeAgent(group)
+        ctx = AgentContext(
+            session_id=session_id,
+            input_data={"proposals": group_results}
+        )
+        name, result = await conductor.run_one(
+            f"{group}_challenge", challenger.run_safe(ctx)
+        )
+        challenge_results[name] = result
+    
+    return {
+        "analyst_results": analyst_results,
+        "challenge_results": challenge_results,
+    }
+```
+
+---
+
+## 补充 G：LLM Mock 测试策略（插入测试章节）
+
+### G.1 Mock LLM 的工具函数
+
+```python
+# tests/conftest.py
+"""pytest 共享配置 —— Mock LLM 调用"""
+
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
+
+def make_mock_llm(fixed_response: str = None):
+    """
+    创建 Mock LLM，返回固定响应
+    
+    用法：
+        mock_llm = make_mock_llm('{"summary": "test"}')
+        result = await agent.run(input_data)  # 不会真的调用 LLM
+    """
+    mock = AsyncMock()
+    
+    async def mock_invoke(*args, **kwargs):
+        return MagicMock(
+            content=fixed_response or '{"status": "ok", "data": {}}'
+        )
+    
+    mock.invoke = mock_invoke
+    mock.side_effect = None
+    return mock
+
+def make_mock_llm_sequence(responses: list):
+    """
+    创建 Mock LLM，按顺序返回不同响应
+    
+    用法：
+        mock = make_mock_llm_sequence([
+            '{"summary": "first"}',
+            '{"summary": "second"}',
+        ])
+    """
+    mock = AsyncMock()
+    response_iter = iter(responses)
+    
+    async def mock_invoke(*args, **kwargs):
+        try:
+            content = next(response_iter)
+        except StopIteration:
+            content = '{"status": "ok"}'
+        return MagicMock(content=content)
+    
+    mock.invoke = mock_invoke
+    return mock
+
+@pytest.fixture
+def mock_llm():
+    """所有测试共享的 mock LLM fixture"""
+    with patch("src.agents.news_agent.llm") as mock:
+        mock.invoke.return_value = MagicMock(
+            content='{"summary": "测试摘要", "sentiment": "positive"}'
+        )
+        yield mock
+
+# ========== 在测试中使用 ==========
+# tests/test_agents/test_news_agent.py
+
+@pytest.mark.asyncio
+async def test_news_agent_returns_structured_output(mock_llm):
+    """测试新闻 Agent 输出结构是否正确"""
+    from src.agents.news_agent import NewsAnalysisAgent
+    from src.agents.base import AgentContext
+    
+    agent = NewsAnalysisAgent("test_news")
+    ctx = AgentContext(
+        session_id="test_001",
+        input_data={"news": "美联储降息50个基点"}
+    )
+    
+    result = await agent.run_safe(ctx)
+    
+    assert result.success == True
+    assert result.data["sentiment"] == "positive"
+    assert result.data["summary"] == "测试摘要"
+    assert 0 <= result.confidence <= 1
+```
+
+### G.2 VCR 录制/回放测试
+
+```python
+# 对于更真实的测试，使用 VCR 录制真实的 LLM 响应
+# pip install vcrpy
+
+"""
+VCR 测试模式：
+第1次运行：真实调用 LLM，录制响应
+后续运行：用录制的响应，不实际调用
+
+使用方法：
+@pytest.mark.vcr
+async def test_news_agent_real():
+    agent = NewsAnalysisAgent("test")
+    ctx = AgentContext(...)
+    result = await agent.run_safe(ctx)
+    assert result.success
+"""
+
+# tests/vcr_config.py
+import vcr
+
+my_vcr = vcr.VCR(
+    cassette_library_dir="tests/cassettes",
+    record_mode="once",          # 第一次录制，后续回放
+    match_on=["uri", "method"],  # 按请求地址和方法匹配
+    filter_headers=["authorization"],  # 不记录 API Key
+    decode_compressed_response=True,
+)
+
+# 使用示例
+# @my_vcr.use_cassette("news_analysis.yaml")
+# async def test_with_vcr():
+#     ...
+```
+
+### G.3 测试目录结构
+
+```
+tests/
+├── conftest.py                    # 共享 fixtures（包括上面的 mock）
+├── vcr_config.py                  # VCR 录制配置
+├── cassettes/                     # 录制的 LLM 响应（gitignore）
+├── test_agents/
+│   ├── test_news_agent.py         # 新闻 Agent 测试
+│   ├── test_market_agent.py       # 行情 Agent 测试
+│   ├── test_master_agent.py       # 大师 Agent 测试
+│   └── test_education_agent.py    # 教育 Agent 测试
+├── test_debate/
+│   ├── test_single_group.py       # 单组辩论测试
+│   ├── test_four_groups.py        # 四组辩论测试
+│   └── test_challenge.py          # 质疑机制测试
+├── test_memory/
+│   ├── test_working_memory.py
+│   └── test_reflection.py
+├── test_backtest/
+│   └── test_event_driven.py
+└── test_risk/
+    └── test_risk_agent.py
+```
+
+---
+
+## 补充 H：akshare Windows 特殊处理（插入第4章数据采集）
+
+### H.1 Windows 安装与配置
+
+```bash
+# 如果在 Windows 上安装 akshare 失败：
+# 错误1：Microsoft Visual C++ 14.0 is required
+# 解决方案：安装 C++ Build Tools
+# 下载：https://visualstudio.microsoft.com/visual-cpp-build-tools/
+# 运行安装程序 → 勾选 "Desktop development with C++"
+
+# 错误2：ImportError: DLL load failed
+# 解决方案：更新 Visual C++ Redistributable
+# 下载：https://aka.ms/vs/17/release/vc_redist.x64.exe
+
+# 错误3：SSL: CERTIFICATE_VERIFY_FAILED
+# 临时解决方案（仅开发期）：
+$env:PYTHONHTTPSVERIFY = "0"
+
+# 或者用 conda 安装（更稳定）：
+conda install -c conda-forge akshare
+```
+
+### H.2 数据采集的健壮封装
+
+```python
+# src/data/market_data.py
+"""A 股行情数据采集 —— 带错误处理和缓存的 akshare 封装"""
+
+import akshare as ak
+import pandas as pd
+from typing import Optional
+from cachetools import TTLCache, cached
+from src.utils.logger import AgentLogger
+
+logger = AgentLogger("data.market")
+
+# 行情缓存（5 分钟有效）
+price_cache = TTLCache(maxsize=64, ttl=300)
+
+# 日K线缓存（1 小时有效）
+kline_cache = TTLCache(maxsize=128, ttl=3600)
+
+class MarketDataError(Exception):
+    """行情数据异常"""
+    pass
+
+def safe_akshare_call(func, *args, **kwargs):
+    """
+    安全的 akshare 调用封装
+    
+    akshare 的网络请求可能因为各种原因失败，
+    这个函数统一处理异常并返回 None 而不是让程序崩溃。
+    """
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        logger.warning(f"akshare 调用失败: {func.__name__} | {str(e)}")
+        return None
+
+@cached(price_cache)
+def get_realtime_price(ticker: str) -> Optional[dict]:
+    """获取实时行情（带 5 分钟缓存）"""
+    try:
+        df = ak.stock_zh_a_spot_em()
+        stock = df[df["代码"] == ticker]
+        if stock.empty:
+            logger.warning(f"股票 {ticker} 未找到")
+            return None
+        
+        row = stock.iloc[0]
+        return {
+            "ticker": ticker,
+            "name": row.get("名称", ""),
+            "price": float(row.get("最新价", 0)),
+            "change_pct": float(row.get("涨跌幅", 0)),
+            "volume": float(row.get("成交量", 0)),
+            "amount": float(row.get("成交额", 0)),
+            "pe": float(row.get("市盈率-动态", 0)),
+            "market_cap": float(row.get("总市值", 0)),
+        }
+    except Exception as e:
+        logger.error(f"获取实时行情失败: {ticker} | {e}")
+        return None
+
+@cached(kline_cache)
+def get_kline_data(ticker: str, start_date: str = "20240101") -> Optional[pd.DataFrame]:
+    """获取日K线数据（带 1 小时缓存）"""
+    try:
+        df = ak.stock_zh_a_hist(
+            symbol=ticker,
+            period="daily",
+            start_date=start_date,
+            adjust="qfq"  # 前复权
+        )
+        return df
+    except Exception as e:
+        logger.error(f"获取K线失败: {ticker} | {e}")
+        return None
+
+def get_multiple_stocks(tickers: list) -> dict:
+    """批量获取多只股票行情（只调用一次 akshare）"""
+    try:
+        df = ak.stock_zh_a_spot_em()
+        results = {}
+        for ticker in tickers:
+            stock = df[df["代码"] == ticker]
+            if not stock.empty:
+                row = stock.iloc[0]
+                results[ticker] = {
+                    "price": float(row.get("最新价", 0)),
+                    "change_pct": float(row.get("涨跌幅", 0)),
+                }
+        return results
+    except Exception as e:
+        logger.error(f"批量获取行情失败: {e}")
+        return {}
+```
+
+---
+
+## 补充 I：Streamlit 前端部署方案（插入第4章前端）
+
+### I.1 运行方式
+
+```bash
+# 1. 本地运行
+cd frontend/streamlit_app
+streamlit run app.py
+# 浏览器打开 http://localhost:8501
+
+# 2. 局域网分享（同 wifi 下的设备可访问）
+streamlit run app.py --server.address 0.0.0.0
+
+# 3. 用 ngrok 临时暴露到公网
+# 下载 https://ngrok.com/download
+ngrok http 8501
+# ngrok 会给你一个 https://xxxx.ngrok.io 地址
+# 可以直接发给别人看
+
+# 4. Docker 部署
+docker build -t litchi-frontend -f Dockerfile.streamlit .
+docker run -p 8501:8501 litchi-frontend
+```
+
+### I.2 Dockerfile
+
+```dockerfile
+# Dockerfile.streamlit
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Python 依赖
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制代码
+COPY . .
+
+# 暴露端口
+EXPOSE 8501
+
+# 启动命令
+CMD ["streamlit", "run", "frontend/streamlit_app/app.py", \
+     "--server.port=8501", \
+     "--server.address=0.0.0.0", \
+     "--server.enableCORS=false"]
+```
+
+### I.3 requirements.txt（前端专用）
+
+```txt
+# frontend/requirements.txt
+streamlit==1.35.0
+plotly==5.22.0
+pandas==2.2.0
+httpx==0.27.0
+```
+
+---
+
+## 补充 J：Phase 0 分日执行表（替代原版笼统的"第1-3周"）
+
+| 天数 | 任务 | 具体内容 | AI 指令 | 验证方式 |
+|------|------|---------|---------|---------|
+| **Day 1** | 环境搭建 | 安装 conda/Python/Node.js/Claude Code，验证可用 | —（手工） | `python --version && claude --version` |
+| **Day 2** | 项目初始化 | 让 AI 生成 pyproject.toml + 目录结构 | 见原方案 2.2 | `pytest` 可运行（空的） |
+| **Day 3** | 密钥管理 | 创建 .env + settings.yaml，测试配置加载 | "帮我写 Pydantic Settings 配置类" | `python -c "from src.utils.config import settings; print(settings.llm_provider)"` |
+| **Day 4** | 日志系统 | 实现 AgentLogger | "帮我写一个带颜色的日志系统" | 运行测试，看控制台有没有彩色输出 |
+| **Day 5** | 通信协议 | 实现 JSON Schema 消息格式 | 见原方案 3.2 Step 2 | `pytest tests/test_protocol.py -v` |
+| **Day 6** | LLM 工具 | 实现 LLM 调用封装 + 模型路由 + 成本追踪 | "帮我封装 LLM 调用，支持模型切换和费用跟踪" | `python -m src.utils.llm` |
+| **Day 7** | LangGraph 学习 | 跑通 LangGraph Hello World | "给一个 LangGraph 最简例子" | 命令行输出 "Hello from Node A → B → C" |
+| **Day 8** | 编排器 | 实现"新闻→行情→评审"三Agent流程 | 见原方案 3.2 Step 3 | `pytest tests/test_orchestrator.py -v` |
+| **Day 9** | Agent 基类 | 定义 BaseAgent + AgentResult | 见补充 E | 多个Agent都走同一个接口 |
+| **Day 10** | 新闻 Agent | 实现新闻分析 Agent（Mock数据） | 见原方案 3.3 任务1 | `pytest tests/test_agents/test_news_agent.py -v` |
+| **Day 11** | 行情 Agent | 实现行情分析 Agent（Mock数据） | 见原方案 3.3 任务2 | 同上 |
+| **Day 12** | 教育 Agent | 实现"小智"基础问答能力 | 见原方案 3.3 任务3 | 命令行问"什么是MACD"得到回答 |
+| **Day 13** | 大师 Agent | 巴菲特 + 芒格原型 | 见原方案 3.4 | 两位大师分析同一只股票，输出不同风格 |
+| **Day 14** | 集成测试 | 全部 Phase 0 功能联调 + 修复 Bug | "帮我排查运行失败的原因" | 所有 pytest 通过，命令行演示成功 |

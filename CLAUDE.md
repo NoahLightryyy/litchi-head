@@ -7,9 +7,9 @@
 
 ## 核心规则
 
-1. **会话启动**：执行 `/resume-session` Skill（项目级），或手动读取 `docs/流程规范/AI会话交接文档.md` §2+§5 + 最新工作日志
+1. **会话启动**：执行 `/resume-session` Skill（项目级），或手动读取 `docs/01-guides/HANDOVER.md` §2+§5 + 最新工作日志
 2. **三同步原则**：代码 + 文档 + 债务日志，改一个必须改全部
-3. **发现债务必登记** — 使用 `docs/技术债务与架构决策/债务新增模板.md` 模板
+3. **发现债务必登记** — 使用 `docs/01-guides/debt/TEMPLATE.md` 模板
 4. **每次会话结束必须更新**：AI 工作日志 + 债务日志（如有变更）
 5. **Batch Loop 模式**（用户指方向 → 我自动跑）：见下方「Batch Loop 模式」节
 6. **上下文耗尽自动交接**：检测到上下文窗口接近上限时，立即执行交接流程（更新日志+债务+看板+提交），不继续推进新工作
@@ -23,17 +23,23 @@
 - **类型注解必须完整** — Pyright basic mode 零错误通过
 - **`src/utils/llm.py`** — 所有 LLM 调用必经此层，不得直接实例化 ChatDeepSeek
 
-## 项目文档索引
+## 项目文档索引（新结构）
+
+> `docs/` 已按「受众 × 生命周期」重组。旧路径仍可通过 `.legacy` 目录访问。
 
 | 文档 | 位置 |
 |------|------|
-| AI 工作流程 | `docs/流程规范/AI自动化工作流程.md` |
-| 当前工作日志 | `docs/ai-work-logs/` |
-| 技术债务日志 | `docs/技术债务与架构决策/技术债务日志.md` |
-| 债务新增模板 | `docs/技术债务与架构决策/债务新增模板.md` |
-| 架构决策记录 | `docs/技术债务与架构决策/架构决策记录.md` |
-| 设计文档 | `docs/架构设计/` · `docs/产品需求/` · `docs/调研分析/` |
-| 环境变量配置 | `docs/环境配置指南.md`（配置变更时参考） |
+| 🏠 项目总览 | `docs/00-overview/OVERVIEW.md` |
+| 📐 AI 工作流程 | `docs/01-guides/WORKFLOW.md` |
+| 📐 会话交接 | `docs/01-guides/HANDOVER.md` |
+| 📐 环境配置 | `docs/01-guides/ENVIRONMENT.md` |
+| 🐛 债务路由 | `docs/01-guides/debt/ROUTER.md` |
+| 🐛 债务模板 | `docs/01-guides/debt/TEMPLATE.md` |
+| 🏛️ 跨模块 ADR | `docs/05-decisions/README.md` |
+| 🔧 **模块规格（核心）** | `docs/03-modules/` → 辩论引擎 → `02-debate-engine/` |
+| 📋 产品需求 | `docs/02-requirements/` |
+| 📋 AI 工作日志 | `docs/04-changelog/logs/` |
+| 🗄️ 归档 | `docs/99-archive/` |
 
 ## 模型策略（快慢分离）
 
@@ -89,17 +95,17 @@ ANTHROPIC_MODEL=deepseek-chat
 ### 交接流程（约 5 分钟）
 
 ```
-┌─ 1. 更新工作日志 ─────────────────────────────┐
-│  docs/ai-work-logs/YYYY/MM/DD/YYYY-MM-DD-N.md  │
-│  → 记录本次做了什么、改了哪些文件、测试结果       │
-│  → 标记「上下文耗尽，需续接」                     │
-├─ 2. 更新债务日志 ──────────────────────────────┤
-│  docs/技术债务与架构决策/技术债务日志.md           │
-│  → 如有新增债务，按模板登记                       │
-├─ 3. 更新时间线文档 ────────────────────────────┤
-│  docs/计划/README.md (看板)                      │
-│  docs/流程规范/AI会话交接文档.md §2 + §5         │
-│  → 同步当前阶段、完成度、下一步优先级               │
+┌─ 1. 更新工作日志 ─────────────────────────────────┐
+│  docs/04-changelog/logs/YYYY-MM-DD-N.md           │
+│  → 记录本次做了什么、改了哪些文件、测试结果           │
+│  → 标记「上下文耗尽，需续接」                        │
+├─ 2. 更新债务日志 ─────────────────────────────────┤
+│  docs/01-guides/debt/ROUTER.md → 对应类型文件      │
+│  → 如有新增债务，按模板登记                          │
+├─ 3. 更新时间线文档 ───────────────────────────────┤
+│  docs/计划/README.md (看板)                         │
+│  docs/01-guides/HANDOVER.md §2 + §5               │
+│  → 同步当前阶段、完成度、下一步优先级                  │
 ├─ 4. 提交当前工作 ──────────────────────────────┤
 │  git add -A && git commit -m "..."              │
 │  → 提交信息注明「context-exhausted-handover」    │
