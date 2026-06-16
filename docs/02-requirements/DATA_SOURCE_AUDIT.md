@@ -137,29 +137,49 @@ eToro UK MD 原话：*"General LLMs are not reliable stock pickers — they misq
 - 锁定 akshare 版本不升级
 - 持续运行健康监控，累积 1 个月真实失败率数据
 
-### Phase 2（下一两周，~500 元/年）
+### Phase 2（下一两周，零成本）
 
-建议接入 **Tushare Pro**：
-- 500 元/年，成功率 99.7%（vs akshare 92.1%）
-- 1-3 秒延迟（vs akshare 3-5 分钟）
-- 标准化 HTTP API，不需爬虫
-- 覆盖 A 股行情/财务/板块/新闻全部需求
+> **修正**：原方案推荐 Tushare Pro（500 元/年），但面向散户群体必须零成本。
+> 改用 **adata + zzshare + efinance** 三源组合，全部免费。
 
-**架构**：
+**adata**（主数据源）：
+- 5 源融合：同花顺 + 东方财富 + 新浪 + 腾讯 + 百度，源挂了自动切另一个
+- 覆盖：日/周/月 K 线、实时 5 档行情、概念板块、资金流向、北向资金、龙虎榜
+- Apache-2.0 开源，3300+ Star，v2.9.0（2025 年 4 月发布）
+
+```python
+import adata
+
+# 多源自动切换，上层无感知
+df = adata.stock.market.get_market(
+    stock_code='000001', k_type=1,
+    start_date='2025-01-01'
+)
 ```
-Tushare Pro（主数据源，成功率 99.7%）
-    ↑ fallback（故障自动切换）
-akshare（备用，成功率 92.1%）
+
+**zzshare**（Tushare 兼容备源）：
+- 接口规范与 Tushare Pro 一致，无需 Token、无需积分、完全免费
+- 40+ 接口（日线、资金流向、板块热度、龙虎榜、情绪指标）
+- 若将来切 Tushare Pro，代码一行不用改
+
+```python
+from zzshare import pro
+df = pro.daily(ts_code='600519.SH', start_date='20250101', end_date='20250616')
 ```
 
-数据层抽接口：
+**efinance**（资金流向专项补充）：
+- 主力/大单/超大单资金流向分层更细致
+
+**数据层 Provider 抽象**（无论选什么数据源，架构必须抽接口）：
+
 ```python
 class DataSource(Protocol):
     def get_all_stocks(self) -> list[StockInfo]: ...
     def get_realtime_quotes(self) -> list[StockQuote]: ...
 
 class AKShareSource(DataSource): ...   # Phase 1 现有实现
-class TushareSource(DataSource): ...   # Phase 2 新接入
+class ADataSource(DataSource): ...     # Phase 2 新接入（主源）
+class ZzshareSource(DataSource): ...   # Phase 2 新接入（备源）
 class FallbackSource(DataSource): ...  # 主源挂了切备用
 ```
 

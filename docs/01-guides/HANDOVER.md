@@ -34,14 +34,15 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `36c6671` — docs: 全量文档同步 + §3.1.1 文档同步审计清单 |
+| **最新提交** | `1f6298f` — docs: 上下文同步 — 数据源审计 + 健康监控状态更新 |
 
 ---
 
-## 2. 当前会话状态（2026-06-16 — 数据源深度审计 + HealthStats 健康监控 ✅）
+## 2. 当前会话状态（2026-06-16 — Provider 抽象层 + 免费多源架构 ✅）
 
-> **本次完成**：Batch 4 — 数据源深度审计（7 组代理并行调研 10+ 平台）+ DataCollector 健康监控上线。
-> **前期完成**：Batch 3 — Sprint 6 Lightweight Charts K 线真渲染 + 数据源造假清除。
+> **本次完成**：Batch 5 — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现 + DATA_SOURCE_AUDIT.md 方案修正（免费化）。
+> **前期完成**：Batch 4 — 数据源深度审计 + DataCollector 健康监控上线。
+> Batch 3 — Sprint 6 Lightweight Charts K 线真渲染 + 数据源造假清除。
 > Batch 1 FastAPI 桥接层编码 + Batch 2 前端接入真实 API + 前端 MVP 架构设计（47 文件）。
 
 ### 完成内容
@@ -79,6 +80,15 @@
 | **Batch 4: 数据源深度审计** — 覆盖 10+ 平台，产出 DATA_SOURCE_AUDIT.md | ✅ |
 | **HealthStats 监控** — 每个 endpoint 记录成功率/延迟/错误 | ✅ |
 | **`/api/health/data-source`** — 实时数据源健康暴露端点 | ✅ |
+| **Batch 5: DataSource Provider 抽象层** — `src/data/providers/` 全新模块（7 文件） | ✅ |
+| **AKShareSource 抽离** — 从 `collector.py` 移出到 `providers/akshare.py` | ✅ |
+| **ADataSource** — adata 5 源融合（同花顺/东财/新浪/腾讯/百度）自动切换，免费 | ✅ |
+| **ZzshareSource** — Tushare 兼容零 Token 零积分数据源 | ✅ |
+| **FallbackSource** — 按 endpoint 独立故障自动切换（连续 N 次失败降级） | ✅ |
+| **DataCollector 重构** — 直调 akshare → 委托 DataSource，API 完全向后兼容 | ✅ |
+| **数据原则修正** — DATA_SOURCE_AUDIT.md Phase2 从 Tushare Pro(500元/年)改为零成本方案 | ✅ |
+| **Provider 层测试** — 19 个单元测试（协议验证 + FallbackSource 全覆盖） | ✅ |
+| **全量 719+19 = 738 passed, Pyright 零错误** | ✅ |
 
 ### 重要：项目目录新结构
 
@@ -259,11 +269,12 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-16 更新 — 数据源深度审计 + 健康监控 ✅）
+## 5. 下一步优先级（2026-06-16 更新 — Provider 抽象层 + 免费多源架构 ✅）
 
 > **本次完成**：
-> - Batch 4: 数据源深度审计 7 组并行调研，产出 DATA_SOURCE_AUDIT.md
-> - HealthStats 健康监控上线，`/api/health/data-source` 实时可查
+> - Batch 5: DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现
+> - DataCollector 重构：直调 akshare → 委托 DataSource，API 完全向后兼容
+> - DATA_SOURCE_AUDIT.md Phase 2 方案从 Tushare Pro（500 元/年）修正为零成本多源
 >
 > 建议下一步：**后端占位路由完善 + 板块数据增强层**。
 
@@ -273,7 +284,7 @@ klines = collector.get_klines("000001", period="daily")
 |:------:|:-----|:--------:|:-----:|
 | 🥇 **后端完善** | trust.py 信任度路由 / capital-flow 资金流向路由完整实现 | `backend/` | ~0.5d |
 | 🥇 **TD-020** | 板块数据增强层 — heat/chain_map/ai_analysis 接入真实数据源 | `backend/routers/market.py` | ~0.5d |
-| 🥇 **数据源升级** | 接入 Tushare Pro（主，~500元/年）+ akshare fallback 架构 | `src/data/` | ~1d |
+| 🥇 **数据源生产配置** | `pip install adata` 后切换 ADataSource 做主源 + FallbackSource(AKShareSource) 做降级 | `src/data/` | ~0.2d |
 | 🥈 **Tab 面板** | 技术指标/资金流向/信任度 3 个占位 tab 实现 | `frontend/` | ~1d |
 | 🟢 后续 | **暗色主题打磨** — 加载态、骨架屏、错误态等体验优化 | 全局 | ~0.5d |
 
@@ -294,12 +305,13 @@ klines = collector.get_klines("000001", period="daily")
 2. cd e:/litchi-head && python -m uvicorn backend.main:app --port 8000
 3. cd frontend && pnpm dev
 4. curl localhost:8000/api/health/data-source   ← 查看数据源健康状态
-5. 后端 trust.py + capital-flow 路由完善
-6. 板块数据增强层（TD-020）
-7. Tab 面板实现（技术指标/资金流向/信任度）
+5. pip install adata && 切换 DataCollector 到 FallbackSource(ADataSource, AKShareSource)
+6. 后端 trust.py + capital-flow 路由完善
+7. 板块数据增强层（TD-020）
+8. Tab 面板实现（技术指标/资金流向/信任度）
 ```
 
-> **最后更新**：2026-06-16（数据源深度审计 + 健康监控 — 7 组调研 + DATA_SOURCE_AUDIT.md ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-16（Batch 5: Provider 抽象层 + 免费多源架构 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 

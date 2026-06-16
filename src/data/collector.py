@@ -1,24 +1,23 @@
-"""A 股数据采集器 —— 封装 akshare 调用
+"""A 股数据采集器 —— 封装数据源 Provider 层
 
 核心设计：
-1. 所有 akshare 调用通过缓存层，减少请求频率
-2. 返回 Pydantic 模型（数据契约，遵循 ADR-001/008）
-3. 错误处理：网络异常返回空列表，不抛异常（"尽力而为"原则）
-4. 日志记录所有操作和异常
-5. 健康监控：每个 endpoint 记录调用次数、失败次数、延迟，可对外暴露
+1. 所有数据源调用通过 DataSource 协议接口，不直接调具体库
+2. 缓存层（TTL）减少请求频率
+3. 健康监控记录每个 endpoint 的调用次数/失败率/延迟
+4. 默认使用 AKShareSource（向后兼容）
 
 用法：
     collector = DataCollector()
-    stocks = collector.get_all_stocks()
-    quotes = collector.get_realtime_quotes()
+    stocks = collector.get_all_stocks()       # 默认 akshare
+
+    # 切换数据源
+    from src.data.providers.adata import ADataSource
+    collector = DataCollector(source=ADataSource())
 """
 
 import logging
 import time
 from collections import defaultdict
-
-import akshare as ak
-import pandas as pd
 
 from src.data.cache import DataCache
 from src.data.models import (
@@ -30,6 +29,7 @@ from src.data.models import (
     StockInfo,
     StockQuote,
 )
+from src.data.providers import AKShareSource, DataSource
 
 logger = logging.getLogger("data.collector")
 
@@ -48,7 +48,7 @@ TTL_BOARDS = 3600       # 板块：1 小时
 class HealthStats:
     """数据源健康统计
 
-    跟踪每个 endpont（如 "all_stocks"、"quotes"、"kline"）的调用情况。
+    跟踪每个 endpoint（如 "all_stocks"、"quotes"、"kline"）的调用情况。
     所有 DataCollector 方法通过 _track() 自动记录。
 
     Thread-safe: 因 GIL，Counter 自增和列表追加在当前环境下安全。
@@ -73,7 +73,6 @@ class HealthStats:
             self._success[endpoint] += 1
             self._last_success_ts[endpoint] = time.time()
 
-        # 延迟记录（滑动窗口）
         bucket = self._latencies[endpoint]
         bucket.append(duration_ms)
         if len(bucket) > self._window_size:
@@ -129,14 +128,16 @@ def get_health_stats() -> HealthStats:
 class DataCollector:
     """A 股数据采集器
 
-    封装 akshare 调用，提供类型化返回值和缓存能力。
-    所有方法均为同步，内部使用 requests 阻塞调用（akshare 原生模式）。
+    通过 DataSource 协议接口获取数据，提供缓存和健康监控能力。
+    默认使用 AKShareSource（向后兼容）。
 
     Args:
+        source: 数据源实现，None 则使用 AKShareSource
         cache: 可选的 DataCache 实例，不传则新建
     """
 
-    def __init__(self, cache: DataCache | None = None):
+    def __init__(self, source: DataSource | None = None, cache: DataCache | None = None):
+        self._source = source or AKShareSource()
         self.cache = cache or DataCache()
 
     # ── 股票信息 ─────────────────────────────────────────────────────
@@ -155,11 +156,7 @@ class DataCollector:
 
         t0 = time.time()
         try:
-            df = ak.stock_info_a_code_name()
-            result = [
-                StockInfo(code=str(row["code"]), name=str(row["name"]))
-                for _, row in df.iterrows()
-            ]
+            result = self._source.get_all_stocks()
             self.cache.set("all_stocks", result, ttl=TTL_STOCKS)
             _health_stats.record_call("all_stocks", (time.time() - t0) * 1000)
             return result
@@ -184,8 +181,7 @@ class DataCollector:
 
         t0 = time.time()
         try:
-            df = ak.stock_zh_a_spot_em()
-            result = [_row_to_quote(row) for _, row in df.iterrows()]
+            result = self._source.get_realtime_quotes()
             self.cache.set("all_quotes", result, ttl=TTL_QUOTES)
             _health_stats.record_call("quotes", (time.time() - t0) * 1000)
             return result
@@ -243,14 +239,7 @@ class DataCollector:
 
         t0 = time.time()
         try:
-            df = ak.stock_zh_a_hist(
-                symbol=code,
-                period=period,
-                start_date=start,
-                end_date=end,
-                adjust=adjust,
-            )
-            result = [_row_to_kline(row) for _, row in df.iterrows()]
+            result = self._source.get_klines(code, period=period, start=start, end=end, adjust=adjust)
             ttl = TTL_KLINES_DAILY if period == "daily" else 60
             self.cache.set(cache_key, result, ttl=ttl)
             _health_stats.record_call(f"kline:{period}", (time.time() - t0) * 1000)
@@ -280,8 +269,7 @@ class DataCollector:
 
         t0 = time.time()
         try:
-            df = ak.stock_news_em(symbol=code)
-            result = [_row_to_news(row, code) for _, row in df.iterrows()]
+            result = self._source.get_news(code)
             self.cache.set(cache_key, result, ttl=TTL_NEWS)
             _health_stats.record_call("news", (time.time() - t0) * 1000)
             return result
@@ -306,15 +294,7 @@ class DataCollector:
 
         t0 = time.time()
         try:
-            df = ak.stock_board_industry_name_em()
-            result = [
-                BoardInfo(
-                    code=str(row["板块代码"]),
-                    name=str(row["板块名称"]),
-                    board_type="industry",
-                )
-                for _, row in df.iterrows()
-            ]
+            result = self._source.get_industry_boards()
             self.cache.set("industry_boards", result, ttl=TTL_BOARDS)
             _health_stats.record_call("industry_boards", (time.time() - t0) * 1000)
             return result
@@ -337,15 +317,7 @@ class DataCollector:
 
         t0 = time.time()
         try:
-            df = ak.stock_board_concept_name_em()
-            result = [
-                BoardInfo(
-                    code=str(row["板块代码"]),
-                    name=str(row["板块名称"]),
-                    board_type="concept",
-                )
-                for _, row in df.iterrows()
-            ]
+            result = self._source.get_concept_boards()
             self.cache.set("concept_boards", result, ttl=TTL_BOARDS)
             _health_stats.record_call("concept_boards", (time.time() - t0) * 1000)
             return result
@@ -355,82 +327,7 @@ class DataCollector:
             return []
 
 
-# ── DataFrame → Model 转换函数 ────────────────────────────────────────
-
-
-def _row_to_quote(row: pd.Series) -> StockQuote:
-    """将 akshare 实时行情的 DataFrame 行转换为 StockQuote"""
-    return StockQuote(
-        code=_safe_str(row, "代码"),
-        name=_safe_str(row, "名称"),
-        price=_safe_float(row, "最新价"),
-        change=_safe_float(row, "涨跌额"),
-        change_pct=_safe_float(row, "涨跌幅"),
-        volume=_safe_int(row, "成交量"),
-        amount=_safe_float(row, "成交额"),
-        high=_safe_float(row, "最高"),
-        low=_safe_float(row, "最低"),
-        open_=_safe_float(row, "今开"),
-        prev_close=_safe_float(row, "昨收"),
-    )
-
-
-def _row_to_kline(row: pd.Series) -> KLine:
-    """将 akshare K 线 DataFrame 行转换为 KLine"""
-    return KLine(
-        date=_safe_str(row, "日期"),
-        open=_safe_float(row, "开盘"),
-        close=_safe_float(row, "收盘"),
-        high=_safe_float(row, "最高"),
-        low=_safe_float(row, "最低"),
-        volume=_safe_int(row, "成交量"),
-        amount=_safe_float(row, "成交额"),
-    )
-
-
-def _row_to_news(row: pd.Series, code: str) -> NewsItem:
-    """将 akshare 新闻 DataFrame 行转换为 NewsItem"""
-    return NewsItem(
-        code=code,
-        title=_safe_str(row, "title"),
-        date=_safe_str(row, "date"),
-        content=_safe_str(row, "content"),
-        source=_safe_str(row, "source"),
-        url=_safe_str(row, "url"),
-    )
-
-
-def _safe_str(row: pd.Series, key: str) -> str:
-    """安全地从 Series 提取 str 值"""
-    try:
-        val = row.get(key, "")
-        if val is None or (hasattr(val, "__len__") and len(val) == 0):
-            return ""
-        return str(val)
-    except (ValueError, TypeError):
-        return ""
-
-
-def _safe_float(row: pd.Series, key: str) -> float:
-    """安全地从 Series 提取 float 值"""
-    try:
-        val: object = row.get(key, 0.0)
-        if val is None:
-            return 0.0
-        return float(val)
-    except (ValueError, TypeError):
-        return 0.0
-
-
-def _safe_int(row: pd.Series, key: str) -> int:
-    """安全地从 Series 提取 int 值"""
-    try:
-        val: object = row.get(key, 0)
-        if val is None:
-            return 0
-        return int(val)
-    except (ValueError, TypeError):
-        return 0
+# ── 市场简报 ────────────────────────────────────────────────────────────
 
 
 def format_market_brief(
@@ -470,7 +367,6 @@ def format_market_brief(
         parts.append(f"成交量 {quote.volume:,} 手")
         quote_lines.append(" | ".join(parts))
 
-        # 关键价位
         kp_parts: list[str] = []
         if quote.open_:
             kp_parts.append(f"今开 {quote.open_:.2f}")
@@ -483,7 +379,6 @@ def format_market_brief(
         if kp_parts:
             quote_lines.append(" | ".join(kp_parts))
 
-    # 近期走势（并入行情层）
     if klines and len(klines) >= 2:
         closes = [k.close for k in klines if k.close > 0]
         if len(closes) >= 2:
@@ -533,4 +428,4 @@ def format_market_brief(
     return brief.to_text()
 
 
-__all__ = ["DataCollector", "format_market_brief"]
+__all__ = ["DataCollector", "format_market_brief", "get_health_stats", "HealthStats"]
