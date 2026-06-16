@@ -11,10 +11,10 @@
 总 Python 测试数 │ 721
 技术债务         │ 18 条总记 / 9 条已关闭 / 9 条开放
 紧急指数         │ 1.4/10
-当前阶段         │ Phase 1 MVP → 前端架构 + FastAPI 桥接就绪
+当前阶段         │ Phase 1 MVP → 数据源审计完成，健康监控上线
 前端进度         │ React 脚手架就绪 + K 线真渲染，pnpm build 通过 ✅
 后端桥接         │ FastAPI 桥接层已编码（7 文件，4 组路由）✅
-数据源诚信        │ 全项目零造假数据 ✅
+数据源诚信        │ 全项目零造假数据 ✅ + 数据源审计报告完成 ✅
 ```
 
 ---
@@ -95,9 +95,11 @@
 - ✅ **安装依赖 + 构建验证** — pnpm install + pnpm build 通过
 - ✅ **前端接入真实 API** — 三页 mock 数据替换为 TanStack Query hooks，
   搜索 autocomplete，QueryClientProvider 全局集成
+- ✅ **⚠️ 数据源造假全面清除** — 5 处硬编码删除，全项目零造假数据
 - ✅ **Sprint 6: Lightweight Charts K 线真渲染** — CandlestickChart 组件封装 +
   KlineChart 自包含数据获取 + 成交量直方图 + 暗色主题
-- ✅ **⚠️ 数据源造假全面清除** — 5 处硬编码删除，全项目零造假数据
+- ✅ **数据源深度审计** — 7 组代理并行调研 10+ 平台，产出 DATA_SOURCE_AUDIT.md
+- ✅ **HealthStats 健康监控** — `/api/health/data-source` 实时监控数据源状态
 
 ---
 
@@ -141,6 +143,7 @@
 |:------:|:-----|:----|:----:|
 | 🥇 | **后端完善** — trust.py 信任度路由 + capital-flow 完整实现 | FastAPI 骨架就绪 | ~0.5d |
 | 🥇 | **TD-020 板块数据增强层** — heat/chain_map/ai_analysis 接入真实数据源 | 造假数据已清除 | ~0.5d |
+| 🥇 | **数据源升级** — Tushare Pro（主）+ akshare fallback 架构 | DATA_SOURCE_AUDIT.md | ~1d |
 | 🥈 | **技术指标/资金流向/信任度 tab 面板** — 3 个占位 tab 实现 | 个股页就绪 | ~1d |
 | 🟢 | **暗色主题打磨** — 加载态/骨架屏/错误态 | 核心功能就绪 | ~0.5d |
 | ⬜ | **前端 Makefile 命令** — make frontend-dev / make frontend-build | 脚手架就绪 | ~0.5d |
@@ -210,6 +213,7 @@ backend/（FastAPI 桥接层 — 零造假数据 ✅）
 | 2026-06-16 | **FastAPI 桥接层 + 前端构建验证** — 7 文件编码、pnpm build 通过 |
 | 2026-06-16 | **前端接入真实 API** — 三页 mock→hooks 组件化，搜索 autocomplete |
 | 2026-06-16 | **Sprint 6 K 线真渲染 + 数据源造假清除** — CandlestickChart + zero mock |
+| 2026-06-16 | **数据源深度审计 + 健康监控** — DATA_SOURCE_AUDIT.md + `/api/health/data-source` |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。

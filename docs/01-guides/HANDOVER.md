@@ -38,12 +38,11 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-16 — Sprint 6 K 线真渲染 + 数据源造假全面清除 ✅）
+## 2. 当前会话状态（2026-06-16 — 数据源深度审计 + HealthStats 健康监控 ✅）
 
-> **本次完成**：Batch 3 — Sprint 6 Lightweight Charts K 线真渲染（CandlestickChart + KlineChart 自包含数据获取 + 成交量直方图）。
-> **⚠️ 数据源诚信审计**：发现并清除 5 处造假数据（debate-panel 硬编码大师分析 + market.py 板块硬编码 + chain-map 硬编码代码映射）。
-> 全项目 frontend/ + backend/ **零造假数据** ✅。
-> 前期完成：Batch 1 FastAPI 桥接层编码 + Batch 2 前端接入真实 API + 前端 MVP 架构设计（47 文件）。
+> **本次完成**：Batch 4 — 数据源深度审计（7 组代理并行调研 10+ 平台）+ DataCollector 健康监控上线。
+> **前期完成**：Batch 3 — Sprint 6 Lightweight Charts K 线真渲染 + 数据源造假清除。
+> Batch 1 FastAPI 桥接层编码 + Batch 2 前端接入真实 API + 前端 MVP 架构设计（47 文件）。
 
 ### 完成内容
 
@@ -77,6 +76,9 @@
 | **Batch 3: Sprint 6 K 线真渲染** — CandlestickChart + KlineChart 自包含 + 成交量直方图 | ✅ |
 | **⚠️ 数据源造假清除** — debate-panel/market.py/chain-map 5 处硬编码全部删除 | ✅ |
 | **全量数据源诚信审计** — frontend + backend 零造假数据 | ✅ |
+| **Batch 4: 数据源深度审计** — 覆盖 10+ 平台，产出 DATA_SOURCE_AUDIT.md | ✅ |
+| **HealthStats 监控** — 每个 endpoint 记录成功率/延迟/错误 | ✅ |
+| **`/api/health/data-source`** — 实时数据源健康暴露端点 | ✅ |
 
 ### 重要：项目目录新结构
 
@@ -257,11 +259,11 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-16 更新 — Sprint 6 K 线真渲染 + 数据源造假清除 ✅）
+## 5. 下一步优先级（2026-06-16 更新 — 数据源深度审计 + 健康监控 ✅）
 
 > **本次完成**：
-> - Sprint 6: Lightweight Charts K 线真渲染（CandlestickChart 组件 + KlineChart 自包含 + 成交量直方图）
-> - ⚠️ 数据源造假全面清除：5 处硬编码删除，frontend + backend 零造假数据 ✅
+> - Batch 4: 数据源深度审计 7 组并行调研，产出 DATA_SOURCE_AUDIT.md
+> - HealthStats 健康监控上线，`/api/health/data-source` 实时可查
 >
 > 建议下一步：**后端占位路由完善 + 板块数据增强层**。
 
@@ -271,6 +273,7 @@ klines = collector.get_klines("000001", period="daily")
 |:------:|:-----|:--------:|:-----:|
 | 🥇 **后端完善** | trust.py 信任度路由 / capital-flow 资金流向路由完整实现 | `backend/` | ~0.5d |
 | 🥇 **TD-020** | 板块数据增强层 — heat/chain_map/ai_analysis 接入真实数据源 | `backend/routers/market.py` | ~0.5d |
+| 🥇 **数据源升级** | 接入 Tushare Pro（主，~500元/年）+ akshare fallback 架构 | `src/data/` | ~1d |
 | 🥈 **Tab 面板** | 技术指标/资金流向/信任度 3 个占位 tab 实现 | `frontend/` | ~1d |
 | 🟢 后续 | **暗色主题打磨** — 加载态、骨架屏、错误态等体验优化 | 全局 | ~0.5d |
 
@@ -280,20 +283,23 @@ klines = collector.get_klines("000001", period="daily")
 2. **Python 后端不动，前面加 FastAPI 桥接层** — 现有 akshare/LangGraph 全部保留
 3. **三页路由**：`/`（宏观总览）→ `/sector/[id]`（产业链分析）→ `/stock/[code]`（个股决策）
 4. **数据源不造假** — akshare 提供什么就返回什么，空就是空，未实现就是不实现 ✅
-5. **详细文档在** `docs/03-modules/10-frontend/`（5 篇） + `docs/03-modules/11-fastapi-bridge/`（2 篇）
+5. **数据源不唯一** — 生产环境必须有主备数据源，不能单点依赖（见 DATA_SOURCE_AUDIT.md）
+6. **数据质量可观测** — `/api/health/data-source` 实时监控各 endpoint 健康状态
+7. **详细文档在** `docs/03-modules/10-frontend/`（5 篇）+ `docs/03-modules/11-fastapi-bridge/`（2 篇）+ `docs/02-requirements/DATA_SOURCE_AUDIT.md`（1 篇）
 
 ### 下个会话推荐启动顺序
 
 ```
 1. /resume-session 恢复上下文
-2. cd e:/litchi-head && uvicorn backend.main:app --reload --port 8000   ← 从项目根启动 FastAPI
-3. cd frontend && pnpm dev                               ← 启动前端看效果
-4. 后端 trust.py + capital-flow 路由完善                   ← 后端占位补全
-5. 板块数据增强层（TD-020）                                ← 接入真实数据源
-6. Tab 面板实现（技术指标/资金流向/信任度）                  ← 页面功能补全
+2. cd e:/litchi-head && python -m uvicorn backend.main:app --port 8000
+3. cd frontend && pnpm dev
+4. curl localhost:8000/api/health/data-source   ← 查看数据源健康状态
+5. 后端 trust.py + capital-flow 路由完善
+6. 板块数据增强层（TD-020）
+7. Tab 面板实现（技术指标/资金流向/信任度）
 ```
 
-> **最后更新**：2026-06-16（Sprint 6 K 线真渲染 + 数据源造假清除 — CandlestickChart + 诚信审计 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-16（数据源深度审计 + 健康监控 — 7 组调研 + DATA_SOURCE_AUDIT.md ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
