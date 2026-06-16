@@ -5,6 +5,7 @@
 2. 返回 Pydantic 模型（数据契约，遵循 ADR-001/008）
 3. 错误处理：网络异常返回空列表，不抛异常（"尽力而为"原则）
 4. 日志记录所有操作和异常
+5. 健康监控：每个 endpoint 记录调用次数、失败次数、延迟，可对外暴露
 
 用法：
     collector = DataCollector()
@@ -13,6 +14,8 @@
 """
 
 import logging
+import time
+from collections import defaultdict
 
 import akshare as ak
 import pandas as pd
@@ -37,6 +40,90 @@ TTL_QUOTES = 30         # 实时行情：30 秒
 TTL_KLINES_DAILY = 300  # 日 K 线：5 分钟
 TTL_NEWS = 120          # 新闻：2 分钟
 TTL_BOARDS = 3600       # 板块：1 小时
+
+
+# ── 健康监控 ────────────────────────────────────────────────────────
+
+
+class HealthStats:
+    """数据源健康统计
+
+    跟踪每个 endpont（如 "all_stocks"、"quotes"、"kline"）的调用情况。
+    所有 DataCollector 方法通过 _track() 自动记录。
+
+    Thread-safe: 因 GIL，Counter 自增和列表追加在当前环境下安全。
+    """
+
+    def __init__(self) -> None:
+        self._total: defaultdict[str, int] = defaultdict(int)
+        self._success: defaultdict[str, int] = defaultdict(int)
+        self._failures: defaultdict[str, int] = defaultdict(int)
+        self._last_error: dict[str, str] = {}
+        self._last_success_ts: dict[str, float] = {}
+        self._latencies: dict[str, list[float]] = defaultdict(list)
+        self._window_size = 100  # 最多保留近 100 次延迟
+
+    def record_call(self, endpoint: str, duration_ms: float, error: str | None = None) -> None:
+        """记录一次调用结果"""
+        self._total[endpoint] += 1
+        if error:
+            self._failures[endpoint] += 1
+            self._last_error[endpoint] = error
+        else:
+            self._success[endpoint] += 1
+            self._last_success_ts[endpoint] = time.time()
+
+        # 延迟记录（滑动窗口）
+        bucket = self._latencies[endpoint]
+        bucket.append(duration_ms)
+        if len(bucket) > self._window_size:
+            bucket.pop(0)
+
+    def snapshot(self) -> dict[str, object]:
+        """返回当前快照（用于 HTTP 暴露）"""
+        now = time.time()
+        result: dict[str, object] = {}
+        endpoints = sorted(set(self._total) | set(self._success) | set(self._failures))
+
+        for ep in endpoints:
+            total = self._total.get(ep, 0)
+            fails = self._failures.get(ep, 0)
+            lat = self._latencies.get(ep, [])
+            result[ep] = {
+                "total_calls": total,
+                "success": self._success.get(ep, 0),
+                "failures": fails,
+                "failure_rate": round(fails / total, 4) if total > 0 else 0.0,
+                "avg_latency_ms": round(sum(lat) / len(lat), 1) if lat else None,
+                "last_error": self._last_error.get(ep, None),
+                "last_success_ago_s": round(now - self._last_success_ts[ep], 1)
+                    if ep in self._last_success_ts else None,
+            }
+
+        # 全局汇总
+        total_calls = sum(self._total.values())
+        total_fails = sum(self._failures.values())
+        result["__summary__"] = {
+            "total_calls": total_calls,
+            "total_failures": total_fails,
+            "overall_failure_rate": round(total_fails / total_calls, 4) if total_calls > 0 else 0.0,
+            "healthy_endpoints": sum(1 for ep in endpoints if self._failures.get(ep, 0) == 0),
+            "failing_endpoints": sum(1 for ep in endpoints if self._failures.get(ep, 0) > 0),
+        }
+        return result
+
+
+# ── 全局健康统计实例（单例） ─────────────────────────────────────────
+
+_health_stats = HealthStats()
+
+
+def get_health_stats() -> HealthStats:
+    """获取全局健康统计实例"""
+    return _health_stats
+
+
+# ── DataCollector ────────────────────────────────────────────────────
 
 
 class DataCollector:
@@ -66,6 +153,7 @@ class DataCollector:
         if cached is not None:
             return cached
 
+        t0 = time.time()
         try:
             df = ak.stock_info_a_code_name()
             result = [
@@ -73,8 +161,10 @@ class DataCollector:
                 for _, row in df.iterrows()
             ]
             self.cache.set("all_stocks", result, ttl=TTL_STOCKS)
+            _health_stats.record_call("all_stocks", (time.time() - t0) * 1000)
             return result
         except Exception:
+            _health_stats.record_call("all_stocks", (time.time() - t0) * 1000, error="获取股票列表失败")
             logger.exception("获取股票列表失败")
             return []
 
@@ -92,12 +182,15 @@ class DataCollector:
         if cached is not None:
             return cached
 
+        t0 = time.time()
         try:
             df = ak.stock_zh_a_spot_em()
             result = [_row_to_quote(row) for _, row in df.iterrows()]
             self.cache.set("all_quotes", result, ttl=TTL_QUOTES)
+            _health_stats.record_call("quotes", (time.time() - t0) * 1000)
             return result
         except Exception:
+            _health_stats.record_call("quotes", (time.time() - t0) * 1000, error="获取实时行情失败")
             logger.exception("获取实时行情失败")
             return []
 
@@ -148,6 +241,7 @@ class DataCollector:
         if cached is not None:
             return cached
 
+        t0 = time.time()
         try:
             df = ak.stock_zh_a_hist(
                 symbol=code,
@@ -159,8 +253,10 @@ class DataCollector:
             result = [_row_to_kline(row) for _, row in df.iterrows()]
             ttl = TTL_KLINES_DAILY if period == "daily" else 60
             self.cache.set(cache_key, result, ttl=ttl)
+            _health_stats.record_call(f"kline:{period}", (time.time() - t0) * 1000)
             return result
         except Exception:
+            _health_stats.record_call(f"kline:{period}", (time.time() - t0) * 1000, error=f"获取 K 线失败 code={code}")
             logger.exception("获取 K 线失败: code=%s", code)
             return []
 
@@ -182,12 +278,15 @@ class DataCollector:
         if cached is not None:
             return cached
 
+        t0 = time.time()
         try:
             df = ak.stock_news_em(symbol=code)
             result = [_row_to_news(row, code) for _, row in df.iterrows()]
             self.cache.set(cache_key, result, ttl=TTL_NEWS)
+            _health_stats.record_call("news", (time.time() - t0) * 1000)
             return result
         except Exception:
+            _health_stats.record_call("news", (time.time() - t0) * 1000, error=f"获取新闻失败 code={code}")
             logger.exception("获取新闻失败: code=%s", code)
             return []
 
@@ -205,6 +304,7 @@ class DataCollector:
         if cached is not None:
             return cached
 
+        t0 = time.time()
         try:
             df = ak.stock_board_industry_name_em()
             result = [
@@ -216,8 +316,10 @@ class DataCollector:
                 for _, row in df.iterrows()
             ]
             self.cache.set("industry_boards", result, ttl=TTL_BOARDS)
+            _health_stats.record_call("industry_boards", (time.time() - t0) * 1000)
             return result
         except Exception:
+            _health_stats.record_call("industry_boards", (time.time() - t0) * 1000, error="获取行业板块列表失败")
             logger.exception("获取行业板块列表失败")
             return []
 
@@ -233,6 +335,7 @@ class DataCollector:
         if cached is not None:
             return cached
 
+        t0 = time.time()
         try:
             df = ak.stock_board_concept_name_em()
             result = [
@@ -244,8 +347,10 @@ class DataCollector:
                 for _, row in df.iterrows()
             ]
             self.cache.set("concept_boards", result, ttl=TTL_BOARDS)
+            _health_stats.record_call("concept_boards", (time.time() - t0) * 1000)
             return result
         except Exception:
+            _health_stats.record_call("concept_boards", (time.time() - t0) * 1000, error="获取概念板块列表失败")
             logger.exception("获取概念板块列表失败")
             return []
 
