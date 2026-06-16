@@ -122,7 +122,7 @@ docs/
 | `tests/test_backtest_*.py` | 65 | 含 20 桥接（远程）+ 新增信任度（远程） |
 | `tests/test_debate_trust.py` 🆕 | 54+10 | M3 信任度 + M4 动态权重 |
 | 其他 | 78 |
-| **全量** | **701 passed** |
+| **全量** | **711 passed** |
 
 ---
 

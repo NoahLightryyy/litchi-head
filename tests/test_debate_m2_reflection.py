@@ -263,7 +263,7 @@ class TestGenerateReflection:
             latency_ms=0,
         )
 
-        with patch("src.debate.reflection.llm_service.invoke_structured") as mock_invoke:
+        with patch("src.utils.llm.llm_service.invoke_structured") as mock_invoke:
             mock_invoke.return_value = mock_reflection
 
             result = await generate_reflection(
@@ -295,7 +295,7 @@ class TestGenerateReflection:
             key_lessons=["忽视了下行风险"],
         )
 
-        with patch("src.debate.reflection.llm_service.invoke_structured") as mock_invoke:
+        with patch("src.utils.llm.llm_service.invoke_structured") as mock_invoke:
             mock_invoke.return_value = mock_reflection
 
             result = await generate_reflection(
@@ -310,7 +310,7 @@ class TestGenerateReflection:
     @pytest.mark.asyncio
     async def test_generate_llm_failure_returns_default(self, decision_summary, outcome):
         """LLM 调用失败返回默认记录（不抛异常）"""
-        with patch("src.debate.reflection.llm_service.invoke_structured") as mock_invoke:
+        with patch("src.utils.llm.llm_service.invoke_structured") as mock_invoke:
             mock_invoke.side_effect = RuntimeError("LLM unavailable")
 
             result = await generate_reflection(
@@ -424,7 +424,7 @@ class TestReflectOnDecision:
             actual_direction="Bullish",
         )
 
-        with patch("src.debate.reflection.llm_service.invoke_structured") as mock_invoke:
+        with patch("src.utils.llm.llm_service.invoke_structured") as mock_invoke:
             mock_invoke.return_value = mock_reflection
 
             result = await orch.reflect_on_decision("000001", outcome)
@@ -456,7 +456,7 @@ class TestReflectOnDecision:
         orch = DebateOrchestrator(memory_store=mock_store)
         outcome = ActualOutcome(stock_code="000001")
 
-        with patch("src.debate.reflection.llm_service.invoke_structured") as mock_invoke:
+        with patch("src.utils.llm.llm_service.invoke_structured") as mock_invoke:
             mock_invoke.return_value = mock_reflection
 
             result = await orch.reflect_on_decision("000001", outcome)
