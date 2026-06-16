@@ -5,22 +5,21 @@
 ## 📊 当前状态
 
 ```
-阶段: Phase 1 MVP             测试: 617 ✅
-债务: 7 条开放 / 紧急指数 1.4   最新提交: 314c7c9
+阶段: Phase 1 MVP             测试: 691 ✅
+债务: 7 条开放 / 紧急指数 1.4   最新提交: b7caa37
 ```
 
 ## 🕐 上次做了什么
 
-**docs 目录重组**（2026-06-15）：
-9 模块聚合 → `03-modules/0?-*/` · ADR 10 个独立文件 · 债务 7 个小文件
-ROUTING.md · SPEC 精简 55% · `.legacy` 清理 · 全路径修复
+**M3 信任度评分**（2026-06-16）：
+`src/debate/trust.py` — TrustTracker + AgentOutcome/TrustMetrics/TrustReport
+方向准确率 · Brier 校准 · 偏差检测 · 趋势检测 · 54 测试全部通过
 
 ## 🎯 接下来做什么
 
 | 优先级 | 任务 | 工作量 |
 |:------:|:-----|:------:|
-| 🟡 P1 | **回测→辩论桥接** — TradePlan→TradeRecord 适配器 | 中 |
-| 🟡 P1 | **M3 信任度评分** — Agent 输出 vs 实际结果追踪 | 中 |
+| 🟡 P2 | **M4 动态权重** — 用信任度调整 aggregate 权重 | 小-中 |
 | ⬇️ P2 | **C1 简报分区输出** — format_market_brief 按区块分区 | 小 |
 | ⬇️ P2 | **前端 MVP** — Streamlit 3 页面 | ~2d |
 

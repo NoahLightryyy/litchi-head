@@ -12,8 +12,11 @@
   · M1 历史决策注入 — query ("episodic", "debate") → 注入 prompt
   · M2 反思闭环 — query ("reflective", "debate") → 注入 prompt
      事后反思 API: orch.reflect_on_decision(stock_code, outcome)
+  · M3 信任度评分 — TrustTracker 追踪每位 Agent 的历史准确率/校准/趋势
+     用法: TrustTracker(store).get_trust_report("master.buffett")
 
 用法：
+    from src.debate.orchestrator import DebateOrchestrator
     orch = DebateOrchestrator()
     result = await orch.run(DebateInput(stock_code="000001"))
     print(result.to_summary_dict())
@@ -30,6 +33,10 @@
     )
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from src.debate.analysts import AnalystPersona, get_default_analysts
 from src.debate.models import (
     AgentAnalysis,
@@ -41,15 +48,35 @@ from src.debate.models import (
     RebuttalAnalysis,
     VoteSummary,
 )
-from src.debate.orchestrator import DebateOrchestrator
 from src.debate.reflection import (
     ActualOutcome,
     ReflectionRecord,
 )
+from src.debate.trust import (
+    AgentOutcome,
+    AgentTrustMetrics,
+    TrustReport,
+    TrustTracker,
+    compute_weight_factor,
+)
+
+if TYPE_CHECKING:
+    from src.debate.orchestrator import DebateOrchestrator
+
+
+def __getattr__(name: str):
+    """惰性导入 DebateOrchestrator（避免 torch crash 环境问题）"""
+    if name == "DebateOrchestrator":
+        import importlib
+        return importlib.import_module("src.debate.orchestrator").DebateOrchestrator
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 __all__ = [
     "ActualOutcome",
     "AgentAnalysis",
+    "AgentOutcome",
+    "AgentTrustMetrics",
     "AnalystPersona",
     "AnalystReport",
     "DebateInput",
@@ -59,6 +86,9 @@ __all__ = [
     "PeerReviewRound",
     "RebuttalAnalysis",
     "ReflectionRecord",
+    "TrustReport",
+    "TrustTracker",
     "VoteSummary",
+    "compute_weight_factor",
     "get_default_analysts",
 ]

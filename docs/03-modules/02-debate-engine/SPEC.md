@@ -79,16 +79,82 @@ END
 | D4 — VoteSummary 扩展评审修正 | ✅ | 15 |
 | M1 — 历史决策注入 | ✅ | 22 |
 | M2 — 反思闭环 | 🟡 已实现，待深度集成 | — |
+| M3 — 信任度评分 🆕 | ✅ 已实现 | 54 |
 
-**辩论模块总测试：168 项（全部通过）**
+**辩论模块总测试：222 项（含 M3 全部通过）**
+
+## M3 信任度评分
+
+> **定位**（PROFESSIONAL-TEAM-OUTLOOK.md Phase 4）：每位 Agent 输出 vs 实际结果的准确率追踪。
+> M3 是 M4 动态权重的前置数据基础。
+
+### API
+
+```python
+from src.debate import TrustTracker
+
+tracker = TrustTracker(memory_store=store)
+
+# 记录一次 Agent 预测结果
+tracker.record_outcome(
+    agent_name="master.buffett",
+    predicted_direction="Bullish",
+    predicted_score=75,
+    predicted_confidence=0.85,
+    actual_direction="Bullish",
+    actual_price_change_pct=+3.5,
+)
+
+# 从 AgentAnalysis 直接记录（便捷包装）
+tracker.record_outcome_from_analysis(
+    agent_name="master.buffett",
+    score=75, confidence=0.85, direction="Bullish",
+    actual_direction="Bullish", actual_price_change_pct=+3.5,
+)
+
+# 查询信任度画像
+report = await tracker.get_trust_report("master.buffett")
+# → TrustReport(agent_name, metrics, summary, is_reliable)
+
+# 持久化到 MemoryStore
+await tracker.flush()
+```
+
+### 核心指标
+
+| 指标 | 说明 | 产品含义 |
+|:-----|:-----|:---------|
+| win_rate | 方向准确率 | 谁更靠谱 |
+| bullish/bearish/neutral_win_rate | 各方向准确率 | 偏哪个方向的判断更准 |
+| brier_score | 置信度校准（0=完美） | 说 90% 置信时实际对了多少 |
+| confidence_bias | 置信度偏差 | 过度自信 or 过于保守 |
+| optimism_bias | 评分乐观偏差 | 总是评高分但方向不准 |
+| calibration_curve | 校准曲线数据 | 可视化用 |
+| trend_direction | 趋势（improving/declining/stable） | 越用越好还是退化 |
+
+### 关键设计决策
+
+- **零 LLM 成本**：纯数学统计，不消耗推理预算
+- **数据不足时安全降级**：< 5 样本 → 默认值，5-20 温和加权，> 20 全量
+- **持久化**：namespace `("trust", "debate")` 下的 MemoryStore，去重写入
+- **compute_weight_factor()**：供 M4 aggregate 使用的权重因子函数（0.5-1.5）
+- **与 M2 关系**：M2 定性（为什么错），M3 定量（谁的预测更可靠）
+
+### 文件
+
+| 文件 | 说明 |
+|:-----|:------|
+| `src/debate/trust.py` | TrustTracker + AgentOutcome/TrustMetrics/TrustReport |
+| `tests/test_debate_trust.py` | 54 测试（模型/记录/统计/校准/权重/持久化/边界） |
 
 ## 下一步
 
-| 优先级 | 说明 | 工作量 |
-|:------:|:-----|:------:|
-| 🟡 P1 | **回测→辩论桥接** — TradePlan → TradeRecord 适配器 | 中 |
-| 🟡 P1 | **M3 信任度评分** — Agent 输出 vs 实际结果追踪 | 中 |
-| ⬇️ P2 | 多轮对抗辩论（当前单轮，考虑扩展到多轮） | 中 |
+| 优先级 | 说明 | 工作量 | 状态 |
+|:------:|:-----|:------:|:----:|
+| 🟡 P1 | ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ | 中 | ✅ |
+| 🟡 P1 | **M3 信任度评分** — Agent 输出 vs 实际结果追踪 | 中 | ✅ 已实现 |
+| ⬇️ P2 | 多轮对抗辩论（当前单轮，考虑扩展到多轮） | 中 | ⬜ |
+| ⬇️ P2 | **M4 动态权重** — 根据历史准确率自动调整 aggregate 权重 | 中 | ⬜ |
 
 ---
 

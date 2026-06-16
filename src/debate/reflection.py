@@ -25,7 +25,6 @@ from typing import cast
 from pydantic import BaseModel, Field
 
 from src.memory.store import MemoryItem, MemoryStore
-from src.utils.llm import llm_service
 
 # ── 数据模型 ──────────────────────────────────────────────────
 
@@ -168,7 +167,8 @@ async def generate_reflection(
     )
 
     try:
-        raw = cast(ReflectionRecord, await llm_service.invoke_structured(
+        from src.utils.llm import llm_service as _ls
+        raw = cast(ReflectionRecord, await _ls.invoke_structured(
             prompt=prompt,
             output_model=ReflectionRecord,
             system_prompt=system_prompt,
