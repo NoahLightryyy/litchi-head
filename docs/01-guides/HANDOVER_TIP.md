@@ -5,21 +5,21 @@
 ## 📊 当前状态
 
 ```
-阶段: Phase 1 MVP             测试: 691 ✅
-债务: 7 条开放 / 紧急指数 1.4   最新提交: b7caa37
+阶段: Phase 1 MVP             测试: 701 ✅
+债务: 7 条开放 / 紧急指数 1.4   最新提交: 6a114ed
 ```
 
 ## 🕐 上次做了什么
 
-**M3 信任度评分**（2026-06-16）：
-`src/debate/trust.py` — TrustTracker + AgentOutcome/TrustMetrics/TrustReport
-方向准确率 · Brier 校准 · 偏差检测 · 趋势检测 · 54 测试全部通过
+**M4 动态权重**（2026-06-16）：
+aggregate_node 接入 TrustTracker 信任度因子（0.5-1.5）
+VoteSummary.trust_weight_factors · D3/M4 权重叠加 · 10 测试全部通过
 
 ## 🎯 接下来做什么
 
 | 优先级 | 任务 | 工作量 |
 |:------:|:-----|:------:|
-| 🟡 P2 | **M4 动态权重** — 用信任度调整 aggregate 权重 | 小-中 |
+| ✅ ~~M4 动态权重~~ | 已完成 | 小 |
 | ⬇️ P2 | **C1 简报分区输出** — format_market_brief 按区块分区 | 小 |
 | ⬇️ P2 | **前端 MVP** — Streamlit 3 页面 | ~2d |
 

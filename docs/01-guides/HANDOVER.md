@@ -40,24 +40,21 @@
 
 ## 2. 当前会话状态（2026-06-16 — M3 信任度评分完成）
 
-> **本次完成**：M3 信任度评分 `src/debate/trust.py`，54 测试全部通过。
+> **本次完成**：M4 动态权重 `aggregate_node` 接入信任度因子，10 测试全部通过。
 
 ### 完成内容
 
 | 事项 | 状态 |
 |:-----|:----:|
-| `AgentOutcome` + `AgentTrustMetrics` + `TrustReport` 数据模型 | ✅ |
-| `TrustTracker.record_outcome()` / `record_outcome_from_analysis()` 记录 | ✅ |
-| `TrustTracker.get_trust_report()` 查询信任度画像 | ✅ |
-| 方向准确率 / 各方向准确率统计 | ✅ |
-| Brier score 置信度校准 | ✅ |
-| 置信度偏差 / 乐观偏差检测 | ✅ |
-| 校准曲线数据生成 | ✅ |
-| 趋势检测（improving/declining/stable） | ✅ |
-| `compute_weight_factor()` 权重因子函数 | ✅ |
-| `flush()` 持久化到 MemoryStore（带去重） | ✅ |
-| 54 测试全部通过（Lint + Type + Test ✅） | ✅ |
-| SPEC.md M3 章节新增 | ✅ |
+| `VoteSummary.trust_weight_factors` 字段新增 | ✅ |
+| `DebateState.trust_weight_factors` 字段新增 | ✅ |
+| `DebateOrchestrator(enable_trust=True)` 参数 | ✅ |
+| aggregate_node 读取 trust_weight_factors 叠加计算 | ✅ |
+| 信任度因子 × D3 weight_suggestions 联合作用 | ✅ |
+| 无信任度数据时安全降级（因子=1.0） | ✅ |
+| `VoteSummary.to_summary_dict()` 展示信任度权重 | ✅ |
+| 10 测试全部通过（Lint + Type + Test ✅） | ✅ |
+| SPEC.md M4 章节新增 | ✅ |
 
 ### 重要：docs/ 重组 — 新结构图
 
@@ -221,10 +218,10 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-16 更新：M3 信任度评分完成）
+## 5. 下一步优先级（2026-06-16 更新：M4 动态权重完成）
 
-> **本次完成**：M3 信任度评分 `src/debate/trust.py` + 54 测试全通过。
-> 下一步建议：**M4 动态权重** — 根据信任度自动调整 aggregate 权重。
+> **本次完成**：M4 动态权重 `aggregate_node` 接入信任度因子 + 10 测试全通过。
+> 下一步建议：**C1 简报分区输出** 或 **前端 MVP**。
 
 ### 🥇 下一步
 
@@ -232,7 +229,7 @@ klines = collector.get_klines("000001", period="daily")
 |:------:|:-----|:--------:|:-----:|
 | ~~🟡 **P1**~~ | ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ ✅ 已完成 | `backtest/bridge.py` | 中 |
 | ~~🟡 **P1**~~ | ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ ✅ 已完成 | `debate/trust.py` | 中 |
-| 🟡 **P2** | **M4 动态权重** — 用 `compute_weight_factor()` 调整 aggregate 权重 | `debate/orchestrator.py` | 小-中 |
+| ~~🟡 **P2**~~ | ~~**M4 动态权重** — 用 `compute_weight_factor()` 调整 aggregate 权重~~ ✅ 已完成 | `debate/orchestrator.py` | 小 |
 | ⬇️ **P2** | **C1 简报分区输出** — format_market_brief 按区块分区 | `data/collector.py` | 小 |
 | ⬇️ **P2** | **前端 MVP** — Streamlit 3 页面 | 前端 | ~2d |
 
@@ -242,10 +239,11 @@ klines = collector.get_klines("000001", period="daily")
 1. `/resume-session` 恢复上下文
 2. ~~回测→辩论桥接~~ ✅ 已完成
 3. ~~M3 信任度评分~~ ✅ 已完成
-4. M4 动态权重 — aggregate 接入 compute_weight_factor()
+4. ~~M4 动态权重~~ ✅ 已完成
+5. 考虑 C1 简报分区输出 或 前端 MVP
 ```
 
-> **最后更新**：2026-06-16（M3 信任度评分完成 — trust.py + 54 tests） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-16（M4 动态权重完成 — trust 因子接入 aggregate） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
