@@ -216,7 +216,7 @@ class TestCacheIntegration:
 
 
 class TestFormatMarketBrief:
-    """format_market_brief 函数验证"""
+    """format_market_brief 函数验证（C1 分区输出）"""
 
     def test_full_data(self):
         """提供完整行情+K线+新闻"""
@@ -268,7 +268,7 @@ class TestFormatMarketBrief:
         assert "平安银行数字化转型" in result
 
     def test_no_data(self):
-        """无任何数据"""
+        """无任何数据——只有占位区段"""
         from src.data.collector import format_market_brief
 
         result = format_market_brief(
@@ -276,7 +276,10 @@ class TestFormatMarketBrief:
             stock_name="平安银行",
         )
 
-        assert "暂无可用数据" in result
+        assert "暂无行情数据" in result
+        assert "暂无新闻数据" in result
+        assert "暂无情绪数据" in result
+        assert "暂无基本面数据" in result
 
     def test_quote_only(self):
         """仅行情数据（无K线/新闻）"""
@@ -293,8 +296,8 @@ class TestFormatMarketBrief:
             stock_code="000001", stock_name="平安银行", quote=quote,
         )
 
-        assert "实时行情" in result
-        assert "暂无可用数据" not in result
+        assert "----- 行情层 -----" in result
+        assert "暂无新闻数据" in result
 
     def test_no_news(self):
         """有行情+K线但无新闻"""
@@ -320,9 +323,9 @@ class TestFormatMarketBrief:
             stock_code="000001", stock_name="平安银行", quote=quote, klines=klines,
         )
 
-        assert "实时行情" in result
-        assert "近期走势" in result
-        assert "新闻" not in result
+        assert "----- 行情层 -----" in result
+        assert "最新价 12.50" in result
+        assert "暂无新闻数据" in result
 
     def test_empty_stock_name(self):
         """股票名为空时降级"""
@@ -330,5 +333,120 @@ class TestFormatMarketBrief:
 
         result = format_market_brief(stock_code="000001", stock_name="")
 
-        assert "000001" in result
-        assert "暂无可用数据" in result
+        assert "📊 市场简报 — 000001" in result
+        assert "暂无行情数据" in result
+
+    # ── C1 分区输出新测试 ──────────────────────────────────────
+
+    def test_partition_has_four_zones(self):
+        """输出包含 4 个分区的分隔标记"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(stock_code="000001", stock_name="平安银行")
+
+        assert "----- 行情层 -----" in result
+        assert "----- 新闻层 -----" in result
+        assert "----- 情绪层 -----" in result
+        assert "----- 基本面层 -----" in result
+
+    def test_partition_sentiment_placeholder(self):
+        """情绪层显示占位信息"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(stock_code="000001", stock_name="平安银行")
+        lines = result.splitlines()
+        # 找到情绪层之后的第一行非空内容
+        idx = None
+        for i, line in enumerate(lines):
+            if "----- 情绪层 -----" in line:
+                idx = i
+                break
+        assert idx is not None
+        # 之后第一个非空行应为占位内容
+        for j in range(idx + 1, len(lines)):
+            if lines[j].strip():
+                assert "暂无情绪数据" in lines[j]
+                break
+
+    def test_partition_fundamentals_placeholder(self):
+        """基本面层显示占位信息"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(stock_code="000001", stock_name="平安银行")
+        lines = result.splitlines()
+        idx = None
+        for i, line in enumerate(lines):
+            if "----- 基本面层 -----" in line:
+                idx = i
+                break
+        assert idx is not None
+        for j in range(idx + 1, len(lines)):
+            if lines[j].strip():
+                assert "暂无基本面数据" in lines[j]
+                break
+
+    def test_partition_news_section(self):
+        """新闻层显示新闻标题"""
+        from src.data.collector import format_market_brief
+        from src.data.models import NewsItem
+
+        news = [
+            NewsItem(code="000001", title="测试新闻标题", date="2026-06-16"),
+        ]
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行", news=news,
+        )
+
+        lines = result.splitlines()
+        # 找到新闻层区域
+        in_news = False
+        found_title = False
+        for line in lines:
+            if "----- 新闻层 -----" in line:
+                in_news = True
+                continue
+            if in_news and "-----" in line:
+                break  # 到了下一个区段
+            if in_news and "测试新闻标题" in line:
+                found_title = True
+                break
+
+        assert found_title, "新闻标题应在新闻层区段内"
+
+    def test_partition_quotes_section(self):
+        """行情层含涨跌幅和成交量"""
+        from src.data.collector import format_market_brief
+        from src.data.models import StockQuote
+
+        quote = StockQuote(
+            code="000001", name="平安银行", price=12.50,
+            change_pct=2.46, volume=1000000, change=0.30, amount=1.25e7,
+            high=12.80, low=12.30, open_=12.40, prev_close=12.20,
+        )
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行", quote=quote,
+        )
+
+        assert "涨幅 +2.46%" in result
+        assert "成交量 1,000,000 手" in result
+
+    def test_partition_visual_separator(self):
+        """分区使用视觉分隔线"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(stock_code="000001", stock_name="平安银行")
+
+        assert "━" * 35 in result  # 标题分隔线
+        # 验证分隔线在标题下方
+        lines = result.splitlines()
+        header_idx = None
+        sep_idx = None
+        for i, line in enumerate(lines):
+            if "📊 市场简报" in line:
+                header_idx = i
+            if "━" in line and "市场简报" not in line:
+                sep_idx = i
+                break
+        assert header_idx is not None
+        assert sep_idx is not None
+        assert sep_idx == header_idx + 1, "分隔线应紧跟在标题后"

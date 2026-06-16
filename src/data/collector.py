@@ -18,7 +18,15 @@ import akshare as ak
 import pandas as pd
 
 from src.data.cache import DataCache
-from src.data.models import BoardInfo, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import (
+    BoardInfo,
+    BriefSection,
+    KLine,
+    MarketBrief,
+    NewsItem,
+    StockInfo,
+    StockQuote,
+)
 
 logger = logging.getLogger("data.collector")
 
@@ -327,10 +335,11 @@ def format_market_brief(
     klines: list[KLine] | None = None,
     news: list[NewsItem] | None = None,
 ) -> str:
-    """生成市场简报文本
+    """生成结构化市场简报（C1 分区输出）
 
-    将结构化行情/K线/新闻数据格式化为自然语言段落，
-    供 LLM 直接消费。
+    按 4 层分区输出：行情层 / 新闻层 / 情绪层 / 基本面层。
+    各层使用 ``----- 层名 -----`` 视觉分隔线，让 LLM 能按需聚焦。
+    情绪层和基本面层为占位区段，待后续 C2/C3 接入实际数据源。
 
     Args:
         stock_code: 股票代码
@@ -342,63 +351,81 @@ def format_market_brief(
     Returns:
         格式化文本，以 "📊 市场简报" 开头
     """
-    if stock_name:
-        header = f"📊 市场简报 — {stock_name} ({stock_code})"
-    else:
-        header = f"📊 市场简报 — {stock_code}"
+    brief = MarketBrief(stock_code=stock_code, stock_name=stock_name)
 
-    lines = [header]
-    lines.append("━" * 30)
-    has_data = False
+    # ── 行情层 ──
+    quote_lines: list[str] = []
+    has_quote = False
 
-    # ── 实时行情 ──
     if quote is not None:
-        has_data = True
+        has_quote = True
         parts = [f"最新价 {quote.price:.2f} 元"]
         if quote.change_pct:
             parts.append(f"涨幅 {quote.change_pct:+.2f}%")
         parts.append(f"成交量 {quote.volume:,} 手")
-        lines.append("【实时行情】" + " | ".join(parts))
+        quote_lines.append(" | ".join(parts))
 
-    # ── 近期走势（基于 K 线） ──
+        # 关键价位
+        kp_parts: list[str] = []
+        if quote.open_:
+            kp_parts.append(f"今开 {quote.open_:.2f}")
+        if quote.prev_close:
+            kp_parts.append(f"昨收 {quote.prev_close:.2f}")
+        if quote.high:
+            kp_parts.append(f"最高 {quote.high:.2f}")
+        if quote.low:
+            kp_parts.append(f"最低 {quote.low:.2f}")
+        if kp_parts:
+            quote_lines.append(" | ".join(kp_parts))
+
+    # 近期走势（并入行情层）
     if klines and len(klines) >= 2:
-        has_data = True
         closes = [k.close for k in klines if k.close > 0]
         if len(closes) >= 2:
+            has_quote = True
             avg_price = sum(closes) / len(closes)
-            lines.append(
-                f"【近期走势】近 {len(klines)} 个交易日 | "
+            quote_lines.append(
+                f"近 {len(klines)} 个交易日 | "
                 f"收盘价 {closes[-1]:.2f} → {closes[0]:.2f} | "
                 f"均价 {avg_price:.2f}"
             )
 
-    # ── 关键价位 ──
-    if quote is not None:
-        has_data = True
-        parts = []
-        if quote.open_:
-            parts.append(f"今开 {quote.open_:.2f}")
-        if quote.prev_close:
-            parts.append(f"昨收 {quote.prev_close:.2f}")
-        if quote.high:
-            parts.append(f"最高 {quote.high:.2f}")
-        if quote.low:
-            parts.append(f"最低 {quote.low:.2f}")
-        if parts:
-            lines.append("【关键价位】" + " | ".join(parts))
+    brief.sections["quotes"] = BriefSection(
+        title="行情层",
+        content="\n".join(quote_lines) if quote_lines else "暂无行情数据",
+        has_data=has_quote,
+    )
 
-    # ── 新闻摘要 ──
+    # ── 新闻层 ──
+    news_lines: list[str] = []
+    has_news = bool(news)
     if news:
-        has_data = True
-        news_lines = [f"【新闻摘要】（{min(len(news), 5)} 条）"]
         for n in news[:5]:
-            news_lines.append(f"  • {n.title or '(无标题)'}")
-        lines.extend(news_lines)
+            news_lines.append(f"• {n.title or '(无标题)'}")
+    if not news_lines:
+        news_lines.append("暂无新闻数据")
 
-    if not has_data:
-        lines.append("暂无可用数据")
+    brief.sections["news"] = BriefSection(
+        title="新闻层",
+        content="\n".join(news_lines),
+        has_data=has_news,
+    )
 
-    return "\n".join(lines)
+    # ── 情绪层（占位） ──
+    brief.sections["sentiment"] = BriefSection(
+        title="情绪层",
+        content="暂无情绪数据",
+        has_data=False,
+    )
+
+    # ── 基本面层（占位） ──
+    brief.sections["fundamentals"] = BriefSection(
+        title="基本面层",
+        content="暂无基本面数据",
+        has_data=False,
+    )
+
+    return brief.to_text()
 
 
 __all__ = ["DataCollector", "format_market_brief"]

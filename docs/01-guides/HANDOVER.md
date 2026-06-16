@@ -38,26 +38,24 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-16 — M4 动态权重完成）
+## 2. 当前会话状态（2026-06-16 — C1 简报分区输出完成）
 
-> **本次完成**：M4 动态权重 `aggregate_node` 接入信任度因子，10 测试全部通过。
-> 前期完成：P1 回测→辩论桥接（`src/trader/bridge.py` + `src/backtest/bridge.py` 双路径适配器）。
+> **本次完成**：C1 简报分区输出。`format_market_brief()` 按 4 层分区输出（行情/新闻/情绪/基本面），新增 `MarketBrief` + `BriefSection` Pydantic 模型，5 个分区测试。
+> 前期完成：P1 桥接 + M3 信任度评分 + M4 动态权重。
 
 ### 完成内容
 
 | 事项 | 状态 |
 |:-----|:----:|
-| `src/trader/bridge.py` — TradePlan→TradeRecord 转换（本地） | ✅ |
-| `src/backtest/bridge.py` — 回测适配器（远程） | ✅ |
-| `VoteSummary.trust_weight_factors` 字段新增 | ✅ |
-| `DebateState.trust_weight_factors` 字段新增 | ✅ |
-| `DebateOrchestrator(enable_trust=True)` 参数 | ✅ |
-| aggregate_node 读取 trust_weight_factors 叠加计算 | ✅ |
-| 信任度因子 × D3 weight_suggestions 联合作用 | ✅ |
-| 无信任度数据时安全降级（因子=1.0） | ✅ |
-| `VoteSummary.to_summary_dict()` 展示信任度权重 | ✅ |
-| 10 测试全部通过（Lint + Type + Test ✅） | ✅ |
-| SPEC.md M4 章节新增 | ✅ |
+| `MarketBrief` Pydantic 模型（结构化简报，含 to_text） | ✅ |
+| `BriefSection` 区块模型（title/content/has_data） | ✅ |
+| `format_market_brief()` 重构 — 4层分区输出 | ✅ |
+| 行情层（报价+涨跌幅+关键价位+走势） | ✅ |
+| 新闻层（新闻标题列表） | ✅ |
+| 情绪层（占位，待 C2） | ✅ |
+| 基本面层（占位，待 C3） | ✅ |
+| 5 个 C1 分区测试全通过 | ✅ |
+| 全量 717 测试通过 | ✅ |
 
 ### 重要：docs/ 重组 — 新结构图
 
@@ -122,7 +120,7 @@ docs/
 | `tests/test_backtest_*.py` | 65 | 含 20 桥接（远程）+ 新增信任度（远程） |
 | `tests/test_debate_trust.py` 🆕 | 54+10 | M3 信任度 + M4 动态权重 |
 | 其他 | 78 |
-| **全量** | **711 passed** |
+| **全量** | **717 passed** |
 
 ---
 
@@ -238,17 +236,17 @@ klines = collector.get_klines("000001", period="daily")
 | ~~🟡 **P1**~~ | ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ ✅ 已完成 | `trader/bridge.py` + `backtest/bridge.py` | 中 |
 | ~~🟡 **P1**~~ | ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ ✅ 已完成 | `debate/trust.py` | 中 |
 | ~~🟡 **P2**~~ | ~~**M4 动态权重** — 用 `compute_weight_factor()` 调整 aggregate 权重~~ ✅ 已完成 | `debate/orchestrator.py` | 小 |
-| ⬇️ **P2** | **C1 简报分区输出** — format_market_brief 按区块分区 | `data/collector.py` | 小 |
+| ~~⬇️ **P2**~~ | ~~**C1 简报分区输出** — format_market_brief 按区块分区~~ ✅ 已完成 | `data/collector.py` | 小 |
 | ⬇️ **P2** | **前端 MVP** — Streamlit 3 页面 | 前端 | ~2d |
 
 ### 下个会话推荐启动顺序
 
 ```
 1. `/resume-session` 恢复上下文
-2. C1 简报分区输出 或 前端 MVP
+2. 前端 MVP — Streamlit 3 页面
 ```
 
-> **最后更新**：2026-06-16（合并完成 — 本地桥接 + 远程 M3/M4 信任度体系） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-16（C1 简报分区输出完成 — 4层分区 + MarketBrief 模型） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 

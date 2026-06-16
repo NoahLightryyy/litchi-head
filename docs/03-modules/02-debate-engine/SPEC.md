@@ -223,7 +223,7 @@ weighted_score = Σ(score × confidence × combined_factor)
 | 🟡 P1 | ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ | 中 | ✅ 已实现 |
 | 🟡 P2 | ~~**M4 动态权重** — 根据历史准确率自动调整 aggregate 权重~~ | 小 | ✅ |
 | ⬇️ P2 | 多轮对抗辩论（当前单轮，考虑扩展到多轮） | 中 | ⬜ |
-| ⬇️ P2 | **C1 简报分区输出** — format_market_brief 按区块分区 | 中 | ⬜ |
+| ⬇️ P2 | **C1 简报分区输出** — format_market_brief 按区块分区 | 中 | ✅ C1 完成 |
 
 ---
 
