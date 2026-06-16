@@ -13,7 +13,7 @@
   <a href="https://github.com/NoahLightryyy/litchi-head/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/NoahLightryyy/litchi-head/ci.yml?branch=main&label=CI&logo=github" alt="CI Status">
   </a>
-  <img src="https://img.shields.io/badge/tests-563%20passed-2ea44f?logo=pytest" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-637%20passed-2ea44f?logo=pytest" alt="Tests">
   <img src="https://img.shields.io/badge/coverage-80%25%2B-brightgreen" alt="Coverage">
   <img src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/type_check-pyright-brightgreen" alt="Pyright">
