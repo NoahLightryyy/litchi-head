@@ -34,14 +34,30 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `314c7c9` — docs: 目录重组 + 受众路由 + 模块聚合 + ADR/债务拆分 |
+| **最新提交** | `14312ee` — docs: docs 重组收尾 — ROUTING + SPEC 精简 + .legacy 清理 + 路径修复 |
 
 ---
 
-## 2. 当前会话状态（2026-06-15 — P1 桥接层上线）
+## 2. 当前会话状态（2026-06-16 — M4 动态权重完成）
 
-> **本次完成**：P1 回测→辩论桥接。`src/trader/bridge.py` — TradePlan→TradeRecord 转换，14 测试。
-> (docs 重组全部完成于前期会话：ROUTING + SPEC 精简 + .legacy + 路径修复)
+> **本次完成**：M4 动态权重 `aggregate_node` 接入信任度因子，10 测试全部通过。
+> 前期完成：P1 回测→辩论桥接（`src/trader/bridge.py` + `src/backtest/bridge.py` 双路径适配器）。
+
+### 完成内容
+
+| 事项 | 状态 |
+|:-----|:----:|
+| `src/trader/bridge.py` — TradePlan→TradeRecord 转换（本地） | ✅ |
+| `src/backtest/bridge.py` — 回测适配器（远程） | ✅ |
+| `VoteSummary.trust_weight_factors` 字段新增 | ✅ |
+| `DebateState.trust_weight_factors` 字段新增 | ✅ |
+| `DebateOrchestrator(enable_trust=True)` 参数 | ✅ |
+| aggregate_node 读取 trust_weight_factors 叠加计算 | ✅ |
+| 信任度因子 × D3 weight_suggestions 联合作用 | ✅ |
+| 无信任度数据时安全降级（因子=1.0） | ✅ |
+| `VoteSummary.to_summary_dict()` 展示信任度权重 | ✅ |
+| 10 测试全部通过（Lint + Type + Test ✅） | ✅ |
+| SPEC.md M4 章节新增 | ✅ |
 
 ### 重要：docs/ 重组 — 新结构图
 
@@ -81,28 +97,32 @@ docs/
 2. ~~**SPEC.md 内容精简** — 9 个模块 SPEC 精简为 641 行（原 1415 行，降 55%）~~ ✅
 3. ~~**`.legacy` 目录删除** — 确认新结构没问题后可清理~~ ✅ 已清理（2026-06-15）
 4. ~~**旧路径引用修复** — WORKFLOW/HANDOVER_TIP/看板/模块 RESEARCH 全量更新~~ ✅
+5. ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ ✅ 已完成（2026-06-16）
+6. ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ ✅ 已完成（2026-06-16）
 
 ### 当前 Git 状态
 
 ```
-已提交: 31fec4c — docs: P0 端到端链路验证 + Batch Loop 规则 + 上下文耗尽自动交接
-工作区: docs/ 目录重组 + ROUTING.md + SPEC 精简（未提交）
+已提交: b7caa37 — feat: 回测←→辩论桥接适配器 — TradePlan → TradeRecord 转换 + 20 测试
+工作区: trust.py + 54 tests（干净待提交）
 ```
 
-### 测试覆盖（保持不变）
+### 测试覆盖
 
 | 测试文件 | 测试数 |
 |---------|:------:|
-| `tests/test_debate_*.py` | 145 |
+| `tests/test_debate_*.py` | 199（含 54 M3 🆕） |
 | `tests/test_risk_*.py` | 26 |
 | `tests/test_trader_*.py` | 20 |
-| `tests/test_backtest_*.py` | 45 |
+| `tests/test_backtest_*.py` | 65（含 20 桥接 🆕） |
 | `tests/test_e2e_full_pipeline.py` | 5 |
 | `tests/test_memory_*.py` | 29 |
 | `tests/test_agents_*.py` | 58+4 skip |
-| `tests/test_trader_bridge.py` 🆕 | 14 | 桥接转换（TradePlan→TradeRecord） |
-| 其他 | 78
-| **全量** | **631 passed** |
+| `tests/test_trader_bridge.py` 🆕 | 14 | 桥接转换（TradePlan→TradeRecord，本地） |
+| `tests/test_backtest_*.py` | 65 | 含 20 桥接（远程）+ 新增信任度（远程） |
+| `tests/test_debate_trust.py` 🆕 | 54+10 | M3 信任度 + M4 动态权重 |
+| 其他 | 78 |
+| **全量** | **701 passed** |
 
 ---
 
@@ -204,18 +224,20 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-15 更新：P1 桥接层完成）
+## 5. 下一步优先级（2026-06-16 更新：M4 动态权重完成）
 
-> **本次完成**：P1 回测→辩论桥接（TradePlan→TradeRecord 转换器，14 测试）。
-> docs 整理全面收官于前期会话。正式进入功能开发阶段。
+> **本次完成**：
+> - 本地：P1 回测→辩论桥接（`src/trader/bridge.py` — TradePlan→TradeRecord 转换）
+> - 远程：回测桥接适配器（`src/backtest/bridge.py`） + **M3 信任度评分**（`src/debate/trust.py`） + **M4 动态权重**（`aggregate_node` 接入信任度因子）
+> 建议下一步：**C1 简报分区输出** 或 **前端 MVP**。
 
 ### 🥇 下一步
 
 | 优先级 | 说明 | 涉及范围 | 工作量 |
 |:------:|:-----|:--------:|:-----:|
-| 🟡 **P1** | ~~docs 整理~~ ✅ 全部完成 | — | — |
-| 🟡 **P1** | ~~回测→辩论桥接~~ ✅ `src/trader/bridge.py` | — | — |
-| 🟡 **P1** | **M3 信任度评分** — Agent 输出 vs 实际结果追踪 | `debate/` | 中 |
+| ~~🟡 **P1**~~ | ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ ✅ 已完成 | `trader/bridge.py` + `backtest/bridge.py` | 中 |
+| ~~🟡 **P1**~~ | ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ ✅ 已完成 | `debate/trust.py` | 中 |
+| ~~🟡 **P2**~~ | ~~**M4 动态权重** — 用 `compute_weight_factor()` 调整 aggregate 权重~~ ✅ 已完成 | `debate/orchestrator.py` | 小 |
 | ⬇️ **P2** | **C1 简报分区输出** — format_market_brief 按区块分区 | `data/collector.py` | 小 |
 | ⬇️ **P2** | **前端 MVP** — Streamlit 3 页面 | 前端 | ~2d |
 
@@ -223,11 +245,10 @@ klines = collector.get_klines("000001", period="daily")
 
 ```
 1. `/resume-session` 恢复上下文
-2. M3 信任度评分 — Agent 输出 vs 实际结果追踪
-3. 或 C1 简报分区 / 前端 MVP
+2. C1 简报分区输出 或 前端 MVP
 ```
 
-> **最后更新**：2026-06-15（P1 桥接层完成 — trade_plan_to_records + 14 tests） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-16（合并完成 — 本地桥接 + 远程 M3/M4 信任度体系） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
@@ -245,6 +266,7 @@ klines = collector.get_klines("000001", period="daily")
 | **reasoning_effort 已接入** | `LLMConfig.reasoning_effort` 此前未接线 | `_build_llm()` 已接入，仅对 `deepseek-reasoner` 生效 | ✅ TD-014 |
 | **复杂度感知路由** | 简单问题也用推理模型导致慢 | `src/utils/complexity_router.py` 自动路由到 chat/reasoner | ✅ TD-014 |
 | **集成测试 skip 检测反复** | 代理环境特殊 | 使用 HTTP urlopen 检测，按数据源独立标记 | ✅ 已解决 |
+| **Windows torch access violation** | transformers 链导入 torch 导致 crash | `__init__.py` 惰性导入 DebateOrchestrator + reflection.py llm_service | ✅ 已解 |
 
 ### 6.2 已知 pandas 类型模式（必须遵守）
 

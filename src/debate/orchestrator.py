@@ -72,6 +72,7 @@ from src.debate.reflection import (
     _load_decision_from_memory,
     generate_reflection,
 )
+from src.debate.trust import TrustTracker, compute_weight_factor
 from src.memory.skill_disk import MasterSkill, SkillDisk
 from src.memory.store import MemoryItem, MemoryStore
 from src.utils.llm import llm_service
@@ -115,6 +116,7 @@ class DebateState(TypedDict):
     risk_round: dict  # 序列化的 RiskRoundResult（R1 风控层）
     trader_round: dict  # 序列化的 TraderRoundResult（T1 交易员层）
     trade_recommendation: dict  # 序列化的 TradeRecommendation（R1 PM 裁决）
+    trust_weight_factors: dict  # M4: agent_name → compute_weight_factor()
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
@@ -1054,11 +1056,19 @@ async def aggregate_node(state: DebateState) -> dict:
         # 应用 weight_suggestion（如果有）
         weight_factor = weight_suggestions.get(a.agent_name, 1.0)
 
+        # ── M4: 叠加信任度权重因子 ─────────────────
+        trust_factors_raw = state.get("trust_weight_factors", {})
+        trust_weight_factors: dict[str, float] = {}
+        if isinstance(trust_factors_raw, dict):
+            trust_weight_factors = trust_factors_raw
+        trust_factor = trust_weight_factors.get(a.agent_name, 1.0)
+        combined_factor = weight_factor * trust_factor
+
         dist[use_rating] = dist.get(use_rating, 0) + 1
         dir_dist[a.direction] = dir_dist.get(a.direction, 0) + 1
         total_score += use_score
-        weighted_score_sum += use_score * use_confidence * weight_factor
-        total_weight += use_confidence * weight_factor
+        weighted_score_sum += use_score * use_confidence * combined_factor
+        total_weight += use_confidence * combined_factor
 
     avg_score = total_score / len(successful)
     weighted_score = weighted_score_sum / total_weight if total_weight > 0 else avg_score
@@ -1129,6 +1139,8 @@ async def aggregate_node(state: DebateState) -> dict:
             weight_adjustments=weight_adjustments,
             review_notes=review_notes,
             consensus_support=round(consensus_support, 2),
+            # ── M4: 信任度权重因子 ───────────────────
+            trust_weight_factors=trust_weight_factors,
         )
     }
 
@@ -1176,6 +1188,7 @@ class DebateOrchestrator:
         risk_officers: list | None = None,
         enable_trader: bool = False,
         enable_reflection: bool = False,
+        enable_trust: bool = False,
     ):
         """初始化辩论编排器
 
@@ -1196,6 +1209,9 @@ class DebateOrchestrator:
             enable_reflection: 是否启用 M2 反思注入（默认 False）
                 启用后，辩论前自动查询历史反思记忆注入到策略师/评审 prompt。
                 需要同时提供 memory_store。
+            enable_trust: 是否启用 M4 动态权重（默认 False）
+                启用后，aggregate 节点使用 TrustTracker 的 compute_weight_factor()
+                自动调整每位大师的投票权重。需要同时提供 memory_store。
         """
         self.data_collector = data_collector or DataCollector()
         self.skill_disk = skill_disk or SkillDisk()
@@ -1205,6 +1221,7 @@ class DebateOrchestrator:
         self._risk_officers = risk_officers  # None 表示使用默认
         self.enable_trader = enable_trader
         self.enable_reflection = enable_reflection
+        self.enable_trust = enable_trust
 
         # 加载大师列表
         if skill_ids is not None:
@@ -1476,6 +1493,20 @@ class DebateOrchestrator:
             except Exception:
                 pass  # 记忆查询失败不阻塞辩论
 
+        # 查询信任度权重（M4 动态权重）
+        trust_weight_factors: dict[str, float] = {}
+        if self.memory_store and self.enable_trust:
+            try:
+                tracker = TrustTracker(memory_store=self.memory_store)
+                for skill in self.master_skills:
+                    agent_name = f"master.{skill.skill_id}"
+                    report = await tracker.get_trust_report(agent_name)
+                    if report.is_reliable:
+                        factor = compute_weight_factor(report.metrics)
+                        trust_weight_factors[agent_name] = factor
+            except Exception:
+                pass  # 信任度查询失败不阻塞辩论
+
         initial_state: DebateState = {
             "session_id": debate_input.session_id,
             "debate_input": debate_input.model_dump(),
@@ -1492,6 +1523,7 @@ class DebateOrchestrator:
             "risk_round": {},
             "trader_round": {},
             "trade_recommendation": {},
+            "trust_weight_factors": trust_weight_factors,
         }
 
         final_state = await app.ainvoke(initial_state)

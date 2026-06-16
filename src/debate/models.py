@@ -133,6 +133,7 @@ class VoteSummary(BaseModel):
     - weight_adjustments: 独立评审建议的权重调整记录（D4）
     - review_notes: 评审说明摘要（D4: consistency + risk + recommendation）
     - consensus_support: 独立评审对当前共识的支持度（D4: 0.0-1.0）
+    - trust_weight_factors: 信任度权重因子（M4: M3 compute_weight_factor 计算结果）
     """
 
     total_votes: int = 0
@@ -150,6 +151,8 @@ class VoteSummary(BaseModel):
     weight_adjustments: dict[str, float] = Field(default_factory=dict)
     review_notes: str = ""
     consensus_support: float = 0.5
+    # ── M4: 信任度权重因子 ───────────────────────────
+    trust_weight_factors: dict[str, float] = Field(default_factory=dict)
 
 
 class IndependentReview(BaseModel):
@@ -290,6 +293,9 @@ class DebateResult(BaseModel):
                 result["权重调整"] = vs.weight_adjustments
             if vs.review_notes:
                 result["评审说明"] = vs.review_notes
+        # ── M4: 展示信任度权重因子 ──────────────────
+        if vs.trust_weight_factors:
+            result["信任度权重"] = vs.trust_weight_factors
         # ── 分析师报告 ─────────────────────────────
         if self.analyst_reports:
             result["分析师报告数"] = len(self.analyst_reports)

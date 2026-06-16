@@ -22,7 +22,6 @@ import asyncio
 import sys
 import time
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 # 确保项目根目录在 sys.path
@@ -161,7 +160,8 @@ async def measure():
         enable_trader=False,
     )
 
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import AsyncMock
+
     from src.debate.models import AgentAnalysis
 
     mock_analysis = AgentAnalysis(
@@ -206,7 +206,7 @@ async def measure():
     print(f"  [若用 GPT-4o-mini]: {cost_basic * 3:.4f} 元")
 
     # ═══════════════════ 场景 2: 全 9 层 ═══════════════════
-    print(f"\n[场景 B] 全 9 层（+ R1 风控 + T1 交易员 + PM 裁决）")
+    print("\n[场景 B] 全 9 层（+ R1 风控 + T1 交易员 + PM 裁决）")
     print("-" * 40)
 
     orch2 = DebateOrchestrator(
@@ -263,10 +263,10 @@ async def measure():
     print(f"  全 9 层:    {all_calls} 次调用 ~= {cost_all:.4f} 元")
     print(f"  增量:       {all_calls - basic_calls} 次调用（风控+交易员+PM）")
     print()
-    print(f"  按 DeepSeek-Chat 定价:")
+    print("  按 DeepSeek-Chat 定价:")
     print(f"     每日 10 次决策 ~= {cost_all * 10:.2f} 元")
     print(f"     每月 20交易日 x 5次/日 ~= {cost_all * 100:.2f} 元")
-    print(f"\n  实际成本会因实际 token 长度、是否启用 M2 反思等因素浮动")
+    print("\n  实际成本会因实际 token 长度、是否启用 M2 反思等因素浮动")
     print()
 
     return {

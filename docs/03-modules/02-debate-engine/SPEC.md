@@ -79,18 +79,153 @@ END
 | D4 — VoteSummary 扩展评审修正 | ✅ | 15 |
 | M1 — 历史决策注入 | ✅ | 22 |
 | M2 — 反思闭环 | 🟡 已实现，待深度集成 | — |
+| M3 — 信任度评分 ✅ | 已实现 | 54 |
+| M4 — 动态权重 🆕 | ✅ 已实现 | 10 |
 
-**辩论模块总测试：168 项（全部通过）**
+**辩论模块总测试：232 项（含 M3 + M4）**
+
+## M3 信任度评分
+
+> **定位**（PROFESSIONAL-TEAM-OUTLOOK.md Phase 4）：每位 Agent 输出 vs 实际结果的准确率追踪。
+> M3 是 M4 动态权重的前置数据基础。
+
+### API
+
+```python
+from src.debate import TrustTracker
+
+tracker = TrustTracker(memory_store=store)
+
+# 记录一次 Agent 预测结果
+tracker.record_outcome(
+    agent_name="master.buffett",
+    predicted_direction="Bullish",
+    predicted_score=75,
+    predicted_confidence=0.85,
+    actual_direction="Bullish",
+    actual_price_change_pct=+3.5,
+)
+
+# 从 AgentAnalysis 直接记录（便捷包装）
+tracker.record_outcome_from_analysis(
+    agent_name="master.buffett",
+    score=75, confidence=0.85, direction="Bullish",
+    actual_direction="Bullish", actual_price_change_pct=+3.5,
+)
+
+# 查询信任度画像
+report = await tracker.get_trust_report("master.buffett")
+# → TrustReport(agent_name, metrics, summary, is_reliable)
+
+# 持久化到 MemoryStore
+await tracker.flush()
+```
+
+### 核心指标
+
+| 指标 | 说明 | 产品含义 |
+|:-----|:-----|:---------|
+| win_rate | 方向准确率 | 谁更靠谱 |
+| bullish/bearish/neutral_win_rate | 各方向准确率 | 偏哪个方向的判断更准 |
+| brier_score | 置信度校准（0=完美） | 说 90% 置信时实际对了多少 |
+| confidence_bias | 置信度偏差 | 过度自信 or 过于保守 |
+| optimism_bias | 评分乐观偏差 | 总是评高分但方向不准 |
+| calibration_curve | 校准曲线数据 | 可视化用 |
+| trend_direction | 趋势（improving/declining/stable） | 越用越好还是退化 |
+
+### 关键设计决策
+
+- **零 LLM 成本**：纯数学统计，不消耗推理预算
+- **数据不足时安全降级**：< 5 样本 → 默认值，5-20 温和加权，> 20 全量
+- **持久化**：namespace `("trust", "debate")` 下的 MemoryStore，去重写入
+- **compute_weight_factor()**：供 M4 aggregate 使用的权重因子函数（0.5-1.5）
+- **与 M2 关系**：M2 定性（为什么错），M3 定量（谁的预测更可靠）
+
+### 文件
+
+| 文件 | 说明 |
+|:-----|:------|
+| `src/debate/trust.py` | TrustTracker + AgentOutcome/TrustMetrics/TrustReport |
+| `tests/test_debate_trust.py` | 54 测试（模型/记录/统计/校准/权重/持久化/边界） |
+
+## M4 动态权重
+
+> **定位**：根据 M3 TrustTracker 的历史准确率自动调整 aggregate 投票权重。
+> M4 是 M3 信任度评分在决策聚合环节的应用。
+
+### 设计
+
+```
+M3 TrustTracker.get_trust_report("master.buffett")
+  → compute_weight_factor(metrics) → 0.5-1.5
+  ↓
+DebateOrchestrator(enable_trust=True).run(input)
+  → 预加载所有大师的信任度因子到 DebateState.trust_weight_factors
+  ↓
+aggregate_node
+  → 读取 trust_weight_factors
+  → 与 D3 weight_suggestions 相乘得到 combined_factor
+  → weighted_score 计算应用 combined_factor
+  ↓
+VoteSummary.trust_weight_factors 记录
+```
+
+### API 变更
+
+#### `DebateOrchestrator.__init__()` 新增参数
+
+| 参数 | 类型 | 默认值 | 说明 |
+|:-----|:-----|:------:|:-----|
+| `enable_trust` | `bool` | `False` | 启用 M4 动态权重。需同时提供 `memory_store` |
+
+#### `DebateState` 新增字段
+
+| 字段 | 类型 | 说明 |
+|:-----|:-----|:------|
+| `trust_weight_factors` | `dict` | `{agent_name: factor}`，compute_weight_factor 预计算值 |
+
+#### `VoteSummary` 新增字段
+
+| 字段 | 类型 | 说明 |
+|:-----|:-----|:------|
+| `trust_weight_factors` | `dict[str, float]` | 本次聚合使用的信任度因子（用于回溯/展示） |
+
+### 权重叠加逻辑
+
+```
+combined_factor = D3_weight_suggestion × M4_trust_factor
+                  1.0 (默认)         1.0 (默认)
+
+weighted_score = Σ(score × confidence × combined_factor)
+               / Σ(confidence × combined_factor)
+```
+
+### 安全降级
+
+- `memory_store` 不提供 → 无信任度查询，因子全为 1.0
+- 某 Agent 无信任度记录 → 该 Agent 因子为 1.0
+- `TrustTracker.get_trust_report()` 返回 `is_reliable=False` → 不设因子（1.0）
+- 所有异常在 `try/except` 内吞噬，不阻塞辩论流程
+
+### 文件
+
+| 文件 | 说明 |
+|:-----|:------|
+| `src/debate/orchestrator.py` | aggregate_node 叠加信任度因子（10 行变更） |
+| `src/debate/models.py` | VoteSummary.trust_weight_factors 新增 |
+| `tests/test_debate_m4_dynamic_weight.py` | 10 测试（权重/叠加/序列化/降级） |
 
 ## 下一步
 
-| 优先级 | 说明 | 工作量 |
-|:------:|:-----|:------:|
-| 🟡 P1 | **回测→辩论桥接** — TradePlan → TradeRecord 适配器 | 中 |
-| 🟡 P1 | **M3 信任度评分** — Agent 输出 vs 实际结果追踪 | 中 |
-| ⬇️ P2 | 多轮对抗辩论（当前单轮，考虑扩展到多轮） | 中 |
+| 优先级 | 说明 | 工作量 | 状态 |
+|:------:|:-----|:------:|:----:|
+| 🟡 P1 | ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ | 中 | ✅ |
+| 🟡 P1 | ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ | 中 | ✅ 已实现 |
+| 🟡 P2 | ~~**M4 动态权重** — 根据历史准确率自动调整 aggregate 权重~~ | 小 | ✅ |
+| ⬇️ P2 | 多轮对抗辩论（当前单轮，考虑扩展到多轮） | 中 | ⬜ |
+| ⬇️ P2 | **C1 简报分区输出** — format_market_brief 按区块分区 | 中 | ⬜ |
 
 ---
 
 > **关联文档**：[RESEARCH.md](RESEARCH.md) — 战线分析 / 竞品对比 / 设计决策背景
-> **最后更新**：2026-06-15（从调研笔记精简为规格文档）
+> **最后更新**：2026-06-16（M4 动态权重完成）
