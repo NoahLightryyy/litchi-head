@@ -57,7 +57,38 @@
 
 ---
 
-###### TD-008 cost_tracker 模型价格硬编码
+###### TD-020 后端板块/产业链数据增强层缺失
+
+| 属性 | 值 |
+|------|-----|
+| **分类** | `💻 implementation` `severity:moderate` `module:backend` `impact:功能完整性` |
+| **发现日期** | 2026-06-16 |
+| **发现人** | AI 审视 |
+| **状态** | `🆕 待评估` |
+| **本金估算** | ∼1.5h |
+
+**描述**：
+移除造假数据后，`backend/routers/market.py` 以下字段无真实数据源填充：
+- `SectorItem.heat` / `top_stocks` — 板块热度排行和龙头股
+- `SectorDetail.chain_map` — 产业链上下游映射
+- `SectorDetail.ai_analysis` — AI 板块分析摘要
+- `MacroBrief.risk_tips` / `hot_topics` — 市场风险提示和热点
+
+**具体问题**：
+1. ❌ akshare `stock_board_industry_name_em()` 不提供 heat/top_stocks，需从个股行情聚合计算
+2. ❌ 产业链映射（上游→中游→下游）无公开 API，需接入行业数据库或知识图谱
+3. ❌ 宏观风险提示无标准数据源，需接入新闻情感分析或 LLM 生成
+
+**利息分析**：
+- 前端板块详情页无数据可渲染，显示空白
+- 宏观简报缺乏 hot_topics/risk_tips，信息密度低
+
+**修复方向**：
+1. `heat`：用板块内个股涨跌幅市场广度计算热度（涨幅>2%占比）
+2. `top_stocks`：用板块个股排序取市值 TOP 3
+3. `chain_map`：短期留空显示"待接入产业链数据源"，中期接入行业图谱
+4. `ai_analysis`：T+1 批处理，LLM 总结板块表现
+5. `risk_tips`/`hot_topics`：LLM 综合指数行情生成
 
 | 属性 | 值 |
 |------|-----|

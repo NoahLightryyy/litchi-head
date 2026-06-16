@@ -8,10 +8,13 @@
 ## 快速统计
 
 ```
-总测试数   │ 691（+54 M3 信任度评分 🆕）
-技术债务   │ 17 条总记 / 10 条已关闭 / 7 条开放
-紧急指数   │ 0.5/10（历史最低，所有高风险债务已修复）
-当前阶段   │ Phase 1 MVP 期（8 模块全部上线，空模块清零 ✅）
+总 Python 测试数 │ 721
+技术债务         │ 18 条总记 / 9 条已关闭 / 9 条开放
+紧急指数         │ 1.4/10
+当前阶段         │ Phase 1 MVP → 前端架构 + FastAPI 桥接就绪
+前端进度         │ React 脚手架就绪 + K 线真渲染，pnpm build 通过 ✅
+后端桥接         │ FastAPI 桥接层已编码（7 文件，4 组路由）✅
+数据源诚信        │ 全项目零造假数据 ✅
 ```
 
 ---
@@ -82,6 +85,20 @@
 - ✅ **D2 强制输出方向** — Bullish/Bearish/Neutral + direction_distribution（31 测试）
 - ✅ **D4 VoteSummary 结构化扩展** — 6 个评审修正字段（15 测试）
 
+### 前端架构（Phase 1.5 🆕）
+- ✅ **需求调研** — 6 大交易平台调研 + 2026 AI+交易趋势
+- ✅ **产品定位** — "自上而下决策漏斗"（宏观→板块→产业链→个股）
+- ✅ **视觉设计** — FRONTEND_VISION.md（Bloomberg 暗色 × TradingView 配色）
+- ✅ **React 脚手架** — Next.js 16 + Tailwind v4 + shadcn/ui（47 文件）
+- ✅ **模块文档** — 前端 5 篇 + FastAPI 桥接层 2 篇
+- ✅ **FastAPI 桥接层编码** — market/stocks/debate/trust 四组路由（7 文件）
+- ✅ **安装依赖 + 构建验证** — pnpm install + pnpm build 通过
+- ✅ **前端接入真实 API** — 三页 mock 数据替换为 TanStack Query hooks，
+  搜索 autocomplete，QueryClientProvider 全局集成
+- ✅ **Sprint 6: Lightweight Charts K 线真渲染** — CandlestickChart 组件封装 +
+  KlineChart 自包含数据获取 + 成交量直方图 + 暗色主题
+- ✅ **⚠️ 数据源造假全面清除** — 5 处硬编码删除，全项目零造假数据
+
 ---
 
 ## ⬜ 待办
@@ -122,39 +139,37 @@
 
 | 优先级 | 事项 | 依赖 | 预估 |
 |:------:|:-----|:----|:----:|
-| 🔴 P0 | **端到端链路验证** — 9 层全链路真实 LLM 集成测试 | 全部模块 | ✅ ~2d（已完成）|
-| 🟡 P1 | ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ ✅ **已完成（2026-06-16）** | bridge.py + 20 tests | 中 |
-| 🟡 P1 | ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ ✅ **已完成（2026-06-16）** | `trust.py` + 54 tests | 中 |
-| 🟡 P2 | ~~**M4 动态权重** — 用 `compute_weight_factor()` 调整 aggregate 权重~~ ✅ **已完成（2026-06-16）** | orchestrator + 10 tests | 小 |
-| ⬇️ P2 | ~~**C1 简报分区输出** — format_market_brief 按区块分区~~ ✅ **已完成（2026-06-16）** | `MarketBrief` 模型 + 5 tests | 小 |
+| 🥇 | **后端完善** — trust.py 信任度路由 + capital-flow 完整实现 | FastAPI 骨架就绪 | ~0.5d |
+| 🥇 | **TD-020 板块数据增强层** — heat/chain_map/ai_analysis 接入真实数据源 | 造假数据已清除 | ~0.5d |
+| 🥈 | **技术指标/资金流向/信任度 tab 面板** — 3 个占位 tab 实现 | 个股页就绪 | ~1d |
+| 🟢 | **暗色主题打磨** — 加载态/骨架屏/错误态 | 核心功能就绪 | ~0.5d |
+| ⬜ | **前端 Makefile 命令** — make frontend-dev / make frontend-build | 脚手架就绪 | ~0.5d |
 
 ---
 
 ## 📊 模块完成度气温图
 
 ```
-src/
-├── utils/        ████████████████████ 100%  ✅ 全部完工
-│   ├── llm.py                          ✅ TD-013/015 已修复
-│   ├── config.py                       ✅
-│   ├── cost_tracker.py                 ✅
-│   └── logger.py                       ✅
-│
-├── core/
-│   └── protocol.py   ██████████████ 80%  ← TD-003/006 待修复
-│
-├── agents/          ████████████████ 85%
-│   ├── base.py                         ✅（TD-014 已修复）
-│   ├── xiao_zhi.py                     ✅
-│   └── master_agent.py                 ✅ InvestmentAnalysis 结构化输出
-│
-├── memory/          ████████████████████ 100%  ✅ MVP 完整（Store + Manager + KB + Skills）
-│
-├── debate/          ████████████████████ 100%  ✅ 辩论六模块+信任度评分全部完成（222 测试）
-├── data/            ████████████████████ 100%  ✅ 采集器 + 缓存 + 模型（43 测试）
-├── trader/          ████████████████████ 100%  ✅ T1 交易员层（20 tests）+ 执行规划
-├── risk/            ████████████████░░░ 65%   ✅ R1 三层风控辩论（26 tests）+ PM裁决
-└── backtest/        ██████████████████░░ 80%   ✅ P0 回测引擎基础（45 tests）+ 桥接适配器（20 tests）
+src/（Python 后端 — 全部就绪）
+├── utils/        ████████████████████ 100%  ✅
+├── core/         ████████████████████ 80%   ← TD-003/006
+├── agents/       ████████████████████ 85%
+├── memory/       ████████████████████ 100%  ✅
+├── debate/       ████████████████████ 100%  ✅（222 测试）
+├── data/         ████████████████████ 100%  ✅（43 测试）
+├── trader/       ████████████████████ 100%  ✅
+├── risk/         ██████████████████░░ 65%
+└── backtest/     ██████████████████░░ 80%
+
+frontend/（React + Next.js — 零造假数据 ✅）
+├── app/          ██████████████████░░ 80%   ✅ hooks + 组件化 + 搜索 autocomplete
+├── components/   ██████████████████░░ 80%   ✅ K 线真渲染 + 17 组件 + 三态覆盖
+├── lib/          ██████████████████░░ 80%   ✅ 类型 + API + Hooks + QueryClientProvider
+├── stores/       ██████░░░░░░░░░░░░░░ 30%   ✅ 基础状态管理
+└── 配置           ████████████████████ 100%  ✅ pnpm build + tsc 零错误
+
+backend/（FastAPI 桥接层 — 零造假数据 ✅）
+└── routers/      ██████████████░░░░░░ 70%   ✅ market/stocks/debate/trust + TD-020
 ```
 
 ---
@@ -168,7 +183,9 @@ src/
 | 工作日志 | `docs/04-changelog/logs/README.md` | 按日期回溯每会话工作内容 |
 | 会话交接 | `docs/01-guides/HANDOVER.md` | 当前上下文、待修复缺陷 |
 | 镜子 Agent | `docs/99-archive/USER-BEHAVIOR-MIRROR.md` | 完整设计（9 章） |
-| 前端 MVP | `docs/02-requirements/MVP_FRONTEND.md` | 3 页线框图+数据契约 |
+| 前端视觉设计 | `docs/02-requirements/FRONTEND_VISION.md` | 调研 + 视觉方案 + 布局原型 |
+| 前端规格文档 | `docs/03-modules/10-frontend/` | README+SPEC+ROUTING+COMPONENTS+API |
+| FastAPI 桥接 | `docs/03-modules/11-fastapi-bridge/` | 桥接层 README+SPEC |
 | 初版要求 | `docs/02-requirements/INITIAL_REQUIREMENTS.md` | 原始需求文档 |
 
 ---
@@ -189,6 +206,10 @@ src/
 | 2026-06-11 | 命名空间记忆存储 MVP 实现 — MemoryStore + JsonFileStore + MemoryManager，29 测试，331 passed |
 | 2026-06-12 | 辩论深度进化全部完成 — D1+D2+D3+D4+M1 五模块上线，491 passed |
 | 2026-06-14 | **P0 回测引擎基础上线** — BacktestEngine + 45 tests，空模块清零 🎉 |
+| 2026-06-16 | **前端 MVP 架构设计完成** — 6 平台调研 + 产品定位 + React 脚手架 47 文件 + 模块文档 7 篇 |
+| 2026-06-16 | **FastAPI 桥接层 + 前端构建验证** — 7 文件编码、pnpm build 通过 |
+| 2026-06-16 | **前端接入真实 API** — 三页 mock→hooks 组件化，搜索 autocomplete |
+| 2026-06-16 | **Sprint 6 K 线真渲染 + 数据源造假清除** — CandlestickChart + zero mock |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。

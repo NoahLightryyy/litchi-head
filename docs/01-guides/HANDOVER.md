@@ -34,30 +34,51 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `dbe9f98` — feat: C1 简报分区输出 — format_market_brief 4层分区 + MarketBrief/BriefSection 模型 |
+| **最新提交** | `36c6671` — docs: 全量文档同步 + §3.1.1 文档同步审计清单 |
 
 ---
 
-## 2. 当前会话状态（2026-06-16 — C1 简报分区输出完成）
+## 2. 当前会话状态（2026-06-16 — Sprint 6 K 线真渲染 + 数据源造假全面清除 ✅）
 
-> **本次完成**：C1 简报分区输出。`format_market_brief()` 按 4 层分区输出（行情/新闻/情绪/基本面），新增 `MarketBrief` + `BriefSection` Pydantic 模型，5 个分区测试。
-> 前期完成：P1 桥接 + M3 信任度评分 + M4 动态权重。
+> **本次完成**：Batch 3 — Sprint 6 Lightweight Charts K 线真渲染（CandlestickChart + KlineChart 自包含数据获取 + 成交量直方图）。
+> **⚠️ 数据源诚信审计**：发现并清除 5 处造假数据（debate-panel 硬编码大师分析 + market.py 板块硬编码 + chain-map 硬编码代码映射）。
+> 全项目 frontend/ + backend/ **零造假数据** ✅。
+> 前期完成：Batch 1 FastAPI 桥接层编码 + Batch 2 前端接入真实 API + 前端 MVP 架构设计（47 文件）。
 
 ### 完成内容
 
 | 事项 | 状态 |
 |:-----|:----:|
-| `MarketBrief` Pydantic 模型（结构化简报，含 to_text） | ✅ |
-| `BriefSection` 区块模型（title/content/has_data） | ✅ |
-| `format_market_brief()` 重构 — 4层分区输出 | ✅ |
-| 行情层（报价+涨跌幅+关键价位+走势） | ✅ |
-| 新闻层（新闻标题列表） | ✅ |
-| 情绪层（占位，待 C2） | ✅ |
-| 基本面层（占位，待 C3） | ✅ |
-| 5 个 C1 分区测试全通过 | ✅ |
-| 全量 717 测试通过 | ✅ |
+| 6 大交易平台调研（TV/Bloomberg/Robinhood/东方财富/同花顺/雪球） | ✅ |
+| 2025-2026 AI+交易趋势调研（eToro Tori/Quant/同花顺问财） | ✅ |
+| FRONTEND_VISION.md 视觉设计方案（Bloomberg暗色×TradingView配色） | ✅ |
+| 前端模块文档 5 篇（README/SPEC/ROUTING/COMPONENTS/API） | ✅ |
+| FastAPI 桥接层文档 2 篇（README/SPEC） | ✅ |
+| 三页路由搭建（`/` → `/sector/[id]` → `/stock/[code]`） | ✅ |
+| 暗色主题系统（CSS 变量 + Tailwind config + globals.css） | ✅ |
+| 17 个功能组件 + 4 个布局组件（含 loading/empty/error 三态） | ✅ |
+| TypeScript 类型 5 文件（覆盖 Pydantic 模型对应类型） | ✅ |
+| API 层 5 文件 + 4 个 React Hooks | ✅ |
+| Zustand 全局状态（面包屑 + 最近浏览） | ✅ |
+| **总计 47 个前端文件 + 7 个文档 ** | ✅ |
+| Python 后端 721 测试通过（不变） | ✅ |
+| FastAPI 桥接层编码 — `backend/` 项目骨架 | ✅ |
+| market.py 路由（指数/板块/板块详情/brief 4 endpoints） | ✅ |
+| stocks.py 路由（搜索/个股/K 线/新闻/资金流向 5 endpoints） | ✅ |
+| debate.py + trust.py 路由（辩论触发/状态/结果/信任度） | ✅ |
+| 前端依赖安装 — `pnpm install` 通过 119 包 | ✅ |
+| 前端构建验证 — `pnpm build` 三页路由全部通过 | ✅ |
+| Pyright 类型检查 — backend/ 零错误 | ✅ |
+| **Batch 2: 三页 mock → 真实 API 接入** | ✅ |
+| **app/page.tsx 组件化** — hooks + MarketIndices/SectorRanking/MacroBrief + 搜索 autocomplete | ✅ |
+| **sector/[id]/page.tsx 组件化** — hooks + SectorHeader/ChainMap/ChainAnalysis/StockList + 骨架屏 | ✅ |
+| **stock/[code]/page.tsx 组件化** — hooks + QuoteCard/KlineChart/DebatePanel/NewsFeed + tab 面板 | ✅ |
+| **QueryClientProvider** — TanStack Query 全局 providers.tsx | ✅ |
+| **Batch 3: Sprint 6 K 线真渲染** — CandlestickChart + KlineChart 自包含 + 成交量直方图 | ✅ |
+| **⚠️ 数据源造假清除** — debate-panel/market.py/chain-map 5 处硬编码全部删除 | ✅ |
+| **全量数据源诚信审计** — frontend + backend 零造假数据 | ✅ |
 
-### 重要：docs/ 重组 — 新结构图
+### 重要：项目目录新结构
 
 ```
 docs/
@@ -66,10 +87,12 @@ docs/
 ├── 01-guides/                ← 📐 流程规范 + AI 路由
 │   └── debt/                 ← 债务按类型拆分（7 文件）
 ├── 02-requirements/          ← 📋 产品需求
-├── 03-modules/               ← 🔧 ★ 核心：9 个模块，各一个文件夹
+├── 03-modules/               ← 🔧 ★ 核心：11 个模块，各一个文件夹
 │   ├── 01-data-collection/   ← README + SPEC + RESEARCH + ADR
 │   ├── 02-debate-engine/     ← README + SPEC + RESEARCH + ADR
-│   └── ...（同格式）
+│   ├── ...（同格式，至 09-）
+│   ├── 10-frontend/          ← 🆕 React + Next.js 前端（5 文档：README/SPEC/ROUTING/COMPONENTS/API）
+│   └── 11-fastapi-bridge/    ← 🆕 FastAPI 桥接层（2 文档：README/SPEC）
 ├── 04-changelog/logs/        ← 📋 AI 工作日志（按日分文件夹）
 ├── 05-decisions/             ← 🏛️ 跨模块 ADR（6 文件）
 └── 99-archive/               ← 🗄️ 归档（11 文件）
@@ -97,30 +120,38 @@ docs/
 4. ~~**旧路径引用修复** — WORKFLOW/HANDOVER_TIP/看板/模块 RESEARCH 全量更新~~ ✅
 5. ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ ✅ 已完成（2026-06-16）
 6. ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ ✅ 已完成（2026-06-16）
+7. ~~**前端 MVP 开发** — React + Next.js 脚手架已搭建~~ ✅ 依赖安装+构建验证通过
+8. ~~**FastAPI 桥接层实现** — 接口设计已定，需要编写 Python API 路由~~ ✅ 已编码（7 文件）
+9. 🆕 ~~**前端连接后端 API** — 替换模拟数据为真实 FastAPI 接口调用~~ ✅
+10. 🆕 ~~**后端 trust.py 和 stocks/capital-flow** — 占位路由需要完整实现~~ ⬜ 待继续
+11. 🆕 ~~**Lightweight Charts K 线集成** — 替换模拟 K 线为真渲染~~ ✅
+12. 🆕 **后端数据增强** — 移除造假后 heat/chain_map/ai_analysis 需要接入真实数据源（TD-020）
+13. 🆕 **技术指标/资金流向/信任度 tab 面板** — 3 个占位 tab 等待实现
 
 ### 当前 Git 状态
 
 ```
-已提交: dbe9f98 — feat: C1 简报分区输出 — format_market_brief 4层分区 + MarketBrief/BriefSection 模型
-工作区: 干净
+最新提交: 36c6671 — docs: 全量文档同步 + §3.1.1 文档同步审计清单
+工作区: 有 frontend/ + docs/ 新文件未提交
 ```
 
 ### 测试覆盖
 
 | 测试文件 | 测试数 |
 |---------|:------:|
-| `tests/test_debate_*.py` | 199（含 54 M3 🆕） |
+| `tests/test_debate_*.py` | 199（含 54 M3 + 10 M4） |
 | `tests/test_risk_*.py` | 26 |
 | `tests/test_trader_*.py` | 20 |
-| `tests/test_backtest_*.py` | 65（含 20 桥接 🆕） |
+| `tests/test_backtest_*.py` | 65（含 20 桥接） |
 | `tests/test_e2e_full_pipeline.py` | 5 |
 | `tests/test_memory_*.py` | 29 |
 | `tests/test_agents_*.py` | 58+4 skip |
-| `tests/test_trader_bridge.py` 🆕 | 14 | 桥接转换（TradePlan→TradeRecord，本地） |
-| `tests/test_backtest_*.py` | 65 | 含 20 桥接（远程）+ 新增信任度（远程） |
-| `tests/test_debate_trust.py` 🆕 | 54+10 | M3 信任度 + M4 动态权重 |
+| `tests/test_trader_bridge.py` | 14 |
+| `tests/test_debate_trust.py` | 54+10 |
 | 其他 | 78 |
-| **全量** | **717 passed** |
+| **Python 全量** | **721 passed** |
+| `frontend/` | 🆕 React 前端，暂无测试（待 Phase 2） |
+| `backend/` | 🆕 FastAPI 桥接层，暂无专用测试（Pyright 零错误） |
 
 ---
 
@@ -139,6 +170,10 @@ docs/
   src/trader/      — models / profiles / orchestrator（T1 交易员层 ✅）
   src/backtest/    — models / engine / metrics（P0 回测引擎基础 ✅）
   src/memory/      — knowledge_base / skill_disk / store / manager（MVP ✅）
+
+🆕 新建模块（已编码）：
+  frontend/        — React + Next.js 16 + Tailwind v4 + shadcn/ui（47 文件，pnpm build 通过 ✅）
+  backend/         — FastAPI 桥接层（7 文件，market/stocks/debate/trust 四组路由 ✅）
 
 空架子模块（⬜）：（无）
 ```
@@ -222,32 +257,43 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-16 更新：C1 简报分区输出完成）
+## 5. 下一步优先级（2026-06-16 更新 — Sprint 6 K 线真渲染 + 数据源造假清除 ✅）
 
 > **本次完成**：
-> - C1 简报分区输出 — `format_market_brief()` 重写为 4 层分区输出
-> - 新增 `MarketBrief` + `BriefSection` Pydantic 模型
-> - 5 个分区测试 + 全量 717 测试通过
-> 建议下一步：**前端 MVP — Streamlit 3 页面**。
+> - Sprint 6: Lightweight Charts K 线真渲染（CandlestickChart 组件 + KlineChart 自包含 + 成交量直方图）
+> - ⚠️ 数据源造假全面清除：5 处硬编码删除，frontend + backend 零造假数据 ✅
+>
+> 建议下一步：**后端占位路由完善 + 板块数据增强层**。
 
 ### 🥇 下一步
 
 | 优先级 | 说明 | 涉及范围 | 工作量 |
 |:------:|:-----|:--------:|:-----:|
-| ~~🟡 **P1**~~ | ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ ✅ 已完成 | `trader/bridge.py` + `backtest/bridge.py` | 中 |
-| ~~🟡 **P1**~~ | ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ ✅ 已完成 | `debate/trust.py` | 中 |
-| ~~🟡 **P2**~~ | ~~**M4 动态权重** — 用 `compute_weight_factor()` 调整 aggregate 权重~~ ✅ 已完成 | `debate/orchestrator.py` | 小 |
-| ~~⬇️ **P2**~~ | ~~**C1 简报分区输出** — format_market_brief 按区块分区~~ ✅ 已完成 | `data/collector.py` | 小 |
-| ⬇️ **P2** | **前端 MVP** — Streamlit 3 页面 | 前端 | ~2d |
+| 🥇 **后端完善** | trust.py 信任度路由 / capital-flow 资金流向路由完整实现 | `backend/` | ~0.5d |
+| 🥇 **TD-020** | 板块数据增强层 — heat/chain_map/ai_analysis 接入真实数据源 | `backend/routers/market.py` | ~0.5d |
+| 🥈 **Tab 面板** | 技术指标/资金流向/信任度 3 个占位 tab 实现 | `frontend/` | ~1d |
+| 🟢 后续 | **暗色主题打磨** — 加载态、骨架屏、错误态等体验优化 | 全局 | ~0.5d |
+
+### 关键架构决策（新会话必读）
+
+1. **前端用 React + Next.js 16，不用 Streamlit** — 用户要求高级感，Streamlit 无法达到
+2. **Python 后端不动，前面加 FastAPI 桥接层** — 现有 akshare/LangGraph 全部保留
+3. **三页路由**：`/`（宏观总览）→ `/sector/[id]`（产业链分析）→ `/stock/[code]`（个股决策）
+4. **数据源不造假** — akshare 提供什么就返回什么，空就是空，未实现就是不实现 ✅
+5. **详细文档在** `docs/03-modules/10-frontend/`（5 篇） + `docs/03-modules/11-fastapi-bridge/`（2 篇）
 
 ### 下个会话推荐启动顺序
 
 ```
-1. `/resume-session` 恢复上下文
-2. 前端 MVP — Streamlit 3 页面
+1. /resume-session 恢复上下文
+2. cd e:/litchi-head && uvicorn backend.main:app --reload --port 8000   ← 从项目根启动 FastAPI
+3. cd frontend && pnpm dev                               ← 启动前端看效果
+4. 后端 trust.py + capital-flow 路由完善                   ← 后端占位补全
+5. 板块数据增强层（TD-020）                                ← 接入真实数据源
+6. Tab 面板实现（技术指标/资金流向/信任度）                  ← 页面功能补全
 ```
 
-> **最后更新**：2026-06-16（C1 简报分区输出完成 — 4层分区 + MarketBrief 模型） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-16（Sprint 6 K 线真渲染 + 数据源造假清除 — CandlestickChart + 诚信审计 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
@@ -369,4 +415,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-15（docs 重组全部完成 — ROUTING + SPEC 精简 + .legacy 清理 + 全路径修复） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-15（docs 重组全部完成 — 后续更新看 §2 行末） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行

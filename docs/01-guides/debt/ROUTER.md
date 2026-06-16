@@ -7,7 +7,7 @@
 | 类型 | 文件 | 开放债务数 |
 |:-----|:-----|:----------:|
 | 🏛️ 架构设计 | [ARCHITECTURE.md](ARCHITECTURE.md) | 3 |
-| 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 5 |
+| 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 6 |
 | 🧪 测试 | [TESTING.md](TESTING.md) | 1 |
 | ⚙️ 基础设施 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | 1 |
 | 🗄️ 已关闭 | [CLOSED.md](CLOSED.md) | 9 |
@@ -16,8 +16,8 @@
 ## 仪表盘
 
 ```
-开放债务: 10 条    已关闭: 9 条
-本金总计: ~13.7 人时
+开放债务: 11 条    已关闭: 9 条
+本金总计: ~15.2 人时
 紧急指数: 1.4 / 10     ← 主要来自 TD-017 反思闭环缺失
 ```
 
