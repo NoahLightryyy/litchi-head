@@ -126,7 +126,7 @@
 | 🟡 P1 | ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ ✅ **已完成（2026-06-16）** | bridge.py + 20 tests | 中 |
 | 🟡 P1 | ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ ✅ **已完成（2026-06-16）** | `trust.py` + 54 tests | 中 |
 | 🟡 P2 | ~~**M4 动态权重** — 用 `compute_weight_factor()` 调整 aggregate 权重~~ ✅ **已完成（2026-06-16）** | orchestrator + 10 tests | 小 |
-| ⬇️ P2 | **C1 简报分区输出** — format_market_brief 按区块分区 | data 就绪 | 小 |
+| ⬇️ P2 | ~~**C1 简报分区输出** — format_market_brief 按区块分区~~ ✅ **已完成（2026-06-16）** | `MarketBrief` 模型 + 5 tests | 小 |
 
 ---
 

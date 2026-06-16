@@ -34,7 +34,7 @@
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `14312ee` — docs: docs 重组收尾 — ROUTING + SPEC 精简 + .legacy 清理 + 路径修复 |
+| **最新提交** | `dbe9f98` — feat: C1 简报分区输出 — format_market_brief 4层分区 + MarketBrief/BriefSection 模型 |
 
 ---
 
@@ -101,8 +101,8 @@ docs/
 ### 当前 Git 状态
 
 ```
-已提交: b7caa37 — feat: 回测←→辩论桥接适配器 — TradePlan → TradeRecord 转换 + 20 测试
-工作区: trust.py + 54 tests（干净待提交）
+已提交: dbe9f98 — feat: C1 简报分区输出 — format_market_brief 4层分区 + MarketBrief/BriefSection 模型
+工作区: 干净
 ```
 
 ### 测试覆盖
@@ -222,12 +222,13 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-16 更新：M4 动态权重完成）
+## 5. 下一步优先级（2026-06-16 更新：C1 简报分区输出完成）
 
 > **本次完成**：
-> - 本地：P1 回测→辩论桥接（`src/trader/bridge.py` — TradePlan→TradeRecord 转换）
-> - 远程：回测桥接适配器（`src/backtest/bridge.py`） + **M3 信任度评分**（`src/debate/trust.py`） + **M4 动态权重**（`aggregate_node` 接入信任度因子）
-> 建议下一步：**C1 简报分区输出** 或 **前端 MVP**。
+> - C1 简报分区输出 — `format_market_brief()` 重写为 4 层分区输出
+> - 新增 `MarketBrief` + `BriefSection` Pydantic 模型
+> - 5 个分区测试 + 全量 717 测试通过
+> 建议下一步：**前端 MVP — Streamlit 3 页面**。
 
 ### 🥇 下一步
 
@@ -325,11 +326,11 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 | `src/utils/config.py` | 配置加载（Pydantic Settings） |
 | `src/utils/cost_tracker.py` | 费用追踪 + 持久化 |
 | `src/utils/logger.py` | 结构化日志 |
-| `src/data/models.py` | 5 个 Pydantic 数据契约 |
+| `src/data/models.py` | 7 个 Pydantic 数据契约（含 MarketBrief/BriefSection） |
 | `src/data/cache.py` | DataCache 内存 TTL 缓存 |
 | `src/data/collector.py` | DataCollector 封装 akshare 6 类数据 |
-| `src/debate/models.py` | 辩论数据模型（含 D1+D2+D3+D4 扩展） |
-| `src/debate/orchestrator.py` | LangGraph 辩论编排器（含 D1+D2+D3+D4+M1） |
+| `src/debate/models.py` | 辩论数据模型（含 D1-D4+M1-M4+R1+T1 扩展） |
+| `src/debate/orchestrator.py` | LangGraph 辩论编排器（9层链路 + TrustTracker） |
 | `src/debate/reflection.py` | M2 反思闭环（Record→Compare→Reflect→Inject） |
 | `src/backtest/models.py` 🆕 | 回测数据模型（BacktestConfig/TradeRecord/BacktestReport） |
 | `src/backtest/engine.py` 🆕 | BacktestEngine 回测模拟引擎 |
@@ -339,12 +340,22 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 | 文件 | 测试数 | 覆盖 |
 |------|:------:|------|
-| `tests/test_debate_orchestrator.py` | 52 | 辩论编排器 MVP |
+| `tests/test_debate_orchestrator.py` | 52→17（重构精简） | 辩论编排器 MVP |
 | `tests/test_debate_d1_cross_review.py` | 25 | D1 交叉审阅+反驳 |
 | `tests/test_debate_d2_direction_constraint.py` | 31 | D2 强制输出方向 |
 | `tests/test_debate_d3_independent_review.py` | 23 | D3 独立评审 |
 | `tests/test_debate_m1_history_injection.py` | 22 | M1 历史决策注入 |
 | `tests/test_debate_d4_vote_summary_extension.py` | 15 | D4 VoteSummary 扩展 |
+| `tests/test_debate_trust.py` 🆕 | 54 | M3 信任度评分 |
+| `tests/test_debate_m4_dynamic_weight.py` 🆕 | 10 | M4 动态权重 |
+
+### 数据模块测试
+
+| 文件 | 测试数 | 覆盖 |
+|------|:------:|------|
+| `tests/test_data_models.py` | 22 | Pydantic 模型验证 |
+| `tests/test_data_cache.py` | 12 | DataCache TTL |
+| `tests/test_data_collector.py` | 26 | DataCollector + C1 简报分区 |
 
 ### 关键调研文档
 
