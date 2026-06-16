@@ -19,8 +19,9 @@ env/
 .env
 .env.local
 
-# Logs
-logs/
+# Logs (root-level only)
+/logs/
+*.log
 *.log
 
 # Data files (ignore direct children, then un-ignore specific dirs)
