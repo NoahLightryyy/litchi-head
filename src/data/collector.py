@@ -23,6 +23,7 @@ from src.data.cache import DataCache
 from src.data.models import (
     BoardInfo,
     BriefSection,
+    CapitalFlowItem,
     KLine,
     MarketBrief,
     NewsItem,
@@ -40,6 +41,7 @@ TTL_QUOTES = 30         # 实时行情：30 秒
 TTL_KLINES_DAILY = 300  # 日 K 线：5 分钟
 TTL_NEWS = 120          # 新闻：2 分钟
 TTL_BOARDS = 3600       # 板块：1 小时
+TTL_CAPITAL_FLOW = 300  # 资金流向：5 分钟
 
 
 # ── 健康监控 ────────────────────────────────────────────────────────
@@ -330,6 +332,35 @@ class DataCollector:
         except Exception:
             _health_stats.record_call("concept_boards", (time.time() - t0) * 1000, error="获取概念板块列表失败")
             logger.exception("获取概念板块列表失败")
+            return []
+
+    # ── 资金流向 ─────────────────────────────────────────────────────
+
+    def get_capital_flow(self, code: str) -> list[CapitalFlowItem]:
+        """获取个股资金流向
+
+        Cache TTL: 5 分钟
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            CapitalFlowItem 列表，网络异常时返回空列表
+        """
+        cache_key = f"capital_flow:{code}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        t0 = time.time()
+        try:
+            result = self._source.get_capital_flow(code)
+            self.cache.set(cache_key, result, ttl=TTL_CAPITAL_FLOW)
+            _health_stats.record_call("capital_flow", (time.time() - t0) * 1000)
+            return result
+        except Exception:
+            _health_stats.record_call("capital_flow", (time.time() - t0) * 1000, error=f"获取资金流向失败 code={code}")
+            logger.exception("获取资金流向失败: code=%s", code)
             return []
 
 

@@ -19,7 +19,7 @@
 import logging
 from collections import defaultdict
 
-from src.data.models import BoardInfo, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import BoardInfo, CapitalFlowItem, KLine, NewsItem, StockInfo, StockQuote
 from src.data.providers.base import DataSource
 
 logger = logging.getLogger("data.providers.fallback")
@@ -85,6 +85,13 @@ class FallbackSource:
 
     def get_concept_boards(self) -> list[BoardInfo]:
         return self._call("concept_boards", self._primary.get_concept_boards, self._fallback.get_concept_boards)
+
+    def get_capital_flow(self, code: str) -> list[CapitalFlowItem]:
+        return self._call(
+            "capital_flow",
+            lambda: self._primary.get_capital_flow(code),
+            lambda: self._fallback.get_capital_flow(code),
+        )
 
     # ── 核心切换逻辑 ─────────────────────────────────────────────────
 

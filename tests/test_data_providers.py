@@ -37,6 +37,9 @@ class MockDataSource:
     def get_concept_boards(self) -> list:
         return []
 
+    def get_capital_flow(self, code: str) -> list:
+        return []
+
 
 class TestProviderProtocol:
     """验证 MockDataSource 满足 DataSource Protocol（鸭子类型）"""
@@ -81,6 +84,7 @@ class TestAKShareSource:
         assert hasattr(source, "get_news")
         assert hasattr(source, "get_industry_boards")
         assert hasattr(source, "get_concept_boards")
+        assert hasattr(source, "get_capital_flow")
 
 
 # ── ADataSource ImportError ─────────────────────────────────────────
@@ -118,6 +122,7 @@ class TestADataSource:
         assert hasattr(ADataSource, "get_news")
         assert hasattr(ADataSource, "get_industry_boards")
         assert hasattr(ADataSource, "get_concept_boards")
+        assert hasattr(ADataSource, "get_capital_flow")
 
 
 # ── ZzshareSource ImportError ───────────────────────────────────────
@@ -153,6 +158,7 @@ class TestZzshareSource:
         assert hasattr(ZzshareSource, "get_news")
         assert hasattr(ZzshareSource, "get_industry_boards")
         assert hasattr(ZzshareSource, "get_concept_boards")
+        assert hasattr(ZzshareSource, "get_capital_flow")
 
 
 # ── FallbackSource ──────────────────────────────────────────────────
@@ -180,6 +186,9 @@ class MockFailingPrimary:
     def get_concept_boards(self):
         raise ConnectionError("主源挂了")
 
+    def get_capital_flow(self, code: str = ""):
+        raise ConnectionError("主源挂了")
+
 
 class MockHealthyFallback:
     """总是成功的备用源"""
@@ -202,6 +211,9 @@ class MockHealthyFallback:
 
     def get_concept_boards(self):
         return ["fallback_concept"]
+
+    def get_capital_flow(self, code: str = ""):
+        return ["fallback_capital_flow"]
 
     def __repr__(self) -> str:
         return "MockHealthyFallback"
@@ -233,6 +245,9 @@ class MockMixedPrimary:
         return []
 
     def get_concept_boards(self):
+        return []
+
+    def get_capital_flow(self, code: str = ""):
         return []
 
 

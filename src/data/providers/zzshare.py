@@ -14,7 +14,7 @@ GitHub: https://github.com/zzquant/zzshare
 
 import logging
 
-from src.data.models import BoardInfo, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import BoardInfo, CapitalFlowItem, KLine, NewsItem, StockInfo, StockQuote
 from src.data.providers.base import safe_float, safe_int, safe_str
 
 logger = logging.getLogger("data.providers.zzshare")
@@ -122,6 +122,12 @@ class ZzshareSource:
             return []
 
     def get_concept_boards(self) -> list[BoardInfo]:
+        return []
+
+    # ── 资金流向 ─────────────────────────────────────────────────────
+
+    def get_capital_flow(self, code: str) -> list[CapitalFlowItem]:
+        """zzshare 资金流向接口待接入，返回空列表"""
         return []
 
 

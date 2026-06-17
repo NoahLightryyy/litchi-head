@@ -1,6 +1,6 @@
 """个股数据路由 —— /api/stocks/*
 
-提供个股行情、K 线、新闻、资金流向等接口。
+提供个股行情、K 线、新闻、技术指标、资金流向等接口。
 """
 
 from __future__ import annotations
@@ -9,93 +9,12 @@ import logging
 import time
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
-
 from src.data.collector import DataCollector
-from src.data.providers.base import safe_float, safe_str
 from backend.async_utils import run_sync
 
 logger = logging.getLogger("backend.stocks")
 router = APIRouter(prefix="/api/stocks")
 collector = DataCollector()
-
-
-# ── 资金流向模型 ──────────────────────────────────────────────────
-
-
-class CapitalFlowItem(BaseModel):
-    """个股资金流向数据点"""
-
-    date: str = ""
-    main_net_inflow: float = Field(default=0.0, description="主力净流入（大单+超大单）")
-    retail_net_inflow: float = Field(default=0.0, description="小单净流入（散户）")
-    institutional_net_inflow: float = Field(default=0.0, description="大单净流入（机构）")
-
-
-# ── 辅助函数 ──────────────────────────────────────────────────
-
-
-def _detect_market(code: str) -> str:
-    """根据股票代码判断市场
-
-    Args:
-        code: 6 位股票代码
-
-    Returns:
-        "sh"（上海）/ "sz"（深圳）/ "bj"（北京）
-    """
-    if not code:
-        return "sh"
-    # 北京交易所: 4xxxxx, 8xxxxx
-    if code.startswith(("4", "8")):
-        return "bj"
-    # 上海: 6xxxxx
-    if code.startswith("6"):
-        return "sh"
-    # 深圳: 0xxxxx, 3xxxxx
-    return "sz"
-
-
-def _capital_flow_from_akshare(code: str) -> list[CapitalFlowItem]:
-    """通过 akshare 获取个股资金流向
-
-    列映射（东方财富接口）：
-      日期 → date
-      主力净流入-净额 → main_net_inflow
-      小单净流入-净额 → retail_net_inflow
-      大单净流入-净额 → institutional_net_inflow
-
-    Args:
-        code: 股票代码
-
-    Returns:
-        CapitalFlowItem 列表（失败时返回空列表）
-    """
-    import akshare as ak  # noqa: PLC0415
-
-    try:
-        market = _detect_market(code)
-        df = ak.stock_individual_fund_flow(stock=code, market=market)
-        if df is None or df.empty:
-            return []
-
-        results: list[CapitalFlowItem] = []
-        for _, row in df.iterrows():
-            try:
-                results.append(
-                    CapitalFlowItem(
-                        date=safe_str(row.get("日期", "")),
-                        main_net_inflow=safe_float(row.get("主力净流入-净额", 0.0)),
-                        retail_net_inflow=safe_float(row.get("小单净流入-净额", 0.0)),
-                        institutional_net_inflow=safe_float(row.get("大单净流入-净额", 0.0)),
-                    )
-                )
-            except (ValueError, TypeError):
-                continue
-        return results
-    except Exception:
-        logger.exception("获取资金流向失败: code=%s", code)
-        return []
 
 
 @router.get("/search")
@@ -191,7 +110,7 @@ async def get_technical_indicators(
 async def get_capital_flow(code: str):
     """个股资金流向（主力/散户/机构净流入）"""
     t0 = time.time()
-    items = await run_sync(_capital_flow_from_akshare, code)
+    items = await run_sync(collector.get_capital_flow, code)
     return {
         "data": [i.model_dump() for i in items],
         "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},

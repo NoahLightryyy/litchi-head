@@ -9,10 +9,28 @@ import logging
 import akshare as ak
 import pandas as pd
 
-from src.data.models import BoardInfo, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import BoardInfo, CapitalFlowItem, KLine, NewsItem, StockInfo, StockQuote
 from src.data.providers.base import safe_float, safe_int, safe_str
 
 logger = logging.getLogger("data.providers.akshare")
+
+
+def _detect_market(code: str) -> str:
+    """根据股票代码判断交易市场
+
+    Args:
+        code: 6 位股票代码
+
+    Returns:
+        "sh"（上海）/ "sz"（深圳）/ "bj"（北京）
+    """
+    if not code:
+        return "sh"
+    if code.startswith(("4", "8")):
+        return "bj"
+    if code.startswith("6"):
+        return "sh"
+    return "sz"
 
 
 class AKShareSource:
@@ -107,6 +125,41 @@ class AKShareSource:
             ]
         except Exception:
             logger.exception("akshare stock_board_concept_name_em 失败")
+            return []
+
+    # ── 资金流向 ─────────────────────────────────────────────────────
+
+    def get_capital_flow(self, code: str) -> list[CapitalFlowItem]:
+        """获取个股资金流向（主力/散户/机构净流入）
+
+        列映射（东方财富接口）：
+          日期 → date
+          主力净流入-净额 → main_net_inflow
+          小单净流入-净额 → retail_net_inflow
+          大单净流入-净额 → institutional_net_inflow
+        """
+        try:
+            market = _detect_market(code)
+            df: pd.DataFrame = ak.stock_individual_fund_flow(stock=code, market=market)
+            if df is None or df.empty:
+                return []
+
+            results: list[CapitalFlowItem] = []
+            for _, row in df.iterrows():
+                try:
+                    results.append(
+                        CapitalFlowItem(
+                            date=safe_str(row.get("日期", "")),
+                            main_net_inflow=safe_float(row.get("主力净流入-净额", 0.0)),
+                            retail_net_inflow=safe_float(row.get("小单净流入-净额", 0.0)),
+                            institutional_net_inflow=safe_float(row.get("大单净流入-净额", 0.0)),
+                        )
+                    )
+                except (ValueError, TypeError):
+                    continue
+            return results
+        except Exception:
+            logger.exception("akshare stock_individual_fund_flow 失败: code=%s", code)
             return []
 
 

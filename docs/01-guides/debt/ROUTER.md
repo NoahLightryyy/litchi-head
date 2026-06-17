@@ -7,18 +7,18 @@
 | 类型 | 文件 | 开放债务数 |
 |:-----|:-----|:----------:|
 | 🏛️ 架构设计 | [ARCHITECTURE.md](ARCHITECTURE.md) | 3 |
-| 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 12 |
+| 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 8 |
 | 🧪 测试 | [TESTING.md](TESTING.md) | 3 |
 | ⚙️ 基础设施 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | 5 |
-| 🗄️ 已关闭 | [CLOSED.md](CLOSED.md) | 17 |
+| 🗄️ 已关闭 | [CLOSED.md](CLOSED.md) | 21 |
 | 📝 模板 | [TEMPLATE.md](TEMPLATE.md) | — |
 
 ## 仪表盘
 
 ```
-开放债务: 23 条    已关闭: 17 条
-本金总计: ~50+ 人时
-紧急指数: 7.9 / 10     ← 2026-06-17 实盘审计升级：Phase R 31 条 P0/P1 新增
+开放债务: 19 条    已关闭: 21 条
+本金总计: ~45+ 人时
+紧急指数: 6.5 / 10     ← 2026-06-17 4 条 Phase R P0 已修复
 ```
 
 ## 快速新增

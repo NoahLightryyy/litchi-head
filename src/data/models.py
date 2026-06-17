@@ -51,6 +51,15 @@ class NewsItem(BaseModel):
     url: str = ""
 
 
+class CapitalFlowItem(BaseModel):
+    """个股资金流向数据点（主力/散户/机构净流入）"""
+
+    date: str = ""
+    main_net_inflow: float = Field(default=0.0, description="主力净流入（大单+超大单）")
+    retail_net_inflow: float = Field(default=0.0, description="小单净流入（散户）")
+    institutional_net_inflow: float = Field(default=0.0, description="大单净流入（机构）")
+
+
 BoardType = Literal["industry", "concept"]
 
 
@@ -107,6 +116,7 @@ __all__ = [
     "BoardInfo",
     "BoardType",
     "BriefSection",
+    "CapitalFlowItem",
     "KLine",
     "MarketBrief",
     "NewsItem",

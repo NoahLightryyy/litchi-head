@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { runDebate, fetchDebateResult, fetchTrustReport, fetchTrustLeaderboard } from "@/lib/api/debate";
 import type { DebateResult, TrustReport, DebateRequest } from "@/lib/types/debate";
@@ -24,16 +24,26 @@ export function useRunDebate() {
   return { trigger, sessionId, running };
 }
 
-/* ── 辩论结果（轮询） ── */
+/* ── 辩论结果（轮询，最大 60 次 ≈ 120 秒兜底） ── */
 export function useDebateResult(sessionId: string | null) {
+  const pollCountRef = useRef(0);
+  const MAX_POLLS = 60;
+
   return useQuery({
     queryKey: ["debate", "result", sessionId],
     queryFn: () => fetchDebateResult(sessionId!),
     enabled: !!sessionId,
     refetchInterval: (query) => {
-      // 未完成时每 2 秒轮询
       const data = query.state.data as DebateResult | undefined;
-      return data?.vote_summary ? false : 2000;
+
+      // 辩论完成 → 停
+      if (data?.vote_summary) return false;
+
+      // 超过最大轮询次数 → 停
+      pollCountRef.current += 1;
+      if (pollCountRef.current >= MAX_POLLS) return false;
+
+      return 2000;
     },
     staleTime: Infinity,
   });

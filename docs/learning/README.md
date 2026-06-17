@@ -35,18 +35,19 @@
 | 04 | [FastAPI 桥接层架构](04-fastapi-bridge.md) | `backend/` 目录 |
 | 05 | [Provider 抽象模式（数据源）](05-provider-pattern.md) | `src/data/collector.py` |
 | 06 | [纯 Python 技术指标计算](06-technical-indicators.md) | `backend/indicators.py` |
+| 07 | [React 防抖与轮询模式](07-react-query-patterns.md) | `frontend/lib/hooks/` |
 
 ### 进阶篇
 
 | # | 卡片 | 项目里的对应 |
 |:-:|:-----|:-------------|
-| 07 | [类型注解与 Pyright](07-type-hints-pyright.md) | 全项目 |
-| 08 | [Pydantic Settings 配置管理](08-pydantic-settings.md) | `src/utils/config.py` |
-| 09 | [异步编程与 FastAPI](09-async-fastapi.md) | `backend/main.py` |
-| 10 | [多 Agent 辩论系统设计](10-multi-agent-debate.md) | `src/agents/` 辩论引擎 |
-| 11 | [架构决策记录 ADR](11-adr-architecture.md) | `docs/05-decisions/` |
-| 12 | [Next.js 服务端组件与客户端组件](12-nextjs-ssr-client.md) | `frontend/app/` |
-| 13 | [Lightweight Charts K 线图表](13-lightweight-charts.md) | `frontend/components/stock/` |
+| 08 | [类型注解与 Pyright](08-type-hints-pyright.md) | 全项目 |
+| 09 | [Pydantic Settings 配置管理](09-pydantic-settings.md) | `src/utils/config.py` |
+| 10 | [异步编程与 FastAPI](10-async-fastapi.md) | `backend/main.py` |
+| 11 | [多 Agent 辩论系统设计](11-multi-agent-debate.md) | `src/agents/` 辩论引擎 |
+| 12 | [架构决策记录 ADR](12-adr-architecture.md) | `docs/05-decisions/` |
+| 13 | [Next.js 服务端组件与客户端组件](13-nextjs-ssr-client.md) | `frontend/app/` |
+| 14 | [Lightweight Charts K 线图表](14-lightweight-charts.md) | `frontend/components/stock/` |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

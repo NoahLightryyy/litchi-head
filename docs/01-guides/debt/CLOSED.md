@@ -20,6 +20,10 @@
 | TD-025 | 前端无 Error Boundary | 2026-06-17 | `error.tsx` + `not-found.tsx` |
 | TD-026 | 骨架屏永不消失 | 2026-06-17 | page.tsx 四态分离（loading/error/empty/data） |
 | TD-027 | 前端无离线检测 | 2026-06-17 | `useOnlineStatus()` + 全局离线横幅 |
+| TD-028 | 前端搜索无防抖 | 2026-06-17 | `useDebounce(query, 300)` 通用 hook + useStockSearch 接入，pnpm build 通过 |
+| TD-029 | 前端死代码清理 | 2026-06-17 | 删 `components/layout/` (5文件) + `stores/` (2文件) + `hot-news.tsx` + echarts/zustand 依赖 |
+| TD-030 | 资金流向绕过 Provider 层 | 2026-06-17 | CapitalFlowItem 迁移 models.py → DataSource Protocol 扩展 → 三源实现 → FallbackSource → DataCollector 缓存+健康监控 → backend 路由切换 |
+| TD-031 | 辩论轮询永不停止 | 2026-06-17 | `useRef` 计数 + 最大 60 次（~120s）兜底停止条件 |
 
 ## 架构设计（🏛️）
 

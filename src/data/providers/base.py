@@ -14,7 +14,7 @@ Usage:
 
 from typing import Protocol
 
-from src.data.models import BoardInfo, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import BoardInfo, CapitalFlowItem, KLine, NewsItem, StockInfo, StockQuote
 
 
 class DataSource(Protocol):
@@ -53,6 +53,17 @@ class DataSource(Protocol):
 
     def get_concept_boards(self) -> list[BoardInfo]:
         """获取概念板块列表"""
+        ...
+
+    def get_capital_flow(self, code: str) -> list[CapitalFlowItem]:
+        """获取个股资金流向
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            CapitalFlowItem 列表（失败时返回空列表）
+        """
         ...
 
 

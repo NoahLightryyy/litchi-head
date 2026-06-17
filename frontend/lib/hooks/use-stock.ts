@@ -2,13 +2,15 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchQuote, fetchKline, fetchNews, fetchCapitalFlow, fetchTechnicalIndicators, searchStocks } from "@/lib/api/stocks";
+import { useDebounce } from "./use-debounce";
 
-/* ── 搜索 ── */
+/* ── 搜索（300ms 防抖） ── */
 export function useStockSearch(query: string) {
+  const debouncedQuery = useDebounce(query, 300);
   return useQuery({
-    queryKey: ["stocks", "search", query],
-    queryFn: () => searchStocks(query),
-    enabled: query.length >= 2,
+    queryKey: ["stocks", "search", debouncedQuery],
+    queryFn: () => searchStocks(debouncedQuery),
+    enabled: debouncedQuery.length >= 2,
     staleTime: 60_000,
   });
 }

@@ -38,10 +38,11 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-17 — Batch 6 + Batch Loop + Phase R 实盘审计 ✅）
+## 2. 当前会话状态（2026-06-17 — Phase R P0 修复：4 条债务关闭 ✅）
 
-> **本次完成**：Batch 6（后端路由+Tab 面板） + Batch Loop（技术指标/TD-020/生产配置/暗色主题） + Phase R 实盘审计。
-> **前期完成**：Batch 5 — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现。
+> **本次完成**：Phase R P0 修复 — TD-028（搜索防抖） + TD-029（死代码清理） + TD-030（资金流向Provider贯通） + TD-031（辩论轮询兜底）。
+> **前期完成**：Batch 6（后端路由+Tab 面板） + Batch Loop（技术指标/TD-020/生产配置/暗色主题） + Phase R 实盘审计。
+> Batch 5 — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现。
 > Batch 4 — 数据源深度审计 + DataCollector 健康监控上线。
 > Batch 3 — Sprint 6 Lightweight Charts K 线真渲染 + 数据源造假清除。
 > Batch 1 FastAPI 桥接层编码 + Batch 2 前端接入真实 API + 前端 MVP 架构设计（47 文件）。
@@ -104,6 +105,10 @@
 | **Phase R 致命缺陷修复** — 21 处 except:pass→logger / HTTP 状态码修正 / async_utils 超时 / Error Boundary / 骨架屏四态 / 离线横幅 | ✅ |
 | **学习卡片系统** — docs/learning/ 7 张卡片（01-Pydantic ~ 07-类型注解） | ✅ |
 | **全量 742 tests passed, Pyright 零错误** | ✅ |
+| **TD-028 搜索防抖** — `useDebounce(query, 300)` + useStockSearch 接入 | ✅ |
+| **TD-029 死代码清理** — 删 layout(5文件)/stores(2文件)/hot-news + echarts/zustand 依赖 | ✅ |
+| **TD-030 资金流向 Provider 层贯通** — CapitalFlowItem→Protocol→三源→Fallback→DataCollector→路由 | ✅ |
+| **TD-031 辩论轮询兜底** — useRef 计数 + 最大 60 次（~120s）自动停 | ✅ |
 
 ### 重要：项目目录新结构
 
@@ -290,24 +295,17 @@ klines = collector.get_klines("000001", period="daily")
 ## 5. 下一步优先级（2026-06-17 — Phase R 实盘加固 🛡️）
 
 > **本次完成**：
-> - Batch 6: capital-flow/trust.py 后端路由 + 前端 Tab 面板 ✅
-> - Batch Loop: 技术指标 Tab + TD-020 板块增强 + 生产配置 + 暗色主题 ✅
-> - Phase R 审计：7 条 P0 致命缺陷修复（except:pass/HTTP状态码/超时/Error Boundary/骨架屏/离线检测）✅
-> - 学习卡片系统：7 张卡片（Pydantic ~ 类型注解）✅
+> - Phase R P0 修复：TD-028 搜索防抖 + TD-029 死代码清理 + TD-030 资金流向 Provider + TD-031 辩论轮询兜底 ✅
 >
 > **当前阶段转型**：项目标准从"学生项目"升级为**实盘产品级**。
 > 不再以"功能多"为目标，而以"你爸妈敢不敢用"为标准。
 >
-> 建议下一步：**Phase R 实盘加固 — 从"能跑"变"敢用"**。
+> 建议下一步：**Phase R 实盘加固 — TD-032 起继续**。
 
-### 🥇 Phase R 实盘加固（全部待办）
+### 🥇 Phase R 实盘加固（4 条已关闭 ✅，剩余待办）
 
 | 优先级 | 说明 | 涉及范围 | 工作量 |
 |:------:|:-----|:--------:|:-----:|
-| 🔥 P0 | **TD-028 搜索防抖** — `useDebounce(query, 300)` | `frontend/` | ~15min |
-| 🔥 P0 | **TD-029 死代码清理** — 布局目录/store/ECharts 依赖 | `frontend/` | ~30min |
-| 🔥 P0 | **TD-030 资金流向接入 Provider 层** — 绕过 DataCollector | `backend/` | ~1h |
-| 🔥 P0 | **TD-031 辩论轮询停止条件** — 最大轮询次数 | `frontend/` | ~20min |
 | 🔥 P0 | **TD-032 FallbackSource 恢复主源** — 连续成功 N 次自动恢复 | `src/data/` | ~1h |
 | 🔴 P1 | **TD-036 backend 测试覆盖** — indicators + 端点多文件 | `tests/` | ~2d |
 | 🔴 P1 | **TD-038 .env 密钥管理** — 密钥轮换 + 凭据管理器 | `config/` | ~30min |
@@ -331,13 +329,11 @@ klines = collector.get_klines("000001", period="daily")
 1. /resume-session 恢复上下文
 2. cd e:/litchi-head && python -m uvicorn backend.main:app --port 8000
 3. cd frontend && pnpm dev
-4. curl localhost:8000/api/stocks/000001/technical-indicators   ← 技术指标
-5. curl localhost:8000/api/market/sectors                       ← 板块排行
-6. Phase R 优先修复：TD-028 → TD-029 → TD-030 → TD-031 → TD-032
-7. 后续：TD-036 backend 测试 → TD-038 密钥 → TD-039 限流
+4. Phase R 继续修复：TD-032 FallbackSource 恢复主源
+5. 后续：TD-036 backend 测试 → TD-038 密钥 → TD-039 限流
 ```
 
-> **最后更新**：2026-06-17（Batch 6 + Batch Loop + Phase R 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-17（Phase R P0 修复：4 条债务关闭 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
