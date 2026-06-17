@@ -131,13 +131,19 @@ class DataCollector:
     通过 DataSource 协议接口获取数据，提供缓存和健康监控能力。
     默认使用 AKShareSource（向后兼容）。
 
+    可通过 `default_source` 类变量全局配置数据源（生产环境下使用）：
+        DataCollector.default_source = FallbackSource(primary=ADataSource(), fallback=AKShareSource())
+
     Args:
-        source: 数据源实现，None 则使用 AKShareSource
+        source: 数据源实现，None 则使用 default_source 或 AKShareSource
         cache: 可选的 DataCache 实例，不传则新建
     """
 
+    # 可全局切换的数据源（生产配置用）
+    default_source: DataSource | None = None
+
     def __init__(self, source: DataSource | None = None, cache: DataCache | None = None):
-        self._source = source or AKShareSource()
+        self._source = source or DataCollector.default_source or AKShareSource()
         self.cache = cache or DataCache()
 
     # ── 股票信息 ─────────────────────────────────────────────────────

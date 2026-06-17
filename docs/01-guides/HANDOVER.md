@@ -38,10 +38,11 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-16 — Provider 抽象层 + 免费多源架构 ✅）
+## 2. 当前会话状态（2026-06-17 — Batch 6 + Batch Loop + Phase R 实盘审计 ✅）
 
-> **本次完成**：Batch 5 — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现 + DATA_SOURCE_AUDIT.md 方案修正（免费化）。
-> **前期完成**：Batch 4 — 数据源深度审计 + DataCollector 健康监控上线。
+> **本次完成**：Batch 6（后端路由+Tab 面板） + Batch Loop（技术指标/TD-020/生产配置/暗色主题） + Phase R 实盘审计。
+> **前期完成**：Batch 5 — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现。
+> Batch 4 — 数据源深度审计 + DataCollector 健康监控上线。
 > Batch 3 — Sprint 6 Lightweight Charts K 线真渲染 + 数据源造假清除。
 > Batch 1 FastAPI 桥接层编码 + Batch 2 前端接入真实 API + 前端 MVP 架构设计（47 文件）。
 
@@ -89,6 +90,20 @@
 | **数据原则修正** — DATA_SOURCE_AUDIT.md Phase2 从 Tushare Pro(500元/年)改为零成本方案 | ✅ |
 | **Provider 层测试** — 19 个单元测试（协议验证 + FallbackSource 全覆盖） | ✅ |
 | **全量 719+19 = 738 passed, Pyright 零错误** | ✅ |
+| **Batch 6: 后端路由完善 + Tab 面板实现** | ✅ |
+| **capital-flow 资金流向路由** — _detect_market + CapitalFlowItem + akshare fund_flow 接入 | ✅ |
+| **trust.py 信任度路由** — TrustTracker 接入 + report/leaderboard 2 endpoints | ✅ |
+| **CapitalFlowPanel 组件** — 汇总卡片 + 明细列表 | ✅ |
+| **TrustChart 接入 stock 页 trust tab** | ✅ |
+| **Batch Loop 四方向全完成** | ✅ |
+| **技术指标 Tab** — backend/indicators.py 纯 Python MA/RSI/MACD/布林带 + TechnicalIndicatorsPanel | ✅ |
+| **TD-020 板块数据增强** — market.py 重写：heat/chain_map/ai_analysis/ai_rating 全部真实数据 | ✅ |
+| **数据源生产配置** — backend/config.py + DataCollector.default_source + adata 2.9.5 | ✅ |
+| **暗色主题打磨** — 导航高亮/全局进度条/动态标题/错误态重试/Server Component 架构 | ✅ |
+| **Phase R 实盘审计** — 项目标准升级 → 实盘产品级 | ✅ |
+| **Phase R 致命缺陷修复** — 21 处 except:pass→logger / HTTP 状态码修正 / async_utils 超时 / Error Boundary / 骨架屏四态 / 离线横幅 | ✅ |
+| **学习卡片系统** — docs/learning/ 7 张卡片（01-Pydantic ~ 07-类型注解） | ✅ |
+| **全量 742 tests passed, Pyright 零错误** | ✅ |
 
 ### 重要：项目目录新结构
 
@@ -126,25 +141,26 @@ docs/
 
 ### 尚未完成的
 
-1. ~~**`01-guides/ROUTING.md`** — 上下文加载策略文件~~ ✅ 已完成（2026-06-15）
-2. ~~**SPEC.md 内容精简** — 9 个模块 SPEC 精简为 641 行（原 1415 行，降 55%）~~ ✅
-3. ~~**`.legacy` 目录删除** — 确认新结构没问题后可清理~~ ✅ 已清理（2026-06-15）
-4. ~~**旧路径引用修复** — WORKFLOW/HANDOVER_TIP/看板/模块 RESEARCH 全量更新~~ ✅
-5. ~~**回测→辩论桥接** — TradePlan → TradeRecord 适配器~~ ✅ 已完成（2026-06-16）
-6. ~~**M3 信任度评分** — Agent 输出 vs 实际结果追踪~~ ✅ 已完成（2026-06-16）
-7. ~~**前端 MVP 开发** — React + Next.js 脚手架已搭建~~ ✅ 依赖安装+构建验证通过
-8. ~~**FastAPI 桥接层实现** — 接口设计已定，需要编写 Python API 路由~~ ✅ 已编码（7 文件）
-9. 🆕 ~~**前端连接后端 API** — 替换模拟数据为真实 FastAPI 接口调用~~ ✅
-10. 🆕 ~~**后端 trust.py 和 stocks/capital-flow** — 占位路由需要完整实现~~ ⬜ 待继续
-11. 🆕 ~~**Lightweight Charts K 线集成** — 替换模拟 K 线为真渲染~~ ✅
-12. 🆕 **后端数据增强** — 移除造假后 heat/chain_map/ai_analysis 需要接入真实数据源（TD-020）
-13. 🆕 **技术指标/资金流向/信任度 tab 面板** — 3 个占位 tab 等待实现
+Phase R 实盘加固（P0/P1 优先）：
+
+| 优先级 | 事项 | 预估 | 前置 |
+|:------:|:-----|:----:|:----:|
+| 🔥 | **TD-028 搜索防抖** — 搜索框高频打后端 | ~15min | — |
+| 🔥 | **TD-029 前端死代码清理** — 布局目录/store/ECharts 依赖 | ~30min | — |
+| 🔥 | **TD-030 资金流向绕过 Provider 层** | ~1h | — |
+| 🔥 | **TD-031 辩论轮询永不停止** | ~20min | — |
+| 🔥 | **TD-032 FallbackSource 永不恢复主源** | ~1h | — |
+| 🔴 | **TD-036 backend 测试覆盖** — indicators/端点多文件零测试 | ~2d | — |
+| 🔴 | **TD-038 .env 明文 API 密钥** | ~30min | — |
+| 🟡 | **TD-039 API 速率限制** — 特别 debate/run | ~1h | — |
+| 🟡 | **TD-040 LLM Provider fallback 链** | ~1d | — |
+| 🟡 | **TD-041 数据新鲜度标注** | ~2h | — |
 
 ### 当前 Git 状态
 
 ```
-最新提交: 36c6671 — docs: 全量文档同步 + §3.1.1 文档同步审计清单
-工作区: 有 frontend/ + docs/ 新文件未提交
+最新提交: 83ccf37 — feat: DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现
+工作区: Batch 6 + Batch Loop + Phase R 修复 — 含 backend/ + frontend/ + docs/ 大量变更未提交
 ```
 
 ### 测试覆盖
@@ -160,10 +176,9 @@ docs/
 | `tests/test_agents_*.py` | 58+4 skip |
 | `tests/test_trader_bridge.py` | 14 |
 | `tests/test_debate_trust.py` | 54+10 |
-| 其他 | 78 |
-| **Python 全量** | **721 passed** |
-| `frontend/` | 🆕 React 前端，暂无测试（待 Phase 2） |
-| `backend/` | 🆕 FastAPI 桥接层，暂无专用测试（Pyright 零错误） |
+| Provider 层测试 | 19 |
+| 其他 | 80 |
+| **Python 全量** | **742 passed** |
 
 ---
 
@@ -193,23 +208,26 @@ docs/
 ### 3.2 技术债务一览
 
 ```
-紧急指数：1.4/10（↑ 0.5，因新增 S1 债务 TD-017 反思闭环缺失）
+紧急指数：7.9/10（↑↑ 因 Phase R 实盘审计升级，新增 21 条 P0/P1）
 
-✅ 已关闭（9 条）：
-  TD-002 / TD-009 / TD-010 / TD-011 / TD-012 / TD-013 / TD-014 / TD-015 / TD-016
+✅ 已关闭（17 条）：
+  原有 9 条：TD-002 / TD-009 / TD-010 / TD-011 / TD-012 / TD-013 / TD-014 / TD-015 / TD-016
+  新增 8 条：TD-020 / TD-021 / TD-022 / TD-023 / TD-024 / TD-025 / TD-026 / TD-027
 
 🔧 修复中（2 条）：
   TD-001  LLM 封装层（惰性导入优化完成，模型路由待补）
-  TD-004  测试基座（537 tests，backtest 待补）
+  TD-004  测试基座（核心完成，backtest 待补）
 
-📋 已确认（10 条）：
-  S1 🟠 TD-017 反思闭环缺失（竞品最大结构性差距，M2 优先修复）
-  S2 🟡 TD-003 MessageRouter 内存存储 / TD-005 双配置源
-  S2 🟡 TD-018 编排层成本优化（15次调用，竞品1.5-2倍）
-  S2 🟡 TD-019 单LLM提供商依赖（竞品7-13种）
-  S3 🟢 TD-006 EvidenceItem 无校验 / TD-007 ensure_dirs / TD-008 价格硬编码
+📋 待评估（21 条）：
+  P0 🔥 TD-028 搜索防抖 / TD-029 死代码清理 / TD-030 资金流向绕过 Provider 层
+  P0 🔥 TD-031 辩论轮询永不停止 / TD-032 Fallback 永不恢复主源
+  P1 🔴 TD-036 backend 零测试 / TD-038 .env 明文密钥 / TD-039 无速率限制
+  P1 🟡 TD-003 MessageRouter 内存存储 / TD-005 双配置源 / TD-006 无校验
+  P1 🟡 TD-007 ensure_dirs / TD-008 价格硬编码 / TD-017 反思闭环缺失
+  P1 🟡 TD-018 编排层成本优化 / TD-019 单 LLM 依赖 / TD-033 数组变异
+  P2 🟢 TD-034 条件逻辑错误 / TD-037 边界条件测试 / TD-040 LLM fallback / TD-041 新鲜度标注
 
-开放债务：12 条（TD-017/018/019 🆕）
+开放债务：23 条（↑↑ Phase R 审计新增 14 条 P0/P1）
 ```
 
 ---
@@ -269,34 +287,43 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-16 更新 — Provider 抽象层 + 免费多源架构 ✅）
+## 5. 下一步优先级（2026-06-17 — Phase R 实盘加固 🛡️）
 
 > **本次完成**：
-> - Batch 5: DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现
-> - DataCollector 重构：直调 akshare → 委托 DataSource，API 完全向后兼容
-> - DATA_SOURCE_AUDIT.md Phase 2 方案从 Tushare Pro（500 元/年）修正为零成本多源
+> - Batch 6: capital-flow/trust.py 后端路由 + 前端 Tab 面板 ✅
+> - Batch Loop: 技术指标 Tab + TD-020 板块增强 + 生产配置 + 暗色主题 ✅
+> - Phase R 审计：7 条 P0 致命缺陷修复（except:pass/HTTP状态码/超时/Error Boundary/骨架屏/离线检测）✅
+> - 学习卡片系统：7 张卡片（Pydantic ~ 类型注解）✅
 >
-> 建议下一步：**后端占位路由完善 + 板块数据增强层**。
+> **当前阶段转型**：项目标准从"学生项目"升级为**实盘产品级**。
+> 不再以"功能多"为目标，而以"你爸妈敢不敢用"为标准。
+>
+> 建议下一步：**Phase R 实盘加固 — 从"能跑"变"敢用"**。
 
-### 🥇 下一步
+### 🥇 Phase R 实盘加固（全部待办）
 
 | 优先级 | 说明 | 涉及范围 | 工作量 |
 |:------:|:-----|:--------:|:-----:|
-| 🥇 **后端完善** | trust.py 信任度路由 / capital-flow 资金流向路由完整实现 | `backend/` | ~0.5d |
-| 🥇 **TD-020** | 板块数据增强层 — heat/chain_map/ai_analysis 接入真实数据源 | `backend/routers/market.py` | ~0.5d |
-| 🥇 **数据源生产配置** | `pip install adata` 后切换 ADataSource 做主源 + FallbackSource(AKShareSource) 做降级 | `src/data/` | ~0.2d |
-| 🥈 **Tab 面板** | 技术指标/资金流向/信任度 3 个占位 tab 实现 | `frontend/` | ~1d |
-| 🟢 后续 | **暗色主题打磨** — 加载态、骨架屏、错误态等体验优化 | 全局 | ~0.5d |
+| 🔥 P0 | **TD-028 搜索防抖** — `useDebounce(query, 300)` | `frontend/` | ~15min |
+| 🔥 P0 | **TD-029 死代码清理** — 布局目录/store/ECharts 依赖 | `frontend/` | ~30min |
+| 🔥 P0 | **TD-030 资金流向接入 Provider 层** — 绕过 DataCollector | `backend/` | ~1h |
+| 🔥 P0 | **TD-031 辩论轮询停止条件** — 最大轮询次数 | `frontend/` | ~20min |
+| 🔥 P0 | **TD-032 FallbackSource 恢复主源** — 连续成功 N 次自动恢复 | `src/data/` | ~1h |
+| 🔴 P1 | **TD-036 backend 测试覆盖** — indicators + 端点多文件 | `tests/` | ~2d |
+| 🔴 P1 | **TD-038 .env 密钥管理** — 密钥轮换 + 凭据管理器 | `config/` | ~30min |
+| 🟡 P1 | **TD-039 API 速率限制** — slowapi + debate/run 特别限流 | `backend/` | ~1h |
+| 🟡 P1 | **TD-040 LLM Provider fallback** — DeepSeek→OpenAI 自动降级 | `src/utils/` | ~1d |
+| 🟡 P2 | **TD-041 数据新鲜度标注** — KLine/Quote 采集时间戳 + 前端展示 | `src/data/` + `frontend/` | ~2h |
 
-### 关键架构决策（新会话必读）
+### 🥈 后续方向
 
-1. **前端用 React + Next.js 16，不用 Streamlit** — 用户要求高级感，Streamlit 无法达到
-2. **Python 后端不动，前面加 FastAPI 桥接层** — 现有 akshare/LangGraph 全部保留
-3. **三页路由**：`/`（宏观总览）→ `/sector/[id]`（产业链分析）→ `/stock/[code]`（个股决策）
-4. **数据源不造假** — akshare 提供什么就返回什么，空就是空，未实现就是不实现 ✅
-5. **数据源不唯一** — 生产环境必须有主备数据源，不能单点依赖（见 DATA_SOURCE_AUDIT.md）
-6. **数据质量可观测** — `/api/health/data-source` 实时监控各 endpoint 健康状态
-7. **详细文档在** `docs/03-modules/10-frontend/`（5 篇）+ `docs/03-modules/11-fastapi-bridge/`（2 篇）+ `docs/02-requirements/DATA_SOURCE_AUDIT.md`（1 篇）
+| 优先级 | 说明 | 涉及范围 | 工作量 |
+|:------:|:-----|:--------:|:-----:|
+| 🟡 R2 | **全 API 错误路径覆盖** — 超时/空数据/异常 → 结构化错误响应 | `backend/` | ~1d |
+| 🟡 R3 | **一键启动脚本** — 你父母双击就能用 | `scripts/` | ~1h |
+| 🟡 R3 | **浏览器全功能验证** — 所有页面实际操作一遍 | 全局 | ~1h |
+| 🟢 R4 | **置信度量化 + 胡说检测** — AI 不确定时明确说"不确定" | `src/debate/` | ~2d |
+| 🟢 R4 | **回测看板** — AI 历史建议准确率可视化 | `frontend/` | ~2d |
 
 ### 下个会话推荐启动顺序
 
@@ -304,14 +331,13 @@ klines = collector.get_klines("000001", period="daily")
 1. /resume-session 恢复上下文
 2. cd e:/litchi-head && python -m uvicorn backend.main:app --port 8000
 3. cd frontend && pnpm dev
-4. curl localhost:8000/api/health/data-source   ← 查看数据源健康状态
-5. pip install adata && 切换 DataCollector 到 FallbackSource(ADataSource, AKShareSource)
-6. 后端 trust.py + capital-flow 路由完善
-7. 板块数据增强层（TD-020）
-8. Tab 面板实现（技术指标/资金流向/信任度）
+4. curl localhost:8000/api/stocks/000001/technical-indicators   ← 技术指标
+5. curl localhost:8000/api/market/sectors                       ← 板块排行
+6. Phase R 优先修复：TD-028 → TD-029 → TD-030 → TD-031 → TD-032
+7. 后续：TD-036 backend 测试 → TD-038 密钥 → TD-039 限流
 ```
 
-> **最后更新**：2026-06-16（Batch 5: Provider 抽象层 + 免费多源架构 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-17（Batch 6 + Batch Loop + Phase R 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
@@ -433,4 +459,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-15（docs 重组全部完成 — 后续更新看 §2 行末） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-17（Batch 6 + Batch Loop + Phase R 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行

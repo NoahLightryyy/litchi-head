@@ -7,18 +7,18 @@
 | 类型 | 文件 | 开放债务数 |
 |:-----|:-----|:----------:|
 | 🏛️ 架构设计 | [ARCHITECTURE.md](ARCHITECTURE.md) | 3 |
-| 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 6 |
-| 🧪 测试 | [TESTING.md](TESTING.md) | 1 |
-| ⚙️ 基础设施 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | 1 |
-| 🗄️ 已关闭 | [CLOSED.md](CLOSED.md) | 9 |
+| 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 12 |
+| 🧪 测试 | [TESTING.md](TESTING.md) | 3 |
+| ⚙️ 基础设施 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | 5 |
+| 🗄️ 已关闭 | [CLOSED.md](CLOSED.md) | 17 |
 | 📝 模板 | [TEMPLATE.md](TEMPLATE.md) | — |
 
 ## 仪表盘
 
 ```
-开放债务: 11 条    已关闭: 9 条
-本金总计: ~15.2 人时
-紧急指数: 1.4 / 10     ← 主要来自 TD-017 反思闭环缺失
+开放债务: 23 条    已关闭: 17 条
+本金总计: ~50+ 人时
+紧急指数: 7.9 / 10     ← 2026-06-17 实盘审计升级：Phase R 31 条 P0/P1 新增
 ```
 
 ## 快速新增

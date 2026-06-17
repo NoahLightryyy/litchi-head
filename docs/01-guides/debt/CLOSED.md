@@ -12,6 +12,14 @@
 | TD-012 | LLM 参数硬编码 | 2026-06-07 | LLMConfig + 接口修改 + 17 测试，202 全量通过 |
 | TD-013 | 缺少 streaming 接口 | 2026-06-08 | `LLMService.astream()` + 6 测试，228 全量通过 |
 | TD-015 | 缓存不支持多配置 | 2026-06-08 | 非默认 LLMConfig 不缓存（与 TD-012 同步修复） |
+| TD-020 | 后端板块/产业链数据增强层缺失 | 2026-06-17 | market.py 重写 — heat/chain_map/ai_analysis/ai_rating 全面板真实数据 |
+| TD-021 | 16 处 `except Exception: pass` 静默吞异常 | 2026-06-17 | 全部改为 `logger.warning()`，16 块全覆盖 |
+| TD-022 | `collect_data_node` 变量未初始化 | 2026-06-17 | 代码已有初始化，无需修改 |
+| TD-023 | 后端 API 全返回 HTTP 200 | 2026-06-17 | trust.py→503，debate.py→500，前端 TanStack Query 自动识别 |
+| TD-024 | 数据源调用无超时 | 2026-06-17 | `backend/async_utils.py` 15s 超时 + `asyncio.to_thread()` |
+| TD-025 | 前端无 Error Boundary | 2026-06-17 | `error.tsx` + `not-found.tsx` |
+| TD-026 | 骨架屏永不消失 | 2026-06-17 | page.tsx 四态分离（loading/error/empty/data） |
+| TD-027 | 前端无离线检测 | 2026-06-17 | `useOnlineStatus()` + 全局离线横幅 |
 
 ## 架构设计（🏛️）
 

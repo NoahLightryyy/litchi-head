@@ -1,0 +1,63 @@
+# 🎓 litchi-head 学习资料
+
+> 这里不是文档，是 **技术知识卡片**。
+> 每张卡片讲透一个概念，关联到项目里的真实代码。
+
+---
+
+## 为什么有这个文件夹
+
+你说得对——项目结束再总结，东西太大太杂，根本看不进去。
+
+所以改成**边做边写**：每次工作时，写了什么技术相关的东西，就对应写一份学习卡片丢进来。你做完一个功能，就能读到对应的知识讲解。
+
+---
+
+## 怎么用
+
+1. **按顺序读** —— 编号从小到大是建议的学习顺序
+2. **边读边打开项目代码** —— 每张卡片都标注了对应文件路径，打开看看
+3. **每张卡片末尾有一个「自己试试」** —— 花 5 分钟做一下，比读十遍管用
+4. **想写新卡片？** —— 复制 `TEMPLATE.md` 开始，保持格式统一
+4. **不用一次读完** —— 每次做新功能前，读相关的 1-2 张卡片就行
+
+---
+
+## 卡片索引
+
+### 基础篇（建议先读）
+
+| # | 卡片 | 项目里的对应 |
+|:-:|:-----|:-------------|
+| 01 | [Pydantic BaseModel 与模块契约](01-pydantic-basemodel.md) | `src/core/protocol.py` |
+| 02 | [LangGraph StateGraph 编排](02-langgraph-stategraph.md) | `src/agents/master_agent.py` |
+| 03 | [LLM 统一封装层](03-llm-unified-layer.md) | `src/utils/llm.py` |
+| 04 | [FastAPI 桥接层架构](04-fastapi-bridge.md) | `backend/` 目录 |
+| 05 | [Provider 抽象模式（数据源）](05-provider-pattern.md) | `src/data/collector.py` |
+| 06 | [纯 Python 技术指标计算](06-technical-indicators.md) | `backend/indicators.py` |
+
+### 进阶篇
+
+| # | 卡片 | 项目里的对应 |
+|:-:|:-----|:-------------|
+| 07 | [类型注解与 Pyright](07-type-hints-pyright.md) | 全项目 |
+| 08 | [Pydantic Settings 配置管理](08-pydantic-settings.md) | `src/utils/config.py` |
+| 09 | [异步编程与 FastAPI](09-async-fastapi.md) | `backend/main.py` |
+| 10 | [多 Agent 辩论系统设计](10-multi-agent-debate.md) | `src/agents/` 辩论引擎 |
+| 11 | [架构决策记录 ADR](11-adr-architecture.md) | `docs/05-decisions/` |
+| 12 | [Next.js 服务端组件与客户端组件](12-nextjs-ssr-client.md) | `frontend/app/` |
+| 13 | [Lightweight Charts K 线图表](13-lightweight-charts.md) | `frontend/components/stock/` |
+
+> **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
+
+---
+
+## 阅读建议
+
+| 你的目标 | 建议读哪些 |
+|:---------|:-----------|
+| 快速上手项目 | 01 → 02 → 03 → 04 → 05 |
+| 理解后端设计 | 01 → 03 → 04 → 05 → 08 → 09 |
+| 理解 Agent 系统 | 02 → 03 → 10 |
+| 理解前端设计 | 04 → 12 → 13 |
+| 准备面试 | 全部通读一遍，重点练「自己试试」 |

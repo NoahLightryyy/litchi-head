@@ -47,6 +47,15 @@ async def lifespan(app: FastAPI):
     """应用启动/关闭钩子"""
     logger.info("FastAPI 桥接层启动 — http://localhost:8000")
     logger.info("API 文档: http://localhost:8000/docs")
+
+    # ── 生产数据源配置 ──
+    try:
+        from backend.config import setup_production_source  # noqa: PLC0415
+        source_name = setup_production_source()
+        logger.info("数据源: %s", source_name)
+    except Exception:
+        logger.exception("数据源配置失败，使用默认 AKShareSource")
+
     yield
     logger.info("FastAPI 桥接层关闭")
 

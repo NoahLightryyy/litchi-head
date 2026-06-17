@@ -8,13 +8,13 @@
 ## 快速统计
 
 ```
-总 Python 测试数 │ 738
-技术债务         │ 18 条总记 / 9 条已关闭 / 9 条开放
-紧急指数         │ 1.4/10
-当前阶段         │ Phase 1 MVP → Provider 抽象层上线，零成本多源架构就绪
-前端进度         │ React 脚手架就绪 + K 线真渲染，pnpm build 通过 ✅
-后端桥接         │ FastAPI 桥接层已编码（7 文件，4 组路由）✅
-数据源诚信        │ 全项目零造假数据 ✅ + Provider 抽象层 ✅ + 数据原则免费化 ✅
+总 Python 测试数 │ 742
+技术债务         │ 40 条总记 / 17 条已关闭 / 23 条开放
+紧急指数         │ 7.9/10（⚠️ Phase R 实盘审计升级）
+当前阶段         │ Phase R 实盘加固 — 从"能跑"变"敢用"
+前端进度         │ 全部 Tab 面板就绪（技术指标/资金流向/AI 辩论/信任度）+ 暗色主题打磨 + pnpm build ✅
+后端桥接         │ market/stocks/debate/trust 四组路由全部完整实现 + TD-020 板块增强 + 技术指标 + 生产配置 ✅
+数据源诚信        │ 全项目零造假 ✅ + Provider 抽象层 ✅ + 免费多源架构 ✅ + 生产配置 ✅
 ```
 
 ---
@@ -146,14 +146,20 @@
 
 ### Phase 2+ 当前优先
 
+### Phase R 当前优先（实盘加固）
+
 | 优先级 | 事项 | 依赖 | 预估 |
 |:------:|:-----|:----|:----:|
-| 🥇 | **后端完善** — trust.py 信任度路由 + capital-flow 完整实现 | FastAPI 骨架就绪 | ~0.5d |
-| 🥇 | **TD-020 板块数据增强层** — heat/chain_map/ai_analysis 接入真实数据源 | 造假数据已清除 | ~0.5d |
-| ✅ | **数据源升级** — Provider 抽象层(7 文件) + adata/zzshare/fallback 三源，零成本 | 已完成本会话 | ✅ |
-| 🥈 | **技术指标/资金流向/信任度 tab 面板** — 3 个占位 tab 实现 | 个股页就绪 | ~1d |
-| 🟢 | **暗色主题打磨** — 加载态/骨架屏/错误态 | 核心功能就绪 | ~0.5d |
-| ⬜ | **前端 Makefile 命令** — make frontend-dev / make frontend-build | 脚手架就绪 | ~0.5d |
+| 🔥 P0 | **TD-028 搜索防抖** — useDebounce(query, 300) | 前端就绪 | ~15min |
+| 🔥 P0 | **TD-029 前端死代码清理** — 布局目录/store/ECharts | 前端就绪 | ~30min |
+| 🔥 P0 | **TD-030 资金流向接入 Provider 层** | backend 就绪 | ~1h |
+| 🔥 P0 | **TD-031 辩论轮询停止条件** | 前端就绪 | ~20min |
+| 🔥 P0 | **TD-032 FallbackSource 恢复主源** | Provider 层就绪 | ~1h |
+| 🔴 P1 | **TD-036 backend 测试覆盖** | 全部就绪 | ~2d |
+| 🔴 P1 | **TD-038 密钥安全管理** | — | ~30min |
+| 🟡 P1 | **TD-039 API 速率限制** | backend 就绪 | ~1h |
+| 🟡 P2 | **TD-040 LLM Provider fallback** | utils 就绪 | ~1d |
+| 🟡 P2 | **TD-041 数据新鲜度标注** | data + frontend | ~2h |
 
 ---
 
@@ -171,15 +177,15 @@ src/（Python 后端 — 全部就绪）
 ├── risk/         ██████████████████░░ 65%
 └── backtest/     ██████████████████░░ 80%
 
-frontend/（React + Next.js — 零造假数据 ✅）
-├── app/          ██████████████████░░ 80%   ✅ hooks + 组件化 + 搜索 autocomplete
-├── components/   ██████████████████░░ 80%   ✅ K 线真渲染 + 17 组件 + 三态覆盖
-├── lib/          ██████████████████░░ 80%   ✅ 类型 + API + Hooks + QueryClientProvider
+frontend/（React + Next.js — 全部 Tab 就绪 ✅）
+├── app/          ██████████████████░░ 85%   ✅ 四态分离 + 全局进度条 + 动态标题
+├── components/   ████████████████████ 90%   ✅ 17 组件 + 全部 Tab 面板 + 暗色主题打磨
+├── lib/          ████████████████████ 85%   ✅ 类型 + API + Hooks + QueryClientProvider
 ├── stores/       ██████░░░░░░░░░░░░░░ 30%   ✅ 基础状态管理
 └── 配置           ████████████████████ 100%  ✅ pnpm build + tsc 零错误
 
-backend/（FastAPI 桥接层 — 零造假数据 ✅）
-└── routers/      ██████████████░░░░░░ 70%   ✅ market/stocks/debate/trust + TD-020
+backend/（FastAPI 桥接层 — 全部路由完整实现 ✅）
+└── routers/      ████████████████████ 85%   ✅ market/stocks/debate/trust + TD-020 + 技术指标 + 生产配置
 ```
 
 ---
@@ -222,6 +228,8 @@ backend/（FastAPI 桥接层 — 零造假数据 ✅）
 | 2026-06-16 | **Sprint 6 K 线真渲染 + 数据源造假清除** — CandlestickChart + zero mock |
 | 2026-06-16 | **数据源深度审计 + 健康监控** — DATA_SOURCE_AUDIT.md + `/api/health/data-source` |
 | 2026-06-16 | **Provider 抽象层 + 免费多源架构** — DataSource Protocol + adata/zzshare/fallback 三源 + 数据原则免费化 |
+| 2026-06-16 | **Batch 7 四项全完成** — 技术指标 Tab + TD-020 板块增强 + 生产配置 + 暗色主题打磨 |
+| 2026-06-17 | **Phase R 实盘审计升级** — 项目标准升为"实盘产品级"，21 条 P0/P1 债务登记 + 7 条修复，742 tests，紧急指数 7.9/10 🛡️ |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。

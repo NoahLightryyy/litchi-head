@@ -11,26 +11,32 @@
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                   用户交互层                               │
-│           Streamlit 前端（MVP）/ React（Phase 2）          │
+│         React (Next.js 16) 前端 ← FastAPI 桥接层          │
+│  三页路由：宏观总览 → 产业链分析 → 个股决策（4 Tab 面板）    │
 ├──────────────────────────────────────────────────────────┤
 │                   辩论决策层 ★核心                          │
 │  大师分析 → 交叉审阅 → 独立评审 → 加权汇总 → 历史注入      │
 ├───────────────────┬──────────────────┬──────────────────┤
 │  记忆与反思 🧠    │  Agent 编排 🤖   │   数据采集 ⛁    │
-│  MemoryStore      │  LangGraph       │  akshare 封装    │
+│  MemoryStore      │  LangGraph       │  akshare / adata │
 │  命名空间存储      │  StateGraph      │  Provider 抽象   │
 ├───────────────────┴──────────────────┴──────────────────┤
 │                  预留模块（Phase 2+）                      │
 │  风控管理 🛡️ · 交易执行 💹 · 因子研究 🔬 · 回测仿真 🧪    │
 ├──────────────────────────────────────────────────────────┤
 │                   基础设施                                 │
-│  DeepSeek LLM · Pydantic 数据契约 · CI/CD (GitHub)        │
+│  DeepSeek LLM · Pydantic 数据契约 · CI/CD (GitHub Actions)│
 └──────────────────────────────────────────────────────────┘
 ```
 
 ## 当前阶段
 
-**Phase 1 MVP** — 核心链路：data → debate → decision 已接驳完成。
+**Phase 1 MVP** — 核心链路全通，前端三页路由 + 完整 Tab 面板已上线。
+- data → debate → decision 链路已接驳
+- Provider 抽象层（akshare/adata/zzshare 三源，故障自动切换）
+- FastAPI 桥接层（17 个 API 端点）
+- React 前端（3 页面 + 4 Tab + K 线真渲染 + 搜索 autocomplete）
+- 全项目零造假数据 ✅
 
 ## 快速入口
 

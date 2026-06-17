@@ -44,9 +44,12 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import date
 from typing import Any, TypedDict, cast
+
+logger = logging.getLogger(__name__)
 
 from langgraph.graph import END, StateGraph
 
@@ -141,18 +144,18 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
 
     try:
         quotes = collector.get_realtime_quotes()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("行情数据获取失败: %s", e)
 
     try:
         klines = collector.get_klines(code, period="daily", start="", end="")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("K线数据获取失败 [%s]: %s", code, e)
 
     try:
         news = collector.get_news(code)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("新闻数据获取失败 [%s]: %s", code, e)
 
     # 按个股过滤行情
     target_quote: StockQuote | None = None
@@ -828,8 +831,8 @@ def make_master_round_node(skills: list[MasterSkill]):
                 if isinstance(v, dict):
                     try:
                         analyst_reports[k] = AnalystReport(**v)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("分析师报告解析失败 [%s]: %s", k, e)
                 elif isinstance(v, AnalystReport):
                     analyst_reports[k] = v
 
@@ -951,8 +954,8 @@ def make_review_report_node():
             try:
                 prr = PeerReviewRound(**rr_raw)
                 rebuttals = prr.rebuttals
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("PeerReviewRound 解析失败: %s", e)
 
         inp = state.get("debate_input", {})
         sid = state.get("session_id", "")
@@ -1011,8 +1014,8 @@ async def aggregate_node(state: DebateState) -> dict:
             prr = PeerReviewRound(**rr_raw)
             for r in prr.rebuttals:
                 rebuttal_map[r.agent_name] = r
-        except Exception:
-            pass  # 解析失败时保持原行为
+        except Exception as e:
+            logger.warning("PeerReviewRound 解析失败(rebuttal_map): %s", e)
 
     # 解析 review_report（如果有），提取 weight_suggestions
     rrpt_raw = state.get("review_report", {})
@@ -1021,8 +1024,8 @@ async def aggregate_node(state: DebateState) -> dict:
         try:
             review = IndependentReview(**rrpt_raw)
             weight_suggestions = review.weight_suggestions
-        except Exception:
-            pass  # 解析失败时保持原行为
+        except Exception as e:
+            logger.warning("IndependentReview 解析失败: %s", e)
 
     # 评级分布 + 方向分布
     dist: dict[str, int] = {}
@@ -1117,8 +1120,8 @@ async def aggregate_node(state: DebateState) -> dict:
                 )
 
             consensus_support = review.consensus_support
-        except Exception:
-            pass  # 解析失败时使用默认值
+        except Exception as e:
+            logger.warning("IndependentReview 解析失败(默认值): %s", e)
 
     review_notes = " | ".join(review_notes_parts) if review_notes_parts else ""
 
@@ -1359,8 +1362,8 @@ class DebateOrchestrator:
                 value=reflection.model_dump(),
                 namespace=("reflective", "debate"),
             )
-        except Exception:
-            pass  # 记忆存储失败不阻塞
+        except Exception as e:
+            logger.warning("反思记忆存储失败: %s", e)
 
     async def reflect_on_decision(
         self,
@@ -1448,8 +1451,8 @@ class DebateOrchestrator:
                 value=decision,
                 namespace=("episodic", "debate"),
             )
-        except Exception:
-            pass  # 记忆存储失败不阻塞
+        except Exception as e:
+            logger.warning("反思记忆存储失败: %s", e)
 
     async def run(self, debate_input: DebateInput) -> DebateResult:
         """执行一轮辩论
@@ -1475,8 +1478,8 @@ class DebateOrchestrator:
                 history_context = _format_history_context(
                     items, debate_input.stock_code
                 )
-            except Exception:
-                pass  # 记忆查询失败不阻塞辩论
+            except Exception as e:
+                logger.warning("历史记忆查询失败: %s", e)
 
         # 查询反思记忆注入（M2 反思闭环）
         reflection_context = ""
@@ -1490,8 +1493,8 @@ class DebateOrchestrator:
                 reflection_context = _format_reflection_context(
                     refl_items, debate_input.stock_code
                 )
-            except Exception:
-                pass  # 记忆查询失败不阻塞辩论
+            except Exception as e:
+                logger.warning("反思记忆查询失败: %s", e)
 
         # 查询信任度权重（M4 动态权重）
         trust_weight_factors: dict[str, float] = {}
@@ -1504,8 +1507,8 @@ class DebateOrchestrator:
                     if report.is_reliable:
                         factor = compute_weight_factor(report.metrics)
                         trust_weight_factors[agent_name] = factor
-            except Exception:
-                pass  # 信任度查询失败不阻塞辩论
+            except Exception as e:
+                logger.warning("信任度查询失败: %s", e)
 
         initial_state: DebateState = {
             "session_id": debate_input.session_id,
@@ -1539,8 +1542,8 @@ class DebateOrchestrator:
         if rr_raw and isinstance(rr_raw, dict) and rr_raw.get("rebuttals"):
             try:
                 review_round = PeerReviewRound(**rr_raw)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("PeerReviewRound 解析失败(结果构建): %s", e)
 
         # 解析 review_report（如果有）
         rrpt_raw = final_state.get("review_report", {})
@@ -1548,8 +1551,8 @@ class DebateOrchestrator:
         if rrpt_raw and isinstance(rrpt_raw, dict) and rrpt_raw.get("overall_quality", 0) > 0:
             try:
                 review_report = IndependentReview(**rrpt_raw)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("IndependentReview 解析失败(结果构建): %s", e)
 
         # 解析 analyst_reports（如果有）
         ar_raw = final_state.get("analyst_reports", {})
@@ -1562,8 +1565,8 @@ class DebateOrchestrator:
                 }
                 if not analyst_reports_result:
                     analyst_reports_result = None
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("分析师报告解析失败(结果构建): %s", e)
 
         # 解析 risk_round（R1 风控层，如果启用）
         risk_raw = final_state.get("risk_round", {})

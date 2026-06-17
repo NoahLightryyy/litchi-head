@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Bloomberg × TradingView 暗色主题 ── */
+:root {
+  --bg-primary: #0D1117;
+  --bg-secondary: #161B22;
+  --bg-tertiary: #21262D;
+  --bg-elevated: #2D333B;
+
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B949E;
+  --text-muted: #484F58;
+
+  --accent-blue: #2962FF;
+  --accent-green: #00C853;
+  --accent-red: #FF5252;
+  --accent-gold: #FFB300;
+  --accent-purple: #7C3AED;
+
+  --chart-bull: #26A69A;
+  --chart-bear: #EF5350;
+  --chart-grid: #1E2A3A;
+  --chart-volume: rgba(41, 98, 255, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+/* 数字使用等宽字体 */
+.price,
+.kpi,
+.change {
+  font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+}
+
+/* ── 滚动条暗色主题 ── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-elevated);
+}
