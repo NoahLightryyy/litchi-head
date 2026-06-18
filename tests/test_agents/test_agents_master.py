@@ -1,38 +1,17 @@
-"""MasterAgent（通用大师 Agent）单元测试"""
+"""MasterAgent（通用大师 Agent）单元测试
 
-from typing import Any
+注意：
+- ctx / buffet_lite / munger_lite / make_analysis 由 tests/test_agents/conftest.py 提供
+- agent_with_skill / agent_with_skill_id 是 MasterAgent 独有，保留在文件内
+"""
+
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.agents.base import AgentContext, AgentResult
-from src.agents.master_agent import InvestmentAnalysis, MasterAgent
-from src.memory.skill_disk import MasterSkill, SkillDisk
-
-# ── 测试用大师 Skill ─────────────────────────
-
-
-_BUFFETT_LITE = MasterSkill(
-    skill_id="buffett",
-    name="沃伦·巴菲特",
-    avatar="🧑‍🦳",
-    title="伯克希尔·哈撒韦 CEO",
-    description="价值投资大师",
-    system_prompt="我是巴菲特。我的原则：安全边际、护城河、长期持有。",
-    knowledge_filter="巴菲特",
-    enabled_by_default=True,
-)
-
-_MUNGER_LITE = MasterSkill(
-    skill_id="munger",
-    name="查理·芒格",
-    avatar="🧓",
-    title="伯克希尔副董事长",
-    description="多元思维模型倡导者",
-    system_prompt="我是芒格。我的原则：多元思维、逆向思考、人类误判心理学。",
-    knowledge_filter="芒格",
-    enabled_by_default=True,
-)
+from src.agents.master_agent import MasterAgent
+from src.memory.skill_disk import SkillDisk
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -41,38 +20,15 @@ _MUNGER_LITE = MasterSkill(
 
 
 @pytest.fixture
-def ctx():
-    """创建测试用 AgentContext"""
-    return AgentContext(session_id="test-session", input_data={"question": "什么是安全边际？"})
-
-
-@pytest.fixture
-def agent_with_skill(tmp_path):
+def agent_with_skill(tmp_path, buffet_lite):
     """通过 skill 创建（使用临时知识库路径）"""
-    return MasterAgent(skill=_BUFFETT_LITE, knowledge_base_path=str(tmp_path))
+    return MasterAgent(skill=buffet_lite, knowledge_base_path=str(tmp_path))
 
 
 @pytest.fixture
 def agent_with_skill_id(tmp_path):
     """通过 skill_id 创建（使用临时知识库路径）"""
     return MasterAgent(skill_id="buffett", knowledge_base_path=str(tmp_path))
-
-
-# ── 结构化分析测试辅助 ──────────────────────────
-
-
-def _make_analysis(**overrides: Any) -> InvestmentAnalysis:
-    """创建测试用 InvestmentAnalysis 实例"""
-    kwargs: dict[str, Any] = dict(
-        rating="看涨",
-        score=75,
-        summary="安全边际是价值投资的核心",
-        analysis="安全边际指的是市场价格与内在价值之间的差额。安全边际越大，投资风险越低。",
-        key_evidence=["安全边际 = 内在价值 - 市场价格", "格雷厄姆提出的核心概念"],
-        risk_warning=None,
-    )
-    kwargs.update(overrides)
-    return InvestmentAnalysis(**kwargs)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -83,9 +39,9 @@ def _make_analysis(**overrides: Any) -> InvestmentAnalysis:
 class TestMasterAgentInit:
     """初始化测试"""
 
-    def test_init_with_skill(self):
+    def test_init_with_skill(self, buffet_lite):
         """通过 skill 参数创建"""
-        agent = MasterAgent(skill=_BUFFETT_LITE)
+        agent = MasterAgent(skill=buffet_lite)
         assert agent.name == "master"
         assert agent.skill.skill_id == "buffett"
         assert agent.skill.name == "沃伦·巴菲特"
@@ -104,9 +60,9 @@ class TestMasterAgentInit:
         assert agent.skill.skill_id == "munger"
         assert agent.skill.name == "查理·芒格"
 
-    def test_init_creates_knowledge_base(self, tmp_path):
+    def test_init_creates_knowledge_base(self, tmp_path, buffet_lite):
         """初始化创建 knowledge_base（用临时路径避免真实数据）"""
-        agent = MasterAgent(skill=_BUFFETT_LITE, knowledge_base_path=str(tmp_path))
+        agent = MasterAgent(skill=buffet_lite, knowledge_base_path=str(tmp_path))
         assert hasattr(agent, "knowledge_base")
         assert agent.knowledge_base.search("测试") == []
 
@@ -142,10 +98,10 @@ class TestMasterAgentSystemPrompt:
         assert "巴菲特" in prompt
         assert "护城河" in prompt
 
-    def test_different_skill_different_prompt(self):
+    def test_different_skill_different_prompt(self, buffet_lite, munger_lite):
         """不同大师的 system_prompt 不同"""
-        buffett_agent = MasterAgent(skill=_BUFFETT_LITE)
-        munger_agent = MasterAgent(skill=_MUNGER_LITE)
+        buffett_agent = MasterAgent(skill=buffet_lite)
+        munger_agent = MasterAgent(skill=munger_lite)
         assert "巴菲特" in buffett_agent.get_system_prompt()
         assert "芒格" in munger_agent.get_system_prompt()
         assert buffett_agent.get_system_prompt() != munger_agent.get_system_prompt()
@@ -184,7 +140,7 @@ class TestMasterAgentRunValidation:
 class TestMasterAgentRunWithMockLLM:
     """Mock LLM 流程测试（结构化输出）"""
 
-    async def test_run_searches_knowledge_base(self, agent_with_skill, ctx):
+    async def test_run_searches_knowledge_base(self, agent_with_skill, ctx, make_analysis):
         """验证 run 会调用知识库搜索"""
         with patch.object(
             agent_with_skill.knowledge_base,
@@ -195,20 +151,20 @@ class TestMasterAgentRunWithMockLLM:
                 "src.agents.master_agent.llm_service.invoke_structured",
                 new_callable=AsyncMock,
             ) as mock_llm:
-                mock_llm.return_value = _make_analysis()
+                mock_llm.return_value = make_analysis()
                 await agent_with_skill.run(ctx)
 
                 mock_search.assert_called_once()
                 _, kwargs = mock_search.call_args
                 assert "安全边际" in str(kwargs.get("query", ""))
 
-    async def test_run_passes_knowledge_to_llm(self, agent_with_skill, ctx):
+    async def test_run_passes_knowledge_to_llm(self, agent_with_skill, ctx, make_analysis):
         """验证 LLM 调用包含知识库上下文"""
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = _make_analysis(
+            mock_llm.return_value = make_analysis(
                 summary="安全边际是关键",
                 analysis="安全边际 = 内在价值 - 市场价格",
             )
@@ -235,13 +191,13 @@ class TestMasterAgentRunWithMockLLM:
             assert result.success is True
             assert "安全边际是关键" in str(result.data.get("answer", ""))
 
-    async def test_run_no_knowledge_found(self, agent_with_skill, ctx):
+    async def test_run_no_knowledge_found(self, agent_with_skill, ctx, make_analysis):
         """无知识命中时降级为纯 LLM 回答"""
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = _make_analysis(
+            mock_llm.return_value = make_analysis(
                 summary="基于我的理解",
                 analysis="安全边际是价值投资的核心概念",
             )
@@ -254,13 +210,13 @@ class TestMasterAgentRunWithMockLLM:
             prompt = call_args[0] if call_args else call_kwargs.get("prompt", "")
             assert "安全边际" in prompt
 
-    async def test_run_sets_confidence_with_knowledge(self, agent_with_skill, ctx):
+    async def test_run_sets_confidence_with_knowledge(self, agent_with_skill, ctx, make_analysis):
         """知识命中时 confidence 较高"""
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = _make_analysis(score=85)
+            mock_llm.return_value = make_analysis(score=85)
             agent_with_skill.knowledge_base.chunks = [
                 {
                     "text": "安全边际是核心概念",
@@ -276,25 +232,25 @@ class TestMasterAgentRunWithMockLLM:
             assert result.confidence >= 0.7
             assert result.confidence <= 0.95
 
-    async def test_run_sets_confidence_without_knowledge(self, agent_with_skill, ctx):
+    async def test_run_sets_confidence_without_knowledge(self, agent_with_skill, ctx, make_analysis):
         """无知识命中 + 低 LLM 评分时 confidence 较低"""
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = _make_analysis(score=60)
+            mock_llm.return_value = make_analysis(score=60)
             # 知识库为空
             result = await agent_with_skill.run(ctx)
             # 无知识命中 + score=60 → confidence = 0.6 + 0 + 0.6*0.3 = 0.78
             assert result.confidence == 0.78
 
-    async def test_run_returns_structured_result(self, agent_with_skill, ctx):
+    async def test_run_returns_structured_result(self, agent_with_skill, ctx, make_analysis):
         """返回结果包含大师标识和结构化分析"""
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            analysis = _make_analysis(rating="看涨", score=90)
+            analysis = make_analysis(rating="看涨", score=90)
             mock_llm.return_value = analysis
             result = await agent_with_skill.run(ctx)
 
@@ -310,13 +266,13 @@ class TestMasterAgentRunWithMockLLM:
             assert result.data["analysis"]["rating"] == "看涨"
             assert result.data["analysis"]["score"] == 90
 
-    async def test_reasoning_contains_skill_name_and_rating(self, agent_with_skill, ctx):
+    async def test_reasoning_contains_skill_name_and_rating(self, agent_with_skill, ctx, make_analysis):
         """reasoning 字段包含大师名和评级"""
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = _make_analysis(rating="看涨")
+            mock_llm.return_value = make_analysis(rating="看涨")
             result = await agent_with_skill.run(ctx)
             assert "巴菲特" in result.reasoning
             assert "看涨" in result.reasoning
@@ -330,36 +286,36 @@ class TestMasterAgentRunWithMockLLM:
 class TestMasterAgentDifferentSkills:
     """不同大师 Skill 切换测试"""
 
-    async def test_buffett_agent_uses_buffett_identity(self):
+    async def test_buffett_agent_uses_buffett_identity(self, buffet_lite, make_analysis):
         """巴菲特 Agent 使用巴菲特的 prompt"""
-        agent = MasterAgent(skill=_BUFFETT_LITE)
+        agent = MasterAgent(skill=buffet_lite)
         ctx = AgentContext(session_id="s1", input_data={"question": "如何选股？"})
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = _make_analysis()
+            mock_llm.return_value = make_analysis()
             result = await agent.run(ctx)
             assert result.data.get("skill_id") == "buffett"
             assert result.data.get("skill_name") == "沃伦·巴菲特"
 
-    async def test_munger_agent_uses_munger_identity(self):
+    async def test_munger_agent_uses_munger_identity(self, munger_lite, make_analysis):
         """芒格 Agent 使用芒格的 prompt"""
-        agent = MasterAgent(skill=_MUNGER_LITE)
+        agent = MasterAgent(skill=munger_lite)
         ctx = AgentContext(session_id="s1", input_data={"question": "如何避免投资错误？"})
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = _make_analysis()
+            mock_llm.return_value = make_analysis()
             result = await agent.run(ctx)
             assert result.data.get("skill_id") == "munger"
             assert result.data.get("skill_name") == "查理·芒格"
 
-    async def test_different_skills_have_different_system_prompts_in_llm_call(self):
+    async def test_different_skills_have_different_system_prompts_in_llm_call(self, buffet_lite, munger_lite, make_analysis):
         """不同大师的 system_prompt 传递到 LLM 调用不同"""
-        buffett_agent = MasterAgent(skill=_BUFFETT_LITE)
-        munger_agent = MasterAgent(skill=_MUNGER_LITE)
+        buffett_agent = MasterAgent(skill=buffet_lite)
+        munger_agent = MasterAgent(skill=munger_lite)
 
         for agent, expected_text in [
             (buffett_agent, "安全边际"),
@@ -370,7 +326,7 @@ class TestMasterAgentDifferentSkills:
                 "src.agents.master_agent.llm_service.invoke_structured",
                 new_callable=AsyncMock,
             ) as mock_llm:
-                mock_llm.return_value = _make_analysis()
+                mock_llm.return_value = make_analysis()
                 await agent.run(ctx)
                 call_args, call_kwargs = mock_llm.call_args
                 sys_prompt = call_kwargs.get("system_prompt", "")
@@ -385,13 +341,13 @@ class TestMasterAgentDifferentSkills:
 class TestMasterAgentRunSafe:
     """run_safe() 封装层测试"""
 
-    async def test_run_safe_success(self, agent_with_skill, ctx):
+    async def test_run_safe_success(self, agent_with_skill, ctx, make_analysis):
         """run_safe 成功返回结果"""
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
             new_callable=AsyncMock,
         ) as mock_llm:
-            mock_llm.return_value = _make_analysis(
+            mock_llm.return_value = make_analysis(
                 summary="安全边际是关键",
                 analysis="详细分析内容",
             )

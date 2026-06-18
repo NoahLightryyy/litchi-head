@@ -38,17 +38,16 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-18 — TD-036 backend 路由测试全覆盖 ✅）
+## 2. 当前会话状态（2026-06-18 — TD-058 剩余 4 模块 conftest ✅）
 
-> **本次完成**：TD-036 backend 全路由测试覆盖 — 77 测试，17 端点 + 辅助函数全量覆盖。
-> **同时**：941 tests collected, 全量通过 ✅
-> **前期完成**：TD-032 FallbackSource 恢复主源 + TD-058 debate 模块 conftest 示范 + TD-059 契约测试。
-> **前期完成**：全代码库测试架构系统审查 — 发现 3 个结构性问题 + 创建测试策略文档 + 学习卡片。
-> **前期完成**：QA 质量保障体系 Module 12 + Phase R P0 修复（TD-028~031）+ Batch 6 + Batch Loop + 数据源 Provider 抽象层等。
-> **Batch 5** — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现。
-> **Batch 4** — 数据源深度审计 + DataCollector 健康监控上线。
-> **Batch 3** — Sprint 6 Lightweight Charts K 线真渲染 + 数据源造假清除。
-> **Batch 1 FastAPI 桥接层编码 + Batch 2 前端接入真实 API + 前端 MVP 架构设计（47 文件）。
+> **本次完成**：TD-058 剩余 4 模块 conftest — agents/data/memory/utils 全部完成。
+> 创建 conftest 4 个，迁移 11 个扁平测试文件到模块目录，Fixture 去重。
+> **全量 941 tests collected, 全部通过** ✅
+> **前期完成**：TD-036 backend 全路由测试覆盖（77 测试，17 端点）。
+> TD-032 FallbackSource 恢复主源 + TD-058 debate conftest 示范 + TD-059 契约测试。
+> 全代码库测试架构系统审查 + 测试策略文档 + 学习卡片。
+> QA 质量保障体系 Module 12 + Phase R P0 修复（TD-028~031）+ Batch 6 + Batch Loop 等。
+> **Batch 5~1** 同上。
 
 ### 完成内容
 
@@ -141,6 +140,21 @@
 | **test_debate.py** — 3 端点（9 测试） | ✅ |
 | **test_trust.py** — 2 端点 + 映射逻辑（11 测试） | ✅ |
 | **全量 941 tests passed**（+77 backend 测试），Pyright 零错误 | ✅ |
+| | | |
+| **第五轮：TD-058 剩余 4 模块 conftest 🆕** | ✅ |
+| **tests/test_agents/conftest.py** — ctx/buffet_lite/munger_lite/make_analysis | ✅ |
+| **tests/test_data/conftest.py** — MockDataSource + MockFailingDataSource + collector 系列 fixture | ✅ |
+| **tests/test_memory/conftest.py** — kb_with_temp_dir + 知识文件 fixture | ✅ |
+| **tests/test_utils/conftest.py** — 模式占位 | ✅ |
+| **Fixture 去重 + 11 文件迁移，全量 941 tests 零回归** | ✅ |
+| | | |
+| **第五轮：TD-058 剩余 4 模块 conftest 🆕** | ✅ |
+| **tests/test_agents/conftest.py** — 提取 ctx/buffet_lite/munger_lite/make_analysis fixture | ✅ |
+| **tests/test_data/conftest.py** — 共享 MockDataSource + collector 系列 fixture，迁移 5 扁平文件 | ✅ |
+| **tests/test_memory/conftest.py** — 共享 kb_with_temp_dir + 知识文件 fixture，迁移 4 文件 | ✅ |
+| **tests/test_utils/conftest.py** — 模式占位，迁移 2 文件 | ✅ |
+| **Fixture 去重** — `ctx`/`MockDataSource`/`MockFailingDataSource`/`kb_with_temp_dir` 等不再重复定义 | ✅ |
+| **全量 941 tests passed（零回归）** | ✅ |
 
 ### 重要：项目目录新结构
 
@@ -327,30 +341,35 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-18 — TD-036 backend 路由测试全覆盖 ✅）
+## 5. 下一步优先级（2026-06-18 — TD-058 剩余 4 模块 conftest ✅）
 
 > **本次完成**：
-> - 🔴 TD-036 backend 全路由测试覆盖 — 77 测试，17 端点 + 辅助函数全量覆盖
-> - `tests/test_backend/` 目录：conftest + MockCollector + 4 路由测试文件
-> - 同步更新 HANDOVER.md + 债务日志（TD-036 → CLOSED ✅）
+> - 🔴 **TD-058 剩余 4 模块 conftest** — agents/data/memory/utils 全部完成
+> - `tests/test_agents/conftest.py` — 提取 ctx/buffet_lite/munger_lite/make_analysis
+> - `tests/test_data/conftest.py` — 共享 MockDataSource + collector 系列 fixture
+> - `tests/test_memory/conftest.py` — 共享 kb_with_temp_dir + 知识文件 fixture
+> - `tests/test_utils/conftest.py` — 模式占位
+> - 迁移 11 个扁平测试文件到模块目录，Fixture 去重
+> - 同步更新债务日志（TD-058 → CLOSED ✅）+ HANDOVER.md
 >
 > **前期完成**：
-> - TD-032 FallbackSource 恢复主源 ✅ / TD-058 debate conftest 示范 ✅ / TD-059 契约测试 ✅
+> - TD-036 backend 全路由测试覆盖 ✅ / TD-032 FallbackSource 恢复主源 ✅ / TD-059 契约测试 ✅
 > - 全代码库测试架构审查 + 测试策略文档 + 学习卡片 #17
 > - QA 质量保障体系 Module 12 + Phase R P0 修复（TD-028~031）+ Batch 6
 >
 > **全量 941 tests collected, 全部通过** ✅
 >
-> **当前阶段**：TD-036 ✅、TD-032 ✅、TD-059 ✅、TD-058 debate 示范 ✅。
-> 建议下一步：**TD-058 剩余 4 模块 conftest → TD-038 密钥管理 → TD-039 API 速率限制**。
+> **当前阶段**：TD-058 ✅、TD-036 ✅、TD-032 ✅、TD-059 ✅。
+> 建议下一步：**TD-038 密钥管理 → TD-039 API 速率限制 → TD-040 LLM Provider fallback**。
 
-### 🥇 Phase R 实盘加固（QA + 按察审计 + TD-032/059/036 全部完成 ✅）
+### 🥇 Phase R 实盘加固（TD-036/032/058/059 全部完成 ✅）
 
 | 优先级 | 说明 | 涉及范围 | 工作量 |
 |:------:|:-----|:--------:|:-----:|
-| | ~~🔥 ~~ **TD-036 backend 路由测试覆盖** — ~~创建 `test_backend/` 目录 + 5 个路由测试~~ | ~~`tests/`~~ | ~~~2d~~ |
-| | **✅ TD-036 已修复** — 77 测试覆盖 17 端点 + 5 辅助函数 | | |
-| 🔴 P1 | **TD-058 模块级 conftest 缺失** — 剩余 4 模块 conftest（agents/data/memory/utils） | `tests/` | ~1.5h |
+| | ~~🔴 **TD-058 模块级 conftest** — ~~4 模块~~ | ~~`tests/`~~ | ~~~1.5h~~ |
+| | **✅ TD-058 已修复** — 4 模块 conftest + 11 文件迁移 | | |
+| | ~~🔴 **TD-036 backend 路由测试** — ~~创建 `test_backend/`~~ | ~~`tests/`~~ | ~~~2d~~ |
+| | **✅ TD-036 已修复** — 77 测试覆盖 17 端点 | | |
 | 🔴 P1 | **TD-038 .env 密钥管理** — 密钥轮换 + 凭据管理器 | `config/` | ~30min |
 | 🟡 P1 | **TD-039 API 速率限制** — slowapi + debate/run 特别限流 | `backend/` | ~1h |
 | 🟡 P1 | **TD-040 LLM Provider fallback** — DeepSeek→OpenAI 自动降级 | `src/utils/` | ~1d |
@@ -386,12 +405,11 @@ klines = collector.get_klines("000001", period="daily")
 
 ```
 1. /resume-session 恢复上下文
-2. TD-058 剩余 4 个模块创建 conftest（按 test_agents → test_data → test_memory → test_utils）
-3. TD-038 密钥管理 → TD-039 API 速率限制
-4. 后续：TD-040 LLM Provider fallback → TD-041 数据新鲜度标注
+2. TD-038 密钥管理 → TD-039 API 速率限制
+3. 后续：TD-040 LLM Provider fallback → TD-041 数据新鲜度标注
 ```
 
-> **最后更新**：2026-06-18（TD-036 backend 路由测试全覆盖 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-18（TD-058 剩余 4 模块 conftest ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
@@ -513,4 +531,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-18（TD-036 backend 路由测试全覆盖 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-18（TD-058 剩余 4 模块 conftest ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行

@@ -8,7 +8,7 @@
 |:-----|:-----|:----------:|
 | 🏛️ 架构设计 | [ARCHITECTURE.md](ARCHITECTURE.md) | 3 |
 | 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 11 |
-| 🧪 测试 | [TESTING.md](TESTING.md) | 9 |
+| 🧪 测试 | [TESTING.md](TESTING.md) | 8 |
 | ⚙️ 基础设施 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | 5 |
 | 🗄️ 已关闭 | [CLOSED.md](CLOSED.md) | 32 |
 | 📝 模板 | [TEMPLATE.md](TEMPLATE.md) | — |
@@ -16,7 +16,7 @@
 ## 仪表盘
 
 ```
-开放债务: 28 条    已关闭: 34 条
+开放债务: 27 条    已关闭: 35 条
 本金总计: ~60+ 人时
 紧急指数: 4.5 / 10     ← 2026-06-18 TD-059 契约测试已上线 ↓
                                                                   新增 TD-058~060，紧急指数稳定下降

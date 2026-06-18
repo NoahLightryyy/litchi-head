@@ -20,14 +20,12 @@ def agent_with_kb_path(tmp_path):
     return XiaoZhiAgent(knowledge_base_path=str(tmp_path))
 
 
-@pytest.fixture
-def ctx():
-    """创建测试用 AgentContext"""
-    return AgentContext(session_id="test-session", input_data={"question": "什么是安全边际？"})
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 初始化
+# ═══════════════════════════════════════════════════════════════════
+#
+# 注意：ctx fixture 由 tests/test_agents/conftest.py 提供
+# ═══════════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════════
 
 

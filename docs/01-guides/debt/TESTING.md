@@ -178,37 +178,35 @@ tests/test_backend/
 | **分类** | `🧪 testing` `severity:moderate` `module:tests` `impact:可测试性` |
 | **发现日期** | 2026-06-18 |
 | **发现人** | AI 测试架构审查 |
-| **状态** | `🔧 修复中` |
+| **状态** | `✅ 已修复` |
 | **本金估算** | ∼2h |
-| **实际工时** | ∼30min（debate 模块示范 ✅） |
-| **日利息** | 所有模块 fixture 挤在根 conftest，模块间 fixture 无隔离，改一个模块的 fixture 可能影响其他模块 |
-| **实盘影响** | 🟡 不会直接引发实盘问题，但降低开发效率，增加"改测试改出其他模块测试挂了"的风险 |
-| **触发场景** | 在根 conftest 修改共享 fixture 时 |
+| **实际工时** | ∼30min（debate 模块示范 ✅）+ ∼1h（剩余 4 模块 ✅）= ∼1.5h |
+| **修复日期** | 2026-06-18 |
+| **日利息** | ~~所有模块 fixture 挤在根 conftest，模块间 fixture 无隔离~~ |
+| **实盘影响** | 🟢 低 — 测试可维护性已提升，941 tests 全部通过 |
+| **触发场景** | ~~在根 conftest 修改共享 fixture 时~~ **已缓解** |
 | **用户能发现吗** | ❌ 不能 — 这是内部可测试性问题 |
 
 **描述**：
 当前 `tests/conftest.py` 包含了多个模块专属的 fixture（如 `mock_collector`、`sample_debate_input` 等），没有按模块拆分到各自的 `tests/test_<模块>/conftest.py`。
 
-**缺失清单**：
-| 目录 | conftest | 依赖根 conftest 的 fixture |
-|:-----|:--------:|:-------------------------|
-| `test_debate/` | ✅ **示范完成** | `sample_analyses` 已提取到模块 conftest |
-| `test_agents/` | ❌ | mock_llm 等已在根 conftest |
-| `test_backend/` | ❌ | 无，需要独立的 TestClient fixture |
-| `test_data/` | ❌ | 数据 mock 依赖根 conftest |
-| `test_memory/` | ❌ | 临时目录 fixture 依赖根 conftest |
-| `test_utils/` | ❌ | LLM mock 依赖根 conftest |
+**缺失清单**（已全部完成）：
+| 目录 | conftest | 状态 |
+|:-----|:--------:|:----:|
+| `test_debate/` | ✅ | **示范完成** — `sample_analyses` 已提取到模块 conftest |
+| `test_agents/` | ✅ | `ctx / buffet_lite / munger_lite / make_analysis` 已提取 |
+| `test_backend/` | ✅ | 已独立（TestClient + MockCollector） |
+| `test_data/` | ✅ | 共享 MockDataSource / MockFailingDataSource + fixtures |
+| `test_memory/` | ✅ | 共享 kb_with_temp_dir + 知识文件 fixture |
+| `test_utils/` | ✅ | 模式占位 |
 
-**利息分析**：
-- 根 conftest 膨胀：当前 299 行，未来每加一个模块继续膨胀
-- 模块间耦合：删除/修改一个模块的 fixture 时，不确定是否被其他模块依赖
-- 新开发者困惑：不知道 fixture 该放哪里
-
-**修复方向**：
-1. 创建各模块的 `tests/test_<模块>/conftest.py`
-2. 将模块专属 fixture 从根 conftest 迁移到模块 conftest
-3. 根 conftest 只保留跨模块共享的工厂函数（如 `make_mock_llm_service`）
-4. 参考 `docs/01-guides/TESTING_STRATEGY.md` §3 fixture 层级约定
+**修复内容**（2026-06-18）：
+1. ✅ `tests/test_agents/conftest.py` — 提取 ctx/buffet_lite/munger_lite/make_analysis
+2. ✅ `tests/test_data/conftest.py` — 提取 MockDataSource/MockFailingDataSource + collector 系列 fixture
+3. ✅ `tests/test_memory/conftest.py` — 提取 kb_with_temp_dir/sample_knowledge_file/multi_section_file
+4. ✅ `tests/test_utils/conftest.py` — 模式占位
+5. ✅ 迁移 11 个扁平测试文件到模块目录
+6. ✅ 全量 941 tests passed，零回归
 
 ---
 
