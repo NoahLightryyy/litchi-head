@@ -24,6 +24,7 @@
 | TD-029 | 前端死代码清理 | 2026-06-17 | 删 `components/layout/` (5文件) + `stores/` (2文件) + `hot-news.tsx` + echarts/zustand 依赖 |
 | TD-030 | 资金流向绕过 Provider 层 | 2026-06-17 | CapitalFlowItem 迁移 models.py → DataSource Protocol 扩展 → 三源实现 → FallbackSource → DataCollector 缓存+健康监控 → backend 路由切换 |
 | TD-031 | 辩论轮询永不停止 | 2026-06-17 | `useRef` 计数 + 最大 60 次（~120s）兜底停止条件 |
+| TD-032 | FallbackSource 永不恢复主源 | 2026-06-18 | 备用模式每次先尝试主源，成功自动切回 |
 | TD-042 | debate/orchestrator: _run_rebuttal/_run_independent_review 静默吞异常 | 2026-06-18 | +logger.exception() 在 LLM 失败路径 |
 | TD-043 | risk/orchestrator: risk_round/pm_round 异常完全丢弃 | 2026-06-18 | +logger.exception() + session_id 上下文 |
 | TD-044 | debate/reflection: reflection 生成/决策记忆加载静默失败 | 2026-06-18 | +logger.exception() 在全部 except 路径 |
@@ -52,3 +53,9 @@
 | ID | 标题 | 关闭日期 | 修复说明 |
 |:---|:-----|:--------|:---------|
 | TD-010 | README 仍为 Gitee 模板 | 2026-06-08 | README.en.md 替换为实际项目介绍 |
+
+## 测试（🧪）
+
+| ID | 标题 | 关闭日期 | 修复说明 |
+|:---|:-----|:--------|:---------|
+| TD-059 | 缺少模块间契约测试 | 2026-06-18 | `tests/contract/test_data_to_debate.py` — data→debate 4 项契约测试 |

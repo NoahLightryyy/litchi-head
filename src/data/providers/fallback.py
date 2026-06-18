@@ -107,7 +107,17 @@ class FallbackSource:
             数据列表，两者都失败时返回空列表
         """
         if self._using_fallback[endpoint]:
-            # 当前已切到备用
+            # 当前已切到备用 — 每次先尝试恢复主源
+            try:
+                result = primary_fn()
+                self._consecutive_failures[endpoint] = 0
+                self._using_fallback[endpoint] = False
+                logger.info("主数据源恢复，切回主源: endpoint=%s", endpoint)
+                return result
+            except Exception:
+                logger.debug("主数据源仍未恢复: endpoint=%s", endpoint)
+
+            # 主源仍不可用，使用备用
             try:
                 result = fallback_fn()
                 # 备用成功 → 保持备用

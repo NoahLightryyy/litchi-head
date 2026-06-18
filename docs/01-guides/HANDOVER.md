@@ -40,7 +40,9 @@
 
 ## 2. 当前会话状态（2026-06-18 — 测试架构审查 + 策略文档上线 🧪）
 
-> **本次完成**：全代码库测试架构系统审查 — 发现 3 个结构性问题 + 创建测试策略文档 + 学习卡片。
+> **本次完成**：TD-032 FallbackSource 恢复主源 + TD-058 debate 模块 conftest 示范 + TD-059 契约测试。
+> **同时**：864 tests collected, 全量通过
+> **前期完成**：全代码库测试架构系统审查 — 发现 3 个结构性问题 + 创建测试策略文档 + 学习卡片。
 > **前期完成**：QA 质量保障体系 Module 12 + Phase R P0 修复（TD-028~031）+ Batch 6 + Batch Loop + 数据源 Provider 抽象层等。
 > **Batch 5** — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现。
 > **Batch 4** — 数据源深度审计 + DataCollector 健康监控上线。
@@ -166,11 +168,13 @@ Phase R 实盘加固（P0/P1 优先）：
 
 | 优先级 | 事项 | 预估 | 前置 |
 |:------:|:-----|:----:|:----:|
-| 🔥 | **TD-032 FallbackSource 永不恢复主源** | ~1h | — |
+| ~~🔥~~ | ~~**TD-032 FallbackSource 永不恢复主源**~~ | ~~~1h~~ | ~~—~~ |
+| | **✅ TD-032 已修复** — 备用模式每次先尝试主源，成功自动切回 | | |
 | 🔴 | **TD-036 backend 路由测试覆盖** — 5/6 文件零测试（indicators 已补） | ~2d | — |
 | 🔴 | **TD-038 .env 明文 API 密钥** | ~30min | — |
-| 🟡 | **TD-058 模块级 conftest 缺失** — 6 个模块无独立 conftest | ~2h | 测试策略文档 ✅ |
-| 🟡 | **TD-059 无契约测试** — 模块间数据传递无人守卫 | ~1h | — |
+| 🟡 | **TD-058 模块级 conftest 缺失** — debate 示范完成 ✅，4 模块待继续 | ~1.5h | 测试策略文档 ✅ |
+| 🟡 | ~~**TD-059 无契约测试**~~ | ~~~1h~~ | |
+| | **✅ TD-059 已修复** — `tests/contract/test_data_to_debate.py` 4 项契约测试 | | |
 | 🟡 | **TD-039 API 速率限制** — 特别 debate/run | ~1h | — |
 | 🟡 | **TD-040 LLM Provider fallback 链** | ~1d | — |
 | 🟡 | **TD-041 数据新鲜度标注** | ~2h | — |
@@ -178,15 +182,15 @@ Phase R 实盘加固（P0/P1 优先）：
 ### 当前 Git 状态
 
 ```
-最新提交: 2af4c80 — feat: QA 质量保障体系 Module 12 上线 — 先写文档再做
-工作区: 按察审计 8 条 CRITICAL 修复 + 测试架构审查文档化 — 共 29 文件改动未提交
+最新提交: 046a157 — feat: 按察审计 8 条 CRITICAL 修复 + 测试架构文档化 + Hookify 规则升级
+工作区: TD-058 模块级 conftest（debate 示范 + 测试迁移）— 文件变动未提交
 ```
 
 ### 测试覆盖
 
 | 测试文件 | 测试数 |
 |---------|:------:|
-| `tests/test_debate_*.py` | 199（含 54 M3 + 10 M4） |
+| `tests/test_debate/*.py` | 235（✅ 已迁移到模块目录） |
 | `tests/test_risk_*.py` | 26 |
 | `tests/test_trader_*.py` | 20 |
 | `tests/test_backtest_*.py` | 65（含 20 桥接） |
@@ -249,7 +253,7 @@ Phase R 实盘加固（P0/P1 优先）：
 
   新增 QA: Pydantic 字段约束补齐 / CI 门禁升级（coverage+bandit）/ 文档同步检测
 
-开放债务：30 条（⬇️ 测试架构审查 +3 条 moderate/low）
+开放债务：29 条（⬇️ TD-032 已关闭）
 ```
 
 ---
@@ -309,9 +313,13 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-18 — 测试架构审查 + 策略文档上线 🧪）
+## 5. 下一步优先级（2026-06-18 — TD-032 FallbackSource 恢复主源 ✅）
 
 > **本次完成**：
+> - 🔥 TD-032 FallbackSource 恢复主源 — 备用模式每次先尝试主源，成功自动切回
+> - 同步更新 HANDOVER.md + 债务日志（TD-032 → CLOSED）
+>
+> **前期完成**：
 > - 全代码库测试架构审查 — 发现 3 个系统性问题（无模块级 conftest / 无契约测试 / 无策略文档）
 > - `docs/01-guides/TESTING_STRATEGY.md` 测试策略文档（测试金字塔 + 模块自治 + fixture 层级 + 覆盖率红线）
 > - 债务系统同步更新：TESTING.md +3 条（TD-058~060），TD-036 进度更新
@@ -319,14 +327,15 @@ klines = collector.get_klines("000001", period="daily")
 > - docs/README.md + ROADMAP.md + HANDOVER.md 同步更新
 > - 864 tests collected, 全量通过
 >
-> **当前阶段**：测试架构已文档化，6 个模块缺少独立 conftest，跨模块契约测试为 0。
-> 建议下一步：**先提交当前工作区 → 创建模块级 conftest → 写第一个契约测试 → 继续 TD-032**。
+> **当前阶段**：TD-032 ✅、TD-059 契约测试 ✅、TD-058 debate 示范 ✅，4 个模块 conftest 待继续。
+> 建议下一步：**剩余 4 个模块 conftest（test_agents → test_data → test_memory → test_utils）→ TD-036 backend 路由测试**。
 
-### 🥇 Phase R 实盘加固（QA + 按察审计完成 ✅，测试架构已文档化）
+### 🥇 Phase R 实盘加固（QA + 按察审计完成 ✅，TD-032 ✅，TD-059 ✅，TD-058 debate 示范 ✅）
 
 | 优先级 | 说明 | 涉及范围 | 工作量 |
 |:------:|:-----|:--------:|:-----:|
-| 🔥 P0 | **TD-032 FallbackSource 恢复主源** — 连续成功 N 次自动恢复 | `src/data/` | ~1h |
+| ~~🔥 P0~~ | ~~**TD-032 FallbackSource 恢复主源**~~ — 连续成功 N 次自动恢复 | ~~`src/data/`~~ | ~~~1h~~ |
+| | **✅ TD-032 已修复** — 备用模式每次先尝试主源，成功自动切回 | | |
 | 🔴 P1 | **TD-036 backend 路由测试覆盖** — 创建 `test_backend/` 目录 + 5 个路由测试 | `tests/` | ~2d |
 | 🔴 P1 | **TD-058 模块级 conftest 缺失** — 6 个模块创建独立 conftest + fixture 迁移 | `tests/` | ~2h |
 | 🔴 P1 | **TD-059 契约测试** — 创建 `tests/contract/` + data→debate 契约 | `tests/contract/` | ~1h |
@@ -376,14 +385,12 @@ klines = collector.get_klines("000001", period="daily")
 
 ```
 1. /resume-session 恢复上下文
-2. 先提交当前工作区（按察审计 + 测试架构文档，共 29 文件）
-3. Phase R 继续：TD-032 FallbackSource 恢复主源
-4. 测试架构：创建模块级 conftest（从 debate 开始示范）
-5. 测试架构：写第一个契约测试（data→debate）
-6. 后续：TD-036 backend 路由测试 → TD-058/059 → TD-038 密钥
+2. TD-058 剩余 4 个模块创建 conftest（按 test_agents → test_data → test_memory → test_utils）
+3. TD-036 backend 路由测试覆盖
+4. 后续：TD-038 密钥管理 → TD-039 API 速率限制
 ```
 
-> **最后更新**：2026-06-18（测试架构审查 + 策略文档上线 🧪） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-18（TD-059 契约测试上线 ✅） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 

@@ -167,8 +167,9 @@
 | **分类** | `🧪 testing` `severity:moderate` `module:tests` `impact:可测试性` |
 | **发现日期** | 2026-06-18 |
 | **发现人** | AI 测试架构审查 |
-| **状态** | `🆕 待评估` |
+| **状态** | `🔧 修复中` |
 | **本金估算** | ∼2h |
+| **实际工时** | ∼30min（debate 模块示范 ✅） |
 | **日利息** | 所有模块 fixture 挤在根 conftest，模块间 fixture 无隔离，改一个模块的 fixture 可能影响其他模块 |
 | **实盘影响** | 🟡 不会直接引发实盘问题，但降低开发效率，增加"改测试改出其他模块测试挂了"的风险 |
 | **触发场景** | 在根 conftest 修改共享 fixture 时 |
@@ -180,6 +181,7 @@
 **缺失清单**：
 | 目录 | conftest | 依赖根 conftest 的 fixture |
 |:-----|:--------:|:-------------------------|
+| `test_debate/` | ✅ **示范完成** | `sample_analyses` 已提取到模块 conftest |
 | `test_agents/` | ❌ | mock_llm 等已在根 conftest |
 | `test_backend/` | ❌ | 无，需要独立的 TestClient fixture |
 | `test_data/` | ❌ | 数据 mock 依赖根 conftest |
@@ -206,8 +208,10 @@
 | **分类** | `🧪 testing` `severity:moderate` `module:tests` `impact:可靠性` |
 | **发现日期** | 2026-06-18 |
 | **发现人** | AI 测试架构审查 |
-| **状态** | `🆕 待评估` |
+| **状态** | `✅ 已修复` |
 | **本金估算** | ∼1h |
+| **修复日期** | 2026-06-18 |
+| **修复说明** | `tests/contract/test_data_to_debate.py` — data→debate 4 项契约测试（JSON roundtrip + format_market_brief） |
 | **日利息** | data 模块改了模型字段，debate 模块不知道→运行时才炸；没有防御层 |  |
 | **实盘影响** | 🟡 模块间接口变更无法被早期发现，上升到集成测试层才发现 |
 | **触发场景** | 跨模块数据模型字段变更（改名/删除/类型改变） |
