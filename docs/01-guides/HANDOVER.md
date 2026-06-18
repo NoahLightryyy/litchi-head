@@ -38,10 +38,10 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-18 — 测试架构审查 + 策略文档上线 🧪）
+## 2. 当前会话状态（2026-06-18 — TD-032/058/059 三项债务关闭 ✅）
 
 > **本次完成**：TD-032 FallbackSource 恢复主源 + TD-058 debate 模块 conftest 示范 + TD-059 契约测试。
-> **同时**：864 tests collected, 全量通过
+> **同时**：868 tests collected, 全量通过
 > **前期完成**：全代码库测试架构系统审查 — 发现 3 个结构性问题 + 创建测试策略文档 + 学习卡片。
 > **前期完成**：QA 质量保障体系 Module 12 + Phase R P0 修复（TD-028~031）+ Batch 6 + Batch Loop + 数据源 Provider 抽象层等。
 > **Batch 5** — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现。
@@ -126,7 +126,12 @@
 | **测试策略文档** — `docs/01-guides/TESTING_STRATEGY.md` 测试金字塔/模块自治/契约测试约定 | ✅ |
 | **学习卡片 #17** — 测试架构与模块自治 | ✅ |
 | **债务 TD-058~060** — 模块级 conftest 缺失/无契约测试/无测试文档 | ✅ |
-| **当前全量 864 tests collected**（含新 indicators 测试），Pyright src/ 2 errors，backend/ 0 errors | ✅ |
+| **当前全量 868 tests collected**（含 +4 契约测试），Pyright src/ 2 errors，backend/ 0 errors | ✅ |
+| | | |
+| **第三轮：Phase R 三项债务修复** | ✅ |
+| **TD-032 FallbackSource 恢复主源** — 备用模式每次先尝试主源，成功自动切回 | ✅ |
+| **TD-058 模块级 conftest（debate 示范）** — 迁移 10 文件到 tests/test_debate/ + conftest.py fixture 去重 | ✅ |
+| **TD-059 契约测试 data→debate** — tests/contract/ + StockQuote/KLine/NewsItem JSON roundtrip + format_market_brief | ✅ |
 
 ### 重要：项目目录新结构
 
@@ -182,8 +187,8 @@ Phase R 实盘加固（P0/P1 优先）：
 ### 当前 Git 状态
 
 ```
-最新提交: 046a157 — feat: 按察审计 8 条 CRITICAL 修复 + 测试架构文档化 + Hookify 规则升级
-工作区: TD-058 模块级 conftest（debate 示范 + 测试迁移）— 文件变动未提交
+最新提交: 85713a5 — fix: TD-032 FallbackSource 恢复主源 + TD-058/TD-059 测试架构
+工作区: 干净 — 最新提交 85713a5（TD-032/058/059）
 ```
 
 ### 测试覆盖
