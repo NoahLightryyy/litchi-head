@@ -52,6 +52,7 @@
 | 15 | [Hookify 规则与 Claude Code Hooks](15-hookify-rules.md) | `.claude/hookify.*.local.md` |
 | 16 | [系统性代码按察 — Silent Failure 审计方法论](16-code-quality-audit.md) | 全代码库 `except` 块审计 |
 | 17 | [测试架构与模块自治](17-testing-architecture.md) | `tests/` 目录 + `TESTING_STRATEGY.md` |
+| 18 | 🆕 [FastAPI 路由测试 — TestClient + MockCollector](18-fastapi-testclient-mockcollector.md) | `tests/test_backend/conftest.py` + 4 路由测试 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
@@ -65,5 +66,6 @@
 | 理解后端设计 | 01 → 03 → 04 → 05 → 08 → 09 |
 | 理解 Agent 系统 | 02 → 03 → 10 |
 | 理解前端设计 | 04 → 12 → 13 |
-| 理解质量保障 | 15 → 16 → 文档 `docs/03-modules/12-quality-assurance/` |
+| 理解质量保障 | 15 → 16 → 17 → 文档 `docs/03-modules/12-quality-assurance/` |
+| 编写后端测试 | 17 → 18 |
 | 准备面试 | 全部通读一遍，重点练「自己试试」 |
