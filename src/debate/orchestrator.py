@@ -1233,7 +1233,7 @@ class DebateOrchestrator:
                 try:
                     self.master_skills.append(self.skill_disk.load(sid))
                 except KeyError:
-                    pass
+                    logger.warning("技能 ID 未找到，已跳过: %s", sid)
         else:
             self.master_skills = self.skill_disk.load_defaults()
 

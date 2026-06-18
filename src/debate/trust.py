@@ -33,12 +33,15 @@
 
 from __future__ import annotations
 
+import logging
 import statistics
 from dataclasses import dataclass, field
 
 from pydantic import BaseModel, Field, model_validator
 
 from src.memory.store import MemoryStore
+
+logger = logging.getLogger(__name__)
 
 # ── 数据模型 ──────────────────────────────────────────────────
 
@@ -431,7 +434,7 @@ class TrustTracker:
                 )
                 buffer.dirty = False
             except Exception:
-                pass  # 写入失败不抛异常
+                logger.warning("写入信任度记录失败: agent=%s", agent_name)  # 写入失败不抛异常
 
     async def get_all_agent_names(self) -> list[str]:
         """获取有记录的 Agent 名称列表
@@ -451,7 +454,7 @@ class TrustTracker:
                     if isinstance(item.value, dict) and "agent_name" in item.value:
                         names.add(str(item.value["agent_name"]))
             except Exception:
-                pass
+                logger.warning("读取信任度记录失败，仅返回缓存数据")
         return sorted(names)
 
     # ── 内部方法 ──────────────────────────────────────────────

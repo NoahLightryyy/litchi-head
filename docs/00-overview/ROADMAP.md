@@ -44,6 +44,7 @@
 
 ### 基建 & 质量
 - ✅ **CI 流水线** — GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13，TD-009 ✅ 已关闭）
+- ⟳ **质量保障体系 Module 12** — Hookify 规则 5 条 + Post-tool hooks + 文档同步检测（P0 建设中）
 - ✅ **Pyright 路径修复** — 移除硬编码 extraPaths（TD-011 ✅ 已关闭）
 - ✅ **测试基座** — `conftest.py` + mock 工具 + VCR 录制（TD-004 🔧 核心完成）
 - ✅ **全量测试 222 通过**
@@ -155,6 +156,7 @@
 | 🔥 P0 | **TD-030 资金流向接入 Provider 层** | ✅ 已完成 | 75 tests ✅ |
 | 🔥 P0 | **TD-031 辩论轮询停止条件** | ✅ 已完成 | pnpm build ✅ |
 | 🔥 P0 | **TD-032 FallbackSource 恢复主源** | Provider 层就绪 | ~1h |
+| 🔥 P0 | **QA 质量保障体系** — Hookify 规则 + Post-tool hooks + except:pass 修复 | 文档就绪 | ~2h |
 | 🔴 P1 | **TD-036 backend 测试覆盖** | 全部就绪 | ~2d |
 | 🔴 P1 | **TD-038 密钥安全管理** | — | ~30min |
 | 🟡 P1 | **TD-039 API 速率限制** | backend 就绪 | ~1h |
@@ -186,6 +188,10 @@ frontend/（React + Next.js — 全部 Tab 就绪 ✅）
 
 backend/（FastAPI 桥接层 — 全部路由完整实现 ✅）
 └── routers/      ████████████████████ 85%   ✅ market/stocks/debate/trust + TD-020 + 技术指标 + 生产配置
+
+qa/（质量保障体系 — Hookify 规则 + Post-tool hooks）
+├── SPEC          ██████░░░░░░░░░░░░░░ 15%   ⟳ 文档就绪，规则待实施
+└── HOOKS         ██████░░░░░░░░░░░░░░ 15%   ⟳ 文档就绪
 ```
 
 ---
@@ -202,6 +208,7 @@ backend/（FastAPI 桥接层 — 全部路由完整实现 ✅）
 | 前端视觉设计 | `docs/02-requirements/FRONTEND_VISION.md` | 调研 + 视觉方案 + 布局原型 |
 | 前端规格文档 | `docs/03-modules/10-frontend/` | README+SPEC+ROUTING+COMPONENTS+API |
 | FastAPI 桥接 | `docs/03-modules/11-fastapi-bridge/` | 桥接层 README+SPEC |
+| 质量保障体系 | `docs/03-modules/12-quality-assurance/` | QA 系统 SPEC+HOOKS |
 | 初版要求 | `docs/02-requirements/INITIAL_REQUIREMENTS.md` | 原始需求文档 |
 
 ---

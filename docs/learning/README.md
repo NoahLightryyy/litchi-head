@@ -49,6 +49,8 @@
 | 13 | [Next.js 服务端组件与客户端组件](13-nextjs-ssr-client.md) | `frontend/app/` |
 | 14 | [Lightweight Charts K 线图表](14-lightweight-charts.md) | `frontend/components/stock/` |
 
+| 15 | [Hookify 规则与 Claude Code Hooks](15-hookify-rules.md) | `.claude/hookify.*.local.md` |
+
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
 ---
@@ -61,4 +63,5 @@
 | 理解后端设计 | 01 → 03 → 04 → 05 → 08 → 09 |
 | 理解 Agent 系统 | 02 → 03 → 10 |
 | 理解前端设计 | 04 → 12 → 13 |
+| 理解质量保障 | 15 → 文档 `docs/03-modules/12-quality-assurance/` |
 | 准备面试 | 全部通读一遍，重点练「自己试试」 |

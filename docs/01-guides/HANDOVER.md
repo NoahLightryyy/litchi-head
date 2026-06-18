@@ -38,14 +38,14 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-17 — Phase R P0 修复：4 条债务关闭 ✅）
+## 2. 当前会话状态（2026-06-18 — QA 质量保障体系上线 ✅）
 
-> **本次完成**：Phase R P0 修复 — TD-028（搜索防抖） + TD-029（死代码清理） + TD-030（资金流向Provider贯通） + TD-031（辩论轮询兜底）。
-> **前期完成**：Batch 6（后端路由+Tab 面板） + Batch Loop（技术指标/TD-020/生产配置/暗色主题） + Phase R 实盘审计。
-> Batch 5 — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现。
-> Batch 4 — 数据源深度审计 + DataCollector 健康监控上线。
-> Batch 3 — Sprint 6 Lightweight Charts K 线真渲染 + 数据源造假清除。
-> Batch 1 FastAPI 桥接层编码 + Batch 2 前端接入真实 API + 前端 MVP 架构设计（47 文件）。
+> **本次完成**：QA 质量保障体系 Module 12 — 7 条 Hookify 规则 + Post-tool hooks + 文档 + 3 处 except:pass 修复。
+> **前期完成**：Phase R P0 修复（TD-028~031）+ Batch 6 + Batch Loop + 数据源 Provider 抽象层等全部前期工作。
+> **Batch 5** — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现。
+> **Batch 4** — 数据源深度审计 + DataCollector 健康监控上线。
+> **Batch 3** — Sprint 6 Lightweight Charts K 线真渲染 + 数据源造假清除。
+> **Batch 1 FastAPI 桥接层编码 + Batch 2 前端接入真实 API + 前端 MVP 架构设计（47 文件）。
 
 ### 完成内容
 
@@ -109,6 +109,7 @@
 | **TD-029 死代码清理** — 删 layout(5文件)/stores(2文件)/hot-news + echarts/zustand 依赖 | ✅ |
 | **TD-030 资金流向 Provider 层贯通** — CapitalFlowItem→Protocol→三源→Fallback→DataCollector→路由 | ✅ |
 | **TD-031 辩论轮询兜底** — useRef 计数 + 最大 60 次（~120s）自动停 | ✅ |
+| **Module 12: QA 质量保障体系上线** — 7 条 Hookify 规则 + Post-tool hooks + except:pass 修复 | ✅ |
 
 ### 重要：项目目录新结构
 
@@ -164,8 +165,8 @@ Phase R 实盘加固（P0/P1 优先）：
 ### 当前 Git 状态
 
 ```
-最新提交: 83ccf37 — feat: DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现
-工作区: Batch 6 + Batch Loop + Phase R 修复 — 含 backend/ + frontend/ + docs/ 大量变更未提交
+最新提交: 30dba0e — fix: Phase R P0 修复 — TD-028~031 四条债务关闭
+工作区: QA 质量保障体系上线 — 文档 + Hookify 7 条 + hooks + except:pass 修复
 ```
 
 ### 测试覆盖
@@ -183,7 +184,7 @@ Phase R 实盘加固（P0/P1 优先）：
 | `tests/test_debate_trust.py` | 54+10 |
 | Provider 层测试 | 19 |
 | 其他 | 80 |
-| **Python 全量** | **742 passed** |
+| **Python 全量** | **738 passed** |
 
 ---
 
@@ -213,26 +214,27 @@ Phase R 实盘加固（P0/P1 优先）：
 ### 3.2 技术债务一览
 
 ```
-紧急指数：7.9/10（↑↑ 因 Phase R 实盘审计升级，新增 21 条 P0/P1）
+紧急指数：6.0/10（⬇️ 3 处 except:pass 已修复 + QA 防线就位）
 
-✅ 已关闭（17 条）：
+✅ 已关闭（18 条）：
   原有 9 条：TD-002 / TD-009 / TD-010 / TD-011 / TD-012 / TD-013 / TD-014 / TD-015 / TD-016
-  新增 8 条：TD-020 / TD-021 / TD-022 / TD-023 / TD-024 / TD-025 / TD-026 / TD-027
+  新增 9 条：TD-020 / TD-021 / TD-022 / TD-023 / TD-024 / TD-025 / TD-026 / TD-027 / QA系统(except:pass清零)
 
 🔧 修复中（2 条）：
   TD-001  LLM 封装层（惰性导入优化完成，模型路由待补）
   TD-004  测试基座（核心完成，backtest 待补）
 
-📋 待评估（21 条）：
-  P0 🔥 TD-028 搜索防抖 / TD-029 死代码清理 / TD-030 资金流向绕过 Provider 层
-  P0 🔥 TD-031 辩论轮询永不停止 / TD-032 Fallback 永不恢复主源
+📋 待评估（19 条）：
+  P0 🔥 TD-032 Fallback 永不恢复主源
   P1 🔴 TD-036 backend 零测试 / TD-038 .env 明文密钥 / TD-039 无速率限制
   P1 🟡 TD-003 MessageRouter 内存存储 / TD-005 双配置源 / TD-006 无校验
   P1 🟡 TD-007 ensure_dirs / TD-008 价格硬编码 / TD-017 反思闭环缺失
   P1 🟡 TD-018 编排层成本优化 / TD-019 单 LLM 依赖 / TD-033 数组变异
   P2 🟢 TD-034 条件逻辑错误 / TD-037 边界条件测试 / TD-040 LLM fallback / TD-041 新鲜度标注
 
-开放债务：23 条（↑↑ Phase R 审计新增 14 条 P0/P1）
+  新增 QA: Pydantic 字段约束补齐 / CI 门禁升级（coverage+bandit）/ 文档同步检测
+
+开放债务：19 条（⬇️ 4 条关闭 + QA 系统上线）
 ```
 
 ---
@@ -292,20 +294,24 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-17 — Phase R 实盘加固 🛡️）
+## 5. 下一步优先级（2026-06-18 — QA 系统上线 + Phase R 继续 🛡️）
 
 > **本次完成**：
-> - Phase R P0 修复：TD-028 搜索防抖 + TD-029 死代码清理 + TD-030 资金流向 Provider + TD-031 辩论轮询兜底 ✅
+> - QA 质量保障体系 Module 12 — 7 条 Hookify 规则 + Post-tool hooks + 文档系统 ✅
+> - 3 处残存 `except: pass` 全部修复（项目内清零 ✅）
+> - 738 tests passed, 全量通过
 >
 > **当前阶段转型**：项目标准从"学生项目"升级为**实盘产品级**。
 > 不再以"功能多"为目标，而以"你爸妈敢不敢用"为标准。
 >
-> 建议下一步：**Phase R 实盘加固 — TD-032 起继续**。
+> 建议下一步：**QA Layer 3 CI 门禁 + Pydantic 字段约束 + TD-032 继续**。
 
-### 🥇 Phase R 实盘加固（4 条已关闭 ✅，剩余待办）
+### 🥇 Phase R 实盘加固（QA 系统上线 ✅，剩余待办）
 
 | 优先级 | 说明 | 涉及范围 | 工作量 |
 |:------:|:-----|:--------:|:-----:|
+| 🔥 P0 | **QA Layer 3: CI 门禁升级** — coverage ≥80% 门禁 + bandit 安全扫描 | `.github/` | ~2h |
+| 🔥 P0 | **Pydantic 字段约束全面补齐** — 39 个模型加 Field(ge/le) 约束 | `src/` 全模块 | ~3h |
 | 🔥 P0 | **TD-032 FallbackSource 恢复主源** — 连续成功 N 次自动恢复 | `src/data/` | ~1h |
 | 🔴 P1 | **TD-036 backend 测试覆盖** — indicators + 端点多文件 | `tests/` | ~2d |
 | 🔴 P1 | **TD-038 .env 密钥管理** — 密钥轮换 + 凭据管理器 | `config/` | ~30min |
@@ -329,11 +335,12 @@ klines = collector.get_klines("000001", period="daily")
 1. /resume-session 恢复上下文
 2. cd e:/litchi-head && python -m uvicorn backend.main:app --port 8000
 3. cd frontend && pnpm dev
-4. Phase R 继续修复：TD-032 FallbackSource 恢复主源
-5. 后续：TD-036 backend 测试 → TD-038 密钥 → TD-039 限流
+4. QA 加固继续：Pydantic 字段约束补齐 或 CI 门禁升级
+5. Phase R 继续：TD-032 FallbackSource 恢复主源
+6. 后续：TD-036 backend 测试 → TD-038 密钥 → TD-039 限流
 ```
 
-> **最后更新**：2026-06-17（Phase R P0 修复：4 条债务关闭 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-18（QA 质量保障体系上线 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
@@ -455,4 +462,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-17（Batch 6 + Batch Loop + Phase R 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-18（QA 质量保障体系上线 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
