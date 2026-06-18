@@ -13,14 +13,13 @@ from datetime import datetime
 
 import akshare as ak
 import pandas as pd
-
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
+from backend.async_utils import run_sync
 from src.data.collector import DataCollector
 from src.data.models import StockQuote as BackendQuote
 from src.data.providers.base import safe_float, safe_str
-from backend.async_utils import run_sync
 
 logger = logging.getLogger("backend.market")
 router = APIRouter(prefix="/api/market")
@@ -267,11 +266,11 @@ def _build_ai_analysis(
 
     lines = [
         f"📊 **{board_name}**（{'行业' if board_type == 'industry' else '概念'}板块）",
-        f"",
+        "",
         f"- 成分股共 {n} 只，上涨 {up} 只，下跌 {down} 只",
         f"- 平均涨跌幅 {avg_change:+.2f}%",
         f"- 市场热度：{heat_label}",
-        f"",
+        "",
     ]
 
     if up > down * 1.5:
@@ -398,7 +397,6 @@ async def get_sector_detail(sector_id: str):
 
     # 成分股列表
     stocks: list[SectorStockResp] = []
-    top_stock_names: list[str] = []
     if not stocks_df.empty:
         for _, row in stocks_df.iterrows():
             stocks.append(SectorStockResp(
@@ -408,7 +406,6 @@ async def get_sector_detail(sector_id: str):
                 change_pct=safe_float(row.get("涨跌幅", 0.0)),
                 ai_rating=_calc_rating(safe_float(row.get("涨跌幅", 0.0))),
             ))
-        top_stock_names = _build_top_stocks(stocks_df)
 
     # AI 分析
     ai_analysis = _build_ai_analysis(board_name, stocks_df, heat, board_type)

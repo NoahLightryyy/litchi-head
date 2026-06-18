@@ -51,14 +51,14 @@ from typing import Any, TypedDict, cast
 
 logger = logging.getLogger(__name__)
 
-from langgraph.graph import END, StateGraph
+from langgraph.graph import END, StateGraph  # noqa: E402 — 惰性导入避免 Windows torch crash
 
-from src.agents.base import AgentContext
-from src.agents.master_agent import MasterAgent
-from src.data.collector import DataCollector, format_market_brief
-from src.data.models import KLine, NewsItem, StockQuote
-from src.debate.analysts import AnalystPersona, get_default_analysts
-from src.debate.models import (
+from src.agents.base import AgentContext  # noqa: E402
+from src.agents.master_agent import MasterAgent  # noqa: E402
+from src.data.collector import DataCollector, format_market_brief  # noqa: E402
+from src.data.models import KLine, NewsItem, StockQuote  # noqa: E402
+from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
+from src.debate.models import (  # noqa: E402
     AgentAnalysis,
     AnalystReport,
     DebateInput,
@@ -68,17 +68,17 @@ from src.debate.models import (
     RebuttalAnalysis,
     VoteSummary,
 )
-from src.debate.reflection import (
+from src.debate.reflection import (  # noqa: E402
     ActualOutcome,
     ReflectionRecord,
     _format_reflection_context,
     _load_decision_from_memory,
     generate_reflection,
 )
-from src.debate.trust import TrustTracker, compute_weight_factor
-from src.memory.skill_disk import MasterSkill, SkillDisk
-from src.memory.store import MemoryItem, MemoryStore
-from src.utils.llm import llm_service
+from src.debate.trust import TrustTracker, compute_weight_factor  # noqa: E402
+from src.memory.skill_disk import MasterSkill, SkillDisk  # noqa: E402
+from src.memory.store import MemoryItem, MemoryStore  # noqa: E402
+from src.utils.llm import llm_service  # noqa: E402
 
 # ── 模块级常量 ─────────────────────────────────────────────
 

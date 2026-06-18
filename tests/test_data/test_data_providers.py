@@ -11,11 +11,8 @@
 8. FallbackSource TD-032 自动恢复主源逻辑
 """
 
-import pytest
 
 from src.data.collector import DataCollector
-from src.data.providers.base import DataSource
-
 
 # ── MockDataSource（复用同一定义） ──────────────────────────────────
 
@@ -259,66 +256,83 @@ class TestAKShareErrorHandling:
     """AKShareSource 异常路径"""
 
     def test_get_all_stocks_returns_empty_on_error(self, mocker):
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
+
+        from src.data.providers.akshare import AKShareSource
         mocker.patch.object(ak, "stock_info_a_code_name", side_effect=ConnectionError("网络错误"))
         source = AKShareSource()
         result = source.get_all_stocks()
         assert result == []
 
     def test_get_realtime_quotes_returns_empty_on_error(self, mocker):
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
+
+        from src.data.providers.akshare import AKShareSource
         mocker.patch.object(ak, "stock_zh_a_spot_em", side_effect=ConnectionError("网络错误"))
         source = AKShareSource()
         result = source.get_realtime_quotes()
         assert result == []
 
     def test_get_klines_returns_empty_on_error(self, mocker):
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
+
+        from src.data.providers.akshare import AKShareSource
         mocker.patch.object(ak, "stock_zh_a_hist", side_effect=ConnectionError("网络错误"))
         source = AKShareSource()
         result = source.get_klines("000001")
         assert result == []
 
     def test_get_news_returns_empty_on_error(self, mocker):
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
+
+        from src.data.providers.akshare import AKShareSource
         mocker.patch.object(ak, "stock_news_em", side_effect=ConnectionError("网络错误"))
         source = AKShareSource()
         result = source.get_news("000001")
         assert result == []
 
     def test_get_capital_flow_returns_empty_on_error(self, mocker):
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
-        mocker.patch.object(ak, "stock_individual_fund_flow", side_effect=ConnectionError("网络错误"))
+
+        from src.data.providers.akshare import AKShareSource
+        mocker.patch.object(
+            ak, "stock_individual_fund_flow",
+            side_effect=ConnectionError("网络错误"),
+        )
         source = AKShareSource()
         result = source.get_capital_flow("000001")
         assert result == []
 
     def test_get_industry_boards_returns_empty_on_error(self, mocker):
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
-        mocker.patch.object(ak, "stock_board_industry_name_em", side_effect=ConnectionError("网络错误"))
+
+        from src.data.providers.akshare import AKShareSource
+        mocker.patch.object(
+            ak, "stock_board_industry_name_em",
+            side_effect=ConnectionError("网络错误"),
+        )
         source = AKShareSource()
         result = source.get_industry_boards()
         assert result == []
 
     def test_get_concept_boards_returns_empty_on_error(self, mocker):
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
-        mocker.patch.object(ak, "stock_board_concept_name_em", side_effect=ConnectionError("网络错误"))
+
+        from src.data.providers.akshare import AKShareSource
+        mocker.patch.object(
+            ak, "stock_board_concept_name_em",
+            side_effect=ConnectionError("网络错误"),
+        )
         source = AKShareSource()
         result = source.get_concept_boards()
         assert result == []
 
     def test_capital_flow_empty_df(self, mocker):
         """空 DataFrame 应返回空列表"""
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
         import pandas as pd
+
+        from src.data.providers.akshare import AKShareSource
         mocker.patch.object(ak, "stock_individual_fund_flow", return_value=pd.DataFrame())
         source = AKShareSource()
         result = source.get_capital_flow("000001")
@@ -329,9 +343,10 @@ class TestAKShareCapitalFlowDataParsing:
     """资金流向数据逐行解析"""
 
     def test_single_row_parsing(self, mocker):
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
         import pandas as pd
+
+        from src.data.providers.akshare import AKShareSource
 
         mock_df = pd.DataFrame([{
             "日期": "2024-01-02",
@@ -350,13 +365,21 @@ class TestAKShareCapitalFlowDataParsing:
 
     def test_invalid_row_skipped(self, mocker):
         """某行解析失败应跳过该行，不阻塞整体"""
-        from src.data.providers.akshare import AKShareSource
         import akshare as ak
         import pandas as pd
 
+        from src.data.providers.akshare import AKShareSource
+
         mock_df = pd.DataFrame([
-            {"日期": "2024-01-02", "主力净流入-净额": 100.0, "小单净流入-净额": -50.0, "大单净流入-净额": 30.0},
-            {"日期": "2024-01-03", "主力净流入-净额": None, "小单净流入-净额": None, "大单净流入-净额": None},
+            {
+                "日期": "2024-01-02", "主力净流入-净额": 100.0,
+                "小单净流入-净额": -50.0, "大单净流入-净额": 30.0,
+            },
+            {
+                "日期": "2024-01-03",
+                "主力净流入-净额": None, "小单净流入-净额": None,
+                "大单净流入-净额": None,
+            },
         ])
         mocker.patch.object(ak, "stock_individual_fund_flow", return_value=mock_df)
         source = AKShareSource()
@@ -449,15 +472,24 @@ class TestADataSourceErrorHandling:
         from src.data.providers.adata_source import ADataSource
         source = ADataSource()
         # mock 整个 all_code 调用链
-        mocker.patch.object(source._adata.stock.info, "all_code", side_effect=ConnectionError("网络错误"))
+        mocker.patch.object(
+            source._adata.stock.info, "all_code",
+            side_effect=ConnectionError("网络错误"),
+        )
         result = source.get_all_stocks()
         assert result == []
 
     def test_get_realtime_quotes_returns_empty_on_error(self, mocker):
         from src.data.providers.adata_source import ADataSource
         source = ADataSource()
-        mocker.patch.object(source._adata.stock.info, "all_code", return_value=__import__("pandas").DataFrame())
-        mocker.patch.object(source._adata.stock.market, "list_market_current", side_effect=ConnectionError("网络错误"))
+        mocker.patch.object(
+            source._adata.stock.info, "all_code",
+            return_value=__import__("pandas").DataFrame(),
+        )
+        mocker.patch.object(
+            source._adata.stock.market, "list_market_current",
+            side_effect=ConnectionError("网络错误"),
+        )
         result = source.get_realtime_quotes()
         assert result == []
 
@@ -476,7 +508,10 @@ class TestADataSourceErrorHandling:
     def test_get_klines_returns_empty_on_error(self, mocker):
         from src.data.providers.adata_source import ADataSource
         source = ADataSource()
-        mocker.patch.object(source._adata.stock.market, "get_market", side_effect=ConnectionError("网络错误"))
+        mocker.patch.object(
+            source._adata.stock.market, "get_market",
+            side_effect=ConnectionError("网络错误"),
+        )
         result = source.get_klines("000001")
         assert result == []
 
@@ -484,7 +519,10 @@ class TestADataSourceErrorHandling:
         from src.data.providers.adata_source import ADataSource
         source = ADataSource()
         # adata 版本不同时 all_industry 可能不存在，用字符串路径 mock
-        mocker.patch.object(source._adata.stock.info, "all_industry", side_effect=ConnectionError("网络错误"), create=True)
+        mocker.patch.object(
+            source._adata.stock.info, "all_industry",
+            side_effect=ConnectionError("网络错误"), create=True,
+        )
         result = source.get_industry_boards()
         assert result == []
 

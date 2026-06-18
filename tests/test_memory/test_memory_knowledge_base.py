@@ -3,8 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from src.memory.knowledge_base import KnowledgeBase
 
 # 注意：kb_with_temp_dir / sample_knowledge_file / multi_section_file

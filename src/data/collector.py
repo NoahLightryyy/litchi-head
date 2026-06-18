@@ -134,7 +134,6 @@ class DataCollector:
     默认使用 AKShareSource（向后兼容）。
 
     可通过 `default_source` 类变量全局配置数据源（生产环境下使用）：
-        DataCollector.default_source = FallbackSource(primary=ADataSource(), fallback=AKShareSource())
 
     Args:
         source: 数据源实现，None 则使用 default_source 或 AKShareSource
@@ -247,7 +246,9 @@ class DataCollector:
 
         t0 = time.time()
         try:
-            result = self._source.get_klines(code, period=period, start=start, end=end, adjust=adjust)
+            result = self._source.get_klines(
+                code, period=period, start=start, end=end, adjust=adjust,
+            )
             ttl = TTL_KLINES_DAILY if period == "daily" else 60
             self.cache.set(cache_key, result, ttl=ttl)
             _health_stats.record_call(f"kline:{period}", (time.time() - t0) * 1000)

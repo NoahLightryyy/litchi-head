@@ -29,8 +29,8 @@ _root = str(Path(__file__).resolve().parent.parent)
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
-from src.debate.models import DebateInput
-from src.debate.orchestrator import DebateOrchestrator
+from src.debate.models import DebateInput  # noqa: E402 — sys.path 修改后导入
+from src.debate.orchestrator import DebateOrchestrator  # noqa: E402
 
 # ═══════════════════════════════════════════════════════════════════
 # 配置
@@ -142,7 +142,6 @@ def make_mock_collector():
 
 async def measure():
     """跑通全链路，统计 LLM 调用次数，估算成本"""
-    counter = CallCounter()
 
     # ═══════════════════ 场景 1: 基础 6 层 ═══════════════════
     print("=" * 60)

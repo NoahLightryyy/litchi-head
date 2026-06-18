@@ -424,7 +424,7 @@ klines = collector.get_klines("000001", period="daily")
 | **质量修复循环过多** | 每次写代码后 3-6 轮 Ruff/Pyright 修复 | 配置 PostWrite hook 自动 `ruff check --fix` | ✅ 已配置 |
 | **pandas 类型反复** | `row["code"]` 被推断为 Series，Pyright 报错 | 必须 `str(row["col"])` 显式转换 | ✅ 已记录 |
 | **Agent API 不兼容 DeepSeek** | planner/Explore 代理因 reasoning_effort 失败 | 降级到 Plan Mode 并记入 memory | ✅ 已记录 |
-| **reasoning_effort 已接入** | `LLMConfig.reasoning_effort` 此前未接线 | `_build_llm()` 已接入，仅对 `deepseek-reasoner` 生效 | ✅ TD-014 |
+| **CI 红着没人修** | hook 只修改过的文件，之前 session 的 ruff/pyright 错误不断累积，没有全局健康检查节点 | Batch Loop 收尾前自动跑 `ruff check .` + `pyright src/`，有红先修再提交 | ✅ 2026-06-18 |
 | **复杂度感知路由** | 简单问题也用推理模型导致慢 | `src/utils/complexity_router.py` 自动路由到 chat/reasoner | ✅ TD-014 |
 | **集成测试 skip 检测反复** | 代理环境特殊 | 使用 HTTP urlopen 检测，按数据源独立标记 | ✅ 已解决 |
 | **Windows torch access violation** | transformers 链导入 torch 导致 crash | `__init__.py` 惰性导入 DebateOrchestrator + reflection.py llm_service | ✅ 已解 |

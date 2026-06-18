@@ -17,19 +17,18 @@ import pandas as pd
 import pytest
 
 from backend.routers.market import (
+    ChainNodeResp,
+    ChainStageResp,
     _build_ai_analysis,
     _build_chain_map,
     _build_top_stocks,
     _calc_heat,
     _calc_rating,
-    ChainNodeResp,
-    ChainStageResp,
 )
 from tests.test_backend.conftest import (
     make_board_perf_df,
     make_board_stocks_df,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # _calc_heat
@@ -246,7 +245,10 @@ class TestGetSectors:
         ind_df = make_board_perf_df()
         con_df = make_board_perf_df(
             rows=[
-                {"板块代码": "BK010", "板块名称": "人工智能", "涨跌幅": 2.0, "主力净流入-净额": 1_000_000_000.0},
+                {
+                    "板块代码": "BK010", "板块名称": "人工智能",
+                    "涨跌幅": 2.0, "主力净流入-净额": 1_000_000_000.0,
+                },
             ]
         )
         with (
@@ -332,7 +334,10 @@ class TestGetSectorDetail:
         """概念板块也能正常获取"""
         stocks_df = make_board_stocks_df()
         perf_df = make_board_perf_df(
-            rows=[{"板块代码": "BK010", "板块名称": "人工智能", "涨跌幅": 2.0, "主力净流入-净额": 1_000_000_000.0}]
+            rows=[{
+                "板块代码": "BK010", "板块名称": "人工智能",
+                "涨跌幅": 2.0, "主力净流入-净额": 1_000_000_000.0,
+            }]
         )
         with (
             patch("backend.routers.market.collector", mock_collector),

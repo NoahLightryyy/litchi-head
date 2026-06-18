@@ -8,9 +8,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-import pytest
 from pydantic import BaseModel
 
 
@@ -45,7 +44,10 @@ class TestRunDebate:
     def test_run_debate_success(self, client):
         mock_orch = _MockOrchestrator()
         with patch("backend.routers.debate._get_orchestrator", return_value=mock_orch):
-            resp = client.post("/api/debate/run", json={"stock_code": "000001", "question": "后市如何？"})
+            resp = client.post(
+                "/api/debate/run",
+                json={"stock_code": "000001", "question": "后市如何？"},
+            )
 
         assert resp.status_code == 200
         data = resp.json()["data"]

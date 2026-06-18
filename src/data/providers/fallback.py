@@ -57,7 +57,11 @@ class FallbackSource:
         return self._call("all_stocks", self._primary.get_all_stocks, self._fallback.get_all_stocks)
 
     def get_realtime_quotes(self) -> list[StockQuote]:
-        return self._call("quotes", self._primary.get_realtime_quotes, self._fallback.get_realtime_quotes)
+        return self._call(
+            "quotes",
+            self._primary.get_realtime_quotes,
+            self._fallback.get_realtime_quotes,
+        )
 
     def get_klines(
         self,
@@ -69,8 +73,12 @@ class FallbackSource:
     ) -> list[KLine]:
         return self._call(
             f"kline:{period}",
-            lambda: self._primary.get_klines(code, period=period, start=start, end=end, adjust=adjust),
-            lambda: self._fallback.get_klines(code, period=period, start=start, end=end, adjust=adjust),
+            lambda: self._primary.get_klines(
+                code, period=period, start=start, end=end, adjust=adjust,
+            ),
+            lambda: self._fallback.get_klines(
+                code, period=period, start=start, end=end, adjust=adjust,
+            ),
         )
 
     def get_news(self, code: str) -> list[NewsItem]:
@@ -81,10 +89,18 @@ class FallbackSource:
         )
 
     def get_industry_boards(self) -> list[BoardInfo]:
-        return self._call("industry_boards", self._primary.get_industry_boards, self._fallback.get_industry_boards)
+        return self._call(
+            "industry_boards",
+            self._primary.get_industry_boards,
+            self._fallback.get_industry_boards,
+        )
 
     def get_concept_boards(self) -> list[BoardInfo]:
-        return self._call("concept_boards", self._primary.get_concept_boards, self._fallback.get_concept_boards)
+        return self._call(
+            "concept_boards",
+            self._primary.get_concept_boards,
+            self._fallback.get_concept_boards,
+        )
 
     def get_capital_flow(self, code: str) -> list[CapitalFlowItem]:
         return self._call(

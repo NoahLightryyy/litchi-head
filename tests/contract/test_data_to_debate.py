@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from src.data.collector import format_market_brief
 from src.data.models import KLine, NewsItem, StockQuote
 
@@ -22,7 +20,6 @@ class TestDataToDebateContract:
 
     def test_stockquote_json_roundtrip(self):
         """StockQuote JSON 序列化/反序列化不丢字段"""
-        now = datetime.now()
         original = StockQuote(
             code="000001",
             name="平安银行",
@@ -103,8 +100,14 @@ class TestDataToDebateContract:
             prev_close=12.09,
         )
         klines = [
-            KLine(date="2026-06-17", open=12.00, close=12.25, high=12.30, low=11.95, volume=1500000),
-            KLine(date="2026-06-18", open=12.25, close=12.50, high=12.60, low=12.20, volume=1800000),
+            KLine(
+                date="2026-06-17", open=12.00, close=12.25,
+                high=12.30, low=11.95, volume=1_500_000,
+            ),
+            KLine(
+                date="2026-06-18", open=12.25, close=12.50,
+                high=12.60, low=12.20, volume=1_800_000,
+            ),
         ]
         news = [
             NewsItem(code="000001", title="业绩预告", date="2026-06-18", content="净利润增长"),

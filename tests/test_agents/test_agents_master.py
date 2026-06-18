@@ -13,7 +13,6 @@ from src.agents.base import AgentContext, AgentResult
 from src.agents.master_agent import MasterAgent
 from src.memory.skill_disk import SkillDisk
 
-
 # ═══════════════════════════════════════════════════════════════════
 # Fixtures
 # ═══════════════════════════════════════════════════════════════════
@@ -232,7 +231,9 @@ class TestMasterAgentRunWithMockLLM:
             assert result.confidence >= 0.7
             assert result.confidence <= 0.95
 
-    async def test_run_sets_confidence_without_knowledge(self, agent_with_skill, ctx, make_analysis):
+    async def test_run_sets_confidence_without_knowledge(  # noqa: E501
+        self, agent_with_skill, ctx, make_analysis,
+    ):
         """无知识命中 + 低 LLM 评分时 confidence 较低"""
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
@@ -266,7 +267,9 @@ class TestMasterAgentRunWithMockLLM:
             assert result.data["analysis"]["rating"] == "看涨"
             assert result.data["analysis"]["score"] == 90
 
-    async def test_reasoning_contains_skill_name_and_rating(self, agent_with_skill, ctx, make_analysis):
+    async def test_reasoning_contains_skill_name_and_rating(  # noqa: E501
+        self, agent_with_skill, ctx, make_analysis,
+    ):
         """reasoning 字段包含大师名和评级"""
         with patch(
             "src.agents.master_agent.llm_service.invoke_structured",
@@ -312,7 +315,9 @@ class TestMasterAgentDifferentSkills:
             assert result.data.get("skill_id") == "munger"
             assert result.data.get("skill_name") == "查理·芒格"
 
-    async def test_different_skills_have_different_system_prompts_in_llm_call(self, buffet_lite, munger_lite, make_analysis):
+    async def test_different_skills_have_different_system_prompts_in_llm_call(  # noqa: E501
+        self, buffet_lite, munger_lite, make_analysis,
+    ):
         """不同大师的 system_prompt 传递到 LLM 调用不同"""
         buffett_agent = MasterAgent(skill=buffet_lite)
         munger_agent = MasterAgent(skill=munger_lite)

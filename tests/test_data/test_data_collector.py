@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 
 from src.data.models import KLine, NewsItem, StockQuote
 
-
 # ── Tests: get_all_stocks ────────────────────────────────────────────
 
 

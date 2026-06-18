@@ -71,7 +71,7 @@ class ADataSource:
                 return []
 
             df = self._adata.stock.market.list_market_current(
-                stock_codes=codes
+                code_list=codes
             )
             return [_adata_row_to_quote(row) for _, row in df.iterrows()]
         except Exception:
@@ -118,7 +118,10 @@ class ADataSource:
 
     def get_industry_boards(self) -> list[BoardInfo]:
         try:
-            df = self._adata.stock.info.all_industry()
+            industry = getattr(self._adata.stock.info, "all_industry", None)
+            if industry is None:
+                return []
+            df = industry()
             return [
                 BoardInfo(
                     code=safe_str(row.get("industry_code", "")),

@@ -9,8 +9,9 @@ import logging
 import time
 
 from fastapi import APIRouter, Query
-from src.data.collector import DataCollector
+
 from backend.async_utils import run_sync
+from src.data.collector import DataCollector
 
 logger = logging.getLogger("backend.stocks")
 router = APIRouter(prefix="/api/stocks")

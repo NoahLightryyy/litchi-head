@@ -15,7 +15,6 @@ from unittest.mock import patch
 
 from tests.test_backend.conftest import make_mock_kline
 
-
 # ═══════════════════════════════════════════════════════════════════════
 # GET /api/stocks/search
 # ═══════════════════════════════════════════════════════════════════════

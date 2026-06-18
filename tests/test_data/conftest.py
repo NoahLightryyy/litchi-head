@@ -22,7 +22,6 @@ from src.data.cache import DataCache
 from src.data.collector import DataCollector
 from src.data.models import BoardInfo, KLine, NewsItem, StockInfo, StockQuote
 
-
 # ═══════════════════════════════════════════════════════════════════════
 # Mock 数据源
 # ═══════════════════════════════════════════════════════════════════════
