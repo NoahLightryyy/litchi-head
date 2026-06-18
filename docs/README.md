@@ -32,6 +32,7 @@ docs/
 | | [01-guides/HANDOVER.md](01-guides/HANDOVER.md) | AI 会话交接文档 |
 | | [01-guides/ROUTING.md](01-guides/ROUTING.md) | ★ 上下文加载策略 |
 | | [01-guides/ENVIRONMENT.md](01-guides/ENVIRONMENT.md) | 环境配置指南 |
+| | [01-guides/TESTING_STRATEGY.md](01-guides/TESTING_STRATEGY.md) | 🧪 ★ 测试架构策略与组织约定 |
 | | [01-guides/debt/ROUTER.md](01-guides/debt/ROUTER.md) | 技术债务路由索引 |
 | 👨‍💻 **开发者** | [02-requirements/](02-requirements/) | 产品需求 |
 | | [03-modules/](03-modules/) | **★ 核心：每个功能一个文件夹** |

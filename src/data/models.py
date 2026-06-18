@@ -5,7 +5,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class StockInfo(BaseModel):
@@ -19,26 +19,41 @@ class StockQuote(BaseModel):
     """实时行情快照"""
     code: str
     name: str
-    price: float
+    price: float = Field(ge=0.0)
     change: float
     change_pct: float
-    volume: int
-    amount: float = 0.0
-    high: float = 0.0
-    low: float = 0.0
-    open_: float = 0.0
-    prev_close: float = 0.0
+    volume: int = Field(ge=0)
+    amount: float = Field(default=0.0, ge=0.0)
+    high: float = Field(default=0.0, ge=0.0)
+    low: float = Field(default=0.0, ge=0.0)
+    open_: float = Field(default=0.0, ge=0.0)
+    prev_close: float = Field(default=0.0, ge=0.0)
 
 
 class KLine(BaseModel):
     """K 线数据点"""
     date: str
-    open: float
-    close: float
-    high: float
-    low: float
-    volume: int
-    amount: float = 0.0
+    open: float = Field(ge=0.0)
+    close: float = Field(ge=0.0)
+    high: float = Field(ge=0.0)
+    low: float = Field(ge=0.0)
+    volume: int = Field(ge=0)
+    amount: float = Field(default=0.0, ge=0.0)
+
+    @model_validator(mode="after")
+    def validate_kline_ranges(self) -> "KLine":
+        """验证 K 线 OHLC 合理性"""
+        if self.high < self.low:
+            raise ValueError(f"high ({self.high}) must be >= low ({self.low})")
+        if self.open < self.low or self.open > self.high:
+            raise ValueError(
+                f"open ({self.open}) must be within [{self.low}, {self.high}]"
+            )
+        if self.close < self.low or self.close > self.high:
+            raise ValueError(
+                f"close ({self.close}) must be within [{self.low}, {self.high}]"
+            )
+        return self
 
 
 class NewsItem(BaseModel):

@@ -433,8 +433,8 @@ class TrustTracker:
                     namespace=_TRUST_NAMESPACE,
                 )
                 buffer.dirty = False
-            except Exception:
-                logger.warning("写入信任度记录失败: agent=%s", agent_name)  # 写入失败不抛异常
+            except Exception as e:
+                logger.warning("写入信任度记录失败: agent=%s, err=%s", agent_name, e)
 
     async def get_all_agent_names(self) -> list[str]:
         """获取有记录的 Agent 名称列表
@@ -453,8 +453,8 @@ class TrustTracker:
                 for item in items:
                     if isinstance(item.value, dict) and "agent_name" in item.value:
                         names.add(str(item.value["agent_name"]))
-            except Exception:
-                logger.warning("读取信任度记录失败，仅返回缓存数据")
+            except Exception as e:
+                logger.warning("读取信任度记录失败，仅返回缓存数据: err=%s", e)
         return sorted(names)
 
     # ── 内部方法 ──────────────────────────────────────────────
@@ -485,7 +485,8 @@ class TrustTracker:
             if isinstance(raw, list):
                 return [AgentOutcome(**o) if isinstance(o, dict) else o for o in raw]
             return []
-        except Exception:
+        except Exception as e:
+            logger.warning("加载 Agent 信任度记录失败: agent=%s, err=%s", agent_name, e)
             return []
 
     @staticmethod

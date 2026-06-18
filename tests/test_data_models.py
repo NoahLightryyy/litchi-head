@@ -118,3 +118,63 @@ class TestBoardInfo:
     def test_invalid_board_type(self):
         with pytest.raises(ValidationError):
             BoardInfo(code="BK0001", name="测试", board_type="invalid")
+
+
+class TestEdgeCases:
+    """边界条件测试 — 负值/零值/极值"""
+
+    def test_stock_quote_negative_price(self):
+        """负价格应被拒绝"""
+        with pytest.raises(ValidationError):
+            StockQuote(
+                code="000001", name="测试", price=-1.0,
+                change=0.0, change_pct=0.0, volume=1000,
+            )
+
+    def test_stock_quote_negative_volume(self):
+        """负交易量应被拒绝"""
+        with pytest.raises(ValidationError):
+            StockQuote(
+                code="000001", name="测试", price=10.0,
+                change=0.0, change_pct=0.0, volume=-100,
+            )
+
+    def test_stock_quote_zero_price(self):
+        """零价格允许（停牌/退市股）"""
+        q = StockQuote(
+            code="000001", name="测试", price=0.0,
+            change=0.0, change_pct=0.0, volume=1000,
+        )
+        assert q.price == 0.0
+
+    def test_stock_quote_zero_volume(self):
+        """零交易量应允许（停牌股）"""
+        q = StockQuote(
+            code="000001", name="测试", price=10.0,
+            change=0.0, change_pct=0.0, volume=0,
+        )
+        assert q.volume == 0
+
+    def test_stock_quote_negative_amount(self):
+        """负成交额应被拒绝"""
+        with pytest.raises(ValidationError):
+            StockQuote(
+                code="000001", name="测试", price=10.0,
+                change=0.0, change_pct=0.0, volume=1000,
+                amount=-1.0,
+            )
+
+    def test_kline_negative_close(self):
+        """负收盘价应被拒绝"""
+        with pytest.raises(ValidationError):
+            KLine(date="2026-06-05", open=10.0, close=-1.0, high=10.0, low=10.0, volume=1000)
+
+    def test_kline_high_less_than_low(self):
+        """最高价 < 最低价应被拒绝"""
+        with pytest.raises(ValidationError):
+            KLine(date="2026-06-05", open=10.0, close=10.0, high=9.0, low=11.0, volume=1000)
+
+    def test_kline_open_outside_range(self):
+        """开盘价超出 [low, high] 区间应被拒绝"""
+        with pytest.raises(ValidationError):
+            KLine(date="2026-06-05", open=15.0, close=10.0, high=12.0, low=9.0, volume=1000)

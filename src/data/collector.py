@@ -168,8 +168,8 @@ class DataCollector:
             self.cache.set("all_stocks", result, ttl=TTL_STOCKS)
             _health_stats.record_call("all_stocks", (time.time() - t0) * 1000)
             return result
-        except Exception:
-            _health_stats.record_call("all_stocks", (time.time() - t0) * 1000, error="获取股票列表失败")
+        except Exception as e:
+            _health_stats.record_call("all_stocks", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取股票列表失败")
             return []
 
@@ -193,8 +193,8 @@ class DataCollector:
             self.cache.set("all_quotes", result, ttl=TTL_QUOTES)
             _health_stats.record_call("quotes", (time.time() - t0) * 1000)
             return result
-        except Exception:
-            _health_stats.record_call("quotes", (time.time() - t0) * 1000, error="获取实时行情失败")
+        except Exception as e:
+            _health_stats.record_call("quotes", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取实时行情失败")
             return []
 
@@ -252,8 +252,8 @@ class DataCollector:
             self.cache.set(cache_key, result, ttl=ttl)
             _health_stats.record_call(f"kline:{period}", (time.time() - t0) * 1000)
             return result
-        except Exception:
-            _health_stats.record_call(f"kline:{period}", (time.time() - t0) * 1000, error=f"获取 K 线失败 code={code}")
+        except Exception as e:
+            _health_stats.record_call(f"kline:{period}", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取 K 线失败: code=%s", code)
             return []
 
@@ -281,8 +281,8 @@ class DataCollector:
             self.cache.set(cache_key, result, ttl=TTL_NEWS)
             _health_stats.record_call("news", (time.time() - t0) * 1000)
             return result
-        except Exception:
-            _health_stats.record_call("news", (time.time() - t0) * 1000, error=f"获取新闻失败 code={code}")
+        except Exception as e:
+            _health_stats.record_call("news", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取新闻失败: code=%s", code)
             return []
 
@@ -306,8 +306,8 @@ class DataCollector:
             self.cache.set("industry_boards", result, ttl=TTL_BOARDS)
             _health_stats.record_call("industry_boards", (time.time() - t0) * 1000)
             return result
-        except Exception:
-            _health_stats.record_call("industry_boards", (time.time() - t0) * 1000, error="获取行业板块列表失败")
+        except Exception as e:
+            _health_stats.record_call("industry_boards", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取行业板块列表失败")
             return []
 
@@ -329,8 +329,8 @@ class DataCollector:
             self.cache.set("concept_boards", result, ttl=TTL_BOARDS)
             _health_stats.record_call("concept_boards", (time.time() - t0) * 1000)
             return result
-        except Exception:
-            _health_stats.record_call("concept_boards", (time.time() - t0) * 1000, error="获取概念板块列表失败")
+        except Exception as e:
+            _health_stats.record_call("concept_boards", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取概念板块列表失败")
             return []
 
@@ -358,8 +358,8 @@ class DataCollector:
             self.cache.set(cache_key, result, ttl=TTL_CAPITAL_FLOW)
             _health_stats.record_call("capital_flow", (time.time() - t0) * 1000)
             return result
-        except Exception:
-            _health_stats.record_call("capital_flow", (time.time() - t0) * 1000, error=f"获取资金流向失败 code={code}")
+        except Exception as e:
+            _health_stats.record_call("capital_flow", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取资金流向失败: code=%s", code)
             return []
 

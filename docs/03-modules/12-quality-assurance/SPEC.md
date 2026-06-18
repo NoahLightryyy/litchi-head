@@ -174,6 +174,30 @@ pattern: "\\.py$"
 **触发场景**：修改了 `.py` 源文件。
 **提示内容**：提醒是否需要更新测试或文档。
 
+### R008 — logger-exception-blocker
+
+```yaml
+name: logger-exception-blocker
+event: file
+action: block  # 写 except 块时检查是否包含日志调用
+pattern: "except\\s+(\\w+\\s+)*as\\s+\\w+\\s*:[^}]*?(?=\\n(?!\\s*logger\\.(exception|warning|error|info)\\())"
+```
+
+**触发场景**：写 `except ... as e:` 但块内没有 `logger.exception()` / `logger.warning()`。
+**压制方法**：在 except 块内添加日志调用或注释 `# R008: suppress`。
+
+### R009 — type-ignore-comment
+
+```yaml
+name: type-ignore-comment
+event: file
+action: warn
+pattern: "# type: ignore(?!\\[)"
+```
+
+**触发场景**：新增 `# type: ignore` 不带具体错误代码（如 `# type: ignore[arg-type]`）。
+**为什么**：宽泛的 `type: ignore` 会掩盖所有类型错误，指定错误代码可以精确压制预期的问题。
+
 ## Post-tool Hooks 配置
 
 见 [HOOKS.md](HOOKS.md) 完整参考。

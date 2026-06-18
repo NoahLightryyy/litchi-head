@@ -99,12 +99,19 @@ class XiaoZhiAgent(BaseAgent):
 
         # ── 3. LLM 调用 ───────────────────────────────────
         system_prompt = self.get_system_prompt()
-        answer = await llm_service.ainvoke(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            agent_name=self.name,
-            session_id=ctx.session_id,
-        )
+        try:
+            answer = await llm_service.ainvoke(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                agent_name=self.name,
+                session_id=ctx.session_id,
+            )
+        except Exception as e:
+            return AgentResult(
+                success=False,
+                error=f"LLM 调用失败: {e}",
+                confidence=0.0,
+            )
 
         # ── 4. 组装结果 ───────────────────────────────────
         confidence = 0.6 + (0.3 if has_knowledge else 0.0)

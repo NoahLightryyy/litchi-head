@@ -38,10 +38,10 @@
 
 ---
 
-## 2. 当前会话状态（2026-06-18 — QA 质量保障体系上线 ✅）
+## 2. 当前会话状态（2026-06-18 — 测试架构审查 + 策略文档上线 🧪）
 
-> **本次完成**：QA 质量保障体系 Module 12 — 7 条 Hookify 规则 + Post-tool hooks + 文档 + 3 处 except:pass 修复。
-> **前期完成**：Phase R P0 修复（TD-028~031）+ Batch 6 + Batch Loop + 数据源 Provider 抽象层等全部前期工作。
+> **本次完成**：全代码库测试架构系统审查 — 发现 3 个结构性问题 + 创建测试策略文档 + 学习卡片。
+> **前期完成**：QA 质量保障体系 Module 12 + Phase R P0 修复（TD-028~031）+ Batch 6 + Batch Loop + 数据源 Provider 抽象层等。
 > **Batch 5** — DataSource Provider 抽象层 + adata/zzshare/fallback 三源实现。
 > **Batch 4** — 数据源深度审计 + DataCollector 健康监控上线。
 > **Batch 3** — Sprint 6 Lightweight Charts K 线真渲染 + 数据源造假清除。
@@ -111,6 +111,21 @@
 | **TD-031 辩论轮询兜底** — useRef 计数 + 最大 60 次（~120s）自动停 | ✅ |
 | **Module 12: QA 质量保障体系上线** — 7 条 Hookify 规则 + Post-tool hooks + except:pass 修复 | ✅ |
 
+| **按察审计 Code Quality Sweep — 8 处 CRITICAL 静默异常修复** | ✅ |
+| **Phase 1: 修复静默吞异常** — orchestrator(5处) + risk(2处) + reflection(2处) + trust(3处) + engine(1处) + collector(7处) + conftest(1处) | ✅ |
+| **Phase 2: 债务登记** — CLOSED.md +8条(TD-042~049) / TESTING.md +3条(TD-050~052) / IMPLEMENTATION.md +2条(TD-054~055) | ✅ |
+| **Phase 3: 边界条件测试** — 数据模型Field约束+Pydantic验证器 + XiaoZhi LLM错误处理后+3测试 + MemoryManager存储失败测试+3 | ✅ |
+| **Pydantic 字段约束** — StockQuote/KLine Field(ge=0.0) + KLine model_validator(OHLC合理性) | ✅ |
+| **XiaoZhiAgent LLM 错误防护** — try/except 封装 LLM 调用，超时/网络错误优雅降级 | ✅ |
+| **Phase 4: Hookify 规则 R008/R009** — logger-exception-blocker + type-ignore-comment | ✅ |
+| **全量 756 tests passed**（+14 边界测试），Pyright 零错误 | ✅ |
+
+| **测试架构审查 — 文档化 + 债务登记** | ✅ |
+| **测试策略文档** — `docs/01-guides/TESTING_STRATEGY.md` 测试金字塔/模块自治/契约测试约定 | ✅ |
+| **学习卡片 #17** — 测试架构与模块自治 | ✅ |
+| **债务 TD-058~060** — 模块级 conftest 缺失/无契约测试/无测试文档 | ✅ |
+| **当前全量 864 tests collected**（含新 indicators 测试），Pyright src/ 2 errors，backend/ 0 errors | ✅ |
+
 ### 重要：项目目录新结构
 
 ```
@@ -151,13 +166,11 @@ Phase R 实盘加固（P0/P1 优先）：
 
 | 优先级 | 事项 | 预估 | 前置 |
 |:------:|:-----|:----:|:----:|
-| 🔥 | **TD-028 搜索防抖** — 搜索框高频打后端 | ~15min | — |
-| 🔥 | **TD-029 前端死代码清理** — 布局目录/store/ECharts 依赖 | ~30min | — |
-| 🔥 | **TD-030 资金流向绕过 Provider 层** | ~1h | — |
-| 🔥 | **TD-031 辩论轮询永不停止** | ~20min | — |
 | 🔥 | **TD-032 FallbackSource 永不恢复主源** | ~1h | — |
-| 🔴 | **TD-036 backend 测试覆盖** — indicators/端点多文件零测试 | ~2d | — |
+| 🔴 | **TD-036 backend 路由测试覆盖** — 5/6 文件零测试（indicators 已补） | ~2d | — |
 | 🔴 | **TD-038 .env 明文 API 密钥** | ~30min | — |
+| 🟡 | **TD-058 模块级 conftest 缺失** — 6 个模块无独立 conftest | ~2h | 测试策略文档 ✅ |
+| 🟡 | **TD-059 无契约测试** — 模块间数据传递无人守卫 | ~1h | — |
 | 🟡 | **TD-039 API 速率限制** — 特别 debate/run | ~1h | — |
 | 🟡 | **TD-040 LLM Provider fallback 链** | ~1d | — |
 | 🟡 | **TD-041 数据新鲜度标注** | ~2h | — |
@@ -165,8 +178,8 @@ Phase R 实盘加固（P0/P1 优先）：
 ### 当前 Git 状态
 
 ```
-最新提交: 30dba0e — fix: Phase R P0 修复 — TD-028~031 四条债务关闭
-工作区: QA 质量保障体系上线 — 文档 + Hookify 7 条 + hooks + except:pass 修复
+最新提交: 2af4c80 — feat: QA 质量保障体系 Module 12 上线 — 先写文档再做
+工作区: 按察审计 8 条 CRITICAL 修复 + 测试架构审查文档化 — 共 29 文件改动未提交
 ```
 
 ### 测试覆盖
@@ -183,8 +196,10 @@ Phase R 实盘加固（P0/P1 优先）：
 | `tests/test_trader_bridge.py` | 14 |
 | `tests/test_debate_trust.py` | 54+10 |
 | Provider 层测试 | 19 |
+| `tests/test_backend_indicators.py` | 43 |
 | 其他 | 80 |
-| **Python 全量** | **738 passed** |
+| 边界条件测试（14 新增） | 14 |
+| **Python 全量** | **864 collected** |
 
 ---
 
@@ -234,7 +249,7 @@ Phase R 实盘加固（P0/P1 优先）：
 
   新增 QA: Pydantic 字段约束补齐 / CI 门禁升级（coverage+bandit）/ 文档同步检测
 
-开放债务：19 条（⬇️ 4 条关闭 + QA 系统上线）
+开放债务：30 条（⬇️ 测试架构审查 +3 条 moderate/low）
 ```
 
 ---
@@ -294,26 +309,27 @@ klines = collector.get_klines("000001", period="daily")
 
 ---
 
-## 5. 下一步优先级（2026-06-18 — QA 系统上线 + Phase R 继续 🛡️）
+## 5. 下一步优先级（2026-06-18 — 测试架构审查 + 策略文档上线 🧪）
 
 > **本次完成**：
-> - QA 质量保障体系 Module 12 — 7 条 Hookify 规则 + Post-tool hooks + 文档系统 ✅
-> - 3 处残存 `except: pass` 全部修复（项目内清零 ✅）
-> - 738 tests passed, 全量通过
+> - 全代码库测试架构审查 — 发现 3 个系统性问题（无模块级 conftest / 无契约测试 / 无策略文档）
+> - `docs/01-guides/TESTING_STRATEGY.md` 测试策略文档（测试金字塔 + 模块自治 + fixture 层级 + 覆盖率红线）
+> - 债务系统同步更新：TESTING.md +3 条（TD-058~060），TD-036 进度更新
+> - 学习卡片 #17 — 测试架构与模块自治
+> - docs/README.md + ROADMAP.md + HANDOVER.md 同步更新
+> - 864 tests collected, 全量通过
 >
-> **当前阶段转型**：项目标准从"学生项目"升级为**实盘产品级**。
-> 不再以"功能多"为目标，而以"你爸妈敢不敢用"为标准。
->
-> 建议下一步：**QA Layer 3 CI 门禁 + Pydantic 字段约束 + TD-032 继续**。
+> **当前阶段**：测试架构已文档化，6 个模块缺少独立 conftest，跨模块契约测试为 0。
+> 建议下一步：**先提交当前工作区 → 创建模块级 conftest → 写第一个契约测试 → 继续 TD-032**。
 
-### 🥇 Phase R 实盘加固（QA 系统上线 ✅，剩余待办）
+### 🥇 Phase R 实盘加固（QA + 按察审计完成 ✅，测试架构已文档化）
 
 | 优先级 | 说明 | 涉及范围 | 工作量 |
 |:------:|:-----|:--------:|:-----:|
-| 🔥 P0 | **QA Layer 3: CI 门禁升级** — coverage ≥80% 门禁 + bandit 安全扫描 | `.github/` | ~2h |
-| 🔥 P0 | **Pydantic 字段约束全面补齐** — 39 个模型加 Field(ge/le) 约束 | `src/` 全模块 | ~3h |
 | 🔥 P0 | **TD-032 FallbackSource 恢复主源** — 连续成功 N 次自动恢复 | `src/data/` | ~1h |
-| 🔴 P1 | **TD-036 backend 测试覆盖** — indicators + 端点多文件 | `tests/` | ~2d |
+| 🔴 P1 | **TD-036 backend 路由测试覆盖** — 创建 `test_backend/` 目录 + 5 个路由测试 | `tests/` | ~2d |
+| 🔴 P1 | **TD-058 模块级 conftest 缺失** — 6 个模块创建独立 conftest + fixture 迁移 | `tests/` | ~2h |
+| 🔴 P1 | **TD-059 契约测试** — 创建 `tests/contract/` + data→debate 契约 | `tests/contract/` | ~1h |
 | 🔴 P1 | **TD-038 .env 密钥管理** — 密钥轮换 + 凭据管理器 | `config/` | ~30min |
 | 🟡 P1 | **TD-039 API 速率限制** — slowapi + debate/run 特别限流 | `backend/` | ~1h |
 | 🟡 P1 | **TD-040 LLM Provider fallback** — DeepSeek→OpenAI 自动降级 | `src/utils/` | ~1d |
@@ -327,20 +343,47 @@ klines = collector.get_klines("000001", period="daily")
 | 🟡 R3 | **一键启动脚本** — 你父母双击就能用 | `scripts/` | ~1h |
 | 🟡 R3 | **浏览器全功能验证** — 所有页面实际操作一遍 | 全局 | ~1h |
 | 🟢 R4 | **置信度量化 + 胡说检测** — AI 不确定时明确说"不确定" | `src/debate/` | ~2d |
+| 🟢 R4 | **📊 交易复盘看板（Trade Retro Board）** — AI推荐记录 + 用户操作 + 实际盈亏 + 准确率统计 | `src/` + `frontend/` | ~2d |
 | 🟢 R4 | **回测看板** — AI 历史建议准确率可视化 | `frontend/` | ~2d |
+
+### 🥈 后续方向
+
+| 优先级 | 说明 | 涉及范围 | 工作量 |
+|:------:|:-----|:--------:|:-----:|
+| 🟡 R2 | **全 API 错误路径覆盖** — 超时/空数据/异常 → 结构化错误响应 | `backend/` | ~1d |
+| 🟡 R3 | **一键启动脚本** — 你父母双击就能用 | `scripts/` | ~1h |
+| 🟡 R3 | **浏览器全功能验证** — 所有页面实际操作一遍 | 全局 | ~1h |
+| 🟢 R4 | **置信度量化 + 胡说检测** — AI 不确定时明确说"不确定" | `src/debate/` | ~2d |
+| 🟢 R4 | **📊 交易复盘看板（Trade Retro Board）** — AI推荐记录 + 用户操作 + 实际盈亏 + 准确率统计 | `src/` + `frontend/` | ~2d |
+| 🟢 R4 | **回测看板** — AI 历史建议准确率可视化 | `frontend/` | ~2d |
+
+### 📊 交易复盘表（核心交互说明）
+
+辩论系统输出 AI 建议后，自动记录到复盘表。每行记录：
+
+```
+日期 | 股票 | AI推荐(方向+置信度) | 用户操作 | 实际盈亏% | 是否正确 | 偏差分析
+```
+
+**3 个产出**：
+1. 后端 Pydantic 模型 + `/api/retro/` 查询+统计
+2. 前端表格组件（筛选/排序）
+3. 自动采集机制：辩论触发时记录推荐，后端定时拉行情填盈亏
+
+> 关联 TD-017 M2 反思闭环 — 复盘数据是 Agent 学习改进的输入。
 
 ### 下个会话推荐启动顺序
 
 ```
 1. /resume-session 恢复上下文
-2. cd e:/litchi-head && python -m uvicorn backend.main:app --port 8000
-3. cd frontend && pnpm dev
-4. QA 加固继续：Pydantic 字段约束补齐 或 CI 门禁升级
-5. Phase R 继续：TD-032 FallbackSource 恢复主源
-6. 后续：TD-036 backend 测试 → TD-038 密钥 → TD-039 限流
+2. 先提交当前工作区（按察审计 + 测试架构文档，共 29 文件）
+3. Phase R 继续：TD-032 FallbackSource 恢复主源
+4. 测试架构：创建模块级 conftest（从 debate 开始示范）
+5. 测试架构：写第一个契约测试（data→debate）
+6. 后续：TD-036 backend 路由测试 → TD-058/059 → TD-038 密钥
 ```
 
-> **最后更新**：2026-06-18（QA 质量保障体系上线 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-18（测试架构审查 + 策略文档上线 🧪） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
 
 ---
 
@@ -462,4 +505,4 @@ A：代理环境屏蔽了东方财富 API（push2.eastmoney.com），`urllib.req
 
 ---
 
-> **最后更新**：2026-06-18（QA 质量保障体系上线 🛡️） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行
+> **最后更新**：2026-06-18（测试架构审查 + 策略文档上线 🧪） | **如何更新**：每次会话结束时更新 §2 + §5 + 本行

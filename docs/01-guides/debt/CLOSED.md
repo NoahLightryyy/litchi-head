@@ -24,6 +24,14 @@
 | TD-029 | 前端死代码清理 | 2026-06-17 | 删 `components/layout/` (5文件) + `stores/` (2文件) + `hot-news.tsx` + echarts/zustand 依赖 |
 | TD-030 | 资金流向绕过 Provider 层 | 2026-06-17 | CapitalFlowItem 迁移 models.py → DataSource Protocol 扩展 → 三源实现 → FallbackSource → DataCollector 缓存+健康监控 → backend 路由切换 |
 | TD-031 | 辩论轮询永不停止 | 2026-06-17 | `useRef` 计数 + 最大 60 次（~120s）兜底停止条件 |
+| TD-042 | debate/orchestrator: _run_rebuttal/_run_independent_review 静默吞异常 | 2026-06-18 | +logger.exception() 在 LLM 失败路径 |
+| TD-043 | risk/orchestrator: risk_round/pm_round 异常完全丢弃 | 2026-06-18 | +logger.exception() + session_id 上下文 |
+| TD-044 | debate/reflection: reflection 生成/决策记忆加载静默失败 | 2026-06-18 | +logger.exception() 在全部 except 路径 |
+| TD-045 | debate/trust: trust 写/读/load_outcomes 丢失异常细节 | 2026-06-18 | +str(e) 补全日志，load_outcomes 补 logger.warning |
+| TD-046 | backtest/engine: _calc_holding_days except:pass | 2026-06-18 | +logger.warning(entry/exit/e) |
+| TD-047 | data/collector: health_stats 7 处 error=硬编码字符串 | 2026-06-18 | 改为 str(e) 传递真实异常文本 |
+| TD-048 | debate/orchestrator: collect_data_node + 记忆节点 logger.warning→logger.exception | 2026-06-18 | 6 处升级 traceback 记录 |
+| TD-049 | tests/conftest: bare `except Exception: pass` | 2026-06-18 | 缩窄为 `(TypeError, AttributeError)` |
 
 ## 架构设计（🏛️）
 

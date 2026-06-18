@@ -145,17 +145,17 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
     try:
         quotes = collector.get_realtime_quotes()
     except Exception as e:
-        logger.warning("行情数据获取失败: %s", e)
+        logger.exception("行情数据获取失败: %s", e)
 
     try:
         klines = collector.get_klines(code, period="daily", start="", end="")
     except Exception as e:
-        logger.warning("K线数据获取失败 [%s]: %s", code, e)
+        logger.exception("K线数据获取失败 [%s]: %s", code, e)
 
     try:
         news = collector.get_news(code)
     except Exception as e:
-        logger.warning("新闻数据获取失败 [%s]: %s", code, e)
+        logger.exception("新闻数据获取失败 [%s]: %s", code, e)
 
     # 按个股过滤行情
     target_quote: StockQuote | None = None
@@ -620,6 +620,7 @@ async def _run_review_for_master(
         )
 
     except Exception:
+        logger.exception("RebuttalAnalysis 生成失败: agent=master.%s", skill.skill_id)
         # 失败时返回默认值，不阻塞流程
         return RebuttalAnalysis(
             agent_name=f"master.{skill.skill_id}",
@@ -747,6 +748,7 @@ async def _run_independent_review(
         )
 
     except Exception:
+        logger.exception("IndependentReview 生成失败: session=%s", session_id)
         # 失败时返回默认值，不阻塞流程
         return IndependentReview()
 
@@ -1479,7 +1481,7 @@ class DebateOrchestrator:
                     items, debate_input.stock_code
                 )
             except Exception as e:
-                logger.warning("历史记忆查询失败: %s", e)
+                logger.exception("历史记忆查询失败: %s", e)
 
         # 查询反思记忆注入（M2 反思闭环）
         reflection_context = ""
@@ -1494,7 +1496,7 @@ class DebateOrchestrator:
                     refl_items, debate_input.stock_code
                 )
             except Exception as e:
-                logger.warning("反思记忆查询失败: %s", e)
+                logger.exception("反思记忆查询失败: %s", e)
 
         # 查询信任度权重（M4 动态权重）
         trust_weight_factors: dict[str, float] = {}
@@ -1508,7 +1510,7 @@ class DebateOrchestrator:
                         factor = compute_weight_factor(report.metrics)
                         trust_weight_factors[agent_name] = factor
             except Exception as e:
-                logger.warning("信任度查询失败: %s", e)
+                logger.exception("信任度查询失败: %s", e)
 
         initial_state: DebateState = {
             "session_id": debate_input.session_id,

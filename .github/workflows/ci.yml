@@ -34,3 +34,13 @@ jobs:
 
       - name: Pytest (测试)
         run: python -m pytest -v --tb=short
+
+      - name: Coverage (覆盖率门禁 ≥80%)
+        run: |
+          pip install pytest-cov
+          python -m pytest --cov=src --cov-report=term --cov-fail-under=80
+
+      - name: Dependency audit (依赖漏洞扫描)
+        run: |
+          pip install pip-audit
+          pip-audit || echo "⚠️ pip-audit 发现已知 CVE（仅警告，不阻塞构建）"

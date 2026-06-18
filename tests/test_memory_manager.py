@@ -78,3 +78,33 @@ class TestMemoryManager:
         await m.remember("test", "working", "k", "v")
         item = await m.recall("test", "working", "k")
         assert item is not None
+
+
+class TestMemoryManagerStorageFailure:
+    """存储失败场景 —— MemoryManager 应优雅降级"""
+
+    @pytest.mark.asyncio
+    async def test_remember_readonly_path(self, tmp_path: Path):
+        """只读路径的 remember 不应崩溃"""
+        readonly_path = tmp_path / "nonexistent" / "deep"
+        store = JsonFileStore(base_path=readonly_path)
+        manager = MemoryManager(store=store, user_id="test")
+        # 应静默处理，不抛异常
+        await manager.remember("buffett", "working", "k", {"v": 1})
+
+    @pytest.mark.asyncio
+    async def test_recall_nonexistent_store(self, tmp_path: Path):
+        """不存在的存储路径 recall 返回 None"""
+        store = JsonFileStore(base_path=tmp_path / "no_such_dir")
+        manager = MemoryManager(store=store, user_id="test")
+        item = await manager.recall("buffett", "working", "k")
+        assert item is None
+
+    @pytest.mark.asyncio
+    async def test_remember_recall_empty_store(self, tmp_path: Path):
+        """空存储路径的 remember/recall 不崩溃"""
+        store = JsonFileStore(base_path=tmp_path / "empty_store")
+        manager = MemoryManager(store=store, user_id="test")
+        # 空存储上 recall 返回 None
+        item = await manager.recall("a", "b", "c")
+        assert item is None

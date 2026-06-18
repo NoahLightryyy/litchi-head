@@ -19,12 +19,15 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import cast
 
 from pydantic import BaseModel, Field
 
 from src.memory.store import MemoryItem, MemoryStore
+
+logger = logging.getLogger(__name__)
 
 # ── 数据模型 ──────────────────────────────────────────────────
 
@@ -201,6 +204,7 @@ async def generate_reflection(
 
     except Exception:
         elapsed = (time.monotonic() - start) * 1000
+        logger.exception("反思记录生成失败: session=%s stock=%s", session_id, outcome.stock_code)
         return ReflectionRecord(
             session_id=session_id,
             stock_code=outcome.stock_code,
@@ -328,6 +332,7 @@ async def _load_decision_from_memory(
             return item.value
         return None
     except Exception:
+        logger.exception("决策记忆加载失败: key=%s", stock_code)
         return None
 
 

@@ -16,6 +16,7 @@ R1 核心模块：在辩论聚合层之后插入三层风控审核，
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import cast
 
@@ -26,6 +27,8 @@ from src.risk.models import (
 )
 from src.risk.profiles import RiskOfficerProfile
 from src.utils.llm import llm_service
+
+logger = logging.getLogger(__name__)
 
 # ── 单个风控官执行 ──────────────────────────────────────────────
 
@@ -252,6 +255,8 @@ def make_pm_round_node(
             try:
                 risk_round = RiskRoundResult(**rr_raw)
             except Exception:
+                sid = str(state.get("session_id", ""))[:30]
+                logger.exception("RiskRoundResult 解析失败: session=%s", sid)
                 risk_round = RiskRoundResult()
         else:
             risk_round = RiskRoundResult()
@@ -342,6 +347,7 @@ def make_pm_round_node(
 
         except Exception:
             elapsed = (time.monotonic() - start) * 1000
+            logger.exception("PM 裁决失败: session=%s", state.get("session_id", ""))
             return {
                 node_name_output: TradeRecommendation(
                     action="hold",

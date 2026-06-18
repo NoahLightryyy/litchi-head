@@ -264,7 +264,7 @@ def calc_all(klines: list[dict[str, Any]]) -> dict[str, Any]:
             latest_histogram = round(float(macd["histogram"][last]), 4)  # type: ignore[arg-type]
 
     return {
-        "ma": {k: v[-1] if v[-1] is not None else None for k, v in ma.items()},
+        "ma": {k: (v[-1] if v and v[-1] is not None else None) for k, v in ma.items()},
         "ma_series": ma,
         "rsi": latest_rsi,
         "rsi_series": rsi,

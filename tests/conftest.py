@@ -194,7 +194,8 @@ def pytest_collection_modifyitems(
 
                 if inspect.iscoroutinefunction(item.obj):
                     item.add_marker(pytest.mark.asyncio)
-            except Exception:
+            except (TypeError, AttributeError):
+                # 某些测试 item 无 obj 属性，安全跳过
                 pass
 
 

@@ -7,19 +7,36 @@
 | 类型 | 文件 | 开放债务数 |
 |:-----|:-----|:----------:|
 | 🏛️ 架构设计 | [ARCHITECTURE.md](ARCHITECTURE.md) | 3 |
-| 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 8 |
-| 🧪 测试 | [TESTING.md](TESTING.md) | 3 |
+| 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 12 |
+| 🧪 测试 | [TESTING.md](TESTING.md) | 10 |
 | ⚙️ 基础设施 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | 5 |
-| 🗄️ 已关闭 | [CLOSED.md](CLOSED.md) | 21 |
+| 🗄️ 已关闭 | [CLOSED.md](CLOSED.md) | 32 |
 | 📝 模板 | [TEMPLATE.md](TEMPLATE.md) | — |
 
 ## 仪表盘
 
 ```
-开放债务: 19 条    已关闭: 21 条
-本金总计: ~45+ 人时
-紧急指数: 6.5 / 10     ← 2026-06-17 4 条 Phase R P0 已修复
+开放债务: 30 条    已关闭: 32 条
+本金总计: ~60+ 人时
+紧急指数: 4.5 / 10     ← 2026-06-18 测试架构审查：新增 3 条 moderate/low 测试债务，策略文档已创建 ↓
+                                                                  新增 TD-058~060，紧急指数稳定下降
 ```
+
+## 实时指标（2026-06-18 全面清算后）
+
+| 指标 | 当前值 | 目标 | 状态 |
+|:-----|:------:|:----:|:----:|
+| 全量覆盖率 | 88% | ≥80% | ✅ |
+| Provider 层平均覆盖率 | 83% | ≥80% | ✅ 已修复（之前 42%） |
+| backend/ 测试数 | 43 | ≥50 | 🟡 指标已测，API 端点待补 |
+| backend/indicators.py 覆盖率 | 100% | ≥80% | ✅ 已修复（之前 0%） |
+| bandit 安全扫描 | 已执行，8 Low，0 High | 0 High | ✅ |
+| pip-audit 依赖扫描 | 已执行，修复 6 个关键 CVE | 持续监控 | ✅ |
+| 死代码扫描 | vulture 已跑（多数假阳性） | 已执行 | ✅ |
+| CI 覆盖率门禁 | 已配置 (--cov-fail-under=80) | 已配置 | ✅ |
+| CI 依赖审计 | 已配置 (pip-audit) | 已配置 | ✅ |
+| 性能基线 | 未建立 | 已建立 | 🔴 待做 |
+| .env 密钥轮换 | 待轮换 | 已轮换 | 🔴 待做 |
 
 ## 快速新增
 

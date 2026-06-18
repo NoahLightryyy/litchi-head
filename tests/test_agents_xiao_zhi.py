@@ -193,3 +193,34 @@ class TestXiaoZhiSystemPrompt:
     def test_system_prompt_mentions_knowledge_base(self, agent):
         prompt = agent.get_system_prompt()
         assert "知识库" in prompt or "知识" in prompt
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Run — LLM 错误路径（边界条件）
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestXiaoZhiLLMError:
+    async def test_llm_timeout_returns_error(self, agent, ctx):
+        """LLM 超时时 Agent 应返回错误而非崩溃"""
+        with patch("src.agents.xiao_zhi.llm_service.ainvoke", new_callable=AsyncMock) as mock_llm:
+            mock_llm.side_effect = TimeoutError("LLM API timeout after 30s")
+            result = await agent.run(ctx)
+            assert result.success is False
+            assert "timeout" in (result.error or "").lower() or "LLM" in (result.error or "")
+
+    async def test_llm_empty_response(self, agent, ctx):
+        """LLM 返回空字符串时 Agent 不应崩溃"""
+        with patch("src.agents.xiao_zhi.llm_service.ainvoke", new_callable=AsyncMock) as mock_llm:
+            mock_llm.return_value = ""
+            result = await agent.run(ctx)
+            assert result.success is True
+            assert isinstance(result.data, dict)
+
+    async def test_llm_connection_error(self, agent, ctx):
+        """网络错误时 Agent 应优雅降级"""
+        with patch("src.agents.xiao_zhi.llm_service.ainvoke", new_callable=AsyncMock) as mock_llm:
+            mock_llm.side_effect = ConnectionError("Connection refused")
+            result = await agent.run(ctx)
+            assert result.success is False
+            assert result.error is not None

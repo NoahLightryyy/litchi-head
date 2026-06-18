@@ -15,6 +15,8 @@
 | R005 | `debug-code-blocker` | ⛔ block | `.claude/hookify.debug-code.local.md` | print/console.log/debugger |
 | R006 | `hardcoded-secret` | ⚠️ warn | `.claude/hookify.hardcoded-secret.local.md` | API key/password 硬编码 |
 | R007 | `test-after-code-change` | 💡 remind | `.claude/hookify.test-after-edit.local.md` | 修改代码后提醒测试 |
+| R008 | `logger-exception-blocker` | ⛔ block | `.claude/hookify.logger-exception.local.md` | `except Exception` 块内无日志调用 |
+| R009 | `type-ignore-comment` | ⚠️ warn | `.claude/hookify.type-ignore-comment.local.md` | `# type: ignore` 不带错误代码 |
 
 ### 规则文件路径
 

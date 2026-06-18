@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from src.backtest.metrics import calculate_metrics
 from src.backtest.models import (
     BacktestConfig,
@@ -25,6 +27,8 @@ from src.backtest.models import (
     TradeRecord,
 )
 from src.data.models import KLine
+
+logger = logging.getLogger(__name__)
 
 
 class BacktestEngine:
@@ -225,6 +229,6 @@ def _calc_holding_days(entry_date: str, exit_date: str) -> int:
             days_e = int(parts_e[0]) * 365 + int(parts_e[1]) * 30 + int(parts_e[2])
             days_x = int(parts_x[0]) * 365 + int(parts_x[1]) * 30 + int(parts_x[2])
             return max(0, days_x - days_e)
-    except (ValueError, IndexError):
-        pass
+    except (ValueError, IndexError) as e:
+        logger.warning("持仓天数计算失败: entry=%s exit=%s, err=%s", entry_date, exit_date, e)
     return 0
