@@ -1,8 +1,8 @@
 ---
-department: CI 治理部
+department: 质量保障部
 ---
 
-# 💳 CI 治理部债务清单
+# 💳 质量保障部债务清单
 
 > CI 系统本身的债务。与代码债务分离，独立追踪。
 > 活跃问题同时记录在 `docs/01-guides/ci/ISSUES.md`。

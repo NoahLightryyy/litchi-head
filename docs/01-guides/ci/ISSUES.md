@@ -1,6 +1,6 @@
 # CI 问题追踪日志
 
-> **读给**：[🔄 CI 治理部](../../06-departments/11-ci-governance/ROLE.md)
+> **读给**：[🔄 质量保障部](../../06-departments/11-quality-assurance/ROLE.md)
 > **目的**：记录 CI 系统本身的问题，与代码债务分离。
 > **规则**：每个 CI 问题有独立 ID，修复后归档。
 

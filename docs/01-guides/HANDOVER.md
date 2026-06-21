@@ -61,7 +61,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **最新提交** | `1766ce5` — docs: 工作日志补正常结束标记 — resume-session 检查通过 |
 | **全量测试** | 945 collected, 全部通过 ✅ |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
-| **CI 状态** | 🔴 → [CI 治理部](06-departments/11-ci-governance/HANDOVER.md) |
+| **CI 状态** | 🔴 → [质量保障部](06-departments/11-quality-assurance/HANDOVER.md) |
 
 ---
 
@@ -79,7 +79,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 🌐 后端 API 部 | `backend/` | ✅ | 2 | [HANDOVER](06-departments/08-backend-api/HANDOVER.md) |
 | 🎨 前端部 | `frontend/` | ✅ | 1 | [HANDOVER](06-departments/09-frontend/HANDOVER.md) |
 | ⚙️ 基础设施部 | `src/utils/` | ✅ | 7 | [HANDOVER](06-departments/10-infrastructure/HANDOVER.md) |
-| 🔄 CI 治理部 | `.github/workflows/` | 🔴 | 2 | [HANDOVER](06-departments/11-ci-governance/HANDOVER.md) |
+| 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🔴 | 2 | [HANDOVER](06-departments/11-quality-assurance/HANDOVER.md) |
 
 **全代码库开放债务**: 30 条（紧急指数 4.5/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
 
@@ -95,7 +95,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 4 🟡 | **TD-041 数据新鲜度标注** — 采集时间戳 + 前端展示 | 数据管道部 + 前端部 |
 | 5 🟢 | **orchestrator.py 拆分** — 1622 行 → orchestrator/nodes/ | 辩论引擎部 |
 | 6 🟢 | **WORKFLOW 拆分验收** — 4 文件结构运行一段时间确认无遗漏 | 基础设施部 |
-| 7 🔴 | **CI-001 修复** — 18/20 连红，需获取 GH Actions 日志定位根因 | CI 治理部 |
+| 7 🔴 | **CI-001 修复** — 18/20 连红，需获取 GH Actions 日志定位根因 | 质量保障部 |
 
 各部门的详细下一步 → 看各自 `HANDOVER.md` 的"下一步优先级"节。
 

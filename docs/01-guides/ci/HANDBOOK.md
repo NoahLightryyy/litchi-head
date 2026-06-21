@@ -1,6 +1,6 @@
 # CI 维护手册
 
-> **读给**：[🔄 CI 治理部](../../06-departments/11-ci-governance/ROLE.md)
+> **读给**：[🔄 质量保障部](../../06-departments/11-quality-assurance/ROLE.md)
 > **目的**：CI 配置维护、检查项增删、hook 管理等操作指引。
 
 ---

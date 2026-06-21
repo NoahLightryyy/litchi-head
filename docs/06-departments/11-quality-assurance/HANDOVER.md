@@ -1,10 +1,10 @@
 ---
-department: CI 治理部
-codebase: .github/workflows/
+department: 质量保障部
+codebase: .github/workflows/ + tests/ + docs/01-guides/ci/ + docs/01-guides/workflow/
 last_updated: 2026-06-21
 ---
 
-# 🔄 CI 治理部工作交接
+# 🔄 质量保障部工作交接
 
 ## 当前状态
 
@@ -44,9 +44,9 @@ last_updated: 2026-06-21
 
 | 文档 | 位置 |
 |:-----|:------|
-| 👤 ROLE | `docs/06-departments/11-ci-governance/ROLE.md` |
-| 📐 STANDARDS | `docs/06-departments/11-ci-governance/STANDARDS.md` |
-| 💳 DEBT | `docs/06-departments/11-ci-governance/DEBT.md` |
+| 👤 ROLE | `docs/06-departments/11-quality-assurance/ROLE.md` |
+| 📐 STANDARDS | `docs/06-departments/11-quality-assurance/STANDARDS.md` |
+| 💳 DEBT | `docs/06-departments/11-quality-assurance/DEBT.md` |
 | 🟢 CI 门禁标准 | `docs/01-guides/ci/STANDARDS.md` |
 | 🔧 CI 处理工作流 | `docs/01-guides/ci/WORKFLOW.md` |
 | 📋 本地检查清单 | `docs/01-guides/ci/CHECKS.md` |
