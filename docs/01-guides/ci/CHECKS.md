@@ -23,33 +23,44 @@ pytest --cov=src --cov-fail-under=80  # 覆盖率
 
 ## 提交前检查清单
 
-在 `git commit` 和 `git push` 之前：
+> **区分"日常提交"和"推送前"**。日常逐次改动跑相关测试即可，全量留给推送前和 CI。
+
+### 🔨 日常修改后（每次 git commit 前）
 
 - [ ] `ruff check .` — 零错误
 - [ ] `pyright src/` — 零错误、零警告
 - [ ] 新增代码有类型注解
-- [ ] `pytest -v --tb=short` — 全部通过
+- [ ] `pytest <本次改动的相关测试文件>` — 全部通过
 - [ ] 新增功能有对应测试
-- [ ] 覆盖率 ≥ 80%
 - [ ] `git diff --check` — 无空白字符错误
+
+### 📤 推送前 / 最终整合（每次 git push 前）
+
+- [ ] （上面日常的 6 项）
+- [ ] `pytest -v --tb=short` — **全量**测试全部通过
+- [ ] 覆盖率 ≥ 80%
+- [ ] 代码审查已完成
 
 ---
 
 ## 避免的陷阱
 
 ```bash
-# ❌ 只跑部分测试
-pytest tests/test_a.py        # 其他模块可能坏了
-
 # ❌ 跳过 lint
-# 你以为代码没问题？Ruff 会找到
+ruff check .            # 哪怕只改了一行也要跑
 
 # ❌ 跳过类型检查
-# Pyright basic mode 零错误是硬性要求
+pyright src/            # Pyright basic mode 零错误是硬性要求
 
-# ✅ 正确做法
-make check   # 一条命令，全部覆盖
+# ✅ 日常开发：跑相关测试
+pytest tests/test_data/test_data_providers.py   # 改了 data 模块
+pytest tests/test_debate/                       # 改了 debate 模块
+
+# ✅ 最终整合 / 大清理：全量测试
+pytest -v --tb=short                            # 全量，CI 前必跑
 ```
+
+> **测试范围原则**：日常开发只跑本次改动相关的测试文件，节省时间。全量测试（`make test` / `pytest -v --tb=short`）留给最终整合、架构级变更、以及 CI 自己去跑。
 
 ---
 

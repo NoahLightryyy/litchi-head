@@ -61,9 +61,18 @@
 | **处理** | 本地/CI 环境正常跑时不跳过，CI 上检测到 API 可达即可。这是预期行为 |
 | **注意** | CI 环境（ubuntu-latest）应可达东方财富 API。如果 CI 也跳过，说明 GitHub Actions IP 被限 |
 
+### adata 未安装导致 ADataSource 构造失败
+
+| 字段 | 值 |
+|:-----|:---:|
+| **症状** | `TestADataSourceErrorHandling` 中 7 个测试全部报 `ImportError: adata 未安装，请执行: pip install adata` |
+| **根因** | `adata` 是实盘数据源（同花顺+东方财富+新浪+腾讯+百度），已在本地开发环境安装，但 `pyproject.toml` 的 `dependencies` 中未声明 → CI 环境下 `pip install -e ".[dev]"` 不安装，`ADataSource.__init__` 抛 ImportError |
+| **修复** | `pyproject.toml` 的 `[project] dependencies` 添加 `"adata>=2.9.0"` |
+| **验证** | CI 重新运行，`TestADataSourceErrorHandling` 7 tests 全部通过 |
+| **登记** | 2026-06-21 — commit 6fd83f4 |
+
 ---
 
-## Ruff
 
 ### Ruff 报格式/风格错误
 
