@@ -61,7 +61,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **最新提交** | `8025fb5` — docs: 10 部门体系上线 + WORKFLOW 按阶段拆分 + 全文档同步 |
 | **全量测试** | 945 collected, 全部通过 ✅ |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
-| **CI 状态** | 🔴 18/20 连红（CI-001 追踪），详见 [CI 治理](../01-guides/ci/README.md) |
+| **CI 状态** | 🔴 → [CI 治理部](06-departments/11-ci-governance/HANDOVER.md) |
 
 ---
 
@@ -79,8 +79,9 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 🌐 后端 API 部 | `backend/` | ✅ | 2 | [HANDOVER](06-departments/08-backend-api/HANDOVER.md) |
 | 🎨 前端部 | `frontend/` | ✅ | 1 | [HANDOVER](06-departments/09-frontend/HANDOVER.md) |
 | ⚙️ 基础设施部 | `src/utils/` | ✅ | 7 | [HANDOVER](06-departments/10-infrastructure/HANDOVER.md) |
+| 🔄 CI 治理部 | `.github/workflows/` | 🔴 | 2 | [HANDOVER](06-departments/11-ci-governance/HANDOVER.md) |
 
-**全代码库开放债务**: 28 条（紧急指数 4.5/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
+**全代码库开放债务**: 30 条（紧急指数 4.5/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
 
 ---
 
@@ -94,6 +95,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 4 🟡 | **TD-041 数据新鲜度标注** — 采集时间戳 + 前端展示 | 数据管道部 + 前端部 |
 | 5 🟢 | **orchestrator.py 拆分** — 1622 行 → orchestrator/nodes/ | 辩论引擎部 |
 | 6 🟢 | **WORKFLOW 拆分验收** — 4 文件结构运行一段时间确认无遗漏 | 基础设施部 |
+| 7 🔴 | **CI-001 修复** — 18/20 连红，需获取 GH Actions 日志定位根因 | CI 治理部 |
 
 各部门的详细下一步 → 看各自 `HANDOVER.md` 的"下一步优先级"节。
 
@@ -163,4 +165,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-06-21 | WORKFLOW 按阶段拆分 + 10 部门体系全面接入 + 所有架构引用清理
+> **最后更新**：2026-06-21 | WORKFLOW 按阶段拆分 + 11 部门体系全面接入 + 所有架构引用清理

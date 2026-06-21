@@ -1,6 +1,6 @@
 # CI 维护手册
 
-> **读给**：[⚙️ 基础设施部](../../06-departments/10-infrastructure/ROLE.md)
+> **读给**：[🔄 CI 治理部](../../06-departments/11-ci-governance/ROLE.md)
 > **目的**：CI 配置维护、检查项增删、hook 管理等操作指引。
 
 ---

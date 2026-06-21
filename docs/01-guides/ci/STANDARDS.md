@@ -1,7 +1,7 @@
 # CI 标准规范
 
 > **读给**：全部开发者
-> **归属**：[⚙️ 基础设施部](../../06-departments/10-infrastructure/ROLE.md)
+> **归属**：[🔄 CI 治理部](../../06-departments/11-ci-governance/ROLE.md)
 > **原则**：CI 永远是绿的。红就是事故，立即处理。
 
 ---
@@ -75,8 +75,8 @@ Batch Loop 收尾前，自动执行 CI 健康自检（`ruff check .` + `pyright 
 | 场景 | 处理 |
 |:-----|:-----|
 | CI 红了但急需提交 | 建分支提交，修好 CI 后再合并 |
-| CI 检查太慢 | 联系基础设施部优化 |
-| 新增检查项 | 基础设施部经讨论后修改 workflow |
+| CI 检查太慢 | 联系 CI 治理部优化 |
+| 新增检查项 | CI 治理部经讨论后修改 workflow |
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **目的**：确保 CI 永远不红。红了就是最高优先级，不修好不推新代码。
 >
-> 归属部门：[⚙️ 基础设施部](../../06-departments/10-infrastructure/ROLE.md)
+> 归属部门：[🔄 CI 治理部](../../06-departments/11-ci-governance/ROLE.md)
 
 ---
 
@@ -26,8 +26,8 @@
 | [WORKFLOW.md](WORKFLOW.md) | 全部开发者 | CI 失败处理工作流——从发现到闭环 |
 | [CHECKS.md](CHECKS.md) | 全部开发者 | 推送前本地检查清单 |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | AI + 开发者 | CI 常见失败根因与修复方案（持续积累） |
-| [ISSUES.md](ISSUES.md) | 基础设施部 | CI 问题追踪日志（类似债务，专用） |
-| [HANDBOOK.md](HANDBOOK.md) | 基础设施部 | CI 维护手册（改 workflow、加检查项） |
+| [ISSUES.md](ISSUES.md) | CI 治理部 | CI 问题追踪日志（类似债务，专用） |
+| [HANDBOOK.md](HANDBOOK.md) | CI 治理部 | CI 维护手册（改 workflow、加检查项） |
 
 ---
 
@@ -44,7 +44,7 @@
 
 > 能在本地 `make check` 跑过的，不要让 CI 来抓。
 > - 每次提交前：`make check`
-> - 基础设施部负责维护 pre-push hook（参见 [HANDBOOK.md](HANDBOOK.md#pre-push-hook)）
+> - CI 治理部负责维护 pre-push hook（参见 [HANDBOOK.md](HANDBOOK.md#pre-push-hook)）
 
 ### 3. 四同步延伸到 CI
 
@@ -67,7 +67,7 @@
 |:-----|:-----|
 | [WORKFLOW.md](../WORKFLOW.md) | Batch Loop 收尾必须跑 CI 健康自检 |
 | [HANDOVER.md](../HANDOVER.md) | 🏢 各部门一览包含 CI 状态 |
-| [基础设施部 DEBT.md](../../06-departments/10-infrastructure/DEBT.md) | CI 相关技术债务 |
+| [CI 治理部 HANDOVER.md](../../06-departments/11-ci-governance/HANDOVER.md) | CI 治理 |
 | [CLAUDE.md](../../../CLAUDE.md) | Batch Loop、CI 健康自检纪律 |
 
 ---

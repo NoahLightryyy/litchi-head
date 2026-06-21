@@ -34,6 +34,7 @@
 | 08 | 🌐 后端 API 部 | `backend/` | [👤](08-backend-api/ROLE.md) / [📐](08-backend-api/STANDARDS.md) | [状态](08-backend-api/HANDOVER.md) | [债务](08-backend-api/DEBT.md) |
 | 09 | 🎨 前端部 | `frontend/` | [👤](09-frontend/ROLE.md) / [📐](09-frontend/STANDARDS.md) | [状态](09-frontend/HANDOVER.md) | [债务](09-frontend/DEBT.md) |
 | 10 | ⚙️ 基础设施部 | `src/utils/` | [👤](10-infrastructure/ROLE.md) / [📐](10-infrastructure/STANDARDS.md) | [状态](10-infrastructure/HANDOVER.md) | [债务](10-infrastructure/DEBT.md) |
+| 11 | 🔄 **CI 治理部** | `.github/workflows/` | [👤](11-ci-governance/ROLE.md) / [📐](11-ci-governance/STANDARDS.md) | [状态](11-ci-governance/HANDOVER.md) | [债务](11-ci-governance/DEBT.md) |
 
 > 每个部门 = ROLE（角色定义）+ STANDARDS（技术规范）+ HANDOVER（当前状态）+ DEBT（债务清单）
 

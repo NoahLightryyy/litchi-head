@@ -1,7 +1,7 @@
 # CI 处理工作流
 
 > **读给**：全部开发者
-> **归属**：[⚙️ 基础设施部](../../06-departments/10-infrastructure/ROLE.md)
+> **归属**：[🔄 CI 治理部](../../06-departments/11-ci-governance/ROLE.md)
 > **流程**：发现 → 定位 → 修复 → 验证 → 复盘
 
 ---
@@ -26,7 +26,7 @@
 | 推送后 | GitHub Actions 自动运行 | 变红即触发 |
 | 会话启动 | `resume-session` 检查 CI 状态 | 输出 CI 看板 |
 | Batch 收尾 | `make check` | 报错即阻塞提交 |
-| 定时 | CI 状态看板 | 基础设施部定期审视 |
+| 定时 | CI 状态看板 | CI 治理部定期审视 |
 
 ### 严重程度分级
 
@@ -127,7 +127,7 @@ git push
 |:-----|:-----|
 | CI 修不好 | 登记为 CI 债务，建分支并跳过 CI 推 |
 | 紧急 bug 需要绕过 CI | **禁止**。先修 CI 再修 bug |
-| CI 配置本身有问题 | 联系基础设施部更新 `.github/workflows/ci.yml` |
+| CI 配置本身有问题 | 联系 CI 治理部更新 `.github/workflows/ci.yml` |
 | 长时间（>1h）修不好 | 暂停当前工作，专注修 CI |
 
 ---
