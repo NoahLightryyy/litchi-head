@@ -34,6 +34,7 @@ dependencies = [
 
     # 金融数据
     "akshare>=1.14",
+    "adata>=2.9.0",
 
     # 后端服务（原 backend/requirements.txt，已合并至此）
     "fastapi>=0.115.0",
