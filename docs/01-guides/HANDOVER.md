@@ -58,9 +58,10 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `无需提交` — 文档重构，等确认后统一提交 |
+| **最新提交** | `8025fb5` — docs: 10 部门体系上线 + WORKFLOW 按阶段拆分 + 全文档同步 |
 | **全量测试** | 945 collected, 全部通过 ✅ |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
+| **CI 状态** | 🔴 18/20 连红（CI-001 追踪），详见 [CI 治理](../01-guides/ci/README.md) |
 
 ---
 
@@ -79,7 +80,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 🎨 前端部 | `frontend/` | ✅ | 1 | [HANDOVER](06-departments/09-frontend/HANDOVER.md) |
 | ⚙️ 基础设施部 | `src/utils/` | ✅ | 7 | [HANDOVER](06-departments/10-infrastructure/HANDOVER.md) |
 
-**全代码库开放债务**: 26 条（紧急指数 4.5/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
+**全代码库开放债务**: 28 条（紧急指数 4.5/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
 
 ---
 

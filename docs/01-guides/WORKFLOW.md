@@ -58,7 +58,7 @@
 | [HANDOVER_TIP.md](HANDOVER_TIP.md) | ⚡ 快速交接卡（扫一眼就够） |
 | [debt/ROUTER.md](debt/ROUTER.md) | 技术债务路由索引 |
 | [ENVIRONMENT.md](ENVIRONMENT.md) | 双 Key 体系 + 模型快慢分离配置 |
-| 🏢 [部门体系](../06-departments/README.md) | 10 部门组织架构 + 数据流 + 协作规程 |
+| 🔄 [CI 治理体系](ci/README.md) | CI 标准、处理工作流、本地检查、根因知识库 |
 
 ---
 

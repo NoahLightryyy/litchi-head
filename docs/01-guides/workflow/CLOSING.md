@@ -55,7 +55,7 @@
 
 ### ☑️ 推送管理
 - [ ] 已选择推送策略：`git push` 已执行 / 标记「待推送」
-- [ ] 如已推送，确认远程 CI 通过（GitHub Actions）
+- [ ] 如已推送，确认远程 CI 通过（GitHub Actions）→ [CI 治理](../ci/README.md)
 - [ ] 如待推送，记录 ahead commits 数量
 
 ### ☑️ 任务闭环

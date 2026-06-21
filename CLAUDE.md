@@ -17,6 +17,7 @@
 7. **上下文耗尽自动交接**：检测到上下文窗口接近上限时，立即执行交接流程（更新日志+债务+看板+提交），不继续推进新工作
 8. **模型策略**：日常用 `deepseek-chat`（快速，无思考），复杂任务才切 `deepseek-v4-pro`（推理）。见下方「模型策略」节。
 9. **遇技术报错先查 triage** — `docs/01-guides/triage/README.md` 症状速查表定位分类，按症状搜不用全读
+10. **CI 永不为红** — 推送前 `make check` 必过；CI 红了优先修，不红不推新功能；详见 [CI 治理](docs/01-guides/ci/README.md)
 
 ## 技术栈关键约定
 
@@ -35,6 +36,7 @@
 | 🏠 项目总览 | `docs/00-overview/OVERVIEW.md` |
 | 📐 AI 工作流程 | `docs/01-guides/WORKFLOW.md` |
 | 📐 会话交接 | `docs/01-guides/HANDOVER.md` |
+| 🔄 CI 治理 | `docs/01-guides/ci/README.md` |
 | 📐 环境配置 | `docs/01-guides/ENVIRONMENT.md` |
 | 🐛 债务路由 | `docs/01-guides/debt/ROUTER.md` |
 | 🐛 债务模板 | `docs/01-guides/debt/TEMPLATE.md` |

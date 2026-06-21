@@ -13,6 +13,7 @@
 | [ENVIRONMENT.md](ENVIRONMENT.md) | 环境配置指南 | 👨‍💻 |
 | [ROUTING.md](ROUTING.md) | ★ 上下文加载策略 — 按任务类型路由文档 | 🤖 |
 | [debt/ROUTER.md](debt/ROUTER.md) | 技术债务路由索引（按部门） | 🤖👨‍💻 |
+| [ci/README.md](ci/README.md) | 🔄 CI 治理体系 — 标准、工作流、主动维护 | 🤖👨‍💻 |
 | 🏢 [部门体系](../06-departments/README.md) | 10 部门组织架构 + 数据流 + 协作规程 | 🤖👨‍💻 |
 
 ## 关于路由

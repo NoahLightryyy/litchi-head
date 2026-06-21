@@ -91,7 +91,7 @@
 │     ↓                                                                           │
 │  ⑧ 会话结束 → 更新部门 HANDOVER.md + DEBT.md                                     │
 │     ↓                                                                           │
-│  ⑨ CI 健康自检 → ruff + pyright + pytest                                         │
+│  ⑨ CI 健康自检 → ruff + pyright + pytest [标准](../ci/CHECKS.md)                                     │
 │     ↓                                                                           │
 │  ⑩ 写工作日志 + 提交                                                            │
 └──────────────────────────────────────────────────────────────────────────────────┘
@@ -193,6 +193,7 @@ docs/06-departments/{id}/
 - [按需] [DEVELOPMENT.md](DEVELOPMENT.md) — 日常开发流程
 - [按需] [CLOSING.md](CLOSING.md) — 会话结束流程
 - [按需] [EMERGENCIES.md](EMERGENCIES.md) — 审视/突发情况
+- [按需] [CI 治理体系](../ci/README.md) — 要查 CI 状态、修 CI 时
 ```
 
 ### 4.2 第 2 步：理解上下文
