@@ -162,7 +162,7 @@
 | 🔥 P0 | **TD-032 FallbackSource 恢复主源** | Provider 层就绪 | ~1h |
 | 🔥 P0 | **QA 质量保障体系** — Hookify 规则 + Post-tool hooks + except:pass 修复 | 文档就绪 | ~2h |
 | 🔴 P1 | **TD-036 backend 测试覆盖** | 全部就绪 | ~2d |
-| 🔴 P1 | **TD-038 密钥安全管理** | — | ~30min |
+| ✅ P1 | **TD-038 密钥安全管理** | ✅ 已修复 — 迁移至 Windows Credential Manager | ~30min ✅ |
 | 🟡 P1 | **TD-039 API 速率限制** | backend 就绪 | ~1h |
 | 🟡 P1 | **测试架构提升** — 模块级 conftest 创建 + fixture 迁移 TODO | 全部就绪 | ~2h |
 | 🟡 P1 | **契约测试** — tests/contract/ 目录 + data→debate 契约 | 全部就绪 | ~1h |

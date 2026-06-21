@@ -19,16 +19,16 @@
 | 🔬 [回测研究部](../../06-departments/07-backtesting/DEBT.md) | 回测引擎 / 绩效指标 | **0** |
 | 🌐 [后端 API 部](../../06-departments/08-backend-api/DEBT.md) | 路由 / 技术指标 | **2** |
 | 🎨 [前端部](../../06-departments/09-frontend/DEBT.md) | 组件 / 类型 / 构建 | **1** |
-| ⚙️ [基础设施部](../../06-departments/10-infrastructure/DEBT.md) | LLM / Config / CostTracker | **7** |
+| ⚙️ [基础设施部](../../06-departments/10-infrastructure/DEBT.md) | LLM / Config / CostTracker | **6** |
 
-**总计：26 条开放债务（紧急指数 4.5/10）**
+**总计：25 条开放债务（紧急指数 4.5/10）**
 
 ---
 
 ## 仪表盘
 
 ```
-开放债务: 26 条    已关闭: 35 条
+开放债务: 25 条    已关闭: 36 条
 紧急指数: 4.5 / 10
 ```
 
@@ -36,14 +36,13 @@
 
 | 严重度 | 数量 | 说明 |
 |:------:|:----:|:------|
-| 🔴 Critical | 1 | TD-038 密钥管理 |
 | 🟡 Moderate | 13 | 测试、功能缺失、性能 |
 | 🟢 Low | 12 | 代码质量、小修复 |
 
 ### 按部门分布
 
 ```
-基础设施部: 7 条 ← 最多（含安全/LLM）
+基础设施部: 6 条 ← 最多（LLM fallback/config）
 跨部门:     5+3 条 ← 全代码库级
 数据管道部: 3 条
 AI Agent 部:3 条

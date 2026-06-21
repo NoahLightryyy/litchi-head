@@ -28,7 +28,7 @@ last_updated: 2026-06-21
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |
-| 技术债务开放 | 26 条 |
+| 技术债务开放 | 25 条 |
 | 紧急指数 | ~4.5/10 |
 
 ## 跨部门协作现状
@@ -48,7 +48,6 @@ last_updated: 2026-06-21
 
 | 优先级 | 事项 | 涉及部门 |
 |:------:|:-----|:---------|
-| 🔴 | **TD-038 密钥管理** — `.env` 明文 API Key 修复 | 基础设施部 |
 | 🟡 | **TD-039 API 速率限制** — debate/run 限流 | 后端 API 部 |
 | 🟡 | **TD-040 LLM fallback** — DeepSeek→OpenAI 降级 | 基础设施部 |
 | 🟡 | **TD-041 数据新鲜度标注** — 前端展示数据时效 | 数据管道部 + 前端部 |

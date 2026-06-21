@@ -43,7 +43,6 @@ last_updated: 2026-06-21
 | TD-005 | 双配置源（settings.yaml + config.py）未协调 | 🟡 | 1h |
 | TD-007 | ensure_dirs() 定义了从未被调用 | 🟢 | 10min |
 | TD-008 | 模型价格硬编码在 cost_tracker.PRICES | 🟢 | 30min |
-| TD-038 🔴 | `.env` 明文 API 密钥 | 🔴 | 30min |
 | TD-040 | LLM Provider fallback 链（DeepSeek→OpenAI 自动降级） | 🟡 | 1d |
 | TD-055 | TD-008 同源，价格硬编码重复登记 | 🟢 | — |
 
@@ -63,10 +62,9 @@ last_updated: 2026-06-21
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🔴 | **TD-038 密钥管理** — 密钥轮换 + 凭据管理器 | 无 |
+| 1 🟡 | **TD-040 LLM Provider fallback 链** — DeepSeek→OpenAI 自动降级 | 无 |
 | 2 🟡 | TD-001 模型路由补完（简单/复杂自动路由） | 无 |
-| 3 🟡 | TD-040 LLM Provider fallback 链 | 无 |
-| 4 🟢 | TD-005/TD-007/TD-008 小修 | 无 |
+| 3 🟢 | TD-005/TD-007/TD-008 小修 | 无 |
 
 ---
 

@@ -31,6 +31,7 @@ dependencies = [
     # 工具
     "tenacity>=8.0",     # 重试机制
     "cachetools>=5.0",   # 缓存
+    "keyring>=25.0",     # 系统凭据管理器集成
 
     # 金融数据
     "akshare>=1.14",
