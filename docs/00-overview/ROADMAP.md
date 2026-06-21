@@ -8,10 +8,10 @@
 ## 快速统计
 
 ```
-总 Python 测试数 │ 864 collected（756 +14 边界 + 84 Provider + 43 indicators）
-技术债务         │ 62 条总记 / 32 条已关闭 / 30 条开放
-紧急指数         │ 4.5/10（⬇️ 测试架构审查完成 → 策略文档上线 + 3 条 moderate/low 新增）
-当前阶段         │ Phase R 实盘加固 — 测试策略文档化 + 模块化测试架构推进
+总 Python 测试数 │ 945 collected
+技术债务         │ 61 条总记 / 35 条已关闭 / 26 条开放
+紧急指数         │ 4.5/10（测试架构 + 债务按部门拆分完成）
+当前阶段         │ Phase R 实盘加固 — 10 部门体系 + 文档同步
 前端进度         │ 全部 Tab 面板就绪（技术指标/资金流向/AI 辩论/信任度）+ 暗色主题打磨 + pnpm build ✅
 后端桥接         │ market/stocks/debate/trust 四组路由全部完整实现 + TD-020 板块增强 + 技术指标 + 生产配置 ✅
 数据源诚信        │ 全项目零造假 ✅ + Provider 抽象层 ✅ + 免费多源架构 ✅ + 生产配置 ✅
@@ -246,10 +246,11 @@ qa/（质量保障体系 — Hookify 规则 + Post-tool hooks）
 
 | 信息来源 | 位置 | 用途 |
 |---------|------|------|
-| 技术债务详情 | `docs/01-guides/debt/ROUTER.md` | 每条 TD 的完整描述+利息分析 |
+| 技术债务详情 | `docs/01-guides/debt/ROUTER.md` | 按部门路由的债务仪表盘 |
 | 架构决策 | `docs/05-decisions/README.md` | 10 条 ADR 全文 |
+| 🏢 部门体系 | `docs/06-departments/README.md` | 10 部门架构 + 数据流图 + 协作规程 |
 | 工作日志 | `docs/04-changelog/logs/README.md` | 按日期回溯每会话工作内容 |
-| 会话交接 | `docs/01-guides/HANDOVER.md` | 当前上下文、待修复缺陷 |
+| 会话交接 | `docs/01-guides/HANDOVER.md` | 全局仪表盘 + 跨部门状态 |
 | 镜子 Agent | `docs/99-archive/USER-BEHAVIOR-MIRROR.md` | 完整设计（9 章） |
 | 前端视觉设计 | `docs/02-requirements/FRONTEND_VISION.md` | 调研 + 视觉方案 + 布局原型 |
 | 前端规格文档 | `docs/03-modules/10-frontend/` | README+SPEC+ROUTING+COMPONENTS+API |
@@ -283,6 +284,7 @@ qa/（质量保障体系 — Hookify 规则 + Post-tool hooks）
 | 2026-06-16 | **Provider 抽象层 + 免费多源架构** — DataSource Protocol + adata/zzshare/fallback 三源 + 数据原则免费化 |
 | 2026-06-16 | **Batch 7 四项全完成** — 技术指标 Tab + TD-020 板块增强 + 生产配置 + 暗色主题打磨 |
 | 2026-06-17 | **Phase R 实盘审计升级** — 项目标准升为"实盘产品级"，21 条 P0/P1 债务登记 + 7 条修复，742 tests，紧急指数 7.9/10 🛡️ |
+| 2026-06-21 | **🏢 10 部门体系上线 + WORKFLOW 拆分** — 代码目录映射为 10 个部门（43 文件），债务按部门拆分，WORKFLOW 1047→50 行索引 + 4 份按阶段分流，HANDOVER 全面同步，全部架构引用清理 ✅ |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。

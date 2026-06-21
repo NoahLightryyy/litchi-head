@@ -5,41 +5,78 @@
 ## 📊 当前状态
 
 ```
-阶段: Phase 1 MVP → 数据源审计完成 + 健康监控    Python 测试: 721 ✅
-前端: 47 文件 / React+Next.js + Lightweight Charts
-后端桥接: FastAPI 7 文件 / 4 组路由 + HealthStats 健康端点
-数据源: 零造假数据 ✅ | akshare 92.1%成功率（计划切 Tushare Pro 99.7%）
+阶段: Phase 1 MVP + Phase R 实盘加固     Python 测试: 945 ✅
+债务: 26 条开放（紧急指数 4.5/10）
+代码库: 10 部门体系（docs/06-departments/）
+数据源: 零造假数据 ✅ | 四源架构（akshare/adata/zzshare/fallback）
 ```
 
-## 🕐 本次做了什么
+## 🏢 部门一览
 
-**Batch 4 - 数据源深度审计 + 健康监控**（2026-06-16）：
-- ✅ 7 组代理并行调研 10+ 数据平台 → `DATA_SOURCE_AUDIT.md`
-- ✅ HealthStats 监控 — 每个 endpoint 记录成功率/延迟/错误
-- ✅ `/api/health/data-source` 端点上线
-- 核心发现：akshare 成功率 92.1%，延迟 3-5 分 → 建议 Phase2 切 Tushare
+| 部门 | 代码 | 债务 | 状态 |
+|:-----|:-----|:----:|:----:|
+| 🗄️ 数据管道部 | `src/data/` | 3 | ✅ |
+| 🎯 辩论引擎部 | `src/debate/`+`src/risk/` | 2 | ✅ |
+| 🤖 AI Agent 架构部 | `src/agents/`+`src/core/` | 3 | ✅ |
+| 🧠 记忆系统部 | `src/memory/` | 1 | ✅ |
+| 🛡️ 风控管理部 | `src/risk/` | 0 | ✅ |
+| 💹 交易执行部 | `src/trader/` | 0 | ✅ |
+| 🔬 回测研究部 | `src/backtest/` | 0 | ✅ |
+| 🌐 后端 API 部 | `backend/` | 2 | ✅ |
+| 🎨 前端部 | `frontend/` | 1 | ✅ |
+| ⚙️ 基础设施部 | `src/utils/` | 7 | ✅ |
 
-## 🎯 接下来做什么
+每个部门 = 👤 ROLE.md + 📐 STANDARDS.md + 📋 HANDOVER.md + 🐛 DEBT.md
+→ `docs/06-departments/{id}/`
 
-| 优先级 | 任务 | 工作量 |
-|:------:|:-----|:------:|
-| 🥇 | **后端完善** — trust.py 接入 TrustTracker + capital-flow 路由 | ~0.5d |
-| 🥇 | **TD-020 板块增强层** — heat/chain_map/ai_analysis 真实数据源 | ~1.5h |
-| 🥇 | **数据源升级** — Tushare Pro（主）+ akshare fallback | ~1d |
-| 🥈 | **Tab 面板** — 技术指标/资金流向/信任度 | ~1d |
+## 🎯 当前优先级
 
-## 📁 快速索引
+| 优先级 | 事项 | 牵头部门 |
+|:------:|:-----|:---------|
+| 1 🔴 | TD-038 密钥安全管理 | 基础设施部 |
+| 2 🟡 | TD-039 API 速率限制 | 后端 API 部 |
+| 3 🟡 | TD-040 LLM fallback 链 | 基础设施部 |
+| 4 🟡 | TD-041 数据新鲜度标注 | 数据管道部 + 前端部 |
+| 5 🟢 | orchestrator.py 拆分（1622 行） | 辩论引擎部 |
+
+## 📁 你要干嘛 → 找哪个部门
+
+| 你要干嘛 | 牵头部 | 先看 |
+|:---------|:-------|:-----|
+| 修数据采集/缓存 | 🗄️ 数据管道部 | `docs/06-departments/01-data/ROLE.md` |
+| 改辩论流程/Agent 编排 | 🎯 辩论引擎部 | `docs/06-departments/02-debate-engine/ROLE.md` |
+| 加新 Agent/改通信协议 | 🤖 AI Agent 架构部 | `docs/06-departments/03-ai-agents/ROLE.md` |
+| 调记忆/知识库 | 🧠 记忆系统部 | `docs/06-departments/04-memory-systems/ROLE.md` |
+| 改风控逻辑 | 🛡️ 风控管理部 | `docs/06-departments/05-risk-management/ROLE.md` |
+| 改交易执行/仓位计算 | 💹 交易执行部 | `docs/06-departments/06-trading/ROLE.md` |
+| 调回测引擎 | 🔬 回测研究部 | `docs/06-departments/07-backtesting/ROLE.md` |
+| 改 API 路由/错误处理 | 🌐 后端 API 部 | `docs/06-departments/08-backend-api/ROLE.md` |
+| 改前端展示/交互 | 🎨 前端部 | `docs/06-departments/09-frontend/ROLE.md` |
+| 改 LLM/Config/日志 | ⚙️ 基础设施部 | `docs/06-departments/10-infrastructure/ROLE.md` |
+| 跨多个部门 | 🔄 跨部门 | `docs/06-departments/00-cross-cutting/HANDOVER.md` |
+
+## 🚀 快速命令
+
+```bash
+cd e:/litchi-head
+make check        # lint + type + test 一键完成
+make install      # 安装依赖
+python -m uvicorn backend.main:app --port 8000   # 启动后端
+cd frontend && pnpm dev                          # 启动前端
+```
+
+## 📖 文档快速索引
 
 | 你要干嘛 | 看哪个文件 |
 |:---------|:-----------|
-| 启动后端 | `cd e:/litchi-head && python -m uvicorn backend.main:app --port 8000` |
-| 启动前端 | `cd frontend && pnpm dev` |
-| 数据源审计 | `docs/02-requirements/DATA_SOURCE_AUDIT.md` |
-| 数据源健康 | `curl localhost:8000/api/health/data-source` |
-| 完整交接（给 AI） | [HANDOVER.md](HANDOVER.md) |
-| 全局进度看板 | [ROADMAP.md](../00-overview/ROADMAP.md) |
+| 完整工作流程（给 AI） | [WORKFLOW.md](WORKFLOW.md) |
+| 完整交接文档（给 AI） | [HANDOVER.md](HANDOVER.md) |
 | 债务路由 | [debt/ROUTER.md](debt/ROUTER.md) |
-| 前端规格 | `docs/03-modules/10-frontend/SPEC.md` |
+| 部门体系总览 | `docs/06-departments/README.md` |
+| 全局进度看板 | `docs/00-overview/ROADMAP.md` |
+| 环境配置 | [ENVIRONMENT.md](ENVIRONMENT.md) |
+| 技术栈 | `docs/00-overview/TECH_STACK.md` |
 
 ---
 > 每次会话结束时 AI 自动更新本页。如有出入请提醒。
+> **最后更新**：2026-06-21 | 部门体系全面接入

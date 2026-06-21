@@ -43,6 +43,10 @@
 | 如果你 | 从这里开始 |
 |:-------|:-----------|
 | 新开发者 | `docs/01-guides/` 流程规范 + `docs/02-requirements/` 产品需求 |
+| 想知道项目怎么组织 | 🏢 **`docs/06-departments/README.md`** — 10 部门体系总览 |
 | AI Agent (resume-session) | `docs/01-guides/WORKFLOW.md` + `HANDOVER.md` |
-| 开发辩论功能 | `docs/03-modules/02-debate-engine/` |
+| 修数据模块 | `docs/06-departments/01-data/ROLE.md` |
+| 改辩论功能 | `docs/06-departments/02-debate-engine/ROLE.md` |
+| 改后端 API | `docs/06-departments/08-backend-api/ROLE.md` |
+| 改前端 | `docs/06-departments/09-frontend/ROLE.md` |
 | 想了解模块细节 | `docs/03-modules/` 各模块文件夹 |

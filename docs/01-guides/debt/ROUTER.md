@@ -1,46 +1,68 @@
 # 🐛 技术债务路由
 
-> 债务按类型拆分到独立文件。新增债务先在对应类型文件中登记，然后更新本路由索引。
+> **债务已按部门拆分**。每个部门的债务清单在各自 `docs/06-departments/{id}/DEBT.md` 中。
+> 本文件只保留路由索引和全局仪表盘。
 
-## 类型索引
+---
 
-| 类型 | 文件 | 开放债务数 |
-|:-----|:-----|:----------:|
-| 🏛️ 架构设计 | [ARCHITECTURE.md](ARCHITECTURE.md) | 3 |
-| 💻 代码实现 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | 11 |
-| 🧪 测试 | [TESTING.md](TESTING.md) | 8 |
-| ⚙️ 基础设施 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | 5 |
-| 🗄️ 已关闭 | [CLOSED.md](CLOSED.md) | 32 |
-| 📝 模板 | [TEMPLATE.md](TEMPLATE.md) | — |
+## 📂 按部门索引
+
+| 部门 | 债务清单 | 开放债务数 |
+|:-----|:---------|:----------:|
+| 🔄 [跨部门](../../06-departments/00-cross-cutting/DEBT.md) | 影响全代码库的债务 | **5+3** |
+| 🗄️ [数据管道部](../../06-departments/01-data/DEBT.md) | Provider / Collector / 数据模型 | **3** |
+| 🎯 [辩论引擎部](../../06-departments/02-debate-engine/DEBT.md) | 编排器 / 信任度 / 反射 | **2** |
+| 🤖 [AI Agent 架构部](../../06-departments/03-ai-agents/DEBT.md) | BaseAgent / MasterAgent / 协议 | **3** |
+| 🧠 [记忆系统部](../../06-departments/04-memory-systems/DEBT.md) | KnowledgeBase / MemoryStore | **1** |
+| 🛡️ [风控管理部](../../06-departments/05-risk-management/DEBT.md) | 风控编排 / 风险画像 | **0** |
+| 💹 [交易执行部](../../06-departments/06-trading/DEBT.md) | 交易模型 / 桥接 | **0** |
+| 🔬 [回测研究部](../../06-departments/07-backtesting/DEBT.md) | 回测引擎 / 绩效指标 | **0** |
+| 🌐 [后端 API 部](../../06-departments/08-backend-api/DEBT.md) | 路由 / 技术指标 | **2** |
+| 🎨 [前端部](../../06-departments/09-frontend/DEBT.md) | 组件 / 类型 / 构建 | **1** |
+| ⚙️ [基础设施部](../../06-departments/10-infrastructure/DEBT.md) | LLM / Config / CostTracker | **7** |
+
+**总计：26 条开放债务（紧急指数 4.5/10）**
+
+---
 
 ## 仪表盘
 
 ```
-开放债务: 27 条    已关闭: 35 条
-本金总计: ~60+ 人时
-紧急指数: 4.5 / 10     ← 2026-06-18 TD-059 契约测试已上线 ↓
-                                                                  新增 TD-058~060，紧急指数稳定下降
+开放债务: 26 条    已关闭: 35 条
+紧急指数: 4.5 / 10
 ```
 
-## 实时指标（2026-06-18 全面清算后）
+### 按严重度分布
 
-| 指标 | 当前值 | 目标 | 状态 |
-|:-----|:------:|:----:|:----:|
-| 全量覆盖率 | 88% | ≥80% | ✅ |
-| Provider 层平均覆盖率 | 83% | ≥80% | ✅ 已修复（之前 42%） |
-| backend/ 测试数 | 43 | ≥50 | 🟡 指标已测，API 端点待补 |
-| backend/indicators.py 覆盖率 | 100% | ≥80% | ✅ 已修复（之前 0%） |
-| bandit 安全扫描 | 已执行，8 Low，0 High | 0 High | ✅ |
-| pip-audit 依赖扫描 | 已执行，修复 6 个关键 CVE | 持续监控 | ✅ |
-| 死代码扫描 | vulture 已跑（多数假阳性） | 已执行 | ✅ |
-| CI 覆盖率门禁 | 已配置 (--cov-fail-under=80) | 已配置 | ✅ |
-| CI 依赖审计 | 已配置 (pip-audit) | 已配置 | ✅ |
-| 性能基线 | 未建立 | 已建立 | 🔴 待做 |
-| .env 密钥轮换 | 待轮换 | 已轮换 | 🔴 待做 |
+| 严重度 | 数量 | 说明 |
+|:------:|:----:|:------|
+| 🔴 Critical | 1 | TD-038 密钥管理 |
+| 🟡 Moderate | 13 | 测试、功能缺失、性能 |
+| 🟢 Low | 12 | 代码质量、小修复 |
+
+### 按部门分布
+
+```
+基础设施部: 7 条 ← 最多（含安全/LLM）
+跨部门:     5+3 条 ← 全代码库级
+数据管道部: 3 条
+AI Agent 部:3 条
+辩论引擎部: 2 条
+后端 API 部:2 条
+前端部:     1 条
+记忆系统部: 1 条
+风控部:     0 条 ✅
+交易部:     0 条 ✅
+回测部:     0 条 ✅
+```
+
+---
 
 ## 快速新增
 
-1. 复制 `TEMPLATE.md` 内容
-2. 填入新债务信息
-3. 追加到对应类型文件末尾
-4. 更新本路由的开放债务数
+新增债务时：
+
+1. 判断债务属于哪个部门（改哪个 `src/{dir}/` 的代码）
+2. 在该部门的 `DEBT.md` 末尾追加
+3. 如果是跨部门债务，加在 `00-cross-cutting/DEBT.md`
+4. **不用**更新本路由（本文件自动从部门文件汇总）

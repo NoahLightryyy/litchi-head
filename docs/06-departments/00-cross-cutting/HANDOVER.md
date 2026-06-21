@@ -1,0 +1,57 @@
+---
+department: 跨部门
+last_updated: 2026-06-21
+---
+
+# 🔄 跨部门状态总览
+
+> 本文件记录跨部门/全代码库的公共状态。
+> 各部门的专有状态见各自 `docs/06-departments/{id}/HANDOVER.md`。
+
+---
+
+## 项目身份
+
+| 字段 | 值 |
+|------|-----|
+| 项目名称 | litchi-head — 多智能体投资决策平台 |
+| 当前阶段 | Phase 1 MVP + Phase R 实盘加固 |
+| 技术栈 | Python 3.12+ / LangGraph / DeepSeek-Chat / Pydantic / FastAPI / Next.js 16 |
+| 远程仓库 | GitHub (origin) + Gitee (gitee 备份) |
+| CI | Ruff + Pyright + Pytest on 3.12/3.13 |
+
+## 全代码库健康
+
+| 指标 | 当前值 |
+|:-----|:------:|
+| 全量测试 | 945 collected, 全部通过 ✅ |
+| Pyright (src/) | 0 errors ✅ |
+| Pyright (backend/) | 0 errors ✅ |
+| Ruff | All checks passed ✅ |
+| 技术债务开放 | 26 条 |
+| 紧急指数 | ~4.5/10 |
+
+## 跨部门协作现状
+
+| 协作点 | 状态 | 说明 |
+|:-------|:----:|:------|
+| 数据契约（data 模型→全部门） | ✅ | 已建立契约测试 |
+| API 契约（backend→frontend） | ✅ | 17 端点全量路由测试 |
+| Agent 接口（agents→debate） | ✅ | MasterAgent 通用化 |
+| 辩论↔风控接口 | ✅ | RiskAssessment 协议 |
+| 辩论↔交易接口 | ✅ | TradePlan 协议 |
+| 记忆↔辩论接口 | ✅ | MemoryManager 语义化 |
+| 回测↔交易接口 | ✅ | TradeRecord 协议 |
+| LLM 调用（全部门→infra） | 🟡 | 已统一入口，fallback 链待补 |
+
+## 当前未完成事项（跨部门）
+
+| 优先级 | 事项 | 涉及部门 |
+|:------:|:-----|:---------|
+| 🔴 | **TD-038 密钥管理** — `.env` 明文 API Key 修复 | 基础设施部 |
+| 🟡 | **TD-039 API 速率限制** — debate/run 限流 | 后端 API 部 |
+| 🟡 | **TD-040 LLM fallback** — DeepSeek→OpenAI 降级 | 基础设施部 |
+| 🟡 | **TD-041 数据新鲜度标注** — 前端展示数据时效 | 数据管道部 + 前端部 |
+| 🟡 | **TD-059 性能基线** — 首次全链路性能测量 | 所有部门 |
+
+> 各部门的详细债务清单和下一步优先级见各自部门的 `DEBT.md` + `HANDOVER.md`。

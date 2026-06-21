@@ -131,7 +131,7 @@ ANTHROPIC_MODEL=deepseek-chat
 │  → 如有新增债务，按模板登记                          │
 ├─ 3. 更新时间线文档 ───────────────────────────────┤
 │  docs/00-overview/ROADMAP.md (看板)                 │
-│  docs/01-guides/HANDOVER.md §2 + §5               │
+│  docs/01-guides/HANDOVER.md（🏢各部门一览 + 🎯优先级）│
 │  → 同步当前阶段、完成度、下一步优先级                  │
 ├─ 4. 提交当前工作 ──────────────────────────────┤
 │  git add -A && git commit -m "..."              │
