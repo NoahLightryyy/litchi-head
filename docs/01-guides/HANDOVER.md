@@ -58,7 +58,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `8025fb5` — docs: 10 部门体系上线 + WORKFLOW 按阶段拆分 + 全文档同步 |
+| **最新提交** | `36612dd` — docs: 创建 CI 治理部（11-ci-governance）— 职责独立 + 交接清爽 |
 | **全量测试** | 945 collected, 全部通过 ✅ |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | 🔴 → [CI 治理部](06-departments/11-ci-governance/HANDOVER.md) |
