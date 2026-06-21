@@ -1,4 +1,15 @@
-fastapi>=0.115.0
-uvicorn[standard]>=0.34.0
-sse-starlette>=2.2.0
-adata>=2.9.5
+# 🚨 此文件不再作为独立依赖声明使用
+#
+# 后端依赖已合并至项目根目录的 pyproject.toml：
+#   - fastapi>=0.115.0
+#   - uvicorn[standard]>=0.34.0
+#
+# 安装方式（CI/本地）：
+#   pip install -e ".[dev]"
+#
+# 以下保留仅作遗留参考，不考虑移除时重新启用。
+# --- 原内容 ---
+# fastapi>=0.115.0
+# uvicorn[standard]>=0.34.0
+# sse-starlette>=2.2.0
+# adata>=2.9.5
