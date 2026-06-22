@@ -42,9 +42,10 @@
 
 ### 2. 本地拦截优先
 
-> 能在本地 `make check` 跑过的，不要让 CI 来抓。
-> - 每次提交前：`make check`
-> - 质量保障部负责维护 pre-push hook（参见 [HANDBOOK.md](HANDBOOK.md#pre-push-hook)）
+> 轻量级的 `ruff + pyright` 在 pre-push hook 自动执行（~30s）。
+> 全量测试交由 GitHub Actions CI 执行，不阻塞推送。
+> - 每次推送前：pre-push hook 自动拦截风格和类型错误
+> - 质量保障部负责维护 hook（参见 [HANDBOOK.md](HANDBOOK.md#pre-push-hook)）
 
 ### 3. 四同步延伸到 CI
 

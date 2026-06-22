@@ -34,12 +34,17 @@ pytest --cov=src --cov-fail-under=80  # 覆盖率
 - [ ] 新增功能有对应测试
 - [ ] `git diff --check` — 无空白字符错误
 
-### 📤 推送前 / 最终整合（每次 git push 前）
+### 📤 推送前（每次 git push 前）
 
-- [ ] （上面日常的 6 项）
-- [ ] `pytest -v --tb=short` — **全量**测试全部通过
-- [ ] 覆盖率 ≥ 80%
+> Pre-push hook 自动执行 `ruff check .` + `pyright src/`，约 30 秒。
+> **全量测试不是推送门禁**，交由 GitHub Actions CI 执行。
+
+- [ ] `ruff check .` — 零错误（hook 自动）
+- [ ] `pyright src/` — 零错误、零警告（hook 自动）
+- [ ] `git diff --check` — 无空白字符错误
 - [ ] 代码审查已完成
+
+> **如需推送前验证全量测试**（架构变更、大重构）：手动 `make check`。
 
 ---
 

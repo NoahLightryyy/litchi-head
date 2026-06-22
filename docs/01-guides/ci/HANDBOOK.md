@@ -60,18 +60,13 @@ curl -s "https://api.github.com/repos/NoahLightryyy/litchi-head/actions/runs?per
 ### 安装
 
 ```bash
-# 创建 pre-push hook
-cat > .git/hooks/pre-push << 'EOF'
-#!/bin/bash
-echo "=== CI 本地预检 ==="
-make check || exit 1
-EOF
+# 从版本控制文件安装
+cp scripts/pre-push .git/hooks/pre-push
 chmod +x .git/hooks/pre-push
 ```
 
-> ⚠️ `.git/hooks/` 不被版本控制。如需团队共享，应将 hook 脚本版本化：
-> 将脚本放在 `scripts/pre-push.sh`，然后在 README 中指引开发者运行
-> `git config core.hooksPath scripts/hooks` 或手动复制。
+> **范围**：pre-push hook 只跑 `ruff` + `pyright`（~30 秒），不做全量测试。
+> 全量测试由 GitHub Actions CI 负责，避免每次推送等待 10 分钟。
 
 ### 跳过 hook
 
@@ -89,10 +84,18 @@ git push --no-verify
 ### 当前 CI 相关命令
 
 ```makefile
-lint:   ruff check .           # 代码风格
-type:   pyright src/           # 类型检查
-test:   pytest -v --tb=short   # 测试
+lint:   ruff check .           # 代码风格（~5s）
+type:   pyright src/           # 类型检查（~25s）
+test:   pytest -v --tb=short   # 全量测试（~10min）
 check:  lint type test         # 一键三连
+```
+
+### 分工原则
+
+```
+pre-push hook → lint + type（~30s）      ← 每次推送的轻量门禁
+GitHub CI    → lint + type + test        ← 全量验证
+手动 make check → lint + type + test     ← 大改动推送前自选
 ```
 
 ### 修改规则

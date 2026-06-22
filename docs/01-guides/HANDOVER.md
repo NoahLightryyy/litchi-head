@@ -134,6 +134,7 @@ result.data.summary  # Pyright 可校验 ✅
 | pandas 类型反复 | 必须 `str(row["col"])` 显式转换 | ✅ 已记录 |
 | CI 红着没人修 | Batch Loop 收尾前自动跑 `ruff check .` + `pyright src/` | ✅ |
 | Windows torch crash | `__init__.py` 惰性导入 | ✅ 已解 |
+| Pre-push 跑全量测试太慢 | hook 改为只跑 `ruff + pyright`（~30s），全量交 CI | ✅ 2026-06-22 |
 
 ### pandas 类型模式（必须遵守）
 
@@ -164,4 +165,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-06-22 | TD-039 API 速率限制完成（slowapi 三层限流）+ triage 新增 Git Bash 兼容分类 + resume-session CI 检查改进
+> **最后更新**：2026-06-22 | TD-039 关闭 + triage Git Bash 兼容 + pre-push hook 流程优化（全量测试→CI）

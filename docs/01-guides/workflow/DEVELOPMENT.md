@@ -144,15 +144,17 @@
 
 ## 4. 代码质量门槛
 
-**推送前 → 全量检查 `make check`**（lint + type + full test + coverage），但**日常开发中**按以下节奏：
+**推送前 → hook 自动 `ruff + pyright`**（~30s），**全量测试交由 CI 执行**。日常开发中按以下节奏：
 
 | 时机 | 检查项 | 命令 |
 |:----|:-------|:-----|
 | 🔨 **每次修改后** | Ruff 代码风格 + Pyright 类型检查 | `make lint && make type` |
 | 🔨 **每次修改后** | 跑本次改动**相关测试** | `pytest <相关文件路径>` |
-| 📤 **推送前 / 完整模式** | 全量测试 + 覆盖率 | `make check`（`ruff + pyright + pytest + coverage`） |
+| 📤 **推送前（hook 自动）** | 代码风格 + 类型检查（~30s） | `ruff check .` + `pyright src/` |
+| 🔬 **CI（GitHub Actions）** | 全量 lint + type + test | 自动执行 |
+| 📦 **大重构 / 架构变更** | 全量测试 + 覆盖率（可选） | `make check` |
 
-**日常可只跑相关测试，但推送前必须全量 `make check` 通过。**
+**日常只跑相关测试，推送前 hook 自动 lint + type，全量由 CI 负责。**
 
 ---
 
@@ -240,7 +242,7 @@
 ```
 🔴 以下环节在任何模式下都不可跳过：
 1. 新功能必须有对应测试
-2. make check（lint + type + test）提交前必须全通过
+2. push 前 hook 通过（`ruff + pyright`）+ 相关测试通过；全量 `make check` 由 CI 负责
 3. 四同步原则：代码 + 测试 + 文档 + 债务
 4. 新增债务必须登记
 5. 会话结束必须更新工作日志

@@ -9,8 +9,10 @@
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║  🔄 Pre-push: 本地 CI 预检                   ║"
-echo "║  检测失败 → 阻止推送, 修复后再试              ║"
-echo "║  跳过: git push --no-verify                  ║"
+echo "║  ⚡ 只跑 lint + type（~30s）                  ║"
+echo "║  🔬 全量测试留给 GitHub Actions CI            ║"
+echo "║  可手动: make check                           ║"
+echo "║  跳过: git push --no-verify                   ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
@@ -23,7 +25,7 @@ fi
 
 FAILED=0
 
-echo "--- [1/3] Ruff (代码风格) ---"
+echo "--- [1/2] Ruff (代码风格) ---"
 ruff check .
 if [ $? -ne 0 ]; then
     echo "❌ Ruff 检查失败。运行 ruff check . --fix 自动修复"
@@ -31,18 +33,10 @@ if [ $? -ne 0 ]; then
 fi
 echo ""
 
-echo "--- [2/3] Pyright (类型检查) ---"
+echo "--- [2/2] Pyright (类型检查) ---"
 pyright src/
 if [ $? -ne 0 ]; then
     echo "❌ Pyright 类型检查失败"
-    FAILED=1
-fi
-echo ""
-
-echo "--- [3/3] Pytest (测试) ---"
-pytest -v --tb=short
-if [ $? -ne 0 ]; then
-    echo "❌ Pytest 测试失败"
     FAILED=1
 fi
 echo ""
@@ -65,6 +59,6 @@ fi
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║  ✅ 本地 CI 预检通过，推送继续                ║"
-echo "║  等 GitHub Actions 跑完确认全绿               ║"
+echo "║  🔬 全量测试交由 GitHub Actions CI 执行       ║"
 echo "╚══════════════════════════════════════════════╝"
 exit 0
