@@ -81,7 +81,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | ⚙️ 基础设施部 | `src/utils/` | ✅ | 6 | [HANDOVER](06-departments/10-infrastructure/HANDOVER.md) |
 | 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🔴 | 2 | [HANDOVER](06-departments/11-quality-assurance/HANDOVER.md) |
 
-**全代码库开放债务**: 29 条（紧急指数 4.5/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
+**全代码库开放债务**: 28 条（紧急指数 4.0/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
 
 ---
 
@@ -89,7 +89,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 | 优先级 | 事项 | 牵头部门 |
 |:------:|:-----|:---------|
-| 1 🟡 | **TD-039 API 速率限制** — debate/run 限流 | 后端 API 部 |
+| 1 ~~🟡~~ | ~~**TD-039 API 速率限制** — debate/run 限流~~ | ✅ 2026-06-22 已关闭 |
 | 2 🟡 | **TD-040 LLM fallback 链** — DeepSeek→OpenAI 自动降级 | 基础设施部 |
 | 3 🟡 | **TD-041 数据新鲜度标注** — 采集时间戳 + 前端展示 | 数据管道部 + 前端部 |
 | 4 🟢 | **orchestrator.py 拆分** — 1622 行 → orchestrator/nodes/ | 辩论引擎部 |
@@ -164,4 +164,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-06-21 | WORKFLOW 按阶段拆分 + 11 部门体系全面接入 + 所有架构引用清理
+> **最后更新**：2026-06-22 | TD-039 API 速率限制完成（slowapi 三层限流）+ triage 新增 Git Bash 兼容分类 + resume-session CI 检查改进

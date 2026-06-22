@@ -85,3 +85,19 @@ def _check_adata_installed() -> None:
         import adata  # noqa: PLC0415, F401
     except ImportError:
         raise ImportError("adata package not installed")
+
+
+# ── API 速率限制 ──────────────────────────────────────────────
+
+
+RATE_LIMIT_ENABLED = os.environ.get("LITCHI_RATE_LIMIT_ENABLED", "1") == "1"
+"""全局限流开关，测试环境设为 0 关闭"""
+
+RATE_LIMIT_DEBATE_RUN = os.environ.get("LITCHI_RATE_LIMIT_DEBATE_RUN", "6/minute")
+"""debate/run 限流（调 LLM = 花钱，严格限制）"""
+
+RATE_LIMIT_DEBATE_STATUS = os.environ.get("LITCHI_RATE_LIMIT_DEBATE_STATUS", "30/minute")
+"""debate/status 限流（轮询用，相对宽松）"""
+
+RATE_LIMIT_DEBATE_RESULT = os.environ.get("LITCHI_RATE_LIMIT_DEBATE_RESULT", "30/minute")
+"""debate/result 限流"""

@@ -10,8 +10,15 @@ import time
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+
+from backend.config import (
+    RATE_LIMIT_DEBATE_RESULT,
+    RATE_LIMIT_DEBATE_RUN,
+    RATE_LIMIT_DEBATE_STATUS,
+)
+from backend.limiter import limiter
 
 logger = logging.getLogger("backend.debate")
 router = APIRouter(prefix="/api/debate")
@@ -41,7 +48,8 @@ _debate_sessions: dict[str, dict[str, Any]] = {}
 
 
 @router.post("/run")
-async def run_debate(req: DebateRequest):
+@limiter.limit(RATE_LIMIT_DEBATE_RUN)
+async def run_debate(request: Request, req: DebateRequest):
     """触发一次辩论"""
     t0 = time.time()
     session_id = f"deb_{uuid4().hex[:12]}"
@@ -70,7 +78,8 @@ async def run_debate(req: DebateRequest):
 
 
 @router.get("/status/{session_id:str}")
-async def get_debate_status(session_id: str):
+@limiter.limit(RATE_LIMIT_DEBATE_STATUS)
+async def get_debate_status(request: Request, session_id: str):
     """查询辩论状态"""
     session = _debate_sessions.get(session_id)
     if session is None:
@@ -85,7 +94,8 @@ async def get_debate_status(session_id: str):
 
 
 @router.get("/result/{session_id:str}")
-async def get_debate_result(session_id: str):
+@limiter.limit(RATE_LIMIT_DEBATE_RESULT)
+async def get_debate_result(request: Request, session_id: str):
     """获取辩论结果"""
     session = _debate_sessions.get(session_id)
     if session is None:

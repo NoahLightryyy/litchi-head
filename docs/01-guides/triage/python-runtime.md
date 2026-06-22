@@ -93,17 +93,7 @@ CI 中 `pip-audit` 可能会报 CVE 漏洞，但目前设为了**仅警告不阻
 
 ## Windows 特有编码问题
 
-Git Bash 下某些 Windows 命令输出乱码：
-
-```bash
-# 在 Git Bash 里跑 ipconfig /flushdns
-# → 输出乱码（GBK 编码问题）
-# 解决方法：用 cmd.exe /c 包裹
-cmd.exe /c ipconfig /flushdns
-```
-
-```bash
-# 或者临时设置编码
-export LANG=zh_CN.GBK
-ipconfig /flushdns
-```
+> **已移出** → 详见 [🌐 Git Bash 兼容](git-bash-compat.md)
+>
+> 包括：`ipconfig` 乱码、`/tmp/` 路径不可用、`python3` Store 存根、UTF-8 vs GBK 编码等
+> 跨工具链兼容性问题已统一归入独立文件。

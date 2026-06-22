@@ -16,7 +16,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
+from backend.limiter import limiter
 from backend.routers import debate, market, stocks, trust
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(name)-24s  %(message)s")
@@ -80,6 +82,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── 速率限制 ──────────────────────────────────────────────────
+
+app.state.limiter = limiter
+
 # ── 路由注册 ──────────────────────────────────────────────────
 
 app.include_router(market.router)
@@ -99,6 +105,19 @@ async def global_exception_handler(request: Request, exc: Exception):
         code="INTERNAL_ERROR",
         message=f"服务器内部错误: {type(exc).__name__}",
         status=500,
+    )
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    """超过速率限制 → 429
+
+    格式与现有 ErrorResponse 一致，前端可直接统一处理。
+    """
+    return ErrorResponse(
+        code="RATE_LIMITED",
+        message="请求过于频繁，请稍后再试",
+        status=429,
     )
 
 

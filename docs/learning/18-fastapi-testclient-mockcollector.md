@@ -168,4 +168,4 @@ with patch("backend.routers.debate._get_orchestrator", return_value=mock_orch):
 
 **上一篇：[测试架构与模块自治](17-testing-architecture.md)**
 
-**下一篇：*待续***
+**下一篇：[Windows 开发环境调试指南 — Git Bash 5 大兼容坑](19-windows-git-bash-compat.md)**

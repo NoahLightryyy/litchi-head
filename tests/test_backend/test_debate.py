@@ -152,3 +152,40 @@ class TestGetDebateResult:
         assert "summary" in data
         assert "consensus" in data
         assert "confidence" in data
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 速率限制
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestRateLimit:
+    """辩论路由限流（默认 6/分钟）"""
+
+    def test_rate_limit_on_post_and_get_independent(self, client):
+        """POST /debate/run 超限返回 429，但 GET status/result 独立计数不受影响"""
+        client.app.state.limiter.enabled = True
+        mock_orch = _MockOrchestrator()
+
+        with patch("backend.routers.debate._get_orchestrator", return_value=mock_orch):
+            # 前 6 次 POST 成功
+            for i in range(6):
+                resp = client.post("/api/debate/run", json={"stock_code": "000001"})
+                assert resp.status_code == 200, f"第 {i+1} 次请求应成功"
+
+            # 第 7 次 POST → 429
+            resp = client.post("/api/debate/run", json={"stock_code": "000001"})
+            assert resp.status_code == 429
+
+            # 响应格式正确
+            body = resp.json()
+            assert "error" in body
+            assert body["error"]["code"] == "RATE_LIMITED"
+            assert body["error"]["message"]
+
+        # GET status/result 走独立限流 key，不受 POST 计数影响
+        status_resp = client.get("/api/debate/status/test_session")
+        assert status_resp.status_code == 200
+
+        result_resp = client.get("/api/debate/result/test_session")
+        assert result_resp.status_code == 200

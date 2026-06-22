@@ -40,6 +40,7 @@ dependencies = [
     # 后端服务（原 backend/requirements.txt，已合并至此）
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.34.0",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

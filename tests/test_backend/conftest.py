@@ -249,6 +249,13 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def disable_rate_limit(client: TestClient) -> None:
+    """所有测试默认关闭限流，避免排队测试误触发 429"""
+    client.app.state.limiter.enabled = False
+    yield
+
+
 @pytest.fixture
 def mock_collector() -> MockCollector:
     """可配置的 MockCollector 实例

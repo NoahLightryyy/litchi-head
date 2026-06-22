@@ -54,6 +54,8 @@
 | 17 | [测试架构与模块自治](17-testing-architecture.md) | `tests/` 目录 + `TESTING_STRATEGY.md` |
 | 18 | 🆕 [FastAPI 路由测试 — TestClient + MockCollector](18-fastapi-testclient-mockcollector.md) | `tests/test_backend/conftest.py` + 4 路由测试 |
 
+| 19 | 🆕 [Windows 开发环境调试指南 — Git Bash 5 大兼容坑](19-windows-git-bash-compat.md) | `.claude/skills/resume-session/skill.md` + `docs/01-guides/triage/git-bash-compat.md` |
+
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
 ---
@@ -68,4 +70,5 @@
 | 理解前端设计 | 04 → 12 → 13 |
 | 理解质量保障 | 15 → 16 → 17 → 文档 `docs/03-modules/12-quality-assurance/` |
 | 编写后端测试 | 17 → 18 |
+| Windows 开发调试 | **19** → `docs/01-guides/triage/git-bash-compat.md` |
 | 准备面试 | 全部通读一遍，重点练「自己试试」 |

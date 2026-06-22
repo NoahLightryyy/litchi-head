@@ -26,6 +26,11 @@
 `No parameter named "xxx"` - Pyright | 参数名不匹配 | [🧪 类型检查](type-checking.md)
 `row["col"]` Pyright type mismatch | pandas iterrows | [🧪 类型检查](type-checking.md)
 `except:pass` | 静默吞异常 | 已修 → 见 `docs/04-changelog/` Phase R
+`exit code 49` + 无输出 | curl 网络错误 | [🌐 Git Bash 兼容](git-bash-compat.md) — DNS 过时
+`exit code 49` + 无输出 | python3 命令 | [🌐 Git Bash 兼容](git-bash-compat.md) — Store 存根
+`UnicodeDecodeError: 'gbk' can't decode` | 文件编码 | [🌐 Git Bash 兼容](git-bash-compat.md) — UTF-8 vs GBK
+`No such file or directory: '/tmp/...'` | Git Bash /tmp/ 无效 | [🌐 Git Bash 兼容](git-bash-compat.md) — 路径问题
+`/flushdns` 输出乱码 / `����` | Git Bash 编码 | [🌐 Git Bash 兼容](git-bash-compat.md) — 乱码
 
 ---
 
@@ -38,6 +43,7 @@
 | 📊 adata API | [adata-api.md](adata-api.md) | 参数名/属性缺失/版本兼容 |
 | 🐍 Python 运行时 | [python-runtime.md](python-runtime.md) | Windows torch/惰性导入/编码 |
 | 🧪 类型检查 | [type-checking.md](type-checking.md) | pandas/import 位置/Pydantic |
+| 🌐 Git Bash 兼容 | [git-bash-compat.md](git-bash-compat.md) | DNS/cURL/Python3/编码/路径交叉问题 |
 
 ---
 

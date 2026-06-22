@@ -5,9 +5,9 @@
 ## 📊 当前状态
 
 ```
-阶段: Phase 1 MVP + Phase R 实盘加固     Python 测试: 945 ✅
-债务: 26 条开放（紧急指数 4.5/10）
-代码库: 10 部门体系（docs/06-departments/）
+阶段: Phase 1 MVP + Phase R 实盘加固     Python 测试: 946 ✅
+债务: 25 条开放（紧急指数 4.0/10）
+代码库: 11 部门体系（docs/06-departments/）
 数据源: 零造假数据 ✅ | 四源架构（akshare/adata/zzshare/fallback）
 ```
 
@@ -22,7 +22,7 @@
 | 🛡️ 风控管理部 | `src/risk/` | 0 | ✅ |
 | 💹 交易执行部 | `src/trader/` | 0 | ✅ |
 | 🔬 回测研究部 | `src/backtest/` | 0 | ✅ |
-| 🌐 后端 API 部 | `backend/` | 2 | ✅ |
+| 🌐 后端 API 部 | `backend/` | 1 | ✅ |
 | 🎨 前端部 | `frontend/` | 1 | ✅ |
 | ⚙️ 基础设施部 | `src/utils/` | 7 | ✅ |
 
@@ -34,7 +34,7 @@
 | 优先级 | 事项 | 牵头部门 |
 |:------:|:-----|:---------|
 | 1 ✅ | TD-038 密钥安全已修复 | 基础设施部 |
-| 2 🟡 | TD-039 API 速率限制 | 后端 API 部 |
+| 2 ✅ | TD-039 API 速率限制 — slowapi 三层限流 | 后端 API 部 |
 | 3 🟡 | TD-040 LLM fallback 链 | 基础设施部 |
 | 4 🟡 | TD-041 数据新鲜度标注 | 数据管道部 + 前端部 |
 | 5 🟢 | orchestrator.py 拆分（1622 行） | 辩论引擎部 |
@@ -79,4 +79,4 @@ cd frontend && pnpm dev                          # 启动前端
 
 ---
 > 每次会话结束时 AI 自动更新本页。如有出入请提醒。
-> **最后更新**：2026-06-21 | 部门体系全面接入
+> **最后更新**：2026-06-22 | TD-039 关闭 + triage Git Bash 兼容 + resume-session CI 改进

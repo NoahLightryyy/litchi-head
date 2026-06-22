@@ -12,13 +12,13 @@ department: 后端 API 部
 
 | ID | 标题 | 严重度 | 类型 | 状态 |
 |:---|:-----|:------:|:----|:----|
-| TD-039 | debate/run 无 API 速率限制 | 🟡 moderate | 性能安全 | 📋 待评估 |
 | TD-054 | CORS 地址硬编码 | 🟢 low | 可部署性 | 📋 待评估 |
 
 ## 已关闭债务
 
 | ID | 标题 | 修复日期 | 修复说明 |
 |:---|:-----|:--------|:---------|
+| TD-039 | debate/run 无 API 速率限制 | 2026-06-22 | slowapi 三层限流：run 6/min + status/result 30/min，429 ErrorResponse 格式 |
 | TD-020 | 板块数据增强层缺失 | 2026-06-17 | market.py 重写，全面板真实数据 |
 | TD-023 | 后端全返回 HTTP 200 | 2026-06-17 | trust.py→503, debate.py→500 |
 | TD-024 | 数据源调用无超时 | 2026-06-17 | async_utils.py 15s 超时 |
