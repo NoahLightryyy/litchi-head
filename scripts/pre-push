@@ -9,8 +9,8 @@
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║  🔄 Pre-push: 本地 CI 预检                   ║"
-echo "║  ⚡ 只跑 lint + type（~30s）                  ║"
-echo "║  🔬 全量测试留给 GitHub Actions CI            ║"
+echo "║  ⚡ lint + type + 快测试子集（~70s）           ║"
+echo "║  🔬 慢测试（~600s）交由 GitHub Actions CI     ║"
 echo "║  可手动: make check                           ║"
 echo "║  跳过: git push --no-verify                   ║"
 echo "╚══════════════════════════════════════════════╝"
@@ -41,6 +41,15 @@ if [ $? -ne 0 ]; then
 fi
 echo ""
 
+echo "--- [3/3] Pytest (快测试子集) ---"
+pytest -m "not slow" -x --tb=short
+if [ $? -ne 0 ]; then
+    echo "❌ 快测试子集失败。全部慢测试数: $(pytest --collect-only -q -m slow 2>/dev/null | tail -1)"
+    echo "   运行 make check 跑全量测试"
+    FAILED=1
+fi
+echo ""
+
 # 恢复 stash
 if [ "$STASHED" = true ]; then
     git stash pop 2>/dev/null
@@ -59,6 +68,6 @@ fi
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║  ✅ 本地 CI 预检通过，推送继续                ║"
-echo "║  🔬 全量测试交由 GitHub Actions CI 执行       ║"
+echo "║  🔬 慢测试（$(pytest --collect-only -q -m slow 2>/dev/null | tail -1)）由 CI 执行    ║"
 echo "╚══════════════════════════════════════════════╝"
 exit 0

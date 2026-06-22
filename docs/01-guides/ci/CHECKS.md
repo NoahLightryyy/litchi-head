@@ -9,14 +9,14 @@
 ## 快速检查
 
 ```bash
-# 一键全量
-make check
+# 分级运行：
+make lint              # 代码风格（~5s）
+make type              # 类型检查（~25s）
+pytest -m "not slow"   # 快测试子集（~30s）
+make check             # 全量 = lint + type + 全量测试（~12min）
 
-# 或分步：
-ruff check .           # 代码风格
-pyright src/           # 类型检查（src/ 模块）
-pytest -v --tb=short   # 测试
-pytest --cov=src --cov-fail-under=80  # 覆盖率
+# 慢测试单独运行
+pytest -m slow         # 23 个慢测试（~11min）
 ```
 
 ---
@@ -36,11 +36,12 @@ pytest --cov=src --cov-fail-under=80  # 覆盖率
 
 ### 📤 推送前（每次 git push 前）
 
-> Pre-push hook 自动执行 `ruff check .` + `pyright src/`，约 30 秒。
-> **全量测试不是推送门禁**，交由 GitHub Actions CI 执行。
+> Pre-push hook 自动执行 `ruff check .` + `pyright src/` + `pytest -m "not slow" -x`（~70s）。
+> **23 个 @pytest.mark.slow 慢测试（~600s）交由 GitHub Actions CI 执行。**
 
 - [ ] `ruff check .` — 零错误（hook 自动）
 - [ ] `pyright src/` — 零错误、零警告（hook 自动）
+- [ ] `pytest -m "not slow" -x --tb=short` — 快测试子集通过（hook 自动）
 - [ ] `git diff --check` — 无空白字符错误
 - [ ] 代码审查已完成
 
@@ -50,22 +51,25 @@ pytest --cov=src --cov-fail-under=80  # 覆盖率
 
 ## 避免的陷阱
 
+## 三层测试策略
+
+```
+pre-push hook → ruff + pyright + 快测试子集（~70s）    ← 每次推送自动
+GitHub CI     → ruff + pyright + 全量测试（含慢测试）   ← PR 合并前完整验证
+手动 make check → ruff + pyright + 全量测试             ← 大重构前自选
+```
+
 ```bash
-# ❌ 跳过 lint
-ruff check .            # 哪怕只改了一行也要跑
-
-# ❌ 跳过类型检查
-pyright src/            # Pyright basic mode 零错误是硬性要求
-
 # ✅ 日常开发：跑相关测试
 pytest tests/test_data/test_data_providers.py   # 改了 data 模块
 pytest tests/test_debate/                       # 改了 debate 模块
 
-# ✅ 最终整合 / 大清理：全量测试
-pytest -v --tb=short                            # 全量，CI 前必跑
-```
+# ✅ 推送前：hook 自动跑快子集
+pytest -m "not slow" -x --tb=short              # ~30s
 
-> **测试范围原则**：日常开发只跑本次改动相关的测试文件，节省时间。全量测试（`make test` / `pytest -v --tb=short`）留给最终整合、架构级变更、以及 CI 自己去跑。
+# ✅ 最终整合 / 大清理：全量测试
+pytest -v --tb=short                            # 全量，约 12min
+```
 
 ---
 
@@ -86,4 +90,4 @@ git push -u origin fix/ci-xxx
 
 ---
 
-> **最后更新**: 2026-06-21
+> **最后更新**: 2026-06-22 | 三层测试策略（快/慢标记）

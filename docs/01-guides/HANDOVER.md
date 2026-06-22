@@ -134,7 +134,7 @@ result.data.summary  # Pyright 可校验 ✅
 | pandas 类型反复 | 必须 `str(row["col"])` 显式转换 | ✅ 已记录 |
 | CI 红着没人修 | Batch Loop 收尾前自动跑 `ruff check .` + `pyright src/` | ✅ |
 | Windows torch crash | `__init__.py` 惰性导入 | ✅ 已解 |
-| Pre-push 跑全量测试太慢 | hook 改为只跑 `ruff + pyright`（~30s），全量交 CI | ✅ 2026-06-22 |
+| Pre-push 跑全量测试太慢 | 三层测试策略：hook 跑 `ruff + pyright + 快测试子集`（~70s），23 个 `@pytest.mark.slow` 慢测试交 CI | ✅ 2026-06-22 |
 
 ### pandas 类型模式（必须遵守）
 

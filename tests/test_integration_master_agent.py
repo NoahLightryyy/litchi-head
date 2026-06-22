@@ -86,6 +86,7 @@ _MUNGER_LITE = MasterSkill(
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow
 @pytest.mark.integration
 @pytest.mark.asyncio
 @skip_no_key

@@ -312,6 +312,7 @@ class TestHistoryInjection:
             assert "📜" not in question  # 没有历史注入
             assert "纯测试问题" in question
 
+    @pytest.mark.slow
     @pytest.mark.asyncio
     async def test_history_injected_via_orchestrator_run(self):
         """完整流程中 history_context 通过 state 传递"""
@@ -516,8 +517,9 @@ class TestSaveDecisionToMemory:
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow
 class TestMemoryResilience:
-    """MemoryStore 异常时辩论流程不中断"""
+    """MemoryStore 异常时辩论流程不中断（~32s 合计，标记为 slow）"""
 
     @pytest.mark.asyncio
     async def test_search_failure_does_not_block_debate(self):
@@ -635,8 +637,9 @@ class TestMemoryResilience:
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow
 class TestFullFlowWithMemory:
-    """完整流程集成测试"""
+    """完整流程集成测试（~46s 合计，标记为 slow）"""
 
     @pytest.mark.asyncio
     async def test_full_flow_with_history(self):

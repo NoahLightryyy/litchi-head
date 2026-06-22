@@ -49,8 +49,9 @@ def mock_agent_analysis():
     )
 
 
+@pytest.mark.slow
 class TestE2EFullPipeline:
-    """端到端全链路 9 层测试"""
+    """端到端全链路 9 层测试（~300s 合计，标记为 slow）"""
 
     @pytest.mark.asyncio
     async def test_full_pipeline_basic(

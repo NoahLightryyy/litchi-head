@@ -42,9 +42,9 @@
 
 ### 2. 本地拦截优先
 
-> 轻量级的 `ruff + pyright` 在 pre-push hook 自动执行（~30s）。
-> 全量测试交由 GitHub Actions CI 执行，不阻塞推送。
-> - 每次推送前：pre-push hook 自动拦截风格和类型错误
+> 三层渐进式验证，每次推送拦截大部分问题，不阻塞开发流程。
+> 慢测试（23 个 `@pytest.mark.slow`，~600s）由 GitHub Actions CI 运行，pre-push 跳过。
+> - 每次推送前：pre-push hook 自动捕获风格、类型和快测试失败
 > - 质量保障部负责维护 hook（参见 [HANDBOOK.md](HANDBOOK.md#pre-push-hook)）
 
 ### 3. 四同步延伸到 CI

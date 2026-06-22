@@ -409,8 +409,9 @@ class TestAggregateNode:
 # ═══════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow
 class TestDebateOrchestratorRun:
-    """DebateOrchestrator.run() 完整流程"""
+    """DebateOrchestrator.run() 完整流程（~120s 合计，标记为 slow）"""
 
     @pytest.mark.asyncio
     async def test_full_flow(self, mock_collector):

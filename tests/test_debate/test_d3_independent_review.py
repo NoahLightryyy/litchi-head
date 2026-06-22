@@ -773,8 +773,9 @@ class TestGraphWithD3:
         assert app is not None
 
 
+@pytest.mark.slow
 class TestFullFlowWithD3:
-    """D3 完整辩论流程集成测试"""
+    """D3 完整辩论流程集成测试（~30s 合计，标记为 slow）"""
 
     @pytest.mark.asyncio
     async def test_full_flow_with_d3(self):

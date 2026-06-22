@@ -144,17 +144,17 @@
 
 ## 4. 代码质量门槛
 
-**推送前 → hook 自动 `ruff + pyright`**（~30s），**全量测试交由 CI 执行**。日常开发中按以下节奏：
+**推送前 → hook 自动 `ruff + pyright + 快测试子集`**（~70s），**23 个 `@pytest.mark.slow` 慢测试由 CI 执行**。日常开发中按以下节奏：
 
 | 时机 | 检查项 | 命令 |
 |:----|:-------|:-----|
 | 🔨 **每次修改后** | Ruff 代码风格 + Pyright 类型检查 | `make lint && make type` |
 | 🔨 **每次修改后** | 跑本次改动**相关测试** | `pytest <相关文件路径>` |
-| 📤 **推送前（hook 自动）** | 代码风格 + 类型检查（~30s） | `ruff check .` + `pyright src/` |
-| 🔬 **CI（GitHub Actions）** | 全量 lint + type + test | 自动执行 |
+| 📤 **推送前（hook 自动）** | 代码风格 + 类型 + 快测试子集（~70s） | `ruff` + `pyright` + `pytest -m "not slow" -x` |
+| 🔬 **CI（GitHub Actions）** | 全量 lint + type + test（含慢测试） | 自动执行 |
 | 📦 **大重构 / 架构变更** | 全量测试 + 覆盖率（可选） | `make check` |
 
-**日常只跑相关测试，推送前 hook 自动 lint + type，全量由 CI 负责。**
+**日常只跑相关测试，推送前 hook 自动拦截风格/类型/快测试失败，慢测试由 CI 负责。**
 
 ---
 

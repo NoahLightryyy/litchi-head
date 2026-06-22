@@ -736,8 +736,9 @@ class TestGraphWithD1:
         assert app is not None
 
 
+@pytest.mark.slow
 class TestFullFlowWithD1:
-    """D1 完整辩论流程集成测试"""
+    """D1 完整辩论流程集成测试（~54s 合计，标记为 slow）"""
 
     @pytest.mark.asyncio
     async def test_full_flow_with_d1(self):

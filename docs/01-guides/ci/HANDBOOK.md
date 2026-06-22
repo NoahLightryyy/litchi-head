@@ -65,8 +65,8 @@ cp scripts/pre-push .git/hooks/pre-push
 chmod +x .git/hooks/pre-push
 ```
 
-> **范围**：pre-push hook 只跑 `ruff` + `pyright`（~30 秒），不做全量测试。
-> 全量测试由 GitHub Actions CI 负责，避免每次推送等待 10 分钟。
+> **范围**：pre-push hook 跑 `ruff` + `pyright` + `pytest -m "not slow" -x`（~70s）。
+> 23 个 `@pytest.mark.slow` 慢测试（~600s）由 GitHub Actions CI 负责。
 
 ### 跳过 hook
 
@@ -93,9 +93,21 @@ check:  lint type test         # 一键三连
 ### 分工原则
 
 ```
-pre-push hook → lint + type（~30s）      ← 每次推送的轻量门禁
-GitHub CI    → lint + type + test        ← 全量验证
-手动 make check → lint + type + test     ← 大改动推送前自选
+pre-push hook → ruff + pyright + 快测试子集（~70s）    ← 每次推送的轻量门禁
+GitHub CI     → ruff + pyright + 全量测试（含慢测试）   ← 完整验证
+手动 make check → ruff + pyright + 全量测试             ← 大改动推送前自选
+```
+
+慢测试通过 `@pytest.mark.slow` 标记识别：
+```bash
+# 快测试子集（pre-push hook 自动）
+pytest -m "not slow" -x --tb=short   # ~30s, 919 tests
+
+# 慢测试（由 CI 运行）
+pytest -m slow                         # ~11min, 23 tests
+
+# 全量
+pytest -v --tb=short                   # 混合
 ```
 
 ### 修改规则
