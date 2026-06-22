@@ -137,6 +137,8 @@ except Exception as e:
 
 **上一篇：[FastAPI 路由测试 — TestClient + MockCollector](18-fastapi-testclient-mockcollector.md)**
 
+**下一篇：[三层测试策略 — pytest marker 实现快慢分离](20-three-tier-test-strategy.md)**
+
 ---
 
 > **更新**：2026-06-22 | TD-039 开发过程中踩坑后固化的 Windows 开发环境通用指南，与 `docs/01-guides/triage/git-bash-compat.md` 配合使用。

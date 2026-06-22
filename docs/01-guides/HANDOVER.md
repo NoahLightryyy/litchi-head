@@ -165,4 +165,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-06-22 | TD-039 关闭 + triage Git Bash 兼容 + pre-push hook 流程优化（全量测试→CI）
+> **最后更新**：2026-06-22 | TD-039 关闭 + triage Git Bash + 三层测试策略（@pytest.mark.slow）+ 学习卡片 #20

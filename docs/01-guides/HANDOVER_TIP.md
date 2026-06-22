@@ -79,4 +79,4 @@ cd frontend && pnpm dev                          # 启动前端
 
 ---
 > 每次会话结束时 AI 自动更新本页。如有出入请提醒。
-> **最后更新**：2026-06-22 | TD-039 关闭 + triage Git Bash 兼容 + resume-session CI 改进
+> **最后更新**：2026-06-22 | TD-039 + triage Git Bash + 三层测试策略（23 slow 标记）+ 学习卡片 #20
