@@ -93,9 +93,10 @@ check:  lint type test         # 一键三连
 ### 分工原则
 
 ```
-pre-push hook → ruff + pyright + 快测试子集（~70s）    ← 每次推送的轻量门禁
-GitHub CI     → ruff + pyright + 全量测试（含慢测试）   ← 完整验证
-手动 make check → ruff + pyright + 全量测试             ← 大改动推送前自选
+pre-push hook → ruff + pyright + 快测试子集（~70s）              ← 每次推送的轻量门禁
+GitHub CI     → ruff + pyright + 全量测试（含慢测试）             ← 完整验证
+python scripts/check.py → ruff + pyright + 按变更选测试（~40s）   ← 日常开发推荐
+python scripts/check.py --full → ruff + pyright + 全量子集       ← 大改动推送前自选
 ```
 
 慢测试通过 `@pytest.mark.slow` 标记识别：
@@ -112,8 +113,8 @@ pytest -v --tb=short                   # 混合
 
 ### 修改规则
 
-- `make check` 必须包含 `make lint` + `make type` + `make test`
-- 新增检查项 → 同步更新 `make check`
+- `python scripts/check.py --full` 必须包含 ruff + pyright + 全量子集
+- 新增检查项 → 同步更新 `python scripts/check.py` 和 `Makefile`
 - 新增检查项 → 同步更新 `STANDARDS.md`
 
 ---

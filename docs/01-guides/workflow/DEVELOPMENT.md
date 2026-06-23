@@ -152,7 +152,7 @@
 | 🔨 **每次修改后** | 跑本次改动**相关测试** | `pytest <相关文件路径>` |
 | 📤 **推送前（hook 自动）** | 代码风格 + 类型 + 快测试子集（~70s） | `ruff` + `pyright` + `pytest -m "not slow" -x` |
 | 🔬 **CI（GitHub Actions）** | 全量 lint + type + test（含慢测试） | 自动执行 |
-| 📦 **大重构 / 架构变更** | 全量测试 + 覆盖率（可选） | `make check` |
+| 📦 **大重构 / 架构变更** | 全量测试 + 覆盖率（可选） | `python scripts/check.py --full` 或 `make check` |
 
 **日常只跑相关测试，推送前 hook 自动拦截风格/类型/快测试失败，慢测试由 CI 负责。**
 
@@ -242,7 +242,7 @@
 ```
 🔴 以下环节在任何模式下都不可跳过：
 1. 新功能必须有对应测试
-2. push 前 hook 通过（`ruff + pyright`）+ 相关测试通过；全量 `make check` 由 CI 负责
+2. push 前 hook 通过（`ruff + pyright`）+ 相关测试通过；全量 `python scripts/check.py --full` 由 CI 负责
 3. 四同步原则：代码 + 测试 + 文档 + 债务
 4. 新增债务必须登记
 5. 会话结束必须更新工作日志

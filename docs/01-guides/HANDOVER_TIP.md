@@ -59,8 +59,10 @@
 
 ```bash
 cd e:/litchi-head
-make check        # lint + type + test 一键完成
-make install      # 安装依赖
+python scripts/check.py          # 智能检查（推荐）
+python scripts/check.py --full   # 全量子集
+make check                       # Linux/macOS
+pip install -e ".[dev]"          # 安装依赖
 python -m uvicorn backend.main:app --port 8000   # 启动后端
 cd frontend && pnpm dev                          # 启动前端
 ```

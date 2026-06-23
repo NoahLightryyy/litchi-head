@@ -17,7 +17,7 @@
 7. **上下文耗尽自动交接**：检测到上下文窗口接近上限时，立即执行交接流程（更新日志+债务+看板+提交），不继续推进新工作
 8. **模型策略**：日常用 `deepseek-chat`（快速，无思考），复杂任务才切 `deepseek-v4-pro`（推理）。见下方「模型策略」节。
 9. **遇技术报错先查 triage** — `docs/01-guides/triage/README.md` 症状速查表定位分类，按症状搜不用全读
-10. **CI 永不为红** — 推送前 `make check` 必过；CI 红了优先修，不红不推新功能；详见 [CI 治理](docs/01-guides/ci/README.md)
+10. **CI 永不为红** — 推送前 `python scripts/check.py` 或 `make check` 必过；CI 红了优先修，不红不推新功能；详见 [CI 治理](docs/01-guides/ci/README.md)
 
 ## 技术栈关键约定
 
@@ -202,11 +202,12 @@ ANTHROPIC_MODEL=deepseek-chat
 ## 快速命令
 
 ```bash
-make install   # 安装依赖
-make check     # 一键检查（lint + type + test）
-make lint      # Ruff 代码风格
-make type      # Pyright 类型检查
-make test      # Pytest 测试
+python scripts/check.py          # 智能检查：ruff + pyright + 按变更选测试（推荐）
+python scripts/check.py --full   # 强制全量子集（不含慢测试）
+make check                       # 同 --full（Linux/macOS）
+make lint                        # Ruff 代码风格
+make type                        # Pyright 类型检查
+make test                        # Pytest 测试
 
 # Docker 开发环境
 make docker-build   # 构建开发镜像

@@ -72,7 +72,7 @@ hooks:
         - bash: ruff check --select E,W,F <changed_files>
     - matcher: session_stop      # 会话结束
       actions:
-        - bash: make check --quick
+        - bash: python scripts/check.py --full
 ```
 
 ### Layer 3：CI 门禁（屏障）

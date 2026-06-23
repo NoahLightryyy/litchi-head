@@ -2,35 +2,37 @@
 
 > **读给**：全部开发者
 > **位置**：每轮 `git push` 前执行
-> **命令**：`make check`
+> **命令**：`python scripts/check.py`
 
 ---
 
 ## 快速检查
 
 ```bash
-# 分级运行：
-make lint              # 代码风格（~5s）
-make type              # 类型检查（~25s）
-pytest -m "not slow"   # 快测试子集（~30s）
-make check             # 全量 = lint + type + 全量测试（~12min）
+# 日常开发 —— 按变更范围智能选择测试
+python scripts/check.py          # ruff -> pyright -> 模块测试（~40s）
 
-# 慢测试单独运行
-pytest -m slow         # 23 个慢测试（~11min）
+# 跨模块/大重构 —— 全量子集（不含慢测试）
+python scripts/check.py --full   # ruff -> pyright -> 全量子集（~3min）
+
+# 慢测试（23 个，~600s）交由 GitHub Actions CI 执行
+
+# Linux/macOS 同样可用
+make check                       # 同 --full（委托给 check.py）
 ```
 
 ---
 
 ## 提交前检查清单
 
-> **区分"日常提交"和"推送前"**。日常逐次改动跑相关测试即可，全量留给推送前和 CI。
+> **区分"日常提交"和"推送前"**。日常逐次改动跑相关测试即可，全量子集留给推送前和 CI。
 
 ### 🔨 日常修改后（每次 git commit 前）
 
 - [ ] `ruff check .` — 零错误
 - [ ] `pyright src/` — 零错误、零警告
 - [ ] 新增代码有类型注解
-- [ ] `pytest <本次改动的相关测试文件>` — 全部通过
+- [ ] `python scripts/check.py` — 智能检测变更范围，跑对应测试
 - [ ] 新增功能有对应测试
 - [ ] `git diff --check` — 无空白字符错误
 
@@ -45,7 +47,7 @@ pytest -m slow         # 23 个慢测试（~11min）
 - [ ] `git diff --check` — 无空白字符错误
 - [ ] 代码审查已完成
 
-> **如需推送前验证全量测试**（架构变更、大重构）：手动 `make check`。
+> **如需推送前验证全量测试**（架构变更、大重构）：`python scripts/check.py --full`。
 
 ---
 
@@ -54,21 +56,21 @@ pytest -m slow         # 23 个慢测试（~11min）
 ## 三层测试策略
 
 ```
-pre-push hook → ruff + pyright + 快测试子集（~70s）    ← 每次推送自动
-GitHub CI     → ruff + pyright + 全量测试（含慢测试）   ← PR 合并前完整验证
-手动 make check → ruff + pyright + 全量测试             ← 大重构前自选
+pre-push hook   → ruff + pyright + 快测试子集（~70s）    ← 每次推送自动
+check.py        → ruff + pyright + 按变更选测试（~40s）   ← 日常开发推荐
+check.py --full → ruff + pyright + 全量子集（~3min）      ← 跨模块/推送前
+GitHub CI       → ruff + pyright + 全量测试（含慢测试）    ← PR 合并前完整验证
 ```
 
 ```bash
-# ✅ 日常开发：跑相关测试
-pytest tests/test_data/test_data_providers.py   # 改了 data 模块
-pytest tests/test_debate/                       # 改了 debate 模块
+# ✅ 日常开发：自动选模块
+python scripts/check.py                    # 改了 src/utils 只跑 test_utils
 
-# ✅ 推送前：hook 自动跑快子集
-pytest -m "not slow" -x --tb=short              # ~30s
+# ✅ 强制全量子集
+python scripts/check.py --full
 
-# ✅ 最终整合 / 大清理：全量测试
-pytest -v --tb=short                            # 全量，约 12min
+# ✅ 跟 main 分支比较变更
+python scripts/check.py --diff main
 ```
 
 ---
@@ -90,4 +92,4 @@ git push -u origin fix/ci-xxx
 
 ---
 
-> **最后更新**: 2026-06-22 | 三层测试策略（快/慢标记）
+> **最后更新**: 2026-06-23 | 新增 scripts/check.py 智能变更检测

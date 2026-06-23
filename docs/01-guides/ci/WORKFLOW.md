@@ -11,7 +11,7 @@
 以下任一情况触发本工作流：
 
 - `git push` 后 GitHub Actions 变红
-- 本地 `make check` 报错
+- 本地 `python scripts/check.py` 报错
 - 会话启动时 `resume-session` 检测到 CI 状态异常
 - Batch Loop 健康自检发现错误
 
@@ -25,7 +25,7 @@
 |:-----|:---------|:-----|
 | 推送后 | GitHub Actions 自动运行 | 变红即触发 |
 | 会话启动 | `resume-session` 检查 CI 状态 | 输出 CI 看板 |
-| Batch 收尾 | `make check` | 报错即阻塞提交 |
+| Batch 收尾 | `python scripts/check.py` | 报错即阻塞提交 |
 | 定时 | CI 状态看板 | 质量保障部定期审视 |
 
 ### 严重程度分级
@@ -59,7 +59,7 @@ CI 红了
 
 ```bash
 # 方式一：本地重现
-make check
+python scripts/check.py --full
 
 # 方式二：查看 GitHub Actions 日志
 # 浏览器打开 https://github.com/NoahLightryyy/litchi-head/actions
@@ -87,7 +87,7 @@ curl -s "https://api.github.com/repos/NoahLightryyy/litchi-head/actions/runs/RUN
 1. **最小改动原则** — 只改导致 CI 失败的部分，不改额外代码
 2. **文档同步** — 如果发现新根因，更新 `TROUBLESHOOTING.md`
 3. **登记债务** — 如果是长期问题（如架构导致），登记到 `ISSUES.md` 或对应部门 DEBT.md
-4. **双版本验证** — 修完后本地 `make check` 确认通过
+4. **双版本验证** — 修完后本地 `python scripts/check.py --full` 确认通过
 
 ---
 
@@ -95,7 +95,7 @@ curl -s "https://api.github.com/repos/NoahLightryyy/litchi-head/actions/runs/RUN
 
 ```bash
 # 1. 本地全量检查
-make check
+python scripts/check.py --full
 
 # 2. 提交并推送
 git add -A

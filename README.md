@@ -174,7 +174,9 @@ cp .env.example .env
 # 编辑 .env 填入 DEEPSEEK_API_KEY
 
 # 运行全部测试
-make check        # lint + type + test 一键完成
+python scripts/check.py          # 智能检测变更范围，按需跑测试（推荐）
+python scripts/check.py --full   # 强制全量子集
+make check                       # Linux/macOS 同 --full
 ```
 
 > 只需要 **DeepSeek API Key**（[平台申请](https://platform.deepseek.com/)），每月免费额度足够个人使用。

@@ -101,7 +101,7 @@ pytest -v --tb=short
 ```
 pre-push hook → ruff + pyright + 快测试子集（~35s）    ← 每次推送自动
 GitHub CI     → ruff + pyright + 全量测试（含慢测试）   ← PR 合并前完整验证
-手动 make check → ruff + pyright + 全量测试             ← 大重构前自选
+手动 python scripts/check.py --full → ruff + pyright + 全量子集             ← 大重构前自选
 ```
 
 **关键原则**：

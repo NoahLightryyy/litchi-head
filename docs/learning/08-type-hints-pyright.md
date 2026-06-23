@@ -138,7 +138,7 @@ include = ["src"]           # 只检查 src/
 
 > **类型注解必须完整 — Pyright basic mode 零错误通过**
 
-如果有文件类型注解不完整，`make check` 会失败，CI 也会挂。
+如果有文件类型注解不完整，`python scripts/check.py` 会失败，CI 也会挂。
 
 ---
 

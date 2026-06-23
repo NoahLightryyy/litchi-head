@@ -128,7 +128,7 @@ def print_rotation_guide() -> None:
     ║  3. 运行此脚本存储新密钥:                               ║
     ║     python scripts/store-api-keys.py                    ║
     ║  4. 验证系统运行正常                                    ║
-    ║     make check                                          ║
+    ║     python scripts/check.py --full                        ║
     ║  5. 清理 .env 中的旧密钥（已清空）                      ║
     ╚══════════════════════════════════════════════════════════╝
     """)

@@ -7,7 +7,7 @@ help:
 	@echo "  make lint     - Run Ruff code style/lint check"
 	@echo "  make type     - Run Pyright type checking on src/"
 	@echo "  make test     - Run pytest with verbose output"
-	@echo "  make check    - Run ALL checks (lint + type + test)"
+	@echo "  make check    - Run ALL checks (lint + type + test, delegates to scripts/check.py)"
 	@echo "  make clean    - Remove __pycache__ and .pyc files"
 	@echo ""
 	@echo "Docker (环境一致性，推荐):"
@@ -30,7 +30,8 @@ type:
 test:
 	pytest -v --tb=short
 
-check: lint type test
+check:
+	python scripts/check.py --full
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

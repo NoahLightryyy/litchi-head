@@ -52,8 +52,14 @@
 ### 推送前
 
 ```bash
-# 必须运行（本地能过的不要让 CI 抓）
-make check      # = ruff check . + pyright src/ + pytest -v --tb=short
+# 推荐（跨平台，自动检测变更范围）
+python scripts/check.py         # ruff + pyright + 按模块选测试
+
+# 跨模块变更/大重构用全量子集
+python scripts/check.py --full  # ruff + pyright + 全量子集（不含慢测试）
+
+# Linux/macOS 等同
+make check
 ```
 
 ### 推送后

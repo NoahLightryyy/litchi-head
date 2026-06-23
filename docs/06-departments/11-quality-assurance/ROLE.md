@@ -19,7 +19,7 @@ lead: AI
 3. **CI 门禁标准** — 什么算绿、什么算红、绿/黄/红分别怎么处理
 4. **CI 根因知识库** — `TROUBLESHOOTING.md` 维护各类型 CI 失败的排查与修复
 5. **CI 问题追踪** — `ISSUES.md` 记录 CI 系统本身的问题
-6. **本地拦截规范** — pre-push hook 规则、`make check` 执行标准、本地检查清单
+6. **本地拦截规范** — pre-push hook 规则、`python scripts/check.py` 执行标准、本地检查清单
 7. **CI 流程优化** — 跑慢了、误报了、该加新检查了——这个部门负责迭代
 
 ## ⛔ 我不该管的
@@ -45,7 +45,7 @@ lead: AI
 | 配置可靠 | CI 工作流变更必须经 PR 审查 | 不允许直接推 main |
 | 根因积累 | 每次 CI 修复后更新 TROUBLESHOOTING.md | 审查知识库更新 |
 | 问题追踪 | 每个 CI 问题有独立 ID，闭环归档 | ISSUES.md 状态跟踪 |
-| 本地拦截 | 能在本地 `make check` 抓到的错，不让 CI 抓 | 对比本地 vs CI 失败率 |
+| 本地拦截 | 能在本地 `python scripts/check.py` 抓到的错，不让 CI 抓 | 对比本地 vs CI 失败率 |
 | 响应时间 | P0 问题（全版本红）当前批次内响应 | 工作流程记录 |
 | 透明度 | CI 状态在 HANDOVER.md 全局可见 | 每个会话启动时检查 |
 
