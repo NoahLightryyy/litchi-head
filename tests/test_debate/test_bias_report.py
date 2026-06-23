@@ -4,7 +4,6 @@
 """
 
 import pytest
-
 from pydantic import TypeAdapter
 
 from src.debate.models import BiasReport, VoteSummary
