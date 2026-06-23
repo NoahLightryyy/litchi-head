@@ -70,6 +70,16 @@ last_updated: 2026-06-21
 | **FD-001e** 🥇 | **填充基本面占位符** — `format_market_brief()` 替换"暂无基本面数据"为真实数据 | FD-001c | ~1h |
 | **FD-003** 🥈 | **供应链数据调研** — 评估年报 PDF 解析前5大客户/供应商的可行性 | 无 | ~2h |
 
+### 用户经验反馈闭环（UI 系列，2026-06-23 新增）
+
+> 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
+> 数据管道部在闭环中负责：UserBehaviorStore 存储层 + 实际盈亏追踪。
+
+| UI | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **UI-1d** 🥇 | **UserBehaviorStore 存储层** — `data/user_profiles/` 目录 + JSONL 写入接口，按用户 ID 隔离（`src/callback/callbacks/ub_track.py` 中的 `UserBehaviorStore` 类归数据管道部维护）| RC-001 引擎 | ~1h |
+| **UI-2b** 🥇 | **实际盈亏追踪** — 用户卖出时回填 `actual_outcome` / `actual_return_pct` / `holding_days`；定时扫描未了结交易计算浮动盈亏 | UI-1d | ~1h |
+
 ### 数据流变更
 
 ```

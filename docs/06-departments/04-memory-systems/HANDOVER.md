@@ -58,6 +58,51 @@ last_updated: 2026-06-22
 |:--:|:-----|:----:|
 | **DP-006 关联** 🥈 | **反思记录存储** — MemoryStore 扩展命名空间 `reflection/` 用于存储 Agent 反思和镜子对比数据，每个 Agent 角色独立命名空间 | ~1h |
 
+### 结果回调核心引擎（RC-001，2026-06-23 新增 — 记忆系统部牵头）
+
+> **定位**：记忆系统部牵头 RC-001（回调核心引擎），因为其核心职责是回调状态持久化 + 事件分发。涉及 MemoryStore ("callback", *) 命名空间扩展。
+> 完整方案见 [ROADMAP.md RC 轨道](../../00-overview/ROADMAP.md#rc-结果回调轨道2026-06-23-新增--规划阶段)。
+
+| RC | 事项 | 预估 |
+|:--:|:-----|:----:|
+| **RC-001** 🥇 | **回调核心引擎** — `src/callback/` 模块：engine（ResultCallbackEngine 中央分发器）+ registry（注册表）+ storage（MemoryStore 持久化）+ models（事件模型）+ callbacks/（预置回调目录） | ~4h |
+
+**架构概览**：
+
+```
+src/callback/
+  __init__.py              # 公开 API
+  engine.py                # ResultCallbackEngine — 中央事件分发器
+  registry.py              # 回调注册表（注册/查找/优先级/冷却/自动禁用）
+  storage.py               # 回调状态持久化 → ("callback", "config"/"records"/"risk_override")
+  models.py                # CallbackEvent / CallbackConfig / CallbackRecord / CallbackEventType
+  callbacks/
+    __init__.py            # register_default_callbacks()
+    m3_ext.py              # RC-002: 按板块信任度校准
+    ub_track.py            # RC-003: 用户行为追踪
+    rp_tune.py             # RC-004: 风险参数自适应
+    calibrate.py           # RC-005: 置信度校准
+    strat_route.py         # RC-006: 策略路由
+```
+
+**MemoryStore 新命名空间**：
+
+| 命名空间 | 格式 | 用途 |
+|:---------|:----:|:------|
+| `("callback", "config")` | JSON | 每个回调的 CallbackConfig（key=回调名称）|
+| `("callback", "records")` | JSONL | 执行记录流（审计/调试）|
+| `("callback", "risk_override")` | JSON | 风险参数覆盖（key="current"）|
+| `("callback", "strategy_stats")` | JSON | 策略路由统计（key="route_table"）|
+
+### 用户经验反馈闭环（UI 系列，2026-06-23 新增 — 架构第9层）
+
+> 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
+> 记忆系统部在闭环中负责：RC-001 核心引擎（回调事件分发器 + 注册表 + 存储层）。
+
+| UI | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **UI-1a** 🥇 | **RC-001 回调核心引擎** — `src/callback/` 模块：engine（ResultCallbackEngine）+ registry + storage + models | 无 | ~4h |
+
 ### DP-006 反射存储接口
 
 ```python

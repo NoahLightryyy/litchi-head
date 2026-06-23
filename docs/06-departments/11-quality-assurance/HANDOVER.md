@@ -78,6 +78,18 @@ last_updated: 2026-06-22
 | **DP-004** | TrustTracker 新增旋钮 → 现有 54 个信任度测试不破坏 | ~10min |
 | **DP-005** | 灵感官 Agent 注册 → 不破坏现有辩论链路 | ~10min |
 
+### 用户经验反馈闭环回归验证（UI 系列）
+
+> 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
+> 质量保障部负责 UI 系列实施后的回归验证。
+
+| UI | 回归验证内容 | 预估 |
+|:--:|:-----------|:----:|
+| **UI-1a** | RC-001 回调引擎上线 → 全量测试不破坏；`tests/test_callback/` 新测试 80%+ 覆盖 | ~20min |
+| **UI-1b** | RC-003 用户操作 API → 现有 debate/backend 测试不回归 | ~15min |
+| **UI-3** | RetroBoard 前后端 → 现有前端 pnpm build 零错误 | ~10min |
+| **UI-4a** | 镜子 Agent → 现有大师 Agent 注册和辩论链路不受影响 | ~15min |
+
 ---
 
 > **最后更新**: 2026-06-21 | 创建

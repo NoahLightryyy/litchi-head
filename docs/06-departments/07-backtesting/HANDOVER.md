@@ -41,9 +41,10 @@ last_updated: 2026-06-21
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟢 | Monte Carlo 模拟（1000 次随机回测） | 无 |
-| 2 🟢 | 按市场环境分层回测报告 | 无 |
-| 3 🟢 | 性能基线建立（5 年日频 ≤ 10s） | 无 |
+| 1 🥈 | **UI-2c 回测集成 RC-004** — `BacktestEngine.run()` 末尾 dispatch `BACKTEST_COMPLETED` 事件到 ResultCallbackEngine，触发 RC-004 RP-TUNE 风险参数自适应 | RC-001 核心引擎 | ~30min |
+| 2 🟢 | Monte Carlo 模拟（1000 次随机回测） | 无 |
+| 3 🟢 | 按市场环境分层回测报告 | 无 |
+| 4 🟢 | 性能基线建立（5 年日频 ≤ 10s） | 无 |
 
 ---
 

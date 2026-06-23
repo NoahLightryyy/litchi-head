@@ -78,6 +78,44 @@ last_updated: 2026-06-23
 |:--:|:-----|:----|:----:|
 | **FD-001f** 🥇 | **辩论注入财务数据** — `collect_data_node` 新增调用 `DataCollector.get_financial_metrics()`，存入 `market_data["financials"]` | 数据管道部 FD-001d | ~1h |
 | **FD-001g** 🥇 | **基本面分析师增强** — 接收结构化 `FinancialMetric` 数据（不再是"暂无基本面数据"占位符） | FD-001f | ~1h |
+
+### 结果回调（RC 系列，2026-06-23 新增 — 架构级修复）
+
+> **背景**：M3 TrustTracker 有 `record_outcome()` API 但**从未被任何代码实际调用**，导致 M4 动态权重长期无数据可依赖。你需要"结果参数回调相关策略"——一个统一的事件分发机制。
+> 完整方案见 [ROADMAP.md RC 轨道](../../../00-overview/ROADMAP.md#rc-结果回调轨道2026-06-23-新增--规划阶段)。
+
+| RC | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **RC-002** 🥇 | **M3-EXT 按板块信任度校准** — `AgentOutcome.sector` 新增字段 + TrustTracker 按板块胜率 + 编排器集成（`record_outcome()` 自动调用） | 记忆系统部 RC-001 核心引擎 | ~2h |
+| **RC-005** 🥈 | **CALIBRATE 置信度校准** — Brier score 过高时自动注入校准提示或降低置信度贡献权重 | RC-002 | ~1h |
+| **RC-006** 🥉 | **STRAT-ROUTE 策略路由** — 追踪每位大师在不同市场条件下的胜率，持续不及格时自动降级 | RC-002 | ~2h |
+
+**关键变更**：
+
+```python
+# src/debate/trust.py — AgentOutcome 新增 sector 字段
+class AgentOutcome(BaseModel):
+    ...
+    sector: str = ""  # 🆕 板块标识（如 "食品饮料", "新能源"）
+
+# compute_weight_factor() 新增 sector 参数
+def compute_weight_factor(metrics: AgentTrustMetrics, sector: str = "") -> float:
+    # 提供 sector 时使用按板块胜率
+    if sector and metrics.sector_win_rates.get(sector):
+        win_rate = metrics.sector_win_rates[sector]
+    else:
+        win_rate = metrics.win_rate
+    ...
+
+# src/debate/orchestrator.py — run() 和 reflect_on_decision() 后 dispatch
+await self.callback_engine.dispatch(
+    CallbackEventType.ACTUAL_OUTCOME_RECEIVED,
+    source="orchestrator",
+    actual_outcome=outcome,
+    agent_analyses=result.analyses,
+    memory_store=self.memory_store,
+)
+```
 | **FD-001h** 🥇 | **大师知识过滤器扩展** — 巴菲特、格雷厄姆直接接收财务指标；林奇、达利欧通过分析师报告间接使用 | FD-001g | ~2h |
 
 ### 数据流变更
@@ -117,6 +155,18 @@ master_round（所有大师看到更高质量的分析师报告）
 ```
 
 > 基于 2026-06-22 设计哲学会议。完整背景见 [DESIGN_PHILOSOPHY.md](../../00-overview/DESIGN_PHILOSOPHY.md)。
+
+### 用户经验反馈闭环（UI 系列，2026-06-23 新增 — 架构第9层）
+
+> 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
+> 辩论引擎部在闭环中负责：M2 反思注入升级 + RC-002 M3-EXT + RC-005 CALIBRATE + RC-006 STRAT-ROUTE。
+
+| UI | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **UI-1a** 🥇 | **RC-002 M3-EXT 按板块信任度校准** — AgentOutcome.sector + TrustTracker 按板块胜率 | RC-001 核心引擎 | ~2h |
+| **UI-1b** 🥇 | **M2 反思注入升级** — 加入用户行为偏差维度（用户系统性逆 AI 操作模式） | RC-003 用户行为数据 | ~2h |
+| **UI-2a** 🥈 | **RC-005 CALIBRATE 置信度校准** — Brier score 过高时自动注入校准乘数 | UI-1a | ~1h |
+| **UI-4a** 🥉 | **RC-006 STRAT-ROUTE 策略路由** — 按市场条件追踪大师胜率、自动降级 | UI-1a | ~2h |
 
 | DP | 事项 | 预估 |
 |:--:|:-----|:----:|

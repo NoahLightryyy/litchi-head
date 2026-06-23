@@ -39,7 +39,19 @@ last_updated: 2026-06-21
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟢 | 增加更多 RiskProfile 场景测试（保守/激进/平衡） | 无 |
+| 1 🥈 | **RC-004 RP-TUNE 风险参数自适应** — 回测结果到达时，根据 max_drawdown / win_rate / sharpe 自动调整 stop_loss 和 position_size 覆盖值。通过 `CallbackStorage.load_risk_override()` 在风控辩论阶段消费 | 记忆系统部 RC-001（核心引擎）|
+| 2 🥈 | **UI-2b 用户经验反馈闭环·风控参与** — 用户操作偏差检测（连续逆 AI 操作 → 标记风险行为模式 → 风控辩论参考） | UI-1 用户行为数据积累 | ~1h |
+| 2 🟢 | 增加更多 RiskProfile 场景测试（保守/激进/平衡） | 无 |
+
+**RC-004 调优规则概要**：
+
+| 条件 | 调整 |
+|:-----|:------|
+| 最大回撤 > 8% | stop_loss_pct → min(当前, 5%)，max_single_position → min(当前, 15%) |
+| 最大回撤 > 5% 且夏普 < 0.5 | stop_loss_pct *= 0.8 |
+| 胜率 < 40% | max_single_position *= 0.8 |
+| 总交易 < 5 次 | 不做调整（样本不足）|
+| 最大回撤 > 10% 或夏普 < 0 | max_single_position → min(当前, 10%) |
 
 ---
 

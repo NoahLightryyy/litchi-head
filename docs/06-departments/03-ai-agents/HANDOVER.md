@@ -63,6 +63,15 @@ last_updated: 2026-06-21
 |:--:|:-----|:----:|
 | **DP-005** 🥇 | **灵感官 Agent** — 新增 `agents/agents_wild.py`，高随机性反共识分析师角色 | ~1h |
 
+### 用户经验反馈闭环（UI 系列，2026-06-23 新增）
+
+> 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
+> AI Agent 架构部在闭环中负责：DP-006 镜子 Agent 实现。
+
+| UI | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **UI-4a** 🥉 | **DP-006 镜子 Agent** — 新增 `src/agents/behavior_mirror.py`，继承 `BaseAgent`，输出 `BehaviorComparisonReport`（当前操作 vs 历史相似模式）。三段式解锁（1-9仅记录→10+出对比报告→30+可参与辩论）。代码参考 `docs/99-archive/USER-BEHAVIOR-MIRROR.md` 完整设计 | 后端 API 部 + 前端部 用户行为数据就绪 | ~3h |
+
 ### DP-005 灵感官设计要点
 
 | 属性 | 值 |

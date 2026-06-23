@@ -65,6 +65,24 @@ last_updated: 2026-06-21
 |:------:|:-----|:----:|
 | 1 🟢 | TD-054 CORS 改环境变量 | 无 |
 
+### 结果回调（RC 系列，2026-06-23 新增）
+
+> 完整方案见 [ROADMAP.md RC 轨道](../../00-overview/ROADMAP.md#rc-结果回调轨道2026-06-23-新增--规划阶段)。
+
+| RC | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **RC-003** 🥇 | **UB-TRACK 用户行为追踪 API** — 提供端点 `POST /api/user/action` 接收用户操作（buy/sell/hold/watch + 理由 + 分类），转发到 callback engine dispatch | 记忆系统部 RC-001 | ~1h |
+
+### 用户经验反馈闭环（UI 系列，2026-06-23 新增 — 架构第9层）
+
+> 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
+> 后端 API 部在闭环中负责：`POST /api/user/action` 端点 + RetroBoard API + 实际盈亏追踪。
+
+| UI | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **UI-1b** 🥇 | **`POST /api/user/action` 端点** — 接收前端用户操作 → dispatch USER_ACTION_RECORDED | RC-001 + RC-003 模型 | ~1h |
+| **UI-3a** 🥈 | **RetroBoard 后端 API** — `GET /api/retro/` 查询历史记录 + 聚合统计（准确率/胜率/最佳Agent） | UI-1 全部（数据积累） | ~2h |
+
 ### 基本面深度（FD 系列，2026-06-23 新增）
 
 > **⚠️ 后端 API 部有一项数据造假债务必须立即修复**：`backend/routers/market.py:_build_chain_map()` 用涨幅排序虚构产业链上游/中游/下游，违反项目"零造假数据"红线。

@@ -50,9 +50,23 @@ last_updated: 2026-06-22
 |:------:|:-----|:---------|
 | 🥇 | **FD-001 基本面数据接入** — 财务指标模型 + Provider 扩展 + 辩论注入 + 前端展示 | 数据管道部 + 辩论引擎部 + 后端 API 部 + 前端部 |
 | 🥇 | **FD-002 产业链修复** — 真实行业分类替换伪产业链数据 | 后端 API 部 + 前端部 |
+| 🥇 | **RC-001 结果回调核心引擎** — `src/callback/` 模块（中央事件分发器 + 注册表 + 存储层） | 记忆系统部（牵头）+ 全部部门（消费方） |
+| 🥇 | **RC-002 M3-EXT 按板块信任度校准** — 修复 `TrustTracker.record_outcome()` 从未被调用；新增按板块胜率追踪 | 辩论引擎部 + 记忆系统部 |
+| 🥇 | **RC-003 UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore + 操作理由记录 | 后端 API 部 + 前端部 + 数据管道部 |
+| 🥈 | **RC-004 RP-TUNE 风险参数自适应** — 回测结果 → 自动调止损/仓位 | 风控管理部 + 回测研究部 |
 | 🥈 | **FD-003 供应链图谱（调研评估）** — 年报 PDF 解析前5大客户/供应商可行性 | 数据管道部 |
+| 🥈 | **RC-005 CALIBRATE 置信度校准** — Brier score 过高时动态校准 | 辩论引擎部 |
+| 🥉 | **RC-006 STRAT-ROUTE 策略路由** — 按市场条件追踪大师胜率并自动降级 | 辩论引擎部 |
+| 🥉 | **UI-4a DP-006 镜子 Agent** — BehaviorComparisonReport，决策前历史对比提示，三段式解锁 | AI Agent 架构部 + 辩论引擎部 + 前端部 |
 | 🟡 | **TD-041 数据新鲜度标注** — 前端展示数据时效 | 数据管道部 + 前端部 |
 | 🟡 | **TD-059 性能基线** — 首次全链路性能测量 | 所有部门 |
+
+> RC 系列 = Result Callback（结果回调引擎），基于 2026-06-23 架构审视。
+> 当前系统的"结果反馈"只有 M3 trust_weight_factor 一个维度，且 record_outcome() 从未被实际调用。
+> 完整方案见 [docs/00-overview/ROADMAP.md](../../00-overview/ROADMAP.md) RC 轨道。
+
+> **UI 用户经验反馈闭环** — 架构图第 9 层的完整实施计划，把 RC 公式层 + DP-006 镜子层 + R4 RetroBoard 合为一条完整闭环。
+> 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
 
 > FD 系列 = Financial Depth（基本面深度），基于 2026-06-23 机构级基本面分析调研结论。
 > 完整调研报告见 [FUNDAMENTAL_RESEARCH.md](../../02-requirements/FUNDAMENTAL_RESEARCH.md)。
