@@ -183,3 +183,53 @@ class TestVoteSummaryBiasIntegration:
         assert restored.bias_report.bullish_count == 3
         assert restored.bias_report.consensus_type == "Divided"
         assert restored.bias_report.overall_bias == pytest.approx(1/6, abs=0.001)
+
+
+class TestComputeBiasReport:
+    """compute_bias_report 函数测试"""
+
+    def test_empty_distribution(self) -> None:
+        """空分布返回默认 BiasReport"""
+        from src.debate.orchestrator import compute_bias_report
+        r = compute_bias_report({})
+        assert r.total_count == 0
+        assert r.overall_bias == 0.0
+        assert r.consensus_type == "Neutral"
+
+    def test_bullish_majority(self) -> None:
+        """看涨 4 看跌 1 中性 1 → Bullish"""
+        from src.debate.orchestrator import compute_bias_report
+        r = compute_bias_report({"Bullish": 4, "Bearish": 1, "Neutral": 1})
+        assert r.consensus_type == "Bullish"
+        assert r.overall_bias == pytest.approx(0.5, abs=0.001)
+        assert r.consensus_strength == pytest.approx(4/6, abs=0.001)
+
+    def test_bearish_majority(self) -> None:
+        """看跌 5 看涨 1 → Bearish"""
+        from src.debate.orchestrator import compute_bias_report
+        r = compute_bias_report({"Bullish": 1, "Bearish": 5})
+        assert r.consensus_type == "Bearish"
+        assert r.overall_bias == pytest.approx(-4/6, abs=0.001)
+
+    def test_all_neutral(self) -> None:
+        """全中性 → Neutral"""
+        from src.debate.orchestrator import compute_bias_report
+        r = compute_bias_report({"Neutral": 5})
+        assert r.consensus_type == "Neutral"
+        assert r.overall_bias == 0.0
+        assert r.consensus_strength == 1.0
+
+    def test_even_split(self) -> None:
+        """2 看涨 2 看跌 2 中性 → Divided"""
+        from src.debate.orchestrator import compute_bias_report
+        r = compute_bias_report({"Bullish": 2, "Bearish": 2, "Neutral": 2})
+        assert r.consensus_type == "Divided"
+        assert r.overall_bias == 0.0
+        assert r.consensus_strength == pytest.approx(2/6, abs=0.001)
+
+    def test_exact_50_percent_not_divided(self) -> None:
+        """3/6 = 0.5, 不大于 0.5 → Divided"""
+        from src.debate.orchestrator import compute_bias_report
+        r = compute_bias_report({"Bullish": 3, "Bearish": 2, "Neutral": 1})
+        assert r.consensus_type == "Divided"
+        assert r.overall_bias == pytest.approx(1/6, abs=0.001)

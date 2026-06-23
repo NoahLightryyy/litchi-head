@@ -58,7 +58,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `9029839` — DP-002 D1 三段式互评落地（模型+prompt+测试+文档五同步） |
+| **最新提交** | `1340669` — DP-003 BiasReport 模型定义 — Pydantic model + 场景测试 |
 | **全量测试** | 943 collected, 全部通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
@@ -94,7 +94,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 |:------:|:-----|:---------|:----:|
 | 1 ✅ | ~~**DP-001 模型瘦身** — 只留 DeepSeek，删 OpenAI/Anthropic，保留接口~~ | 基础设施部 | ✅ 已完成 |
 | 2 ✅ | **DP-002 D1 同侪审阅** — 从"反驳"改为"赞同+补充+异议"三段式 | 辩论引擎部 | ✅ 已完成 |
-| 3 🔵 | **DP-003 偏斜公示** — 每次辩论产出偏斜度统计 | 辩论引擎部 + 前端部 | ~2h |
+| 3 ✅ | **DP-003 偏斜公示** — 每次辩论产出偏斜度统计 | 辩论引擎部 + 前端部 | ✅ 已完成 |
 | 4 🔵 | **DP-004 旋钮扩展** — TrustTracker 增加发言顺序/参与资格/置信度校准 | 辩论引擎部 | ~2h |
 | 5 🔵 | **DP-005 灵感官 Agent** — 高随机性反共识分析师 | AI Agent 架构部 | ~1h |
 | 6 🔵 | **DP-006 镜子反思** — 历史对比展示，辅助用户决策 | 辩论引擎部 + 前端部 | ~3h |
@@ -172,4 +172,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-06-23 | DP-002 D1 三段式互评落地 — RebuttalAnalysis 模型三段式改造 + prompt 升级 + 25 测试 + 6 文档同步
+> **最后更新**：2026-06-23 | DP-003 偏斜公示落地 — BiasReport 模型 + compute_bias_report + 22 测试 + to_summary_dict/前端类型/学习卡片

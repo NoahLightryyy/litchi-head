@@ -322,6 +322,15 @@ class DebateResult(BaseModel):
             "置信度": round(vs.confidence, 2),
             "评级分布": vs.rating_distribution,
             "方向分布": vs.direction_distribution,
+            # ── DP-003: 偏斜公示 ─────────────────────
+            "偏斜报告": {
+                "总体偏斜": vs.bias_report.overall_bias,
+                "共识强度": vs.bias_report.consensus_strength,
+                "共识类型": vs.bias_report.consensus_type,
+                "看涨": vs.bias_report.bullish_count,
+                "看跌": vs.bias_report.bearish_count,
+                "观望": vs.bias_report.neutral_count,
+            },
             "总耗时(ms)": round(self.total_latency_ms, 0),
         }
         if self.review_round is not None:

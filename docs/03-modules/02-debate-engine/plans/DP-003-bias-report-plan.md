@@ -438,13 +438,13 @@ cd e:/litchi-head && python -m pytest tests/test_debate/test_bias_report.py -v 2
 
 Expected: ~21 tests all PASS
 
-- [ ] **Step 5: 运行全量测试确认无回归**
+- [ ] **Step 5: 运行偏斜测试确认通过**
 
 ```bash
-cd e:/litchi-head && python -m pytest tests/test_debate/ -v 2>&1 | tail -20
+cd e:/litchi-head && python -m pytest tests/test_debate/test_bias_report.py -v
 ```
 
-Expected: 全部 PASS（之前 235 + 新增 ~21 = ~256）
+Expected: ~22 tests all PASS（只跑改动模块，全量需用户批准）
 
 - [ ] **Step 6: Commit**
 
@@ -580,11 +580,13 @@ print(f"偏斜度={r3.overall_bias}, 共识={r3.consensus_type}")
 > **关联卡片**: [M4 动态权重](../debate-dynamic-weight.md) | [VoteSummary 投票汇总](../debate-vote-summary.md)
 ```
 
-- [ ] **Step 4: 运行全量测试确认无回归**
+- [ ] **Step 4: 运行偏斜测试确认通过**
 
 ```bash
-cd e:/litchi-head && python -m pytest tests/ -x -q 2>&1 | tail -5
+cd e:/litchi-head && python -m pytest tests/test_debate/test_bias_report.py -v
 ```
+
+> ⚠️ 全量测试需要用户批准。不改动涉及模块外的代码时，只跑改动模块的测试。
 
 - [ ] **Step 5: 同步 HANDOVER 文档**
 

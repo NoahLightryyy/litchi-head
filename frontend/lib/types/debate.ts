@@ -29,6 +29,21 @@ export interface AgentAnalysis {
   latency_ms: number;
 }
 
+/* ── DP-003: 偏斜公示 ───────────────────────────── */
+export interface BiasReport {
+  bullish_count: number;
+  bearish_count: number;
+  neutral_count: number;
+  total_count: number;
+  bullish_ratio: number;
+  bearish_ratio: number;
+  neutral_ratio: number;
+  overall_bias: number;
+  consensus_strength: number;
+  consensus_type: 'Bullish' | 'Bearish' | 'Neutral' | 'Divided';
+  historical_avg_bias: number;
+}
+
 export interface VoteSummary {
   consensus: string;
   weighted_score: number;
@@ -38,6 +53,7 @@ export interface VoteSummary {
   trust_weight_factors: Record<string, number>;
   review_score: number;
   review_rating: string;
+  bias_report: BiasReport;
 }
 
 export interface DebateResult {

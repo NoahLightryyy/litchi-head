@@ -61,6 +61,7 @@ from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E4
 from src.debate.models import (  # noqa: E402
     AgentAnalysis,
     AnalystReport,
+    BiasReport,
     DebateInput,
     DebateResult,
     IndependentReview,
@@ -987,6 +988,57 @@ def make_review_report_node():
     return review_report_node
 
 
+def compute_bias_report(direction_distribution: dict[str, int]) -> BiasReport:
+    """从方向分布计算偏斜报告
+
+    Args:
+        direction_distribution: {"Bullish": int, "Bearish": int, "Neutral": int}
+
+    Returns:
+        计算后的 BiasReport
+
+    Note:
+        纯计算函数，当 total == 0 时返回默认 BiasReport。
+    """
+    bullish = direction_distribution.get("Bullish", 0)
+    bearish = direction_distribution.get("Bearish", 0)
+    neutral = direction_distribution.get("Neutral", 0)
+    total = bullish + bearish + neutral
+
+    if total == 0:
+        return BiasReport()
+
+    bullish_r = round(bullish / total, 4)
+    bearish_r = round(bearish / total, 4)
+    neutral_r = round(neutral / total, 4)
+    overall_bias = round((bullish - bearish) / total, 4)
+    consensus_strength = round(max(bullish, bearish, neutral) / total, 4)
+
+    # ── 共识类型判定 ──
+    if max(bullish, bearish, neutral) / total > 0.5:
+        if bullish > bearish and bullish > neutral:
+            consensus_type = "Bullish"
+        elif bearish > bullish and bearish > neutral:
+            consensus_type = "Bearish"
+        else:
+            consensus_type = "Neutral"
+    else:
+        consensus_type = "Divided"
+
+    return BiasReport(
+        bullish_count=bullish,
+        bearish_count=bearish,
+        neutral_count=neutral,
+        total_count=total,
+        bullish_ratio=bullish_r,
+        bearish_ratio=bearish_r,
+        neutral_ratio=neutral_r,
+        overall_bias=overall_bias,
+        consensus_strength=consensus_strength,
+        consensus_type=consensus_type,
+    )
+
+
 async def aggregate_node(state: DebateState) -> dict:
     """投票聚合节点 —— 汇总所有大师分析
 
@@ -1083,6 +1135,9 @@ async def aggregate_node(state: DebateState) -> dict:
         weighted_score_sum += use_score * use_confidence * combined_factor
         total_weight += use_confidence * combined_factor
 
+    # ── DP-003: 偏斜公示 ────────────────────────────
+    bias_report = compute_bias_report(dir_dist)
+
     avg_score = total_score / len(successful)
     weighted_score = weighted_score_sum / total_weight if total_weight > 0 else avg_score
 
@@ -1154,6 +1209,7 @@ async def aggregate_node(state: DebateState) -> dict:
             consensus_support=round(consensus_support, 2),
             # ── M4: 信任度权重因子 ───────────────────
             trust_weight_factors=trust_weight_factors,
+            bias_report=bias_report,  # ← DP-003 追加
         )
     }
 
