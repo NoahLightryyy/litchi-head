@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -122,6 +122,50 @@ class AgentAnalysis(BaseModel):
     direction: str = "Neutral"  # D2: 强制方向判断（Bullish/Bearish/Neutral）
 
 
+# ═══════════════════════════════════════════════════
+# BiasReport — DP-003 偏斜公示（2026-06-23 新增）
+# ═══════════════════════════════════════════════════
+
+
+class BiasReport(BaseModel):
+    """辩论产出偏斜度报告
+
+    在 D4 聚合阶段从 direction_distribution 计算得出，
+    反映群体情绪的偏斜方向和观点集中程度。
+    纯计算，不增加 LLM 调用。
+
+    Attributes:
+        bullish_count: 看涨观点数
+        bearish_count: 看跌观点数
+        neutral_count: 中性/观望观点数
+        total_count: 总观点数
+        bullish_ratio: 看涨占比 (0.0-1.0)
+        bearish_ratio: 看跌占比 (0.0-1.0)
+        neutral_ratio: 中性占比 (0.0-1.0)
+        overall_bias: 总体偏斜度 (-1 到 +1)
+            (bullish - bearish) / total
+            +1=全体看涨, -1=全体看跌, 0=均衡或全中性
+        consensus_strength: 共识强度 (0.0-1.0)
+            max(bullish, bearish, neutral) / total
+            高=观点集中, 低=分歧大
+        consensus_type: 共识类型
+            "Bullish" | "Bearish" | "Neutral" | "Divided"
+        historical_avg_bias: 历史平均偏斜度（占位，待持久化实现）
+    """
+
+    bullish_count: int = 0
+    bearish_count: int = 0
+    neutral_count: int = 0
+    total_count: int = 0
+    bullish_ratio: float = 0.0
+    bearish_ratio: float = 0.0
+    neutral_ratio: float = 0.0
+    overall_bias: float = 0.0
+    consensus_strength: float = 0.0
+    consensus_type: Literal["Bullish", "Bearish", "Neutral", "Divided"] = "Neutral"
+    historical_avg_bias: float = 0.0
+
+
 class VoteSummary(BaseModel):
     """投票汇总
 
@@ -159,6 +203,9 @@ class VoteSummary(BaseModel):
     consensus_support: float = 0.5
     # ── M4: 信任度权重因子 ───────────────────────────
     trust_weight_factors: dict[str, float] = Field(default_factory=dict)
+
+    # ── DP-003: 偏斜公示 ────────────────────────────
+    bias_report: BiasReport = Field(default_factory=BiasReport)
 
 
 class IndependentReview(BaseModel):
@@ -365,6 +412,7 @@ class DebateResult(BaseModel):
 __all__ = [
     "AgentAnalysis",
     "AnalystReport",
+    "BiasReport",
     "DebateInput",
     "DebateResult",
     "IndependentReview",
