@@ -10,8 +10,8 @@
 | 你在干嘛 | 读这个 | 行数 |
 |:---------|:-------|:----:|
 | 🚀 **开新会话**、判断部门、加载角色 | [workflow/STARTUP.md](workflow/STARTUP.md) | ~200 |
-| 🔨 **日常开发**、代码规范、Agent 编排 | [workflow/DEVELOPMENT.md](workflow/DEVELOPMENT.md) | ~350 |
-| ✅ **会话收尾**、写日志、管债务、更新文档 | [workflow/CLOSING.md](workflow/CLOSING.md) | ~200 |
+| 🔨 **日常开发**、代码规范、Agent 编排 | [workflow/DEVELOPMENT.md](workflow/DEVELOPMENT.md) | ~360 |
+| ✅ **会话收尾**、**强制闸门**、写日志、管债务、更新文档 | [workflow/CLOSING.md](workflow/CLOSING.md) | ~250 |
 | ⚠️ **审视清单**、阻塞、上下文耗尽 | [workflow/EMERGENCIES.md](workflow/EMERGENCIES.md) | ~120 |
 
 ---
@@ -27,13 +27,13 @@
   └─ 已经在干活了？
         │
         ├─ 🔨 正常开发 → workflow/DEVELOPMENT.md
-        │     （功能步骤 → 文档同步 → 代码质量）
+        │     （功能步骤 → 文档同步 → 代码质量 → 交付闸门）
         │
         ├─ ⚠️ 遇到问题 → workflow/EMERGENCIES.md
         │     （审视清单 → 阻塞 → 上下文耗尽）
         │
-        └─ ✅ 干完了要收尾 → workflow/CLOSING.md
-              （日志 → 债务 → 看板 → 提交）
+        └─ ✅ 功能完成/会话结束 → workflow/CLOSING.md
+              （§1 强制闸门 → §2 完整收尾 → 日志/债务/看板/提交）
 ```
 
 ---
@@ -47,6 +47,7 @@
 | **优先序** | 安全/数据 → 阻塞 → 核心功能 → 可维护性 → 整洁 |
 | **债务必登记** | 发现就写，不写就是欠账不还 |
 | **质量红线** | hook 自动 ruff + pyright + 快测试子集（~70s），23 个慢测试 CI 负责 |
+| **交付闸门** | 每个功能完成 → 问"下个方向"前 → 必须走 CLOSING.md §1 强制闸门 |
 
 ---
 
