@@ -114,7 +114,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 1. **所有 LLM 调用必经 `src/utils/llm.py`** — 不得直接实例化 `ChatDeepSeek` / `ChatOpenAI`
 2. **Pydantic 作为模块间数据契约** — `@dataclass` 仅限模块内部，跨模块传递用 `BaseModel`
 3. **类型注解必须完整** — Pyright basic mode 零错误
-4. **四同步原则** — 代码 + 测试 + 文档 + 债务日志同步更新
+4. **五同步原则** — 代码 + 测试 + 文档 + 债务日志 + **引用清理**同步更新
 5. **Agent 输出结构化** — 含评分/证据/置信度，非纯文本
 6. **LLMService 调用走 `LLMConfig`** — 不硬编码 temperature/max_tokens
 

@@ -35,6 +35,7 @@ make check                       # 同 --full（委托给 check.py）
 - [ ] `python scripts/check.py` — 智能检测变更范围，跑对应测试
 - [ ] 新增功能有对应测试
 - [ ] `git diff --check` — 无空白字符错误
+- [ ] `git diff --name-only --diff-filter=A` — 如有新增文件，搜索旧方案/旧命令/旧路径是否还有残留引用
 
 ### 📤 推送前（每次 git push 前）
 
@@ -46,6 +47,7 @@ make check                       # 同 --full（委托给 check.py）
 - [ ] `pytest -m "not slow" -x --tb=short` — 快测试子集通过（hook 自动）
 - [ ] `git diff --check` — 无空白字符错误
 - [ ] 代码审查已完成
+- [ ] 引用清理：本次新增的文件是否有旧方案残留未清理？搜索确认
 
 > **如需推送前验证全量测试**（架构变更、大重构）：`python scripts/check.py --full`。
 

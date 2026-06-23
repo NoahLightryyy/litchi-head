@@ -247,7 +247,7 @@ pattern: "# type: ignore(?!\\[)"
 | 模块 | 关系 |
 |:-----|:-----|
 | 所有 `src/` 模块 | 被检查对象 |
-| `docs/` 全目录 | 三同步检查对象 |
+| `docs/` 全目录 | 五同步检查对象（含引用清理） |
 | `.github/workflows/ci.yml` | Layer 3 载体 |
 | `pyproject.toml` | 工具配置托管 |
 | `.claude/settings.json` | hooks 配置托管 |
