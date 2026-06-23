@@ -58,7 +58,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `dfcbd3b` — docs: 文档收尾 — 三层测试策略定案 + 学习卡片 #20 + 日志同步 |
+| **最新提交** | `36d1b85` — docs: check.py 流程闭环 — 删除 check.ps1，24 处文档统一指向
 | **全量测试** | 943 collected, 全部通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
@@ -92,18 +92,16 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 | 优先级 | 事项 | 牵头部门 | 预估 |
 |:------:|:-----|:---------|:----:|
-| 1 ✅ | ~~**TD-039 API 速率限制** — debate/run 限流~~ | 后端 API 部 | ✅ 已关闭 |
-| 2 ✅ | ~~**TD-040 LLM fallback 链** — 已取消（单 provider 策略）~~ | 基础设施部 | 🗑️ 关闭 |
-| 3 ✅ | ~~**DP-001 模型瘦身** — 只留 DeepSeek，删 OpenAI/Anthropic，保留接口~~ | 基础设施部 | ✅ 已完成 |
-| 4 🔵 | **DP-002 D1 同侪审阅** — 从"反驳"改为"赞同+补充+异议"三段式 | 辩论引擎部 | ~1h |
-| 5 🔵 | **DP-003 偏斜公示** — 每次辩论产出偏斜度统计 | 辩论引擎部 + 前端部 | ~2h |
-| 6 🔵 | **DP-004 旋钮扩展** — TrustTracker 增加发言顺序/参与资格/置信度校准 | 辩论引擎部 | ~2h |
-| 7 🔵 | **DP-005 灵感官 Agent** — 高随机性反共识分析师 | AI Agent 架构部 | ~1h |
-| 8 🔵 | **DP-006 镜子反思** — 历史对比展示，辅助用户决策 | 辩论引擎部 + 前端部 | ~3h |
-| 9 🟡 | **DP-007 信息隔离** — StateGraph 只传结构化摘要，裁剪 state | 辩论引擎部 | ~2h |
-| 10 🟡 | **TD-041 数据新鲜度标注** — 采集时间戳 + 前端展示 | 数据管道部 + 前端部 | ~2h |
-| 11 🟢 | **orchestrator.py 拆分** — 1622 行 → orchestrator/nodes/ | 辩论引擎部 | — |
-| 12 🔴 | **CI-001 修复** — 18/20 连红根因，需获取 GH Actions 日志 | 质量保障部 | — |
+| 1 ✅ | ~~**DP-001 模型瘦身** — 只留 DeepSeek，删 OpenAI/Anthropic，保留接口~~ | 基础设施部 | ✅ 已完成 |
+| 2 🟢 | **DP-002 D1 同侪审阅** — 从"反驳"改为"赞同+补充+异议"三段式 | 辩论引擎部 | ~1h |
+| 3 🔵 | **DP-003 偏斜公示** — 每次辩论产出偏斜度统计 | 辩论引擎部 + 前端部 | ~2h |
+| 4 🔵 | **DP-004 旋钮扩展** — TrustTracker 增加发言顺序/参与资格/置信度校准 | 辩论引擎部 | ~2h |
+| 5 🔵 | **DP-005 灵感官 Agent** — 高随机性反共识分析师 | AI Agent 架构部 | ~1h |
+| 6 🔵 | **DP-006 镜子反思** — 历史对比展示，辅助用户决策 | 辩论引擎部 + 前端部 | ~3h |
+| 7 🟡 | **DP-007 信息隔离** — StateGraph 只传结构化摘要，裁剪 state | 辩论引擎部 | ~2h |
+| 8 🟡 | **TD-041 数据新鲜度标注** — 采集时间戳 + 前端展示 | 数据管道部 + 前端部 | ~2h |
+| 9 🟢 | **orchestrator.py 拆分** — 1622 行 → orchestrator/nodes/ | 辩论引擎部 | — |
+| 10 🟢 | 🛠️ **scripts/check.py 智能 CI 检查** — 自动按变更范围选测试，跨平台 | 质量保障部 | ✅ 已完成 |
 
 各部门的详细下一步 → 看各自 `HANDOVER.md` 的"下一步优先级"节。
 
@@ -143,7 +141,7 @@ result.data.summary  # Pyright 可校验 ✅
 | pandas 类型反复 | 必须 `str(row["col"])` 显式转换 | ✅ 已记录 |
 | CI 红着没人修 | Batch Loop 收尾前自动跑 `ruff check .` + `pyright src/` | ✅ |
 | Windows torch crash | `__init__.py` 惰性导入 | ✅ 已解 |
-| Pre-push 跑全量测试太慢 | 三层测试策略：hook 跑 `ruff + pyright + 快测试子集`（~70s），23 个 `@pytest.mark.slow` 慢测试交 CI | ✅ 2026-06-22 |
+| 手动 make check 跑全量测试太慢 + Windows 无 make | `scripts/check.py` 跨平台替代 + 智能按变更选测试（~40s 日常，~3min 全量子集） | ✅ 2026-06-23 |
 
 ### pandas 类型模式（必须遵守）
 
@@ -174,4 +172,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-06-22 | 设计哲学会议：DP-001~DP-007 任务下放，DESIGN_PHILOSOPHY.md 创建，TD-040 关闭，CI 状态转🟢
+> **最后更新**：2026-06-23 | DP-001 落地 + scripts/check.py 创建 + 全流程闭环（24 处文档统一），check.ps1 退役
