@@ -1,7 +1,7 @@
 ---
 department: 辩论引擎部
 codebase: src/debate/
-last_updated: 2026-06-22
+last_updated: 2026-06-23
 ---
 
 # 🎯 辩论引擎部工作交接
@@ -13,7 +13,7 @@ last_updated: 2026-06-22
 | 子系统 | 状态 | 说明 |
 |:-------|:----:|:------|
 | 9 层辩论链路（data→analyst→review→vote→risk→trader→pm→reflection→summary） | ✅ | LangGraph StateGraph 编排 |
-| D1 交叉审阅 + 反驳 | ✅ | 大师间双向审阅 |
+| D1 交叉审阅（赞同+补充+异议三段式） | ✅ | 大师间双向三段式互评 |
 | D2 强制输出方向 | ✅ | 按市场环境约束辩论方向 |
 | D3 独立评审 | ✅ | 第三方独立评判 |
 | D4 加权投票汇总 | ✅ | 含 M3 信任度因子叠加 |
@@ -28,7 +28,7 @@ last_updated: 2026-06-22
 | 测试集 | 测试数 |
 |:-------|:------:|
 | 辩论编排器（test_orchestrator） | 17 |
-| D1 交叉审阅（test_d1_cross_review） | 25 |
+| D1 交叉审阅（test_d1_cross_review） | 25（✅ DP-002 三段式改造） |
 | D2 方向约束（test_d2_direction） | 31 |
 | D3 独立评审（test_d3_independent） | 23 |
 | M1 历史注入（test_m1_history） | 22 |
@@ -76,7 +76,7 @@ last_updated: 2026-06-22
 
 | DP | 事项 | 预估 |
 |:--:|:-----|:----:|
-| **DP-002** 🥇 | **D1 同侪审阅** — prompt 从"反驳"改为"赞同+补充+异议"三段式审阅，测试验证输出结构变化但无回归 | ~1h |
+| **DP-002** 🥇 | **D1 同侪审阅** — prompt 从"反驳"改为"赞同+补充+异议"三段式审阅，测试验证输出结构变化但无回归 | ✅ 已完成 |
 | **DP-003** 🥇 | **偏斜公示** — D4 聚合后统计正面/负面观点比例，输出偏斜度（`BiasReport`）供前端消费 | ~1h |
 | **DP-004** 🥇 | **TrustTracker 旋钮扩展** — 增加 `发言顺序权重`、`参与资格阈值`、`置信度校准系数` 三种新旋钮，全用公式计算不经过 LLM | ~2h |
 | **DP-006** 🥈 | **镜子反思** — 辩论结束后产出一份历史对比（上次类似市况谁的判断准），展示给用户看，不自动注入 | ~2h |
@@ -102,7 +102,7 @@ class BiasReport:
 | 文件 | 说明 |
 |:-----|:------|
 | `src/debate/trust.py` | 759 行 → 扩展旋钮（DP-004） |
-| `src/debate/analysts.py` | 135 行 → 修改 D1 prompt（DP-002） |
+| `src/debate/orchestrator.py` | 1622 行 → DP-002 修改 review prompt 为三段式 |
 | `src/debate/models.py` | 368 行 → 加 `BiasReport`、`MirrorReport` |
 | `src/debate/orchestrator.py` | 1622 行 → state 裁剪（DP-007）
 

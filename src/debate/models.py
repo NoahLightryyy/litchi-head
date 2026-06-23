@@ -19,27 +19,33 @@ if TYPE_CHECKING:
 
 
 class RebuttalAnalysis(BaseModel):
-    """单个大师对同行观点的审阅与反驳
+    """单个大师对同行观点的审阅与回应（赞同+补充+异议三段式）
 
     在第二轮交叉审阅中，每位大师查看所有同行的分析后生成此结构。
+    采用"赞同+补充+异议"三段式结构，替代原有的单一反驳字段。
+
     调用方在 adjusted_rating/adjusted_score/adjusted_confidence 为 None 时
     应使用原始 AgentAnalysis 中的对应值。
 
     Attributes:
-        agent_name: 产生此反驳的 Agent 名称
+        agent_name: 产生此回应的 Agent 名称
         original_agreement: 对原分析的共识度 (0.0–1.0), 0.5 为中性
-        rebuttal: 反驳或补充的核心观点文本
+        agreement: 赞同 — 认可同行的哪些观点
+        supplement: 补充 — 额外信息、数据或分析角度
+        objection: 异议 — 不认同哪些观点及理由
         adjusted_rating: 调整后评级（None 表示未调整）
         adjusted_score: 调整后评分（1-100, None 表示未调整）
         adjusted_confidence: 调整后置信度 (0.0–1.0, None 表示未调整)
-        key_counterpoints: 反驳要点列表
+        key_counterpoints: 关键要点列表
         peer_influences: 受同行影响的说明
         latency_ms: 调用耗时（毫秒）
     """
 
     agent_name: str
     original_agreement: float = 0.5
-    rebuttal: str = ""
+    agreement: str = ""
+    supplement: str = ""
+    objection: str = ""
     adjusted_rating: str | None = None
     adjusted_score: int | None = None
     adjusted_confidence: float | None = None

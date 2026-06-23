@@ -58,7 +58,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `36d1b85` — docs: check.py 流程闭环 — 删除 check.ps1，24 处文档统一指向
+| **最新提交** | `9029839` — DP-002 D1 三段式互评落地（模型+prompt+测试+文档五同步） |
 | **全量测试** | 943 collected, 全部通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
@@ -93,7 +93,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 优先级 | 事项 | 牵头部门 | 预估 |
 |:------:|:-----|:---------|:----:|
 | 1 ✅ | ~~**DP-001 模型瘦身** — 只留 DeepSeek，删 OpenAI/Anthropic，保留接口~~ | 基础设施部 | ✅ 已完成 |
-| 2 🟢 | **DP-002 D1 同侪审阅** — 从"反驳"改为"赞同+补充+异议"三段式 | 辩论引擎部 | ~1h |
+| 2 ✅ | **DP-002 D1 同侪审阅** — 从"反驳"改为"赞同+补充+异议"三段式 | 辩论引擎部 | ✅ 已完成 |
 | 3 🔵 | **DP-003 偏斜公示** — 每次辩论产出偏斜度统计 | 辩论引擎部 + 前端部 | ~2h |
 | 4 🔵 | **DP-004 旋钮扩展** — TrustTracker 增加发言顺序/参与资格/置信度校准 | 辩论引擎部 | ~2h |
 | 5 🔵 | **DP-005 灵感官 Agent** — 高随机性反共识分析师 | AI Agent 架构部 | ~1h |
@@ -172,4 +172,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-06-23 | DP-001 落地 + scripts/check.py 创建 + 全流程闭环（24 处文档统一），check.ps1 退役
+> **最后更新**：2026-06-23 | DP-002 D1 三段式互评落地 — RebuttalAnalysis 模型三段式改造 + prompt 升级 + 25 测试 + 6 文档同步

@@ -4,7 +4,7 @@
   1. collect_data — 采集行情 + K线 + 新闻
   2. analyst_round — 4 位专业分析师（基本面/技术面/情绪面/宏观面）
   3. master_round — 策略师基于分析师报告综合判断
-  4. review_round — D1 交叉审阅+反驳
+  4. review_round — D1 交叉审阅（赞同+补充+异议三段式）
   5. review_report — D3 独立评审
   6. aggregate — 加权投票汇总（D4 评审修正字段）
   8. risk_round（可选） — R1 三层风控审核
@@ -582,19 +582,22 @@ async def _run_review_for_master(
             review_prompt += f"\n{reflection_context}\n"
 
         review_prompt += (
-            "\n请基于以上所有信息，重新审视你的原始判断。请输出结构化回应：\n"
+            "\n请基于以上所有信息，重新审视你的原始判断。请以三段式格式输出回应：\n"
             "1. 你对同行观点的共识度（0.0 完全不同意 - 1.0 完全同意）\n"
-            "2. 你的反驳或补充观点\n"
-            "3. 调整后的评级（看涨/看跌/中性/谨慎/观望，或留空表示不变）\n"
-            "4. 调整后的评分（1-100，或 0 表示不变）\n"
-            "5. 调整后的置信度（0.0-1.0，或 0.0 表示不变）\n"
-            "6. 关键反驳要点\n"
-            "7. 受哪位同行影响的说明\n"
+            "2. **赞同**：你认可同行的哪些观点？\n"
+            "3. **补充**：你有什么额外信息、数据或分析角度要补充？\n"
+            "4. **异议**：你不认同同行的哪些观点？理由是什么？\n"
+            "5. 调整后的评级（看涨/看跌/中性/谨慎/观望，或留空表示不变）\n"
+            "6. 调整后的评分（1-100，或 0 表示不变）\n"
+            "7. 调整后的置信度（0.0-1.0，或 0.0 表示不变）\n"
+            "8. 关键要点\n"
+            "9. 受哪位同行影响的说明\n"
         )
 
         system_prompt = skill.system_prompt + (
             "\n\n你现在正在参与一场投资辩论的第二轮——"
             "你看到了其他大师对你的分析，请基于同行的观点给出你的回应。"
+            "请从「赞同」「补充」「异议」三个角度分别阐述。"
             "你可以坚持原有判断，也可以调整。关键是要给出有逻辑支撑的理由。"
         )
 
@@ -610,7 +613,9 @@ async def _run_review_for_master(
         return RebuttalAnalysis(
             agent_name=f"master.{skill.skill_id}",
             original_agreement=raw.original_agreement,
-            rebuttal=raw.rebuttal,
+            agreement=raw.agreement,
+            supplement=raw.supplement,
+            objection=raw.objection,
             adjusted_rating=raw.adjusted_rating,
             adjusted_score=raw.adjusted_score,
             adjusted_confidence=raw.adjusted_confidence,
@@ -670,17 +675,20 @@ async def _run_independent_review(
             if a.risk_warning:
                 analyses_text += f"风险提示：{a.risk_warning}\n"
 
-        # 构建反驳摘要
+        # 构建同行互评摘要（赞同+补充+异议三段式）
         rebuttals_text = ""
         if rebuttals:
-            rebuttals_text = "\n--- 第二轮交叉审阅（大师同行反驳）---\n"
+            rebuttals_text = "\n--- 第二轮交叉审阅（大师同行互评）---\n"
             for i, r in enumerate(rebuttals, 1):
-                rebuttals_text += (
-                    f"{i}. {r.agent_name}：共识度 {r.original_agreement}，"
-                    f"反驳：{r.rebuttal[:200]}\n"
-                )
+                rebuttals_text += f"  {i}. {r.agent_name}（共识度 {r.original_agreement}）:\n"
+                if r.agreement:
+                    rebuttals_text += f"     ✅ 赞同：{r.agreement[:200]}\n"
+                if r.supplement:
+                    rebuttals_text += f"     📌 补充：{r.supplement[:200]}\n"
+                if r.objection:
+                    rebuttals_text += f"     ❌ 异议：{r.objection[:200]}\n"
                 if r.adjusted_score is not None:
-                    rebuttals_text += f"   调整后评分：{r.adjusted_score}\n"
+                    rebuttals_text += f"     调整后评分：{r.adjusted_score}\n"
 
         # 构建评审 prompt
         brief = market_data.get("brief", "")

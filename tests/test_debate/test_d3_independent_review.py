@@ -225,7 +225,9 @@ class TestReviewReportNodeBasic:
                     {
                         "agent_name": "master.buffett",
                         "original_agreement": 0.6,
-                        "rebuttal": "同意部分观点",
+                        "agreement": "同意",
+                        "supplement": "",
+                        "objection": "",
                     },
                 ],
                 "round_number": 2,
@@ -404,7 +406,7 @@ class TestIndependentReviewHelpers:
 
     @pytest.mark.asyncio
     async def test_helper_with_rebuttals(self, sample_analyses):
-        """辅助函数在有 rebuttals 时包含反驳信息"""
+        """辅助函数在有 rebuttals 时包含三段式互评信息"""
         from src.debate.orchestrator import _run_independent_review
 
         successful = [a for a in sample_analyses.values() if a.success]
@@ -412,7 +414,9 @@ class TestIndependentReviewHelpers:
             RebuttalAnalysis(
                 agent_name="master.buffett",
                 original_agreement=0.6,
-                rebuttal="同行观点有一定调整",
+                agreement="认可基本面分析",
+                supplement="补充流动性风险数据",
+                objection="",
                 adjusted_rating="看涨",
                 adjusted_score=75,
             ),
@@ -601,7 +605,7 @@ class TestAggregateWithReviewReport:
 
     @pytest.mark.asyncio
     async def test_aggregate_with_rebuttal_and_review_report(self):
-        """review_report 与 rebuttal 叠加：先应用 rebuttal 调整，再应用 weight_suggestions"""
+        """review_report 与 peer_review 叠加：先应用 peer_review 调整，再应用 weight_suggestions"""
         from src.debate.orchestrator import DebateState, aggregate_node
 
         state: DebateState = {
@@ -639,7 +643,9 @@ class TestAggregateWithReviewReport:
                     {
                         "agent_name": "master.buffett",
                         "original_agreement": 0.5,
-                        "rebuttal": "调整",
+                        "agreement": "部分认可",
+                        "supplement": "",
+                        "objection": "需要调整预期",
                         "adjusted_rating": "看涨",
                         "adjusted_score": 75,
                         "adjusted_confidence": 0.75,
@@ -807,7 +813,9 @@ class TestFullFlowWithD3:
         mock_rebuttal = RebuttalAnalysis(
             agent_name="master.buffett",
             original_agreement=0.6,
-            rebuttal="同行分析有一定道理",
+            agreement="认可同行分析",
+            supplement="补充宏观数据",
+            objection="",
             adjusted_rating="看涨",
             adjusted_score=75,
         )

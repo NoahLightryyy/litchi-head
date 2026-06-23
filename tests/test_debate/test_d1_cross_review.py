@@ -1,10 +1,10 @@
-"""D1 第二轮交叉审阅+反驳 —— 单元测试
+"""D1 第二轮交叉审阅（赞同+补充+异议三段式）—— 单元测试
 
 测试策略：
 - RebuttalAnalysis / PeerReviewRound 模型构造与序列化
 - _run_review_for_master 辅助函数的 mock 测试
 - make_review_round_node 节点函数的 state 读写
-- aggregate_node 在 rebuttal 存在时的调整行为
+- aggregate_node 在 peer review 存在时的调整行为
 - 全流程集成测试（mock LLM 层）
 """
 
@@ -36,7 +36,9 @@ class TestRebuttalAnalysis:
         r = RebuttalAnalysis(agent_name="master.buffett")
         assert r.agent_name == "master.buffett"
         assert r.original_agreement == 0.5
-        assert r.rebuttal == ""
+        assert r.agreement == ""
+        assert r.supplement == ""
+        assert r.objection == ""
         assert r.adjusted_rating is None
         assert r.adjusted_score is None
         assert r.adjusted_confidence is None
@@ -45,11 +47,13 @@ class TestRebuttalAnalysis:
         assert r.latency_ms == 0.0
 
     def test_full_construction(self):
-        """全字段构造"""
+        """全字段构造（三段式：赞同+补充+异议）"""
         r = RebuttalAnalysis(
             agent_name="master.buffett",
             original_agreement=0.3,
-            rebuttal="我认为同行过于乐观，忽视了估值风险",
+            agreement="认可同行对基本面的分析",
+            supplement="补充估值处于历史高位的额外数据",
+            objection="不同意过于乐观的增长预期，需考虑加息影响",
             adjusted_rating="看跌",
             adjusted_score=40,
             adjusted_confidence=0.7,
@@ -58,17 +62,22 @@ class TestRebuttalAnalysis:
         )
         assert r.agent_name == "master.buffett"
         assert r.original_agreement == 0.3
+        assert r.agreement == "认可同行对基本面的分析"
+        assert r.supplement == "补充估值处于历史高位的额外数据"
+        assert r.objection == "不同意过于乐观的增长预期，需考虑加息影响"
         assert r.adjusted_rating == "看跌"
         assert r.adjusted_score == 40
         assert r.adjusted_confidence == 0.7
         assert len(r.key_counterpoints) == 2
 
     def test_serialization(self):
-        """JSON 序列化与反序列化"""
+        """JSON 序列化与反序列化（三段式字段）"""
         r = RebuttalAnalysis(
             agent_name="master.munger",
             original_agreement=0.8,
-            rebuttal="同意同行分析，补充流动性风险",
+            agreement="同意同行对护城河的分析",
+            supplement="补充流动性风险因素",
+            objection="无重大异议",
             adjusted_rating="看涨",
             adjusted_score=75,
             adjusted_confidence=0.85,
@@ -77,10 +86,15 @@ class TestRebuttalAnalysis:
         dumped = r.model_dump()
         assert dumped["agent_name"] == "master.munger"
         assert dumped["original_agreement"] == 0.8
+        assert dumped["agreement"] == "同意同行对护城河的分析"
+        assert dumped["supplement"] == "补充流动性风险因素"
+        assert dumped["objection"] == "无重大异议"
         assert dumped["adjusted_score"] == 75
 
         loaded = RebuttalAnalysis(**dumped)
-        assert loaded.rebuttal == r.rebuttal
+        assert loaded.agreement == r.agreement
+        assert loaded.supplement == r.supplement
+        assert loaded.objection == r.objection
         assert loaded.key_counterpoints == r.key_counterpoints
 
     def test_adjusted_fields_default_to_none(self):
@@ -247,12 +261,14 @@ class TestReviewRoundNodeBasic:
             "errors": [],
         }
 
-        # mock _run_review_for_master 为每位大师返回不同反驳
+        # mock _run_review_for_master 为每位大师返回三段式回应
         mock_rebuttals = [
             RebuttalAnalysis(
                 agent_name="master.buffett",
                 original_agreement=0.7,
-                rebuttal="同意部分观点，但需考虑风险",
+                agreement="同意同行对基本面的分析",
+                supplement="需考虑估值消化的时间成本",
+                objection="不同意过度悲观的情绪",
                 adjusted_rating="看涨",
                 adjusted_score=80,
                 adjusted_confidence=0.8,
@@ -262,7 +278,9 @@ class TestReviewRoundNodeBasic:
             RebuttalAnalysis(
                 agent_name="master.munger",
                 original_agreement=0.4,
-                rebuttal="不同意看涨观点",
+                agreement="认可部分数据准确性",
+                supplement="无额外补充",
+                objection="不同意看涨结论，风险回报比不佳",
                 adjusted_rating="中性",
                 adjusted_score=50,
                 adjusted_confidence=0.6,
@@ -272,7 +290,9 @@ class TestReviewRoundNodeBasic:
             RebuttalAnalysis(
                 agent_name="master.graham",
                 original_agreement=0.8,
-                rebuttal="补充安全边际分析",
+                agreement="高度赞同价值判断",
+                supplement="补充安全边际量化分析",
+                objection="无重大异议",
                 adjusted_rating="看涨",
                 adjusted_score=72,
                 adjusted_confidence=0.75,
@@ -420,7 +440,9 @@ class TestReviewRoundHelpers:
         mock_llm_response = MagicMock()
         mock_llm_response.agent_name = "master.buffett"
         mock_llm_response.original_agreement = 0.6
-        mock_llm_response.rebuttal = "同意基本面分析，但需关注估值"
+        mock_llm_response.agreement = "认同基本面的分析方向"
+        mock_llm_response.supplement = "补充行业增速放缓的数据"
+        mock_llm_response.objection = "需关注估值偏高的问题"
         mock_llm_response.adjusted_rating = "看涨"
         mock_llm_response.adjusted_score = 78
         mock_llm_response.adjusted_confidence = 0.8
@@ -475,7 +497,9 @@ class TestReviewRoundHelpers:
             assert isinstance(result, RebuttalAnalysis)
             assert result.agent_name == "master.munger"
             assert result.adjusted_score is None
-            assert result.rebuttal == ""
+            assert result.agreement == ""
+            assert result.supplement == ""
+            assert result.objection == ""
             assert result.latency_ms == 0.0
 
 
@@ -527,7 +551,9 @@ class TestAggregateWithRebuttals:
                     {
                         "agent_name": "master.buffett",
                         "original_agreement": 0.5,
-                        "rebuttal": "同意部分观点",
+                        "agreement": "认可宏观分析框架",
+                        "supplement": "",
+                        "objection": "不同意估值结论",
                         "adjusted_rating": "看涨",
                         "adjusted_score": 75,
                         "adjusted_confidence": 0.8,
@@ -537,7 +563,9 @@ class TestAggregateWithRebuttals:
                     {
                         "agent_name": "master.munger",
                         "original_agreement": 0.8,
-                        "rebuttal": "同意同行",
+                        "agreement": "同意核心判断",
+                        "supplement": "补充行业数据",
+                        "objection": "",
                         "adjusted_rating": "看涨",
                         "adjusted_score": 65,
                         "adjusted_confidence": 0.7,
@@ -672,7 +700,9 @@ class TestAggregateWithRebuttals:
                     {
                         "agent_name": "master.buffett",
                         "original_agreement": 0.5,
-                        "rebuttal": "调整观点",
+                        "agreement": "部分认可",
+                        "supplement": "",
+                        "objection": "不同意卖出建议",
                         "adjusted_rating": "看涨",
                         "adjusted_score": 70,
                         "adjusted_confidence": 0.75,
@@ -768,11 +798,13 @@ class TestFullFlowWithD1:
             confidence=0.8,
         )
 
-        # 模拟第二轮反驳
+        # 模拟第二轮三段式互评
         mock_rebuttal = RebuttalAnalysis(
             agent_name="master.buffett",
             original_agreement=0.6,
-            rebuttal="同行分析有一定道理，但基本面未变",
+            agreement="认可同行对宏观风险的提示",
+            supplement="补充公司护城河仍稳固的数据",
+            objection="不同意短期看空的结论",
             adjusted_rating="看涨",
             adjusted_score=75,
             adjusted_confidence=0.75,

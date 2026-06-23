@@ -558,7 +558,9 @@ class TestOrchestratorWithRisk:
             r = MagicMock()
             r.agent_name = "master.test"
             r.original_agreement = 0.5
-            r.rebuttal = "同意"
+            r.agreement = "同意"
+            r.supplement = ""
+            r.objection = ""
             r.adjusted_rating = None
             r.adjusted_score = None
             r.adjusted_confidence = None

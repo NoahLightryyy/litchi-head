@@ -734,16 +734,25 @@ class TestDirectionFullIntegration:
                             # review_round: buffett, munger, dalio
                             RebuttalAnalysis(
                                 agent_name="master.buffett",
-                                original_agreement=0.6, rebuttal="同意部分",
+                                original_agreement=0.6,
+                                agreement="同意",
+                                supplement="补充估值数据",
+                                objection="",
                                 adjusted_score=75,
                             ),
                             RebuttalAnalysis(
                                 agent_name="master.munger",
-                                original_agreement=0.3, rebuttal="不同意",
+                                original_agreement=0.3,
+                                agreement="认可数据准确性",
+                                supplement="",
+                                objection="不同意看涨结论",
                             ),
                             RebuttalAnalysis(
                                 agent_name="master.dalio",
-                                original_agreement=0.5, rebuttal="中性",
+                                original_agreement=0.5,
+                                agreement="中性看待",
+                                supplement="需更多数据",
+                                objection="暂不表态",
                             ),
                             # review_report
                             IndependentReview(
