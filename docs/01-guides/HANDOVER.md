@@ -58,10 +58,11 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `1766ce5` — docs: 工作日志补正常结束标记 — resume-session 检查通过 |
-| **全量测试** | 945 collected, 全部通过 ✅ |
+| **最新提交** | `dfcbd3b` — docs: 文档收尾 — 三层测试策略定案 + 学习卡片 #20 + 日志同步 |
+| **全量测试** | 943 collected, 全部通过 ✅ |
+| **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
-| **CI 状态** | 🔴 → [质量保障部](06-departments/11-quality-assurance/HANDOVER.md) |
+| **CI 状态** | 🟢 → 最近 4 次全绿 ✅ |
 
 ---
 
@@ -78,23 +79,31 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 🔬 回测研究部 | `src/backtest/` | ✅ | 0 | [HANDOVER](06-departments/07-backtesting/HANDOVER.md) |
 | 🌐 后端 API 部 | `backend/` | ✅ | 2 | [HANDOVER](06-departments/08-backend-api/HANDOVER.md) |
 | 🎨 前端部 | `frontend/` | ✅ | 1 | [HANDOVER](06-departments/09-frontend/HANDOVER.md) |
-| ⚙️ 基础设施部 | `src/utils/` | ✅ | 6 | [HANDOVER](06-departments/10-infrastructure/HANDOVER.md) |
-| 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🔴 | 2 | [HANDOVER](06-departments/11-quality-assurance/HANDOVER.md) |
+| ⚙️ 基础设施部 | `src/utils/` | ✅ | 5 | [HANDOVER](06-departments/10-infrastructure/HANDOVER.md) |
+| 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🟢 | 2 | [HANDOVER](06-departments/11-quality-assurance/HANDOVER.md) |
 
-**全代码库开放债务**: 28 条（紧急指数 4.0/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
+**全代码库开放债务**: 27 条（紧急指数 4.0/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
 
 ---
 
 ## 🎯 当前跨部门优先级
 
-| 优先级 | 事项 | 牵头部门 |
-|:------:|:-----|:---------|
-| 1 ~~🟡~~ | ~~**TD-039 API 速率限制** — debate/run 限流~~ | ✅ 2026-06-22 已关闭 |
-| 2 🟡 | **TD-040 LLM fallback 链** — DeepSeek→OpenAI 自动降级 | 基础设施部 |
-| 3 🟡 | **TD-041 数据新鲜度标注** — 采集时间戳 + 前端展示 | 数据管道部 + 前端部 |
-| 4 🟢 | **orchestrator.py 拆分** — 1622 行 → orchestrator/nodes/ | 辩论引擎部 |
-| 5 🟢 | **WORKFLOW 拆分验收** — 4 文件结构运行一段时间确认无遗漏 | 基础设施部 |
-| 6 🔴 | **CI-001 修复** — 18/20 连红，需获取 GH Actions 日志定位根因 | 质量保障部 |
+> 基于 2026-06-22 设计哲学会议决议。完整蓝图见 [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md)。
+
+| 优先级 | 事项 | 牵头部门 | 预估 |
+|:------:|:-----|:---------|:----:|
+| 1 ✅ | ~~**TD-039 API 速率限制** — debate/run 限流~~ | 后端 API 部 | ✅ 已关闭 |
+| 2 ✅ | ~~**TD-040 LLM fallback 链** — 已取消（单 provider 策略）~~ | 基础设施部 | 🗑️ 关闭 |
+| 3 ✅ | ~~**DP-001 模型瘦身** — 只留 DeepSeek，删 OpenAI/Anthropic，保留接口~~ | 基础设施部 | ✅ 已完成 |
+| 4 🔵 | **DP-002 D1 同侪审阅** — 从"反驳"改为"赞同+补充+异议"三段式 | 辩论引擎部 | ~1h |
+| 5 🔵 | **DP-003 偏斜公示** — 每次辩论产出偏斜度统计 | 辩论引擎部 + 前端部 | ~2h |
+| 6 🔵 | **DP-004 旋钮扩展** — TrustTracker 增加发言顺序/参与资格/置信度校准 | 辩论引擎部 | ~2h |
+| 7 🔵 | **DP-005 灵感官 Agent** — 高随机性反共识分析师 | AI Agent 架构部 | ~1h |
+| 8 🔵 | **DP-006 镜子反思** — 历史对比展示，辅助用户决策 | 辩论引擎部 + 前端部 | ~3h |
+| 9 🟡 | **DP-007 信息隔离** — StateGraph 只传结构化摘要，裁剪 state | 辩论引擎部 | ~2h |
+| 10 🟡 | **TD-041 数据新鲜度标注** — 采集时间戳 + 前端展示 | 数据管道部 + 前端部 | ~2h |
+| 11 🟢 | **orchestrator.py 拆分** — 1622 行 → orchestrator/nodes/ | 辩论引擎部 | — |
+| 12 🔴 | **CI-001 修复** — 18/20 连红根因，需获取 GH Actions 日志 | 质量保障部 | — |
 
 各部门的详细下一步 → 看各自 `HANDOVER.md` 的"下一步优先级"节。
 
@@ -165,4 +174,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-06-22 | TD-039 关闭 + triage Git Bash + 三层测试策略（@pytest.mark.slow）+ 学习卡片 #20
+> **最后更新**：2026-06-22 | 设计哲学会议：DP-001~DP-007 任务下放，DESIGN_PHILOSOPHY.md 创建，TD-040 关闭，CI 状态转🟢

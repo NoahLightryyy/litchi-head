@@ -35,7 +35,6 @@ from typing import Any
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_deepseek import ChatDeepSeek
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 from tenacity import (
     after_log,
@@ -120,7 +119,7 @@ def _build_llm(
     """根据 provider + 配置创建 LLM 实例
 
     Args:
-        provider: "deepseek" | "openai"，默认使用 settings.llm_provider
+        provider: "deepseek"（默认），保留参数接口供未来扩展
         config: LLM 调用配置，None 或默认值 = 当前硬编码行为
 
     Returns:
@@ -133,59 +132,25 @@ def _build_llm(
     provider = provider or settings.llm_provider
     cfg = config or LLMConfig()
 
-    match provider:
-        case "deepseek":
-            if not settings.deepseek_api_key:
-                raise RuntimeError(
-                    "DEEPSEEK_API_KEY 未设置，请在 .env 中配置"
-                )
-            model = cfg.model or "deepseek-chat"
-            kwargs: dict[str, Any] = {
-                "model": model,
-                "model_kwargs": {"max_tokens": cfg.max_tokens},
-            }
-            # deepseek-reasoner 不支持 temperature 参数
-            if "reasoner" not in model:
-                kwargs["temperature"] = cfg.temperature
-            # reasoning_effort 仅对 reasoner 模型生效
-            if cfg.reasoning_effort and "reasoner" in model:
-                kwargs["model_kwargs"]["reasoning_effort"] = cfg.reasoning_effort
-            return ChatDeepSeek(**kwargs)
-        case "openai":
-            if not settings.openai_api_key:
-                raise RuntimeError(
-                    "OPENAI_API_KEY 未设置，请在 .env 中配置"
-                )
-            return ChatOpenAI(
-                model=cfg.model or "gpt-4o-mini",
-                temperature=cfg.temperature,
-                model_kwargs={"max_tokens": cfg.max_tokens},
-            )
-        case "anthropic":
-            api_key = settings.anthropic_api_key or settings.anthropic_auth_token
-            if not api_key:
-                raise RuntimeError(
-                    "ANTHROPIC_API_KEY 或 ANTHROPIC_AUTH_TOKEN 未设置，请在 .env 中配置"
-                )
-            # 惰性导入：langchain_anthropic 仅在使用时加载（TD-012）
-            try:
-                from langchain_anthropic import ChatAnthropic  # type: ignore  # noqa: I001
-            except ImportError:
-                raise RuntimeError(
-                    "使用 Anthropic provider 需要安装 langchain-anthropic："
-                    "pip install langchain-anthropic"
-                )
-            kwargs: dict[str, Any] = {
-                "model": cfg.model or "claude-sonnet-4-20250514",
-                "temperature": cfg.temperature,
-                "max_tokens": cfg.max_tokens,
-                "api_key": api_key,
-            }
-            if settings.anthropic_base_url:
-                kwargs["base_url"] = settings.anthropic_base_url
-            return ChatAnthropic(**kwargs)
-        case _:
-            raise ValueError(f"不支持的 LLM provider: {provider}")
+    if provider != "deepseek":
+        raise ValueError(f"不支持的 LLM provider: {provider}（当前仅支持 deepseek）")
+
+    if not settings.deepseek_api_key:
+        raise RuntimeError(
+            "DEEPSEEK_API_KEY 未设置，请在 .env 中配置"
+        )
+    model = cfg.model or "deepseek-chat"
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "model_kwargs": {"max_tokens": cfg.max_tokens},
+    }
+    # deepseek-reasoner 不支持 temperature 参数
+    if "reasoner" not in model:
+        kwargs["temperature"] = cfg.temperature
+    # reasoning_effort 仅对 reasoner 模型生效
+    if cfg.reasoning_effort and "reasoner" in model:
+        kwargs["model_kwargs"]["reasoning_effort"] = cfg.reasoning_effort
+    return ChatDeepSeek(**kwargs)
 
 
 # ── Token 用量记录 ────────────────────────────────────────────
@@ -367,7 +332,7 @@ class LLMService:
         简单问题 → deepseek-chat（快速，无推理开销）
         复杂问题 → deepseek-reasoner（深度推理模式）
 
-        仅对 DeepSeek provider 生效；其他 provider 直接透传。
+        仅对 DeepSeek provider 生效。
 
         Args:
             prompt: 用户提示词
@@ -390,18 +355,7 @@ class LLMService:
         """
         provider = provider or settings.llm_provider
 
-        # 非 DeepSeek provider → 直接透传，不做复杂度路由
-        if provider != "deepseek":
-            return await self.ainvoke(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                provider=provider,
-                agent_name=agent_name,
-                session_id=session_id,
-                llm_config=base_config,
-            )
-
-        # DeepSeek provider → 复杂度检测 + 路由
+        # 复杂度检测 + 路由
         from src.utils.complexity_router import complexity_router
 
         llm_config, result = complexity_router.route(

@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-06-21
+last_updated: 2026-06-22
 ---
 
 # 🔄 跨部门状态总览
@@ -24,7 +24,7 @@ last_updated: 2026-06-21
 
 | 指标 | 当前值 |
 |:-----|:------:|
-| 全量测试 | 945 collected, 全部通过 ✅ |
+| 全量测试 | 943 collected, 全部通过 ✅ |
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |
@@ -42,14 +42,12 @@ last_updated: 2026-06-21
 | 辩论↔交易接口 | ✅ | TradePlan 协议 |
 | 记忆↔辩论接口 | ✅ | MemoryManager 语义化 |
 | 回测↔交易接口 | ✅ | TradeRecord 协议 |
-| LLM 调用（全部门→infra） | 🟡 | 已统一入口，fallback 链待补 |
+| LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
 
 ## 当前未完成事项（跨部门）
 
 | 优先级 | 事项 | 涉及部门 |
 |:------:|:-----|:---------|
-| 🟡 | **TD-039 API 速率限制** — debate/run 限流 | 后端 API 部 |
-| 🟡 | **TD-040 LLM fallback** — DeepSeek→OpenAI 降级 | 基础设施部 |
 | 🟡 | **TD-041 数据新鲜度标注** — 前端展示数据时效 | 数据管道部 + 前端部 |
 | 🟡 | **TD-059 性能基线** — 首次全链路性能测量 | 所有部门 |
 

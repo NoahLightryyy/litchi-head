@@ -124,7 +124,7 @@ def print_rotation_guide() -> None:
     ║          🔑 密钥轮换步骤                              ║
     ╠══════════════════════════════════════════════════════════╣
     ║  1. 登录 DeepSeek 平台，生成新 API Key                  ║
-    ║  2. 登录 Anthropic Console，生成新 API Key              ║
+    ║  2. (当前仅使用 DeepSeek，无需其他 LLM Key)              ║
     ║  3. 运行此脚本存储新密钥:                               ║
     ║     python scripts/store-api-keys.py                    ║
     ║  4. 验证系统运行正常                                    ║

@@ -11,8 +11,6 @@ class CostTracker:
 
     PRICES = {
         "deepseek-chat": {"input": 0.5, "output": 1.0},
-        "gpt-4o-mini": {"input": 2.5, "output": 10.0},
-        "gpt-4o": {"input": 15.0, "output": 60.0},
     }
 
     def __init__(self, log_dir: str = "data/cost_logs"):

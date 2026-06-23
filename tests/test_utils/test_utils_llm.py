@@ -12,8 +12,8 @@ from src.utils.llm import LLMConfig, LLMService, _build_llm, _record_usage
 
 class TestBuildLLM:
     def test_invalid_provider_raises_value_error(self):
-        with pytest.raises(ValueError, match="不支持的 LLM provider"):
-            _build_llm("unknown_provider")
+        with pytest.raises(ValueError, match="不支持的 LLM provider.*仅支持 deepseek"):
+            _build_llm("openai")
 
     def test_deepseek_no_key_raises(self):
         with patch("src.utils.llm.settings") as mock_settings:
@@ -21,13 +21,6 @@ class TestBuildLLM:
             mock_settings.deepseek_api_key = ""
             with pytest.raises(RuntimeError, match="DEEPSEEK_API_KEY"):
                 _build_llm("deepseek")
-
-    def test_openai_no_key_raises(self):
-        with patch("src.utils.llm.settings") as mock_settings:
-            mock_settings.llm_provider = "openai"
-            mock_settings.openai_api_key = ""
-            with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
-                _build_llm("openai")
 
 
 class TestRecordUsage:
@@ -234,17 +227,6 @@ class TestBuildLLMWithConfig:
                 # deepseek-reasoner 不传 temperature（API 不支持）
                 mock_ds.assert_called_once_with(
                     model="deepseek-reasoner",
-                    model_kwargs={"max_tokens": 8192},
-                )
-
-    def test_build_openai_with_config(self):
-        with patch("src.utils.llm.settings") as mock_s:
-            mock_s.llm_provider = "openai"
-            mock_s.openai_api_key = "sk-test"
-            with patch("src.utils.llm.ChatOpenAI") as mock_co:
-                _build_llm("openai", LLMConfig(temperature=0.1))
-                mock_co.assert_called_once_with(
-                    model="gpt-4o-mini", temperature=0.1,
                     model_kwargs={"max_tokens": 8192},
                 )
 

@@ -30,9 +30,6 @@ SERVICE_NAME = "litchi-head"
 # 需要保护的 API Key 列表（名称 → 用途说明）
 PROTECTED_KEYS: dict[str, str] = {
     "DEEPSEEK_API_KEY": "DeepSeek LLM API",
-    "OPENAI_API_KEY": "OpenAI LLM API",
-    "ANTHROPIC_API_KEY": "Anthropic LLM API（直连）",
-    "ANTHROPIC_AUTH_TOKEN": "Anthropic LLM API（中转服务）",
 }
 
 

@@ -28,7 +28,7 @@ result3 = client.chat.completions.create(...)
 ```
 
 问题：
-1. **模型切换**：想从 DeepSeek 换成 GPT，要改 10 个文件
+1. **模型切换**：想从 DeepSeek 换成别的，只用改 `src/utils/llm.py` 一个文件（当前已切为单 Provider 策略，`get_llm(provider=...)` 接口保留供扩展）
 2. **配置散落**：每个文件自己设 temperature，不一致
 3. **费用不可追踪**：没人知道总共花了多少钱
 4. **错误处理重复**：每个文件自己写 retry，或干脆不写
@@ -57,28 +57,23 @@ result = await llm_service.infer(
 ```python
 class LLMService:
     def __init__(self):
-        # 根据配置选择模型
-        self._model = self._select_model()
+        self._instances: dict[str, BaseChatModel] = {}
 
-    def _select_model(self):
-        if config.llm.provider == "deepseek":
-            return ChatDeepSeek(model="deepseek-chat")
-        elif config.llm.provider == "openai":
-            return ChatOpenAI(model="gpt-4o")
-        # fallback 链：一个失败自动换下一个
+    def get_llm(self, provider: str | None = None,
+                 config: LLMConfig | None = None) -> BaseChatModel:
+        """获取 LLM 实例（配置感知的缓存策略）"""
+        # 当前只支持 deepseek，接口保留 provider 参数供扩展
+        return _build_llm(provider or settings.llm_provider, config)
 
-    async def infer(
-        self,
-        system_prompt: str,
-        user_prompt: str,
-        response_model: type[BaseModel] = None,
-    ) -> BaseModel | str:
-        """所有 LLM 调用的统一入口"""
-        # 1. 绑定 prompt
-        # 2. 调用 LLM（自动重试 3 次）
-        # 3. 解析结构化输出（如果有 response_model）
-        # 4. 记录费用
-        # 5. 返回结果
+    async def ainvoke(self, prompt, system_prompt=None, ...) -> str:
+        """纯文本调用"""
+        llm = self.get_llm(provider, llm_config)
+        # 记录费用 + 自动重试
+
+    async def invoke_structured(self, prompt, output_model, ...) -> BaseModel:
+        """结构化输出调用"""
+        structured_llm = llm.with_structured_output(output_model)
+        # 自动解析 + 校验
 ```
 
 ### 关键特性
@@ -122,7 +117,7 @@ result = await llm_service.infer(
 ## 项目红线
 
 > **CLAUDE.md 明确写死了："
-> 所有 LLM 调用必经 `src/utils/llm.py`，不得直接实例化 ChatDeepSeek/ChatOpenAI
+> 所有 LLM 调用必经 `src/utils/llm.py`，不得直接实例化 ChatDeepSeek
 > "**
 
 如果你在代码里看到：
@@ -131,6 +126,8 @@ from langchain_deepseek import ChatDeepSeek  # ❌ 违规！
 ```
 
 这就是违反红线。
+
+> ⚠️ 当前版本已切为单 Provider 策略（只留 DeepSeek），`get_llm(provider=...)` 接口保留供未来扩展。
 
 ---
 
@@ -141,7 +138,7 @@ from langchain_deepseek import ChatDeepSeek  # ❌ 违规！
    - [ ] 参数有哪些
    - [ ] 哪里做的 retry
    - [ ] 哪里记录的费用
-3. 在全项目里搜索 `ChatDeepSeek` 或 `ChatOpenAI`：
+3. 在全项目里搜索 `ChatDeepSeek`：
    ```bash
    grep -r "ChatDeepSeek" src/ --include="*.py"
    ```

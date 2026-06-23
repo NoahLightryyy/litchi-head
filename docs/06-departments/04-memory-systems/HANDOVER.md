@@ -1,7 +1,7 @@
 ---
 department: 记忆系统部
 codebase: src/memory/
-last_updated: 2026-06-21
+last_updated: 2026-06-22
 ---
 
 # 🧠 记忆系统部工作交接
@@ -43,10 +43,39 @@ last_updated: 2026-06-21
 
 ## 下一步优先级
 
+### 现有债务
+
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
 | 1 🟡 | TD-051 补 MemoryManager 存储失败测试（IOError/损坏 JSON/只读） | 无 |
 | 2 🟢 | 定期清理过期记忆机制 | 无 |
+
+### 设计哲学新任务（DP 系列）
+
+> 基于 2026-06-22 设计哲学会议。完整背景见 [DESIGN_PHILOSOPHY.md](../../00-overview/DESIGN_PHILOSOPHY.md)。
+
+| DP | 事项 | 预估 |
+|:--:|:-----|:----:|
+| **DP-006 关联** 🥈 | **反思记录存储** — MemoryStore 扩展命名空间 `reflection/` 用于存储 Agent 反思和镜子对比数据，每个 Agent 角色独立命名空间 | ~1h |
+
+### DP-006 反射存储接口
+
+```python
+# MemoryManager 新增
+await memory.write(
+    namespace="reflection/buffett",      # 每个 Agent 独立命名空间
+    key=f"reflect_{date}_{stock_code}",
+    data={
+        "agent": "warren_buffett",
+        "date": "2026-06-22",
+        "situation": { ... },            # 当时的市场环境
+        "prediction": "买入",
+        "outcome": "+3.2%",
+        "accuracy": True,
+        "lesson": "..."                   # 供镜子展示
+    }
+)
+```
 
 ---
 

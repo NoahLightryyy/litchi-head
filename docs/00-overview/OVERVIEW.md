@@ -1,6 +1,6 @@
 # 🏠 litchi-head 项目概览
 
-> 多智能体投资决策平台 — 四组大师 Agent 辩论 → 评审 → 加权决策
+> 个人多智能体投资决策助手 — 虚拟小投行设计哲学见 [DESIGN_PHILOSOPHY.md](DESIGN_PHILOSOPHY.md)
 
 ## 一句话
 
@@ -42,6 +42,7 @@
 
 | 如果你 | 从这里开始 |
 |:-------|:-----------|
+| 想理解设计理念 | 🏛️ **`docs/00-overview/DESIGN_PHILOSOPHY.md`** — 虚拟小投行 + 反馈机制 + 差异化 |
 | 新开发者 | `docs/01-guides/` 流程规范 + `docs/02-requirements/` 产品需求 |
 | 想知道项目怎么组织 | 🏢 **`docs/06-departments/README.md`** — 10 部门体系总览 |
 | AI Agent (resume-session) | `docs/01-guides/WORKFLOW.md` + `HANDOVER.md` |

@@ -40,19 +40,6 @@ class TestCostTracker:
         # cost = (1_000_000 * 0.5 + 1_000_000 * 1.0) / 1_000_000 = 1.5
         assert tracker._records[0]["cost_yuan"] == 1.5
 
-    def test_record_cost_calculation_gpt4o(self):
-        tracker = CostTracker(log_dir="/tmp/_test_cost_logs")
-        tracker.record(
-            model="gpt-4o",
-            prompt_tokens=1_000_000,
-            completion_tokens=500_000,
-            agent="a",
-            session_id="s1",
-        )
-        # gpt-4o: input=15.0/M, output=60.0/M
-        # cost = (1_000_000 * 15.0 + 500_000 * 60.0) / 1_000_000 = 45.0
-        assert tracker._records[0]["cost_yuan"] == 45.0
-
     def test_record_fallback_prices(self):
         tracker = CostTracker(log_dir="/tmp/_test_cost_logs")
         tracker.record(
@@ -149,7 +136,7 @@ class TestCostTracker:
 
         # 第二次调用
         tracker.record(
-            model="gpt-4o-mini", prompt_tokens=200, completion_tokens=100,
+            model="deepseek-chat", prompt_tokens=200, completion_tokens=100,
             agent="b", session_id="s2",
         )
         tracker.save()

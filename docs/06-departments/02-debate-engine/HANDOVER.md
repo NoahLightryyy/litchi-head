@@ -1,7 +1,7 @@
 ---
 department: 辩论引擎部
 codebase: src/debate/
-last_updated: 2026-06-21
+last_updated: 2026-06-22
 ---
 
 # 🎯 辩论引擎部工作交接
@@ -63,11 +63,48 @@ last_updated: 2026-06-21
 
 ## 下一步优先级
 
+### 现有债务
+
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
 | 1 🔴 | **拆分 orchestrator.py**（1622→800）— 按节点拆分到 `orchestrator/nodes/` 目录 | 无 |
 | 2 🟡 | TD-018 成本优化 — 短路优化、层合并、模型分层 | 无 |
-| 3 🟢 | TD-017 M2 反思闭环 — 决策→收益→反思→进化 | 历史数据 |
+
+### 设计哲学新任务（DP 系列）
+
+> 基于 2026-06-22 设计哲学会议。完整背景见 [DESIGN_PHILOSOPHY.md](../../00-overview/DESIGN_PHILOSOPHY.md)。
+
+| DP | 事项 | 预估 |
+|:--:|:-----|:----:|
+| **DP-002** 🥇 | **D1 同侪审阅** — prompt 从"反驳"改为"赞同+补充+异议"三段式审阅，测试验证输出结构变化但无回归 | ~1h |
+| **DP-003** 🥇 | **偏斜公示** — D4 聚合后统计正面/负面观点比例，输出偏斜度（`BiasReport`）供前端消费 | ~1h |
+| **DP-004** 🥇 | **TrustTracker 旋钮扩展** — 增加 `发言顺序权重`、`参与资格阈值`、`置信度校准系数` 三种新旋钮，全用公式计算不经过 LLM | ~2h |
+| **DP-006** 🥈 | **镜子反思** — 辩论结束后产出一份历史对比（上次类似市况谁的判断准），展示给用户看，不自动注入 | ~2h |
+| **DP-007** 🥈 | **信息隔离** — StateGraph 每层结束后裁剪 state，只保留该层的 Pydantic 结构化 model，删除原始 prompt 和中间结果 | ~2h |
+
+### DP-003 偏斜度输出接口
+
+```python
+# D4 聚合后新增
+@dataclass
+class BiasReport:
+    positive_count: int          # 正面观点数
+    negative_count: int          # 负面观点数
+    buy_ratio: float             # 买入建议比例
+    sell_ratio: float            # 卖出建议比例
+    hold_ratio: float            # 持有建议比例
+    overall_bias: float          # 总体偏斜度（正=偏乐观，负=偏悲观）
+    historical_avg_bias: float   # 历史平均偏斜度
+```
+
+### 关联文件
+
+| 文件 | 说明 |
+|:-----|:------|
+| `src/debate/trust.py` | 759 行 → 扩展旋钮（DP-004） |
+| `src/debate/analysts.py` | 135 行 → 修改 D1 prompt（DP-002） |
+| `src/debate/models.py` | 368 行 → 加 `BiasReport`、`MirrorReport` |
+| `src/debate/orchestrator.py` | 1622 行 → state 裁剪（DP-007）
 
 ---
 

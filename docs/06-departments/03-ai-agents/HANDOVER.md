@@ -47,11 +47,32 @@ last_updated: 2026-06-21
 
 ## 下一步优先级
 
+### 现有债务
+
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
 | 1 🟡 | TD-003 MessageRouter 持久化（`save_snapshot/load_snapshot`） | 无 |
 | 2 🟡 | TD-050 XiaoZhiAgent 补 LLM 超时/异常/非法返回测试 | 无 |
 | 3 🟢 | TD-006 EvidenceItem 添加 `validate_chain()` 方法 | 无 |
+
+### 设计哲学新任务（DP 系列）
+
+> 基于 2026-06-22 设计哲学会议。完整背景见 [DESIGN_PHILOSOPHY.md](../../00-overview/DESIGN_PHILOSOPHY.md)。
+
+| DP | 事项 | 预估 |
+|:--:|:-----|:----:|
+| **DP-005** 🥇 | **灵感官 Agent** — 新增 `agents/agents_wild.py`，高随机性反共识分析师角色 | ~1h |
+
+### DP-005 灵感官设计要点
+
+| 属性 | 值 |
+|:-----|:----|
+| 文件 | `src/agents/agents_wild.py` |
+| 基类 | 复用 BaseAgent / MasterAgent |
+| temperature | 0.9+（高随机性，区别于其他 Agent 的 0.3）|
+| 注册 | AGENT_REGISTRY 注册，不加入辩论投票权重 |
+| Prompt | "说出一个主流观点认为疯狂、但你确实有理由相信的可能性" |
+| 输出 | 独立展示在前端"反共识观点"区，不参与主决策流 |
 
 ---
 

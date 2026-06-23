@@ -27,9 +27,6 @@ logger = logging.getLogger("config")
 # Settings 中 API Key 字段名 → 环境变量名映射
 _API_KEY_FIELDS: dict[str, str] = {
     "deepseek_api_key": "DEEPSEEK_API_KEY",
-    "openai_api_key": "OPENAI_API_KEY",
-    "anthropic_api_key": "ANTHROPIC_API_KEY",
-    "anthropic_auth_token": "ANTHROPIC_AUTH_TOKEN",
 }
 
 
@@ -37,10 +34,6 @@ class Settings(BaseSettings):
     # ── LLM 配置 ──
     llm_provider: str = "deepseek"
     deepseek_api_key: str = ""
-    openai_api_key: str = ""
-    anthropic_api_key: str = ""
-    anthropic_auth_token: str = ""  # 灵算等中转服务使用此字段
-    anthropic_base_url: str = ""
 
     # ── 辩论配置 ──
     max_concurrent_agents: int = 10

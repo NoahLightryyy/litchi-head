@@ -7,8 +7,7 @@
 | 语言 | Python | 3.12+ | 主力开发语言 |
 | 编排 | LangGraph | — | Agent 工作流编排（StateGraph） |
 | 数据契约 | Pydantic | 2.x | 全栈数据校验（ADR-001） |
-| 主力 LLM | DeepSeek | deepseek-chat / v4-pro | 快慢分离策略（ADR-007） |
-| Fallback LLM | OpenAI | GPT-4o-mini / GPT-4o | 降级备选 |
+| 主力 LLM | DeepSeek | deepseek-chat / deepseek-reasoner | 快慢分离策略，单 Provider（ADR-007） |
 
 ## 数据层
 
