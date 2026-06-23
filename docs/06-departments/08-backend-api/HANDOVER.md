@@ -59,9 +59,49 @@ last_updated: 2026-06-21
 
 ## 下一步优先级
 
+### 现有债务
+
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
 | 1 🟢 | TD-054 CORS 改环境变量 | 无 |
+
+### 基本面深度（FD 系列，2026-06-23 新增）
+
+> **⚠️ 后端 API 部有一项数据造假债务必须立即修复**：`backend/routers/market.py:_build_chain_map()` 用涨幅排序虚构产业链上游/中游/下游，违反项目"零造假数据"红线。
+>
+> 完整背景见 [FUNDAMENTAL_RESEARCH.md](../../02-requirements/FUNDAMENTAL_RESEARCH.md)。
+
+| FD | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **FD-002a** 🔴 | **修复伪产业链** — `_build_chain_map()` 改用真实行业分类（从 DataCollector.get_industry_position 获取），停止按照涨幅虚构上下游 | 无（可用现有 akshare 行业分类） | ~2h |
+| **FD-002b** 🥇 | **新增财务指标端点** — `GET /api/financial/{code}` 返回 `list[FinancialMetric]` JSON | 数据管道部 FD-001d | ~1h |
+| **FD-002c** 🥇 | **新增产业链定位端点** — `GET /api/industry/{code}` 返回 `IndustryPosition` JSON | 数据管道部 FD-001d | ~1h |
+| **FD-002d** 🥇 | **路由规范化** — 移除 `market.py` 中直接调 akshare 的代码（第114-138行），改为通过 `DataCollector` | 数据管道部 FD-001d | ~1h |
+| **FD-002e** 🥈 | **板块详情页增强** — 新增财务摘要字段到 `/api/market/sector/{id}` 响应 | 数据管道部 FD-001d | ~1h |
+
+### 🔴 必须修复的问题
+
+| 问题 | 位置 | 描述 | 严重度 |
+|:-----|:-----|:------|:------:|
+| **伪产业链数据** | `market.py:187-228` | 按涨幅排序把成分股分为"上游/中游/下游"，不反映真实供应链关系，违反"零造假数据"政策 | 🔴 CRITICAL |
+| **绕过 Provider 层** | `market.py:114-138` | 直接调 akshare，无缓存/健康监控，违反数据部规范 ROLE.md §禁止行为 | 🟡 HIGH |
+
+### 新端点一览
+
+```python
+# 新增 3 个端点
+@router.get("/api/financial/{code}", response_model=FinancialMetricResponse)
+async def get_financial_metrics(code: str):
+    """个股财务指标（ROE/毛利率/负债率/估值等），含多报告期"""
+
+@router.get("/api/industry/{code}", response_model=IndustryPositionResponse)
+async def get_industry_position(code: str):
+    """个股产业链定位（上游/中游/下游 + 同行 + 主营构成）"""
+
+# 修复 1 个端点
+@router.get("/api/market/sector/{id}") 
+# 返回的 chain_map 用真实行业分类数据，移除伪产业链
+```
 
 ---
 

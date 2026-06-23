@@ -12,6 +12,7 @@
 - ✅ 独立评审 Agent 综合裁决（第三方裁判独立评级）
 - ✅ 结构化投票输出（方向/置信度/评分）
 - ✅ 历史决策注入（MVC 模式：MemoryStore → 格式化 → 注入 prompt）
+- ✅ **基本面数据注入** — collect_data_node 采集财务指标，分析师接收结构化 `FinancialMetric` 数据
 - ❌ 不负责数据采集（那是 `data/` 的事）
 - ❌ 不负责最终交易执行（那是 `trader/` 的事）
 - ❌ 不负责 Agent 的提示词人格设计（那是 `agents/` + Skill 插件盘的事）
@@ -37,7 +38,11 @@ MemoryStore.search("episodic", "debate")
   → _format_history_context()
   → 注入 DebateState.history_context
      ↓
-collect_data（采集数据）
+collect_data（采集数据 ── 含 FD-001 财务指标 🆕）
+  ├── 行情数据（已有）
+  ├── K 线数据（已有）
+  ├── 新闻数据（已有）
+  └── 财务数据 🆕（FinancialMetric，填充基本面占位符）
      ↓
 master_round（顺序调大师独立分析，含历史上下文 + 方向约束）
   ├─ 大师A：生成 AgentAnalysis（含方向 + 评分 + 置信度）

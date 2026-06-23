@@ -70,7 +70,51 @@ last_updated: 2026-06-23
 | 1 🔴 | **拆分 orchestrator.py**（1622→800）— 按节点拆分到 `orchestrator/nodes/` 目录 | 无 |
 | 2 🟡 | TD-018 成本优化 — 短路优化、层合并、模型分层 | 无 |
 
-### 设计哲学新任务（DP 系列）
+### 基本面深度（FD 系列，2026-06-23 新增）
+
+> 完整背景见 [FUNDAMENTAL_RESEARCH.md](../../02-requirements/FUNDAMENTAL_RESEARCH.md)。
+
+| FD | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **FD-001f** 🥇 | **辩论注入财务数据** — `collect_data_node` 新增调用 `DataCollector.get_financial_metrics()`，存入 `market_data["financials"]` | 数据管道部 FD-001d | ~1h |
+| **FD-001g** 🥇 | **基本面分析师增强** — 接收结构化 `FinancialMetric` 数据（不再是"暂无基本面数据"占位符） | FD-001f | ~1h |
+| **FD-001h** 🥇 | **大师知识过滤器扩展** — 巴菲特、格雷厄姆直接接收财务指标；林奇、达利欧通过分析师报告间接使用 | FD-001g | ~2h |
+
+### 数据流变更
+
+```
+collect_data_node（增强后）
+  ├── 行情数据（已有）
+  ├── K 线数据（已有）
+  ├── 新闻数据（已有）
+  └── 财务数据 🆕 ← DataCollector.get_financial_metrics(code)
+       ↓
+  market_data["financials"] = list[FinancialMetric]
+       ↓
+  format_market_brief() → fundamentals 区段填充真实数据
+       ↓
+analyst_round
+  ├── fundamental 分析师 ← 接收 structured FinancialMetric（不再是占位符）
+  ├── technical (不变)
+  ├── sentiment (不变)
+  └── macro (不变)
+       ↓
+master_round（所有大师看到更高质量的分析师报告）
+  ├── 巴菲特 ← 关注 ROE/自由现金流/负债率（直接从分析师报告吸收）
+  ├── 格雷厄姆 ← 关注 PB/PE/净运营资本
+  ├── 林奇 ← 关注 PEG/营收增长趋势
+  └── 其余大师 ← 通过分析师报告间接获益
+```
+
+### 基本面分析师的 Prompt 增强要点
+
+当前 `analysts.py:44-58` 的 prompt 已经提到 ROE/利润率/负债率/PE/PB，但**没有真实数据可分析**。FD-001g 要做的是：
+
+```python
+# 改动：将结构化 FinancialMetric 注入分析师 prompt
+# 在 _run_single_analyst() 中，将 market_data["financials"]
+# 格式化为文本追加到分析师 prompt 的 "可用的财务数据" 段落
+```
 
 > 基于 2026-06-22 设计哲学会议。完整背景见 [DESIGN_PHILOSOPHY.md](../../00-overview/DESIGN_PHILOSOPHY.md)。
 

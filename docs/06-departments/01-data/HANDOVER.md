@@ -49,11 +49,49 @@ last_updated: 2026-06-21
 
 ## 下一步优先级
 
+### 现有债务
+
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
 | 1 🟡 | TD-041 数据新鲜度标注 — 给 KLine/Quote 加 `fetched_at` | 无 |
 | 2 🟢 | TD-034 修 zzshare 死条件 | 无 |
 | 3 🟢 | TD-057 补 zzshare 测试到 ≥80% | 无 |
+
+### 基本面深度（FD 系列，2026-06-23 新增）
+
+> 完整背景见 [FUNDAMENTAL_RESEARCH.md](../../02-requirements/FUNDAMENTAL_RESEARCH.md)。
+
+| FD | 事项 | 依赖 | 预估 |
+|:--:|:-----|:----|:----:|
+| **FD-001a** 🥇 | **数据模型扩展** — 新增 `FinancialMetric` / `IndustryPosition` / `SupplyChainNode` Pydantic 模型 | 无 | ~1h |
+| **FD-001b** 🥇 | **Provider 协议扩展** — DataSource Protocol 新增 `get_financial_metrics()` + `get_industry_position()` | FD-001a | ~1h |
+| **FD-001c** 🥇 | **AKShare 实现** — 用 `stock_financial_analysis_indicator` 实现财务指标 + 行业分类实现产业链定位 | FD-001b | ~2h |
+| **FD-001d** 🥇 | **Collector 方法** — 新增 `get_financial_metrics()` + `get_industry_position()`，TTL=24h | FD-001b | ~1h |
+| **FD-001e** 🥇 | **填充基本面占位符** — `format_market_brief()` 替换"暂无基本面数据"为真实数据 | FD-001c | ~1h |
+| **FD-003** 🥈 | **供应链数据调研** — 评估年报 PDF 解析前5大客户/供应商的可行性 | 无 | ~2h |
+
+### 数据流变更
+
+```
+新增数据流：
+akshare.stock_financial_analysis_indicator(code)
+     ↓
+AKShareSource.get_financial_metrics(code)          ← Provider 协议
+     ↓
+DataCollector.get_financial_metrics(code)            ← 缓存 TTL=24h
+     ↓
+format_market_brief() → brief.sections["fundamentals"]  ← 填充占位符
+     ↓
+DebateState.market_data["financials"]               ← 辩论引擎消费
+
+akshare 行业分类 + 主营业务构成
+     ↓
+AKShareSource.get_industry_position(code)           ← Provider 协议
+     ↓
+DataCollector.get_industry_position(code)
+     ↓
+后端 API / 辩论引擎                                 ← 下游消费
+```
 
 ---
 
