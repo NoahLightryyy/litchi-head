@@ -58,6 +58,7 @@ class AgentOutcome(BaseModel):
         skill_name: Agent 的 skill_name（如 "巴菲特"）
         session_id: 所属辩论会话标识
         stock_code: 股票代码
+        sector: 板块标识（如 "食品饮料" / "新能源"），用于按场景校准信任度
         decision_date: 决策日期（ISO 格式字符串）
         evaluation_date: 评估日期
         # ── 预测值（来自 AgentAnalysis）──
@@ -76,6 +77,7 @@ class AgentOutcome(BaseModel):
     skill_name: str = ""
     session_id: str = ""
     stock_code: str = ""
+    sector: str = ""
     decision_date: str = ""
     evaluation_date: str = ""
     # ── 预测值 ──
@@ -108,6 +110,8 @@ class AgentTrustMetrics(BaseModel):
         bullish_win_rate: 看涨时的准确率（充足样本时有效）
         bearish_win_rate: 看跌时的准确率（充足样本时有效）
         neutral_win_rate: 中性时的准确率
+        sector_win_rates: 按板块统计的方向准确率
+        sector_sample_counts: 每个板块的样本数
         # ── 置信度校准 ──
         brier_score: Brier score（0=完美，1=最差），校准程度
         confidence_bias: 置信度偏差（正=过度自信，负=过于保守）
@@ -126,6 +130,8 @@ class AgentTrustMetrics(BaseModel):
     bullish_win_rate: float = 0.0
     bearish_win_rate: float = 0.0
     neutral_win_rate: float = 0.0
+    sector_win_rates: dict[str, float] = Field(default_factory=dict)
+    sector_sample_counts: dict[str, int] = Field(default_factory=dict)
     # ── 校准 ──
     brier_score: float = 0.0
     confidence_bias: float = 0.0
@@ -224,6 +230,7 @@ class TrustTracker:
         skill_name: str = "",
         session_id: str = "",
         stock_code: str = "",
+        sector: str = "",
         decision_date: str = "",
         evaluation_date: str = "",
     ) -> None:
@@ -241,6 +248,7 @@ class TrustTracker:
             skill_name: Agent 的 skill_name
             session_id: 所属辩论会话标识
             stock_code: 股票代码
+            sector: 板块标识，用于按板块胜率校准权重
             decision_date: 决策日期
             evaluation_date: 评估日期
         """
@@ -264,6 +272,7 @@ class TrustTracker:
             skill_name=skill_name,
             session_id=session_id,
             stock_code=stock_code,
+            sector=sector,
             decision_date=decision_date,
             evaluation_date=evaluation_date,
             predicted_direction=pred_dir,
@@ -294,6 +303,7 @@ class TrustTracker:
         skill_name: str = "",
         session_id: str = "",
         stock_code: str = "",
+        sector: str = "",
         decision_date: str = "",
         evaluation_date: str = "",
     ) -> None:
@@ -311,6 +321,7 @@ class TrustTracker:
             skill_name: AgentAnalysis.skill_name
             session_id: 会话标识
             stock_code: 股票代码
+            sector: 板块标识
             decision_date: 决策日期
             evaluation_date: 评估日期
         """
@@ -329,6 +340,7 @@ class TrustTracker:
             skill_name=skill_name,
             session_id=session_id,
             stock_code=stock_code,
+            sector=sector,
             decision_date=decision_date,
             evaluation_date=evaluation_date,
         )
@@ -409,15 +421,14 @@ class TrustTracker:
             # 加载已有记录
             existing = await self._load_outcomes(agent_name)
 
-            # 合并（去重：使用 session_id + stock_code 去重）
+            # 合并（去重：使用 session_id + stock_code + sector 去重）
             seen: set[str] = set()
             for o in existing:
-                seen.add(f"{o.session_id}_{o.stock_code}_{o.predicted_direction}")
+                seen.add(_outcome_dedupe_key(o))
             new_records = [
                 o
                 for o in buffer.outcomes
-                if f"{o.session_id}_{o.stock_code}_{o.predicted_direction}"
-                not in seen
+                if _outcome_dedupe_key(o) not in seen
             ]
 
             if not new_records:
@@ -527,6 +538,18 @@ class TrustTracker:
             else 0.0
         )
 
+        sector_groups: dict[str, list[AgentOutcome]] = {}
+        for outcome in outcomes:
+            if outcome.sector:
+                sector_groups.setdefault(outcome.sector, []).append(outcome)
+
+        sector_win_rates: dict[str, float] = {}
+        sector_sample_counts: dict[str, int] = {}
+        for sector, sector_outcomes in sector_groups.items():
+            sector_sample_counts[sector] = len(sector_outcomes)
+            sector_correct = sum(1 for o in sector_outcomes if o.is_correct)
+            sector_win_rates[sector] = round(sector_correct / len(sector_outcomes), 3)
+
         # ── Brier score（置信度校准）──
         # Brier = 1/N Σ (confidence - correctness)^2
         # correctness = 1 if correct else 0
@@ -600,6 +623,8 @@ class TrustTracker:
             bullish_win_rate=round(bullish_win, 3),
             bearish_win_rate=round(bearish_win, 3),
             neutral_win_rate=round(neutral_win, 3),
+            sector_win_rates=sector_win_rates,
+            sector_sample_counts=sector_sample_counts,
             brier_score=round(brier_score, 4),
             confidence_bias=round(confidence_bias, 4),
             calibration_curve=calibration_curve,
@@ -716,7 +741,14 @@ def _build_calibration_curve(
     return curve
 
 
-def compute_weight_factor(metrics: AgentTrustMetrics) -> float:
+def _outcome_dedupe_key(outcome: AgentOutcome) -> str:
+    return (
+        f"{outcome.session_id}_{outcome.stock_code}_"
+        f"{outcome.sector}_{outcome.predicted_direction}"
+    )
+
+
+def compute_weight_factor(metrics: AgentTrustMetrics, sector: str = "") -> float:
     """根据信任度指标计算投票权重因子
 
     供 aggregate 节点使用（M4 动态权重的前置函数）。
@@ -728,6 +760,7 @@ def compute_weight_factor(metrics: AgentTrustMetrics) -> float:
 
     Args:
         metrics: Agent 的信任度指标
+        sector: 可选板块标识；有足够板块样本时使用该板块胜率
 
     Returns:
         权重因子（数据不足时返回 1.0）
@@ -735,8 +768,16 @@ def compute_weight_factor(metrics: AgentTrustMetrics) -> float:
     if metrics.total_samples < _MIN_RELIABLE_SAMPLES:
         return 1.0
 
+    win_rate = metrics.win_rate
+    if (
+        sector
+        and metrics.sector_sample_counts.get(sector, 0) >= _MIN_RELIABLE_SAMPLES
+        and sector in metrics.sector_win_rates
+    ):
+        win_rate = metrics.sector_win_rates[sector]
+
     # 准确率贡献（0-0.6）
-    win_component = metrics.win_rate * 0.6
+    win_component = win_rate * 0.6
 
     # 校准贡献（0-0.2）：Brier 越小越好；1 - brier 归一化
     calibration_component = max(0, 1.0 - metrics.brier_score * 2) * 0.2

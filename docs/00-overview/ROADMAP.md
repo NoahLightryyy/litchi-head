@@ -8,7 +8,7 @@
 ## 快速统计
 
 ```
-总 Python 测试数 │ 943 collected
+总 Python 测试数 │ 950 passed（not slow）
 技术债务         │ 62 条总记 / 37 条已关闭 / 25 条开放
 紧急指数         │ 4.0/10（DP-001 完成 + CI 绿）
 当前阶段         │ 🔴 按 8 月底出国倒排 — P0 美股+YahooFinanceSource+FD-001+置信度+复盘看板，~3 周冲刺
@@ -311,7 +311,7 @@
 | RC | 事项 | 牵头 | 依赖 | 预估 |
 |:--:|:-----|:----|:----|:----:|
 | **RC-001** ✅ | **回调核心引擎** — `src/callback/` 模块（engine/registry/storage/models），中央事件分发器，注册/冷却/自动禁用/审计记录 | 记忆系统部 | 无 | 已完成 |
-| **RC-002** 🥇 | **M3-EXT 按板块信任度校准** — 修复 `TrustTracker.record_outcome()` 从未被调用；新增 `AgentOutcome.sector` 按板块胜率 | 辩论引擎部 | RC-001 | ~2h |
+| **RC-002** 🔧 | **M3-EXT 按板块信任度校准** — `AgentOutcome.sector` + 按板块胜率 + M3 回调已完成；编排器真实结果 dispatch 待接入 | 辩论引擎部 | RC-001 | 回调层完成 |
 | **RC-003** 🥇 | **UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore（JSONL）+ 操作理由分类 | 后端 API 部 + 前端部 | RC-001 | ~2h |
 | **RC-004** 🥈 | **RP-TUNE 风险参数自适应** — 回测结果 → 自动调止损/仓位覆盖（基于 max_drawdown/win_rate） | 风控管理部 | RC-001 | ~2h |
 | **RC-005** 🥈 | **CALIBRATE 置信度校准** — Brier score 过高时注入校准或降低置信度权重 | 辩论引擎部 | RC-002 | ~1h |

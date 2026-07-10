@@ -59,6 +59,7 @@
 | 21 | 🆕 [工程纪律 — 工具不是纪律的替代品](21-engineering-discipline.md) | `scripts/check.py` 创建与反省 |
 | 22 | 🆕 [辩论偏斜度计算 — BiasReport](22-debate-bias-report.md) | `src/debate/orchestrator.py` → `compute_bias_report()` |
 | 23 | 🆕 [结果回调引擎 — 让结果自动触发系统学习](23-result-callback-engine.md) | `src/callback/engine.py` |
+| 24 | 🆕 [按场景校准信任度 — Contextual Trust](24-contextual-trust-calibration.md) | `src/debate/trust.py` + `src/callback/callbacks/m3_ext.py` |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

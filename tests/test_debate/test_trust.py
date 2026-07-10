@@ -50,6 +50,7 @@ class TestAgentOutcomeModel:
             skill_name="巴菲特",
             session_id="sess-001",
             stock_code="000001",
+            sector="银行",
             decision_date="2026-06-10",
             evaluation_date="2026-06-16",
             predicted_direction="Bullish",
@@ -64,6 +65,7 @@ class TestAgentOutcomeModel:
         assert outcome.is_correct is True
         assert outcome.predicted_score == 75
         assert outcome.actual_price_change_pct == 3.5
+        assert outcome.sector == "银行"
 
     def test_is_correct_calculation(self):
         """is_correct 在构造时即确定"""
@@ -310,6 +312,36 @@ class TestComputeMetrics:
         assert metrics.bullish_win_rate == 0.5  # 1/2
         assert metrics.bearish_win_rate == 1.0
 
+    def test_sector_win_rates(self):
+        """按板块统计胜率和样本数"""
+        outcomes = [
+            AgentOutcome(
+                agent_name="test",
+                sector="食品饮料",
+                predicted_direction="Bullish",
+                actual_direction="Bullish",
+            ),
+            AgentOutcome(
+                agent_name="test",
+                sector="食品饮料",
+                predicted_direction="Bullish",
+                actual_direction="Bearish",
+            ),
+            AgentOutcome(
+                agent_name="test",
+                sector="新能源",
+                predicted_direction="Bearish",
+                actual_direction="Bearish",
+            ),
+        ]
+
+        metrics = TrustTracker._compute_metrics(outcomes)
+
+        assert metrics.sector_win_rates["食品饮料"] == 0.5
+        assert metrics.sector_sample_counts["食品饮料"] == 2
+        assert metrics.sector_win_rates["新能源"] == 1.0
+        assert metrics.sector_sample_counts["新能源"] == 1
+
     def test_brier_score_perfect(self):
         """完美校准 → Brier score = 0"""
         outcomes = [
@@ -511,6 +543,32 @@ class TestComputeWeightFactor:
         """4 样本时（不足 5）返回 1.0"""
         metrics = AgentTrustMetrics(total_samples=4, win_rate=1.0)
         assert compute_weight_factor(metrics) == 1.0
+
+    def test_sector_weight_uses_sector_win_rate_when_reliable(self):
+        """板块样本充足时，权重使用板块胜率"""
+        metrics = AgentTrustMetrics(
+            total_samples=20,
+            win_rate=0.5,
+            sector_win_rates={"食品饮料": 1.0},
+            sector_sample_counts={"食品饮料": 5},
+            brier_score=0.0,
+            confidence_bias=0.0,
+        )
+
+        assert compute_weight_factor(metrics, sector="食品饮料") == 1.5
+
+    def test_sector_weight_falls_back_when_sector_samples_insufficient(self):
+        """板块样本不足时回退到总体胜率"""
+        metrics = AgentTrustMetrics(
+            total_samples=20,
+            win_rate=0.5,
+            sector_win_rates={"食品饮料": 1.0},
+            sector_sample_counts={"食品饮料": 4},
+            brier_score=0.0,
+            confidence_bias=0.0,
+        )
+
+        assert compute_weight_factor(metrics, sector="食品饮料") == 1.2
 
 
 # ═══════════════════════════════════════════════════════════════════
