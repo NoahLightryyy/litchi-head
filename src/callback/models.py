@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Coroutine
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -45,6 +46,7 @@ class CallbackEvent(BaseModel):
     """
 
     event_type: CallbackEventType
+    event_id: str = Field(default_factory=lambda: uuid4().hex)
     source: str = ""
     timestamp: datetime = Field(default_factory=datetime.now)
     context: dict[str, Any] = Field(default_factory=dict)

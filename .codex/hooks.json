@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ruff check --select E,W,F --fix --quiet \"{file}\""
+          }
+        ]
+      }
+    ]
+  }
+}

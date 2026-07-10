@@ -1,7 +1,7 @@
 ---
 department: 记忆系统部
 codebase: src/memory/
-last_updated: 2026-06-22
+last_updated: 2026-07-10
 ---
 
 # 🧠 记忆系统部工作交接
@@ -65,7 +65,7 @@ last_updated: 2026-06-22
 
 | RC | 事项 | 预估 |
 |:--:|:-----|:----:|
-| **RC-001** 🥇 | **回调核心引擎** — `src/callback/` 模块：engine（ResultCallbackEngine 中央分发器）+ registry（注册表）+ storage（MemoryStore 持久化）+ models（事件模型）+ callbacks/（预置回调目录） | ~4h |
+| **RC-001** ✅ | **回调核心引擎** — `src/callback/` 模块：engine（ResultCallbackEngine 中央分发器）+ registry（注册表）+ storage（MemoryStore 持久化）+ models（事件模型）。预置业务回调目录留给 RC-002+ 分批接入 | 已完成 |
 
 **架构概览**：
 
@@ -85,6 +85,12 @@ src/callback/
     strat_route.py         # RC-006: 策略路由
 ```
 
+**2026-07-10 落地状态**：
+- `src/callback/engine.py`：支持 `dispatch()` 中央分发、`register()` 注册、优先级排序、冷却跳过、失败隔离、错误计数、达到阈值自动禁用。
+- `src/callback/models.py`：`CallbackEvent` 增加 `event_id`，便于审计串联同一次事件的多条回调记录。
+- `tests/test_callback/test_engine.py`：5 个测试覆盖优先级、事件过滤、失败隔离、自动禁用、冷却跳过。
+- 后续入口：RC-002/RC-003/RC-004 应只注册业务回调，不再重复实现事件分发机制。
+
 **MemoryStore 新命名空间**：
 
 | 命名空间 | 格式 | 用途 |
@@ -101,7 +107,7 @@ src/callback/
 
 | UI | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **UI-1a** 🥇 | **RC-001 回调核心引擎** — `src/callback/` 模块：engine（ResultCallbackEngine）+ registry + storage + models | 无 | ~4h |
+| **UI-1a** ✅ | **RC-001 回调核心引擎** — `src/callback/` 模块：engine（ResultCallbackEngine）+ registry + storage + models | 无 | 已完成 |
 
 ### DP-006 反射存储接口
 

@@ -9,25 +9,27 @@
     engine = ResultCallbackEngine(memory_store=store)
     await engine.dispatch(CallbackEventType.DEBATE_COMPLETED, ...)
 
-RC-001 实现时会解除注释并创建 engine.py、callbacks/ 目录。
+RC-001 先提供中央分发器；业务回调会在 RC-002+ 分批接入。
 """
 
-# RC-001 待实现: from src.callback.engine import ResultCallbackEngine
+from src.callback.engine import ResultCallbackEngine
 from src.callback.models import (
     CallbackConfig,
     CallbackEvent,
     CallbackEventType,
+    CallbackPriority,
     CallbackRecord,
 )
 from src.callback.registry import CallbackRegistry
 from src.callback.storage import CallbackStorage
 
 __all__ = [
-    # "ResultCallbackEngine",  # RC-001 实现时解封
+    "ResultCallbackEngine",
     "CallbackRegistry",
     "CallbackStorage",
     "CallbackConfig",
     "CallbackEvent",
     "CallbackEventType",
+    "CallbackPriority",
     "CallbackRecord",
 ]

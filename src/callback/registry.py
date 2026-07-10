@@ -82,6 +82,12 @@ class CallbackRegistry:
         enabled.sort(key=lambda e: e.config.priority.value)
         return enabled
 
+    def list_all(self) -> list[_RegistryEntry]:
+        """返回所有回调（按优先级排序，包含禁用项）"""
+        entries = list(self._entries.values())
+        entries.sort(key=lambda e: e.config.priority.value)
+        return entries
+
     def get_for_event(self, event_type: CallbackEventType) -> list[_RegistryEntry]:
         """返回监听特定事件类型的已启用回调"""
         return [

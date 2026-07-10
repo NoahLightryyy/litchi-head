@@ -310,7 +310,7 @@
 
 | RC | 事项 | 牵头 | 依赖 | 预估 |
 |:--:|:-----|:----|:----|:----:|
-| **RC-001** 🥇 | **回调核心引擎** — `src/callback/` 模块（engine/registry/storage/models），中央事件分发器，注册/冷却/去重/自动禁用 | 记忆系统部 | 无 | ~4h |
+| **RC-001** ✅ | **回调核心引擎** — `src/callback/` 模块（engine/registry/storage/models），中央事件分发器，注册/冷却/自动禁用/审计记录 | 记忆系统部 | 无 | 已完成 |
 | **RC-002** 🥇 | **M3-EXT 按板块信任度校准** — 修复 `TrustTracker.record_outcome()` 从未被调用；新增 `AgentOutcome.sector` 按板块胜率 | 辩论引擎部 | RC-001 | ~2h |
 | **RC-003** 🥇 | **UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore（JSONL）+ 操作理由分类 | 后端 API 部 + 前端部 | RC-001 | ~2h |
 | **RC-004** 🥈 | **RP-TUNE 风险参数自适应** — 回测结果 → 自动调止损/仓位覆盖（基于 max_drawdown/win_rate） | 风控管理部 | RC-001 | ~2h |

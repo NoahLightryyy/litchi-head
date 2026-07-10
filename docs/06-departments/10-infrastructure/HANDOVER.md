@@ -1,7 +1,7 @@
 ---
 department: 基础设施部
 codebase: src/utils/
-last_updated: 2026-06-22 (DP-001 完成)
+last_updated: 2026-07-10 (模型接口多样性战略补充)
 ---
 
 # ⚙️ 基础设施部工作交接
@@ -12,7 +12,7 @@ last_updated: 2026-06-22 (DP-001 完成)
 
 | 子系统 | 状态 | 说明 |
 |:-------|:----:|:------|
-| LLMService（llm.py） | ✅ | DeepSeek 统一封装 + Streaming + LLMConfig（单 Provider 策略） |
+| LLMService（llm.py） | ✅ | DeepSeek 统一封装 + Streaming + LLMConfig（当前单 Provider，接口保留多模型扩展） |
 | 配置管理（config.py） | ✅ | Pydantic Settings 环境变量加载 |
 | 费用追踪（cost_tracker.py） | ✅ | Token 消耗 + 费用持久化 |
 | 结构化日志（logger.py） | ✅ | 统一日志输出格式 |
@@ -31,7 +31,7 @@ last_updated: 2026-06-22 (DP-001 完成)
 - **单入口**：所有 LLM 调用必经 `LLMService`，禁止直调 `ChatDeepSeek`
 - **参数化**：LLMConfig 标准化 temperature/max_tokens，无硬编码
 - **错误向上**：基础设施层不吞异常，抛给业务层处理
-- **单 Provider 策略**：只留 DeepSeek（chat + reasoner），`get_llm(provider=...)` 接口保留供未来扩展
+- **运行时收敛，接口开放**：当前只启用 DeepSeek（chat + reasoner），但 `LLMService` / `LLMConfig` 必须保留未来按 Agent/任务接入不同模型的空间
 
 ---
 
@@ -90,3 +90,9 @@ last_updated: 2026-06-22 (DP-001 完成)
 | `src/utils/complexity_router.py` | 303 | 模型自动路由 |
 | `docs/06-departments/10-infrastructure/ROLE.md` | — | 👤 基础设施部角色定义 |
 | `docs/06-departments/10-infrastructure/STANDARDS.md` | — | 📐 基础设施部技术规范 |
+
+## 战略补充
+
+2026-07-10 用户明确：未来 Agent 系统里的模型接口需要保留多样性，方便接入不同模型获得不同效果。
+
+这意味着 DP-001 的“模型瘦身”只约束当前 Phase R 运行时复杂度，不等于永久放弃多模型可插拔架构。详见 `docs/99-archive/MODEL-INTERFACE-DIVERSITY.md`。

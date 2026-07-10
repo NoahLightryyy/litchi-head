@@ -33,11 +33,27 @@
 
 | 优先级 | 事项 | 牵头部门 |
 |:------:|:-----|:---------|
-| 1 ✅ | TD-038 密钥安全已修复 | 基础设施部 |
-| 2 ✅ | TD-039 API 速率限制 — slowapi 三层限流 | 后端 API 部 |
-| 3 🟡 | TD-040 LLM fallback 链 | 基础设施部 |
-| 4 🟡 | TD-041 数据新鲜度标注 | 数据管道部 + 前端部 |
-| 5 🟢 | orchestrator.py 拆分（1622 行） | 辩论引擎部 |
+| 1 🔴 | TD-061 / RC-001 结果回调引擎 | 跨部门 + 记忆系统部 |
+| 2 🔴 | FD-002a 伪产业链修复 | 后端 API 部 + 前端部 |
+| 3 🟡 | 交易复盘看板极简版 | 后端 API 部 + 前端部 |
+| 4 🟡 | R4 置信度量化 | 辩论引擎部 |
+| 5 🟡 | YahooFinanceSource + 美股前端 Tab | 数据管道部 + 前端部 |
+
+## 🔁 Loop 入口
+
+新聊天窗口直接发送：
+
+```text
+启动 litchi-head loop
+```
+
+AI 将自动读取上下文、选择最高优先级、推进一个原子任务、跑相关验证并写工作日志。
+
+只做收尾：
+
+```text
+收尾 loop
+```
 
 ## 📁 你要干嘛 → 找哪个部门
 
@@ -72,6 +88,7 @@ cd frontend && pnpm dev                          # 启动前端
 | 你要干嘛 | 看哪个文件 |
 |:---------|:-----------|
 | 完整工作流程（给 AI） | [WORKFLOW.md](WORKFLOW.md) |
+| Codex Batch Loop 自动化 | [LOOP.md](LOOP.md) |
 | 完整交接文档（给 AI） | [HANDOVER.md](HANDOVER.md) |
 | 债务路由 | [debt/ROUTER.md](debt/ROUTER.md) |
 | 部门体系总览 | `docs/06-departments/README.md` |
@@ -81,4 +98,4 @@ cd frontend && pnpm dev                          # 启动前端
 
 ---
 > 每次会话结束时 AI 自动更新本页。如有出入请提醒。
-> **最后更新**：2026-06-22 | TD-039 + triage Git Bash + 三层测试策略（23 slow 标记）+ 学习卡片 #20
+> **最后更新**：2026-07-10 | Codex Batch Loop 入口 + Phase R 当前优先级重对齐
