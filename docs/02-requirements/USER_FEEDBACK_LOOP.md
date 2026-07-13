@@ -143,8 +143,8 @@
 
 | 组件 | 功能 | 状态 |
 |:-----|:-----|:----:|
-| RC-001 核心引擎 | 事件分发器 + 注册表 + 存储层 | 🟦 规划通过 |
-| RC-002 M3-EXT | 按板块的大师信任度校准 + sector 字段 | 🟦 规划通过 |
+| RC-001 核心引擎 | 事件分发器 + 注册表 + 存储层 | ✅ 已完成 |
+| RC-002 M3-EXT | 按板块的大师信任度校准 + sector 字段 + 反思入口实际结果 dispatch | ✅ 已完成 |
 | RC-004 RP-TUNE | 风险参数根据回测结果自适应 | 🟦 规划通过 |
 | RC-005 CALIBRATE | 置信度 Brier score 过高时注入校准乘数 | 🟦 规划通过 |
 | RC-006 STRAT-ROUTE | 不同市场条件下的大师路由 | 🟦 规划通过 |
@@ -227,11 +227,11 @@
 
 | 步骤 | 事项 | 产出 | 依赖 | 预估 |
 |:----:|:-----|:-----|:-----|:----:|
-| 1.1 | RC-001 核心引擎 | `src/callback/` 模块就绪 | 无 | ~4h |
+| 1.1 | RC-001 核心引擎 | `src/callback/` 模块就绪 | 无 | ✅ 已完成 |
 | 1.2 | RC-003 UB-TRACK 基础 | InvestmentDecision 模型 + UserBehaviorStore 写入 | RC-001 | ~2h |
 | 1.3 | `POST /api/user/action` 端点 | 后端接收用户操作 → dispatch USER_ACTION_RECORDED | RC-003 | ~1h |
 | 1.4 | 前端操作按钮 | 个股页加"买入/卖出/关注"按钮 + 理由弹窗 | RC-003 API | ~2h |
-| 1.5 | RC-002 M3-EXT | 修复 record_outcome 从未被调用 | RC-001 | ~2h |
+| 1.5 | RC-002 M3-EXT | 修复 record_outcome 从未被调用；`reflect_on_decision()` 收到实际结果后自动更新 TrustTracker | RC-001 | ✅ 已完成 |
 
 **阶段 1 完成后**：用户每次操作都被记录，大师信任度开始有数据积累。
 

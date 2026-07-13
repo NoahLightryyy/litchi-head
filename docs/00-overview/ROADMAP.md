@@ -311,7 +311,7 @@
 | RC | 事项 | 牵头 | 依赖 | 预估 |
 |:--:|:-----|:----|:----|:----:|
 | **RC-001** ✅ | **回调核心引擎** — `src/callback/` 模块（engine/registry/storage/models），中央事件分发器，注册/冷却/自动禁用/审计记录 | 记忆系统部 | 无 | 已完成 |
-| **RC-002** 🔧 | **M3-EXT 按板块信任度校准** — `AgentOutcome.sector` + 按板块胜率 + M3 回调已完成；编排器真实结果 dispatch 待接入 | 辩论引擎部 | RC-001 | 回调层完成 |
+| **RC-002** ✅ | **M3-EXT 按板块信任度校准** — `AgentOutcome.sector` + 按板块胜率 + M3 回调 + `reflect_on_decision()` 实际结果 dispatch 已完成 | 辩论引擎部 | RC-001 | 已完成 |
 | **RC-003** 🥇 | **UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore（JSONL）+ 操作理由分类 | 后端 API 部 + 前端部 | RC-001 | ~2h |
 | **RC-004** 🥈 | **RP-TUNE 风险参数自适应** — 回测结果 → 自动调止损/仓位覆盖（基于 max_drawdown/win_rate） | 风控管理部 | RC-001 | ~2h |
 | **RC-005** 🥈 | **CALIBRATE 置信度校准** — Brier score 过高时注入校准或降低置信度权重 | 辩论引擎部 | RC-002 | ~1h |

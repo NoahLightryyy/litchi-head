@@ -55,6 +55,8 @@ from langgraph.graph import END, StateGraph  # noqa: E402 — 惰性导入避免
 
 from src.agents.base import AgentContext  # noqa: E402
 from src.agents.master_agent import MasterAgent  # noqa: E402
+from src.callback import CallbackEventType, ResultCallbackEngine  # noqa: E402
+from src.callback.callbacks import register_m3_ext_callback  # noqa: E402
 from src.data.collector import DataCollector, format_market_brief  # noqa: E402
 from src.data.models import KLine, NewsItem, StockQuote  # noqa: E402
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
@@ -1258,6 +1260,7 @@ class DebateOrchestrator:
         enable_trader: bool = False,
         enable_reflection: bool = False,
         enable_trust: bool = False,
+        callback_engine: ResultCallbackEngine | None = None,
     ):
         """初始化辩论编排器
 
@@ -1281,6 +1284,8 @@ class DebateOrchestrator:
             enable_trust: 是否启用 M4 动态权重（默认 False）
                 启用后，aggregate 节点使用 TrustTracker 的 compute_weight_factor()
                 自动调整每位大师的投票权重。需要同时提供 memory_store。
+            callback_engine: 结果回调引擎（可选）。
+                不提供且 enable_trust=True 时自动创建并注册 M3-EXT 回调。
         """
         self.data_collector = data_collector or DataCollector()
         self.skill_disk = skill_disk or SkillDisk()
@@ -1291,6 +1296,10 @@ class DebateOrchestrator:
         self.enable_trader = enable_trader
         self.enable_reflection = enable_reflection
         self.enable_trust = enable_trust
+        self.callback_engine = callback_engine
+        if self.callback_engine is None and enable_trust:
+            self.callback_engine = ResultCallbackEngine(memory_store=memory_store)
+            register_m3_ext_callback(self.callback_engine, memory_store=memory_store)
 
         # 加载大师列表
         if skill_ids is not None:
@@ -1471,7 +1480,66 @@ class DebateOrchestrator:
         # 3. 保存反思
         await self._save_reflection_to_memory(reflection)
 
+        # 4. 分发实际结果事件，驱动信任度/后续结果回调（不阻塞反思返回）
+        await self._dispatch_actual_outcome(decision, outcome, session_id)
+
         return reflection
+
+    async def _dispatch_actual_outcome(
+        self,
+        decision: dict,
+        outcome: ActualOutcome,
+        session_id: str = "",
+    ) -> None:
+        """将实际结果分发给 RC 回调引擎（失败不阻塞主流程）。"""
+        if self.callback_engine is None:
+            return
+
+        context = self._build_actual_outcome_context(decision, outcome, session_id)
+        if not context["agent_analyses"]:
+            logger.info("实际结果回调跳过：历史决策缺少 agent_analyses")
+            return
+
+        try:
+            await self.callback_engine.dispatch(
+                CallbackEventType.ACTUAL_OUTCOME_RECEIVED,
+                context=context,
+                source="debate.reflect_on_decision",
+            )
+        except Exception as e:
+            logger.warning("实际结果回调分发失败: %s", e)
+
+    def _build_actual_outcome_context(
+        self,
+        decision: dict,
+        outcome: ActualOutcome,
+        session_id: str = "",
+    ) -> dict[str, Any]:
+        """构造 ACTUAL_OUTCOME_RECEIVED 事件上下文。"""
+        agent_analyses = decision.get("agent_analyses")
+        if not isinstance(agent_analyses, list):
+            agent_analyses = decision.get("analyses_summary")
+        if not isinstance(agent_analyses, list):
+            agent_analyses = []
+
+        resolved_session_id = session_id or str(decision.get("session_id", ""))
+        return {
+            "agent_analyses": agent_analyses,
+            "actual_outcome": {
+                "actual_direction": outcome.actual_direction,
+                "actual_price_change_pct": outcome.price_change_pct,
+                "decision_date": outcome.decision_date or str(decision.get("decision_date", "")),
+                "evaluation_date": outcome.evaluation_date,
+                "session_id": resolved_session_id,
+                "stock_code": outcome.stock_code,
+                "sector": str(decision.get("sector", "")),
+            },
+            "session_id": resolved_session_id,
+            "stock_code": outcome.stock_code,
+            "sector": str(decision.get("sector", "")),
+            "decision_date": outcome.decision_date or str(decision.get("decision_date", "")),
+            "evaluation_date": outcome.evaluation_date,
+        }
 
     async def _save_decision_to_memory(self, result: DebateResult) -> None:
         """将当前辩论结果保存到记忆存储（不阻塞辩论流程）
@@ -1485,21 +1553,27 @@ class DebateOrchestrator:
         decision = {
             "stock_code": result.stock_code,
             "stock_name": result.stock_name,
+            "session_id": result.session_id,
             "question": result.question,
             "timestamp": date.today().isoformat(),
+            "decision_date": date.today().isoformat(),
             "consensus": result.vote_summary.consensus,
             "average_score": result.vote_summary.average_score,
             "weighted_score": result.vote_summary.weighted_score,
             "confidence": result.vote_summary.confidence,
             "total_votes": result.vote_summary.total_votes,
+            "agent_analyses": [a.model_dump() for a in result.analyses],
             "analyses_summary": [
                 {
                     "agent_name": a.agent_name,
+                    "skill_id": a.skill_id,
                     "skill_name": a.skill_name,
                     "rating": a.rating,
                     "score": a.score,
                     "summary": a.summary,
+                    "confidence": a.confidence,
                     "direction": a.direction,
+                    "success": a.success,
                 }
                 for a in result.analyses
             ],

@@ -86,7 +86,7 @@ last_updated: 2026-06-23
 
 | RC | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **RC-002** 🔧 | **M3-EXT 按板块信任度校准** — `AgentOutcome.sector` 新增字段 + TrustTracker 按板块胜率 + `m3_ext` 回调已完成；编排器真实结果 dispatch 待接入 | 记忆系统部 RC-001 核心引擎 | 回调层完成 |
+| **RC-002** ✅ | **M3-EXT 按板块信任度校准** — `AgentOutcome.sector` 新增字段 + TrustTracker 按板块胜率 + `m3_ext` 回调 + `reflect_on_decision()` 实际结果 dispatch 已完成 | 记忆系统部 RC-001 核心引擎 | 已完成 |
 | **RC-005** 🥈 | **CALIBRATE 置信度校准** — Brier score 过高时自动注入校准提示或降低置信度贡献权重 | RC-002 | ~1h |
 | **RC-006** 🥉 | **STRAT-ROUTE 策略路由** — 追踪每位大师在不同市场条件下的胜率，持续不及格时自动降级 | RC-002 | ~2h |
 
@@ -107,22 +107,24 @@ def compute_weight_factor(metrics: AgentTrustMetrics, sector: str = "") -> float
         win_rate = metrics.win_rate
     ...
 
-# src/debate/orchestrator.py — run() 和 reflect_on_decision() 后 dispatch
+# src/debate/orchestrator.py — reflect_on_decision() 收到实际结果后 dispatch
 await self.callback_engine.dispatch(
     CallbackEventType.ACTUAL_OUTCOME_RECEIVED,
-    source="orchestrator",
-    actual_outcome=outcome,
-    agent_analyses=result.analyses,
-    memory_store=self.memory_store,
+    context={
+        "actual_outcome": actual_outcome,
+        "agent_analyses": decision["agent_analyses"],
+    },
+    source="debate.reflect_on_decision",
 )
 ```
 
-**2026-07-10 落地状态**：
+**2026-07-10/13 落地状态**：
 - `src/debate/trust.py`：`AgentOutcome.sector`、`AgentTrustMetrics.sector_win_rates`、`sector_sample_counts` 已上线。
 - `compute_weight_factor(metrics, sector=...)`：板块样本数达到可靠阈值时使用板块胜率，否则回退总体胜率。
 - `src/callback/callbacks/m3_ext.py`：新增 `ACTUAL_OUTCOME_RECEIVED` 事件回调，将 `agent_analyses + actual_outcome` 写入 TrustTracker。
+- `src/debate/orchestrator.py`：`enable_trust=True` 时自动注册 M3-EXT；`reflect_on_decision()` 收到 `ActualOutcome` 后 dispatch 实际结果事件。
 - `tests/test_debate/test_trust.py` + `tests/test_callback/test_m3_ext.py`：覆盖按板块统计、板块权重、事件写入、失败分析跳过、缺字段显式失败。
-- 未完成边界：真实编排器/复盘看板尚未 dispatch 实际结果事件，后续 RC-003/R4 接入时补齐。
+- 未完成边界：复盘看板、用户行为追踪、风控自适应仍需 RC-003/R4/RC-004 接入。
 | **FD-001h** 🥇 | **大师知识过滤器扩展** — 巴菲特、格雷厄姆直接接收财务指标；林奇、达利欧通过分析师报告间接使用 | FD-001g | ~2h |
 
 ### 数据流变更

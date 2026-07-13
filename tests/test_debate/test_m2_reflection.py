@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -23,7 +24,8 @@ from src.debate.reflection import (
     _load_decision_from_memory,
     generate_reflection,
 )
-from src.memory.store import MemoryItem, MemoryStore
+from src.debate.trust import TrustTracker
+from src.memory.store import JsonFileStore, MemoryItem, MemoryStore
 
 # ═══════════════════════════════════════════════════════════════════
 # Phase 1: 模型验证
@@ -464,6 +466,67 @@ class TestReflectOnDecision:
         # 即使保存失败，反思仍应返回
         assert result is not None
         assert result.reflection_text == "ok"
+
+    @pytest.mark.asyncio
+    async def test_reflect_dispatches_actual_outcome_to_trust_callbacks(
+        self, tmp_path: Path
+    ):
+        """反思收到实际结果时，应同步触发 M3-EXT 信任度回调"""
+        store = JsonFileStore(base_path=tmp_path)
+        await store.put(
+            key="000001",
+            namespace=("episodic", "debate"),
+            value={
+                "stock_code": "000001",
+                "stock_name": "平安银行",
+                "session_id": "sess-m3-real",
+                "decision_date": "2026-07-09",
+                "sector": "银行",
+                "consensus": "看涨",
+                "average_score": 72.5,
+                "confidence": 0.78,
+                "agent_analyses": [
+                    {
+                        "agent_name": "master.buffett",
+                        "skill_id": "buffett",
+                        "skill_name": "巴菲特",
+                        "rating": "看涨",
+                        "score": 80,
+                        "summary": "基本面稳健",
+                        "analysis": "analysis",
+                        "confidence": 0.8,
+                        "direction": "Bullish",
+                        "success": True,
+                    }
+                ],
+            },
+        )
+
+        mock_reflection = ReflectionRecord(
+            session_id="",
+            stock_code="000001",
+            was_correct=True,
+            reflection_text="方向正确",
+        )
+        orch = DebateOrchestrator(memory_store=store, enable_trust=True)
+        outcome = ActualOutcome(
+            stock_code="000001",
+            evaluation_date="2026-07-10",
+            price_change_pct=2.0,
+            actual_direction="Bullish",
+        )
+
+        with patch("src.utils.llm.llm_service.invoke_structured") as mock_invoke:
+            mock_invoke.return_value = mock_reflection
+
+            result = await orch.reflect_on_decision("000001", outcome)
+
+        assert result is not None
+        tracker = TrustTracker(memory_store=store)
+        report = await tracker.get_trust_report("master.buffett")
+        assert report.metrics.total_samples == 1
+        assert report.metrics.win_rate == 1.0
+        assert report.metrics.sector_win_rates["银行"] == 1.0
 
 
 # ═══════════════════════════════════════════════════════════════════

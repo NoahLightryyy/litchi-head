@@ -128,8 +128,8 @@
 | **信任度评分** | TrustTracker — 方向准确率/校准/偏差/趋势统计，支持按板块校准 Agent 输出可靠性 | ✅ M3 + RC-002 回调就绪（含 sector 统计） |
 | **动态权重** | `compute_weight_factor(metrics, sector=...)` 根据信任度和板块胜率动态调整聚合权重，D3 weight_suggestions 叠加 | ✅ M4 就绪（支持 sector） |
 | **教育小智** | RAG 驱动的问答 Agent（30 篇知识库 + TF 向量语义检索） | ✅ 就绪 |
-| **M2 反思闭环** | AI推荐 ↔ 实际走势对比反思，自动生成经验教训存储入库 | ✅ 骨架就绪（待接入实际结果数据） |
-| **结果回调引擎 RC-001/002** 🆕 | ResultCallbackEngine 统一分发结果事件；M3-EXT 回调可把实际结果写入 TrustTracker | ✅ 核心分发器 + 信任度回调完成 |
+| **M2 反思闭环** | AI推荐 ↔ 实际走势对比反思，自动生成经验教训存储入库，并触发实际结果回调 | ✅ 反思入口已接 RC-002 |
+| **结果回调引擎 RC-001/002** 🆕 | ResultCallbackEngine 统一分发结果事件；M3-EXT 回调可把实际结果写入 TrustTracker | ✅ 核心分发器 + 信任度回调 + 反思 dispatch 完成 |
 | **用户经验反馈闭环** 🆕 | 记录用户操作 vs AI推荐 → 实际盈亏 → 经验教训 → 改进未来决策 | 🔧 信任度回调就绪·用户行为/复盘待接入（RC-003/004 + R4 复盘） |
 | **记忆存储系统** | MemoryStore(ABC) + JsonFileStore + MemoryManager 语义化接口 + 用户行为存储 🆕 | ✅ MVP |
 | **数据采集层** | akshare 封装：实时行情 / K 线 / 新闻 / 板块 / 全部 A 股 + C1 结构化4层简报输出。FD-001 调研完成，待新增财务指标 🆕 | ✅ 就绪 |

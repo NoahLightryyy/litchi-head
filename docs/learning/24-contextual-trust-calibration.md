@@ -57,6 +57,8 @@ tracker.record_outcome_from_analysis(
 
 第一段负责“怎么算”，第二段负责“结果来了怎么写进去”。这两个合起来，才让回测或真实市场结果进入按板块信任度统计。
 
+实际入口在 `src/debate/orchestrator.py` 的 `reflect_on_decision()`：当外部传入 `ActualOutcome` 做事后反思时，编排器会分发 `ACTUAL_OUTCOME_RECEIVED` 事件。这样同一次真实结果既能生成反思卡片，也能更新大师在对应板块的历史胜率。
+
 ---
 
 ## 和总体胜率有什么不同？
@@ -84,6 +86,7 @@ tracker.record_outcome_from_analysis(
 2. 找到 `test_sector_weight_uses_sector_win_rate_when_reliable`
 3. 把 `sector_sample_counts["食品饮料"]` 从 5 改成 4，看看权重为什么会回退到总体胜率
 4. 再打开 `tests/test_callback/test_m3_ext.py`，看 `ACTUAL_OUTCOME_RECEIVED` 事件如何把实际结果写入 TrustTracker
+5. 最后打开 `tests/test_debate/test_m2_reflection.py`，看 `test_reflect_dispatches_actual_outcome_to_trust_callbacks` 如何验证反思入口真的触发了 M3-EXT
 
 ---
 
