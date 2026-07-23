@@ -24,7 +24,7 @@ last_updated: 2026-07-23
 
 | 指标 | 当前值 |
 |:-----|:------:|
-| 全量测试 | 943 collected, 全部通过 ✅ |
+| 全量测试 | 1012 collected, 全部通过 ✅ |
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |

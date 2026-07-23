@@ -8,7 +8,7 @@
 ## 快速统计
 
 ```
-总 Python 测试数 │ 950 passed（not slow）
+总 Python 测试数 │ 1012 passed
 技术债务         │ 62 条总记 / 37 条已关闭 / 25 条开放
 紧急指数         │ 4.0/10（DP-001 完成 + CI 绿）
 当前阶段         │ 🔴 按 8 月底出国倒排 — P0 美股+YahooFinanceSource+FD-001+置信度+复盘看板，~3 周冲刺

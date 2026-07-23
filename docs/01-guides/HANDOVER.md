@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `1a16c66` — feat: FD-001e~g 基本面数据注入辩论引擎 |
-| **全量测试** | 983 collected (4 skipped), 全部通过 ✅ |
+| **最新提交** | `266765f` — docs: FD-001 文档同步 + 剩余任务下放对应部门 |
+| **全量测试** | 1012 collected, 全部通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | 🟢 → 最近 4 次全绿 ✅ |
@@ -191,4 +191,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-06-23 | DP-003 偏斜公示落地 + 8月底出国倒排重优先级 — P0美股数据源+FD-001+置信度量化+复盘看板
+> **最后更新**：2026-07-23 | FD-001 Step 1 财务指标数据模型上线 + 文档同步对齐
