@@ -1097,6 +1097,7 @@ async def aggregate_node(state: DebateState) -> dict:
     total_score = 0
     weighted_score_sum = 0.0
     total_weight = 0.0
+    trust_weight_factors: dict[str, float] = {}
 
     for a in successful:
         rebuttal = rebuttal_map.get(a.agent_name)
@@ -1125,7 +1126,6 @@ async def aggregate_node(state: DebateState) -> dict:
 
         # ── M4: 叠加信任度权重因子 ─────────────────
         trust_factors_raw = state.get("trust_weight_factors", {})
-        trust_weight_factors: dict[str, float] = {}
         if isinstance(trust_factors_raw, dict):
             trust_weight_factors = trust_factors_raw
         trust_factor = trust_weight_factors.get(a.agent_name, 1.0)
