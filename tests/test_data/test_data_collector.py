@@ -324,6 +324,144 @@ class TestFormatMarketBrief:
         assert sep_idx is not None
         assert sep_idx == header_idx + 1, "分隔线应紧跟在标题后"
 
+    # ── FD-001e: 基本面真实数据 ─────────────────────────────────────
+
+    def test_with_financials_shows_report_date(self):
+        """财务数据应显示最新报告期"""
+        from src.data.collector import format_market_brief
+        from src.data.models import FinancialMetrics
+
+        fin = FinancialMetrics(stock_code="000001", report_date="2024-12-31", eps=1.25)
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            financials=[fin],
+        )
+
+        assert "最新报告期: 2024-12-31" in result
+        assert "EPS 1.2500" in result
+
+    def test_with_financials_all_dimensions(self):
+        """全量财务数据应输出6大维度"""
+        from src.data.collector import format_market_brief
+        from src.data.models import FinancialMetrics
+
+        fin = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            eps=1.25, book_value_per_share=18.50, operating_cf_per_share=2.10,
+            roe=12.5, roa=5.2, gross_margin=45.8, net_profit_margin=18.3,
+            revenue_growth=8.5, net_profit_growth=15.2,
+            debt_ratio=55.0, current_ratio=1.8, quick_ratio=1.2,
+            inventory_turnover=4.5, asset_turnover=0.85,
+            total_assets=5_000_000_000_000, operating_revenue=150_000_000_000,
+        )
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            financials=[fin],
+        )
+
+        # 每股指标
+        assert "📊 每股指标:" in result
+        assert "EPS 1.2500" in result
+        assert "每股净资产 18.50" in result
+        assert "每股经营现金流 2.10" in result
+
+        # 盈利能力
+        assert "📈 盈利能力:" in result
+        assert "ROE 12.50%" in result
+        assert "ROA 5.20%" in result
+        assert "毛利率 45.80%" in result
+        assert "净利率 18.30%" in result
+
+        # 增长能力
+        assert "🚀 增长能力:" in result
+        assert "营收增长 +8.50%" in result
+        assert "净利润增长 +15.20%" in result
+
+        # 财务健康
+        assert "🛡️ 财务健康:" in result
+        assert "资产负债率 55.0%" in result
+        assert "流动比率 1.80" in result
+        assert "速动比率 1.20" in result
+
+        # 运营效率
+        assert "⚙️ 运营效率:" in result
+        assert "存货周转率 4.50" in result
+        assert "总资产周转率 0.85" in result
+
+        # 规模(除以1亿)
+        assert "🏢 规模:" in result
+        assert "总资产 50000.00 亿元" in result
+        assert "主营利润 1500.00 亿元" in result
+
+    def test_with_financials_empty_list(self):
+        """空列表应回退到暂无基本面数据"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            financials=[],
+        )
+
+        assert "暂无基本面数据" in result
+
+    def test_with_financials_all_zero(self):
+        """全零财务数据应仅显示报告期"""
+        from src.data.collector import format_market_brief
+        from src.data.models import FinancialMetrics
+
+        fin = FinancialMetrics(
+            stock_code="000001", report_date="2024-09-30",
+        )
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            financials=[fin],
+        )
+
+        assert "最新报告期: 2024-09-30" in result
+        # 不应有维度标题行
+        assert "📊 每股指标:" not in result
+        assert "📈 盈利能力:" not in result
+        assert "暂无基本面数据" not in result  # 仍有报告期，不算"无数据"
+
+    def test_with_financials_partial(self):
+        """部分字段为0时应跳过0值维度行"""
+        from src.data.collector import format_market_brief
+        from src.data.models import FinancialMetrics
+
+        fin = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            eps=0.00, roe=15.0, debt_ratio=45.0,  # EPS=0, ROE有值, 负债率有值
+        )
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            financials=[fin],
+        )
+
+        # ROE和负债率应显示
+        assert "ROE 15.00%" in result
+        assert "资产负债率 45.0%" in result
+        # EPS=0 不应在结果显示
+        assert "EPS 0.00" not in result
+
+    def test_with_financials_negative_growth(self):
+        """负增长率应正确显示负号"""
+        from src.data.collector import format_market_brief
+        from src.data.models import FinancialMetrics
+
+        fin = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            revenue_growth=-5.3, net_profit_growth=-12.8,
+            eps=-0.15,
+        )
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            financials=[fin],
+        )
+
+        assert "营收增长 -5.30%" in result
+        assert "净利润增长 -12.80%" in result
+        assert "EPS -0.1500" in result
+
 
 # ── Tests: get_financials ──────────────────────────────────────────
 

@@ -135,7 +135,115 @@ class DataCollector:
 
 ---
 
-## 这个模式好在哪
+## 完整数据流：从 akshare → LLM 分析师（FD-001e~g）
+
+> 打通了"财务数据 → 辩论引擎"的全链路。
+
+### 数据流水线
+
+```
+akshare.stock_financial_analysis_indicator(code)
+  ↓  86 列中文原始数据
+_row_to_financial()
+  ↓  17 个 FinancialMetrics 字段
+AKShareSource.get_financials()
+  ↓
+DataCollector.get_financials()    ← TTL=1h 缓存
+  ↓
+collect_data_node()                ← src/debate/orchestrator.py
+  ├── market_data["financials"]    ← 结构化数据（供后续扩展）
+  └── format_market_brief()        ← 格式化为人读文本
+       ↓
+       "基本面层" 区段被填充真实数据
+  ↓
+_run_single_analyst()
+  ↓  brief 追加到 analyst prompt
+LLM 分析师收到结构化的 6 大维度数据
+```
+
+### format_market_brief 格式化逻辑
+
+打开 `src/data/collector.py`：
+
+```python
+def format_market_brief(
+    stock_code: str,
+    stock_name: str,
+    quote: StockQuote | None = None,
+    klines: list[KLine] | None = None,
+    news: list[NewsItem] | None = None,
+    financials: list[FinancialMetrics] | None = None,  # 🆕 FD-001e
+) -> str:
+```
+
+收到 `FinancialMetrics` 列表后，取最新一期（列表第一项），按 6 大维度分别格式化：
+
+```
+----- 基本面层 -----
+最新报告期: 2024-12-31
+📊 每股指标: EPS 1.2500 元 | 每股净资产 18.50 元 | 每股经营现金流 2.10 元
+📈 盈利能力: ROE 12.50% | ROA 5.20% | 毛利率 45.80% | 净利率 18.30%
+🚀 增长能力: 营收增长 +8.50% | 净利润增长 +15.20%
+🛡️ 财务健康: 资产负债率 55.0% | 流动比率 1.80 | 速动比率 1.20
+⚙️ 运营效率: 存货周转率 4.50 | 总资产周转率 0.85
+🏢 规模: 总资产 50000.00 亿元 | 主营利润 1500.00 亿元
+```
+
+**关键设计：**
+- 零值字段自动跳过（`if latest.eps != 0.0`）—— 避免满屏 `0.00`
+- 负值正确显示负号（`growth:+.2f` → `-5.30%`）
+- 总资产/主营利润除以 1 亿以「亿元」显示，避免长数字不可读
+- 取最新一期而非多期（简报足够辅助决策，多期对比留给专项分析）
+
+### collect_data_node 接驳
+
+打开 `src/debate/orchestrator.py` 的 `collect_data_node`：
+
+```python
+try:
+    financial_data = collector.get_financials(code)
+except Exception as e:
+    logger.exception("财务数据获取失败 [%s]: %s", code, e)
+
+brief = format_market_brief(
+    ...
+    financials=financial_data,  # ← 传入财务数据
+)
+
+# 同时保留结构化数据供后续扩展
+return {
+    "market_data": {
+        ...
+        "financials": [f.model_dump() for f in financial_data],
+    },
+}
+```
+
+### 分析师自动受益
+
+分析师 prompt 已经通过 `market_data["brief"]` 接收简报文本：
+
+```python
+# _run_single_analyst ← src/debate/orchestrator.py:335
+brief = market_data.get("brief", "")
+if brief:
+    enhanced += f"\n\n📊 以下为当前市场数据：\n{brief}"
+```
+
+现在 fundamentals 区段包含真实财务指标，基本面分析师的 prompt（`src/debate/analysts.py`）中提到的 "ROE、利润率、负债率" 终于有了真实数据可分析。
+
+### 数据链路完整性验证
+
+| 环节 | 验证 |
+|:-----|:-----|
+| FinancialMetrics 模型 | ✅ 19 tests（构造/约束/边界/序列化） |
+| AKShare akshare 映射 | ✅ 5 tests（行转换/错误处理） |
+| DataCollector.get_financials() | ✅ 4 tests（正常/失败/缓存） |
+| format_market_brief 含财务 | ✅ 6 tests（全维度/空列表/零值/部分/负增长） |
+| collect_data_node 接驳 | ✅ 17 tests（含 mock get_financials） |
+| 辩论全链路无回归 | ✅ 261 tests |
+
+---
 
 | 维度 | 以前（没有统一模式） | 现在（DataSource 协议） |
 |:-----|:-------------------|:----------------------|

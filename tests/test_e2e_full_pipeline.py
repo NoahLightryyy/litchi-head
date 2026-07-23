@@ -29,6 +29,7 @@ def mock_collector():
     col.get_realtime_quotes.return_value = []
     col.get_klines.return_value = []
     col.get_news.return_value = []
+    col.get_financials.return_value = []
     return col
 
 

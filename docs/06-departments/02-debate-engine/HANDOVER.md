@@ -77,8 +77,8 @@ last_updated: 2026-06-23
 
 | FD | 事项 | 状态 | 依赖 | 预估 |
 |:--:|:-----|:----:|:----|:----:|
-| **FD-001f** 🥇 | **辩论注入财务数据** — `collect_data_node` 调用 `DataCollector.get_financials()`，存入 `market_data["financials"]` | ⬜ | 数据部 FD-001e | ~1h |
-| **FD-001g** 🥇 | **基本面分析师增强** — 接收结构化财务数据，不再显示"暂无基本面数据" | ⬜ | FD-001f | ~1h |
+| **FD-001f** 🥇 | **辩论注入财务数据** — `collect_data_node` 调用 `DataCollector.get_financials()`，存入 `market_data["financials"]` | ✅ | 数据部 FD-001e | ~1h |
+| **FD-001g** 🥇 | **基本面分析师增强** — 接收结构化财务数据，不再显示"暂无基本面数据" | ✅ | FD-001f | ~1h |
 
 ### 结果回调（RC 系列，2026-06-23 新增 — 架构级修复）
 
@@ -131,18 +131,18 @@ await self.callback_engine.dispatch(
 ### 数据流变更
 
 ```
-collect_data_node（增强后）
+collect_data_node（已增强）
   ├── 行情数据（已有）
   ├── K 线数据（已有）
   ├── 新闻数据（已有）
-  └── 财务数据 🆕 ← DataCollector.get_financial_metrics(code)
+  └── 财务数据 ✅ ← DataCollector.get_financials(code)
        ↓
-  market_data["financials"] = list[FinancialMetric]
+  market_data["financials"] = list[FinancialMetrics]（结构化数据）
        ↓
-  format_market_brief() → fundamentals 区段填充真实数据
+  format_market_brief(financials=...) → fundamentals 区段填充真实数据
        ↓
 analyst_round
-  ├── fundamental 分析师 ← 接收 structured FinancialMetric（不再是占位符）
+  ├── fundamental 分析师 ← 真实财务数据（已非占位符）
   ├── technical (不变)
   ├── sentiment (不变)
   └── macro (不变)

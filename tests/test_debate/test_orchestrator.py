@@ -39,6 +39,7 @@ def mock_collector() -> MagicMock:
     col.get_realtime_quotes.return_value = []
     col.get_klines.return_value = []
     col.get_news.return_value = []
+    col.get_financials.return_value = []
     return col
 
 
@@ -119,6 +120,7 @@ class TestCollectDataNode:
         failing.get_realtime_quotes.side_effect = ConnectionError("网络不可用")
         failing.get_klines.side_effect = ConnectionError("网络不可用")
         failing.get_news.side_effect = ConnectionError("网络不可用")
+        failing.get_financials.side_effect = ConnectionError("网络不可用")
 
         state: DebateState = {
             "session_id": "test-s2",

@@ -405,12 +405,12 @@ def format_market_brief(
     quote: StockQuote | None = None,
     klines: list[KLine] | None = None,
     news: list[NewsItem] | None = None,
+    financials: list[FinancialMetrics] | None = None,
 ) -> str:
     """生成结构化市场简报（C1 分区输出）
 
     按 4 层分区输出：行情层 / 新闻层 / 情绪层 / 基本面层。
     各层使用 ``----- 层名 -----`` 视觉分隔线，让 LLM 能按需聚焦。
-    情绪层和基本面层为占位区段，待后续 C2/C3 接入实际数据源。
 
     Args:
         stock_code: 股票代码
@@ -418,6 +418,7 @@ def format_market_brief(
         quote: 个股实时行情（已过滤）
         klines: K 线数据
         news: 新闻列表
+        financials: 财务指标列表（FD-001e），取最新一期展示
 
     Returns:
         格式化文本，以 "📊 市场简报" 开头
@@ -487,11 +488,79 @@ def format_market_brief(
         has_data=False,
     )
 
-    # ── 基本面层（占位） ──
+    # ── 基本面层（FD-001e: 真实财务数据） ──
+    fund_lines: list[str] = []
+    has_fund = bool(financials)
+    if financials:
+        latest = financials[0]  # 取最新一期（列表已按报告期倒序）
+        fund_lines.append(f"最新报告期: {latest.report_date or 'N/A'}")
+
+        # 每股指标
+        eps_parts = []
+        if latest.eps != 0.0:
+            eps_parts.append(f"EPS {latest.eps:.4f} 元")
+        if latest.book_value_per_share != 0.0:
+            eps_parts.append(f"每股净资产 {latest.book_value_per_share:.2f} 元")
+        if latest.operating_cf_per_share != 0.0:
+            eps_parts.append(f"每股经营现金流 {latest.operating_cf_per_share:.2f} 元")
+        if eps_parts:
+            fund_lines.append("📊 每股指标: " + " | ".join(eps_parts))
+
+        # 盈利能力
+        prof_parts = []
+        if latest.roe != 0.0:
+            prof_parts.append(f"ROE {latest.roe:.2f}%")
+        if latest.roa != 0.0:
+            prof_parts.append(f"ROA {latest.roa:.2f}%")
+        if latest.gross_margin != 0.0:
+            prof_parts.append(f"毛利率 {latest.gross_margin:.2f}%")
+        if latest.net_profit_margin != 0.0:
+            prof_parts.append(f"净利率 {latest.net_profit_margin:.2f}%")
+        if prof_parts:
+            fund_lines.append("📈 盈利能力: " + " | ".join(prof_parts))
+
+        # 增长能力
+        grow_parts = []
+        if latest.revenue_growth != 0.0:
+            grow_parts.append(f"营收增长 {latest.revenue_growth:+.2f}%")
+        if latest.net_profit_growth != 0.0:
+            grow_parts.append(f"净利润增长 {latest.net_profit_growth:+.2f}%")
+        if grow_parts:
+            fund_lines.append("🚀 增长能力: " + " | ".join(grow_parts))
+
+        # 财务健康
+        health_parts = []
+        if latest.debt_ratio != 0.0:
+            health_parts.append(f"资产负债率 {latest.debt_ratio:.1f}%")
+        if latest.current_ratio != 0.0:
+            health_parts.append(f"流动比率 {latest.current_ratio:.2f}")
+        if latest.quick_ratio != 0.0:
+            health_parts.append(f"速动比率 {latest.quick_ratio:.2f}")
+        if health_parts:
+            fund_lines.append("🛡️ 财务健康: " + " | ".join(health_parts))
+
+        # 运营效率
+        ops_parts = []
+        if latest.inventory_turnover != 0.0:
+            ops_parts.append(f"存货周转率 {latest.inventory_turnover:.2f}")
+        if latest.asset_turnover != 0.0:
+            ops_parts.append(f"总资产周转率 {latest.asset_turnover:.2f}")
+        if ops_parts:
+            fund_lines.append("⚙️ 运营效率: " + " | ".join(ops_parts))
+
+        # 规模
+        scale_parts = []
+        if latest.total_assets != 0.0:
+            scale_parts.append(f"总资产 {latest.total_assets / 1e8:.2f} 亿元")
+        if latest.operating_revenue != 0.0:
+            scale_parts.append(f"主营利润 {latest.operating_revenue / 1e8:.2f} 亿元")
+        if scale_parts:
+            fund_lines.append("🏢 规模: " + " | ".join(scale_parts))
+
     brief.sections["fundamentals"] = BriefSection(
         title="基本面层",
-        content="暂无基本面数据",
-        has_data=False,
+        content="\n".join(fund_lines) if fund_lines else "暂无基本面数据",
+        has_data=has_fund,
     )
 
     return brief.to_text()

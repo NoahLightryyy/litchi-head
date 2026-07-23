@@ -58,7 +58,7 @@ from src.agents.master_agent import MasterAgent  # noqa: E402
 from src.callback import CallbackEventType, ResultCallbackEngine  # noqa: E402
 from src.callback.callbacks import register_m3_ext_callback  # noqa: E402
 from src.data.collector import DataCollector, format_market_brief  # noqa: E402
-from src.data.models import KLine, NewsItem, StockQuote  # noqa: E402
+from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote  # noqa: E402
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
 from src.debate.models import (  # noqa: E402
     AgentAnalysis,
@@ -144,6 +144,7 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
     quotes: list[StockQuote] = []
     klines: list[KLine] = []
     news: list[NewsItem] = []
+    financial_data: list[FinancialMetrics] = []
 
     try:
         quotes = collector.get_realtime_quotes()
@@ -160,6 +161,11 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
     except Exception as e:
         logger.exception("新闻数据获取失败 [%s]: %s", code, e)
 
+    try:
+        financial_data = collector.get_financials(code)
+    except Exception as e:
+        logger.exception("财务数据获取失败 [%s]: %s", code, e)
+
     # 按个股过滤行情
     target_quote: StockQuote | None = None
     for q in quotes:
@@ -174,6 +180,7 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
         quote=target_quote,
         klines=klines,
         news=news,
+        financials=financial_data,
     )
 
     return {
@@ -183,6 +190,7 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
             "quotes": [q.model_dump() for q in quotes],
             "klines": [k.model_dump() for k in klines],
             "news": [n.model_dump() for n in news],
+            "financials": [f.model_dump() for f in financial_data],
         },
     }
 

@@ -751,6 +751,7 @@ class TestGraphWithD3:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         orch = DebateOrchestrator(data_collector=mock_collector)
         graph = orch._build_graph()
@@ -772,6 +773,7 @@ class TestGraphWithD3:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         orch = DebateOrchestrator(data_collector=mock_collector)
         graph = orch._build_graph()
@@ -792,6 +794,7 @@ class TestFullFlowWithD3:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         orch = DebateOrchestrator(
             data_collector=mock_collector,
@@ -882,6 +885,7 @@ class TestFullFlowWithD3:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         orch = DebateOrchestrator(
             data_collector=mock_collector,

@@ -201,6 +201,7 @@ class TestOrchestratorWithMemoryStore:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         mock_store = MagicMock()
         orch = DebateOrchestrator(
@@ -320,6 +321,7 @@ class TestHistoryInjection:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         # 创建一个 mock MemoryStore，返回历史记录
         mock_store = MagicMock()
@@ -528,6 +530,7 @@ class TestMemoryResilience:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         mock_store = MagicMock()
         mock_store.search = AsyncMock(side_effect=RuntimeError("查询失败"))
@@ -581,6 +584,7 @@ class TestMemoryResilience:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         mock_store = MagicMock()
         mock_store.search = AsyncMock(return_value=[])
@@ -648,6 +652,7 @@ class TestFullFlowWithMemory:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         mock_store = MagicMock()
         mock_store.search = AsyncMock(return_value=[
@@ -736,6 +741,7 @@ class TestFullFlowWithMemory:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         orch = DebateOrchestrator(
             data_collector=mock_collector,
@@ -786,6 +792,7 @@ class TestFullFlowWithMemory:
         mock_collector.get_realtime_quotes.return_value = []
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
 
         mock_store = MagicMock()
         mock_store.search = AsyncMock(return_value=[])
