@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `b798d25` — feat: 第9层·用户经验反馈闭环完整规划 + 结果回调引擎骨架 + 12 部门分工明确 |
-| **全量测试** | 943 collected, 全部通过 ✅ |
+| **最新提交** | `1a16c66` — feat: FD-001e~g 基本面数据注入辩论引擎 |
+| **全量测试** | 983 collected (4 skipped), 全部通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | 🟢 → 最近 4 次全绿 ✅ |
@@ -98,7 +98,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 |:------:|:-----|:---------|:----:|
 | 🔥 P0 | **YahooFinanceSource Provider** — 美股数据源（K 线+基本面+Provider Protocol） | 数据管道部 | ~半天 |
 | 🔥 P0 | **美股前端 Tab** — 市场切换 + 美股行情 | 前端部 | ~半天 |
-| 🔥 P0 | **FD-001 基本面数据接入** — 财务指标模型+Provider 扩展+辩论注入+前端 | 数据管道部→辩论引擎部→后端 API→前端部 | ~2 天 |
+| 🔥 P0 | **FD-001 基本面数据接入** — ✅ 模型+Provider+辩论注入+分析师增强（数据部+辩论部完成），⬜ 后端 API 端点+前端 Tab | 数据管道部 ✅ → 辩论引擎部 ✅ → 后端 API ⬜ → 前端部 ⬜ | ~0.5 天剩余 |
 | 🔥 P0 | **R4 置信度量化** — AI 建议附带明确置信度数字 | 辩论引擎部 | ~2 天 |
 | 🔥 P0 | **交易复盘看板（极简版）** — TradeRecord 记录+AI推荐 vs 实际盈亏 | 后端 API 部+前端部 | ~2 天 |
 

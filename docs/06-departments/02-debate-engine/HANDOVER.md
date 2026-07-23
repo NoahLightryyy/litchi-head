@@ -1,7 +1,7 @@
 ---
 department: 辩论引擎部
 codebase: src/debate/
-last_updated: 2026-06-23
+last_updated: 2026-07-23
 ---
 
 # 🎯 辩论引擎部工作交接
@@ -72,15 +72,45 @@ last_updated: 2026-06-23
 
 ### 基本面深度（FD 系列，2026-07-23 更新）
 
-> 数据管道部已提前完成 FD-001a~d（FinancialMetrics 模型 + Provider 协议 + AKShare 实现 + Collector），
-> 以下等待数据层 FD-001e 填充占位符后激活。
+> FD-001 全链路已完成：数据部 FD-001a~e（数据模型→Provider→AKShare→Collector→简报格式化）
+> + 辩论部 FD-001f~g（辩论注入 + 分析师增强）。
 
 | FD | 事项 | 状态 | 依赖 | 预估 |
 |:--:|:-----|:----:|:----|:----:|
-| **FD-001f** 🥇 | **辩论注入财务数据** — `collect_data_node` 调用 `DataCollector.get_financials()`，存入 `market_data["financials"]` | ✅ | 数据部 FD-001e | ~1h |
-| **FD-001g** 🥇 | **基本面分析师增强** — 接收结构化财务数据，不再显示"暂无基本面数据" | ✅ | FD-001f | ~1h |
+| **FD-001f** 🥇 | **辩论注入财务数据** — `collect_data_node` 调用 `DataCollector.get_financials()`，存入 `market_data["financials"]` + 传入 `format_market_brief()` | ✅ | 数据部 FD-001e | ~1h |
+| **FD-001g** 🥇 | **基本面分析师增强** — 分析师通过 `market_data["brief"]` 自动消费含真实财务数据的简报（基本面分析师 prompt 中的 ROE/利润率/负债率已有真实数据可分析） | ✅ | FD-001f | ~1h |
+| **FD-001h** 🥇 | **大师知识过滤器扩展** — 巴菲特、格雷厄姆直接接收财务指标；林奇、达利欧通过分析师报告间接使用 | ⬜ **待办** | FD-001g | ~2h |
 
-### 结果回调（RC 系列，2026-06-23 新增 — 架构级修复）
+### 数据流变更（确认）
+
+```
+collect_data_node（已增强 ✅）
+  ├── 行情数据（已有）
+  ├── K 线数据（已有）
+  ├── 新闻数据（已有）
+  └── 财务数据 ✅ ← DataCollector.get_financials(code)
+       ↓
+  market_data["financials"] = list[FinancialMetrics]（结构化数据）
+       ↓
+  format_market_brief(financials=...) → fundamentals 区段填充真实数据
+       ↓
+analyst_round
+  ├── fundamental 分析师 ← 真实财务数据（已非占位符 ✅）
+  ├── technical (不变)
+  ├── sentiment (不变)
+  └── macro (不变)
+       ↓
+master_round（所有大师看到更高质量的分析师报告）
+  ├── 巴菲特 ← 关注 ROE/自由现金流/负债率（直接从分析师报告吸收）
+  ├── 格雷厄姆 ← 关注 PB/PE/净运营资本
+  ├── 林奇 ← 关注 PEG/营收增长趋势
+  └── 其余大师 ← 通过分析师报告间接获益
+```
+
+> **FD-001g 已达成**：`analysts.py` 中基本面分析师的 prompt 原已有 ROE/利润率/负债率 分析框架，
+> 此前因"暂无基本面数据"占位符无数据可分析；现在 `format_market_brief()` 输出含真实 6 维度财务数据，
+> 随 `market_data["brief"]` 注入分析师 prompt，且不需要修改 analyst prompt 本身。
+> 待完善：**FD-001h 大师知识过滤器** — 让特定大师直接从结构化 `FinancialMetrics` 获取数据（如巴菲特看 ROE/格雷厄姆看 PB）。
 
 > **背景**：M3 TrustTracker 有 `record_outcome()` API 但**从未被任何代码实际调用**，导致 M4 动态权重长期无数据可依赖。你需要"结果参数回调相关策略"——一个统一的事件分发机制。
 > 完整方案见 [ROADMAP.md RC 轨道](../../../00-overview/ROADMAP.md#rc-结果回调轨道2026-06-23-新增--规划阶段)。
@@ -126,7 +156,12 @@ await self.callback_engine.dispatch(
 - `src/debate/orchestrator.py`：`enable_trust=True` 时自动注册 M3-EXT；`reflect_on_decision()` 收到 `ActualOutcome` 后 dispatch 实际结果事件。
 - `tests/test_debate/test_trust.py` + `tests/test_callback/test_m3_ext.py`：覆盖按板块统计、板块权重、事件写入、失败分析跳过、缺字段显式失败。
 - 未完成边界：复盘看板、用户行为追踪、风控自适应仍需 RC-003/R4/RC-004 接入。
-| **FD-001h** 🥇 | **大师知识过滤器扩展** — 巴菲特、格雷厄姆直接接收财务指标；林奇、达利欧通过分析师报告间接使用 | FD-001g | ~2h |
+
+### 基本面深度下放任务（⬜ 待辩论引擎部）
+
+| FD | 事项 | 状态 | 依赖 | 预估 |
+|:--:|:-----|:----:|:----|:----:|
+| **FD-001h** 🥇 | **大师知识过滤器扩展** — 巴菲特、格雷厄姆直接接收财务指标；林奇、达利欧通过分析师报告间接使用 | ⬜ **待办** | FD-001g | ~2h |
 
 ### 数据流变更
 
@@ -154,17 +189,9 @@ master_round（所有大师看到更高质量的分析师报告）
   └── 其余大师 ← 通过分析师报告间接获益
 ```
 
-### 基本面分析师的 Prompt 增强要点
-
-当前 `analysts.py:44-58` 的 prompt 已经提到 ROE/利润率/负债率/PE/PB，但**没有真实数据可分析**。FD-001g 要做的是：
-
-```python
-# 改动：将结构化 FinancialMetric 注入分析师 prompt
-# 在 _run_single_analyst() 中，将 market_data["financials"]
-# 格式化为文本追加到分析师 prompt 的 "可用的财务数据" 段落
-```
-
-> 基于 2026-06-22 设计哲学会议。完整背景见 [DESIGN_PHILOSOPHY.md](../../00-overview/DESIGN_PHILOSOPHY.md)。
+> **FD-001g 已达成**：`analysts.py` prompt 原已分析框架，无需修改 prompt 本身 ——
+> `format_market_brief()` 输出的 6 维度财务数据随 `market_data["brief"]` 自动注入所有分析师。
+> 待办：**FD-001h** 让特定大师直接从结构化 `FinancialMetrics` 获取数据。
 
 ### 用户经验反馈闭环（UI 系列，2026-06-23 新增 — 架构第9层）
 
