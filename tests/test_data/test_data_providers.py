@@ -43,6 +43,9 @@ class MockDataSource:
     def get_capital_flow(self, code: str) -> list:
         return []
 
+    def get_financials(self, code: str) -> list:
+        return []
+
 
 class TestProviderProtocol:
     """验证 MockDataSource 满足 DataSource Protocol（鸭子类型）"""
@@ -411,6 +414,96 @@ class TestAKShareSource:
         assert hasattr(source, "get_industry_boards")
         assert hasattr(source, "get_concept_boards")
         assert hasattr(source, "get_capital_flow")
+        assert hasattr(source, "get_financials")
+
+
+class TestAKShareFinancialRowToModel:
+    """_row_to_financial 财务指标行转换"""
+
+    def test_normal_row(self):
+        from src.data.providers.akshare import _row_to_financial
+
+        row = {
+            "日期": "2024-12-31",
+            "摊薄每股收益(元)": 1.25,
+            "每股净资产_调整后(元)": 12.50,
+            "每股经营性现金流(元)": 2.10,
+            "净资产收益率(%)": 10.5,
+            "总资产利润率(%)": 5.2,
+            "销售毛利率(%)": 35.0,
+            "销售净利率(%)": 15.0,
+            "主营业务收入增长率(%)": 8.5,
+            "净利润增长率(%)": 12.3,
+            "资产负债率(%)": 55.0,
+            "流动比率": 1.5,
+            "速动比率": 1.1,
+            "存货周转率(次)": 5.0,
+            "总资产周转率(次)": 0.8,
+            "总资产(元)": 1e12,
+            "主营业务利润(元)": 5e10,
+        }
+        m = _row_to_financial(row, code="000001")
+        assert m.stock_code == "000001"
+        assert m.report_date == "2024-12-31"
+        assert m.eps == 1.25
+        assert m.roe == 10.5
+        assert m.debt_ratio == 55.0
+        assert m.total_assets == 1e12
+
+    def test_missing_keys_default_to_zero(self):
+        from src.data.providers.akshare import _row_to_financial
+
+        row = {"日期": "2024-12-31"}
+        m = _row_to_financial(row, code="000001")
+        assert m.eps == 0.0
+        assert m.roe == 0.0
+        assert m.debt_ratio == 0.0
+        assert m.asset_turnover == 0.0
+
+    def test_none_values_safe(self):
+        from src.data.providers.akshare import _row_to_financial
+
+        row = {
+            "日期": "2024-12-31",
+            "摊薄每股收益(元)": None,
+            "资产负债率(%)": None,
+            "流动比率": None,
+        }
+        m = _row_to_financial(row, code="000001")
+        assert m.eps == 0.0
+        assert m.debt_ratio == 0.0
+        assert m.current_ratio == 0.0
+
+
+class TestAKShareFinancialErrorHandling:
+    """AKShareSource 财务数据异常路径"""
+
+    def test_get_financials_returns_empty_on_error(self, mocker):
+        import akshare as ak
+
+        from src.data.providers.akshare import AKShareSource
+
+        mocker.patch.object(
+            ak, "stock_financial_analysis_indicator",
+            side_effect=ConnectionError("网络错误"),
+        )
+        source = AKShareSource()
+        result = source.get_financials("000001")
+        assert result == []
+
+    def test_get_financials_empty_df(self, mocker):
+        import akshare as ak
+        import pandas as pd
+
+        from src.data.providers.akshare import AKShareSource
+
+        mocker.patch.object(
+            ak, "stock_financial_analysis_indicator",
+            return_value=pd.DataFrame(),
+        )
+        source = AKShareSource()
+        result = source.get_financials("000001")
+        assert result == []
 
 
 # ── adata 转换函数测试 ──────────────────────────────────────────────
@@ -580,6 +673,7 @@ class TestADataSourceImport:
         assert hasattr(ADataSource, "get_industry_boards")
         assert hasattr(ADataSource, "get_concept_boards")
         assert hasattr(ADataSource, "get_capital_flow")
+        assert hasattr(ADataSource, "get_financials")
 
 
 # ── zzshare 工具函数测试 ────────────────────────────────────────────
@@ -672,6 +766,7 @@ class TestZzshareSourceImport:
         assert hasattr(ZzshareSource, "get_industry_boards")
         assert hasattr(ZzshareSource, "get_concept_boards")
         assert hasattr(ZzshareSource, "get_capital_flow")
+        assert hasattr(ZzshareSource, "get_financials")
 
 
 # ── FallbackSource ──────────────────────────────────────────────────
@@ -702,6 +797,9 @@ class MockFailingPrimary:
     def get_capital_flow(self, code: str = ""):
         raise ConnectionError("主源挂了")
 
+    def get_financials(self, code: str = ""):
+        raise ConnectionError("主源挂了")
+
 
 class MockHealthyFallback:
     """总是成功的备用源"""
@@ -727,6 +825,9 @@ class MockHealthyFallback:
 
     def get_capital_flow(self, code: str = ""):
         return ["fallback_capital_flow"]
+
+    def get_financials(self, code: str = ""):
+        return ["fallback_financials"]
 
     def __repr__(self) -> str:
         return "MockHealthyFallback"
@@ -761,6 +862,9 @@ class MockMixedPrimary:
         return []
 
     def get_capital_flow(self, code: str = ""):
+        return []
+
+    def get_financials(self, code: str = ""):
         return []
 
 

@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.data.models import BoardInfo, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import BoardInfo, FinancialMetrics, KLine, NewsItem, StockInfo, StockQuote
 
 
 class TestStockInfo:
@@ -178,3 +178,183 @@ class TestEdgeCases:
         """开盘价超出 [low, high] 区间应被拒绝"""
         with pytest.raises(ValidationError):
             KLine(date="2026-06-05", open=15.0, close=10.0, high=12.0, low=9.0, volume=1000)
+
+
+class TestFinancialMetrics:
+    """财务指标模型测试"""
+
+    def test_create_with_required_fields(self):
+        """仅必需字段构造"""
+        fm = FinancialMetrics(stock_code="000001", report_date="2024-12-31")
+        assert fm.stock_code == "000001"
+        assert fm.report_date == "2024-12-31"
+        assert fm.eps == 0.0  # 默认值
+
+    def test_default_values(self):
+        """所有 float 字段默认 0.0"""
+        fm = FinancialMetrics(stock_code="000001", report_date="2024-12-31")
+        for field_name in FinancialMetrics.model_fields:
+            field_info = FinancialMetrics.model_fields[field_name]
+            if field_info.annotation in (float,):
+                assert getattr(fm, field_name) == 0.0, f"{field_name} 应默认为 0.0"
+
+    def test_negative_eps_allowed(self):
+        """EPS 允许负值（亏损公司）"""
+        fm = FinancialMetrics(stock_code="000001", report_date="2024-12-31", eps=-0.5)
+        assert fm.eps == -0.5
+
+    def test_negative_operating_cf_allowed(self):
+        """经营性现金流允许负值"""
+        fm = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            operating_cf_per_share=-0.3,
+        )
+        assert fm.operating_cf_per_share == -0.3
+
+    def test_negative_operating_revenue_allowed(self):
+        """主营业务利润允许负值"""
+        fm = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            operating_revenue=-1e8,
+        )
+        assert fm.operating_revenue == -1e8
+
+    def test_negative_growth_allowed(self):
+        """增长率允许负值"""
+        fm = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            revenue_growth=-10.5, net_profit_growth=-20.3,
+        )
+        assert fm.revenue_growth == -10.5
+        assert fm.net_profit_growth == -20.3
+
+    def test_negative_debt_ratio_rejected(self):
+        """资产负债率 < 0 应被拒绝"""
+        with pytest.raises(ValidationError):
+            FinancialMetrics(
+                stock_code="000001", report_date="2024-12-31",
+                debt_ratio=-1.0,
+            )
+
+    def test_debt_ratio_over_100_rejected(self):
+        """资产负债率 > 100 应被拒绝（超过 100% 不合理）"""
+        with pytest.raises(ValidationError):
+            FinancialMetrics(
+                stock_code="000001", report_date="2024-12-31",
+                debt_ratio=101.0,
+            )
+
+    def test_debt_ratio_boundary_allowed(self):
+        """资产负债率边界值允许"""
+        fm = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            debt_ratio=0.0,  # 无负债
+        )
+        assert fm.debt_ratio == 0.0
+        fm2 = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            debt_ratio=100.0,  # 资不抵债
+        )
+        assert fm2.debt_ratio == 100.0
+
+    def test_negative_book_value_rejected(self):
+        """每股净资产 < 0 应被拒绝"""
+        with pytest.raises(ValidationError):
+            FinancialMetrics(
+                stock_code="000001", report_date="2024-12-31",
+                book_value_per_share=-1.0,
+            )
+
+    def test_negative_current_ratio_rejected(self):
+        """流动比率 < 0 应被拒绝"""
+        with pytest.raises(ValidationError):
+            FinancialMetrics(
+                stock_code="000001", report_date="2024-12-31",
+                current_ratio=-0.5,
+            )
+
+    def test_negative_asset_turnover_rejected(self):
+        """总资产周转率 < 0 应被拒绝"""
+        with pytest.raises(ValidationError):
+            FinancialMetrics(
+                stock_code="000001", report_date="2024-12-31",
+                asset_turnover=-0.1,
+            )
+
+    def test_negative_inventory_turnover_rejected(self):
+        """存货周转率 < 0 应被拒绝"""
+        with pytest.raises(ValidationError):
+            FinancialMetrics(
+                stock_code="000001", report_date="2024-12-31",
+                inventory_turnover=-0.1,
+            )
+
+    def test_negative_total_assets_rejected(self):
+        """总资产 < 0 应被拒绝"""
+        with pytest.raises(ValidationError):
+            FinancialMetrics(
+                stock_code="000001", report_date="2024-12-31",
+                total_assets=-1.0,
+            )
+
+    def test_serialization_roundtrip(self):
+        """序列化往返一致"""
+        fm = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            eps=1.5, book_value_per_share=20.0,
+            roe=15.0, gross_margin=45.0,
+            debt_ratio=50.0, current_ratio=2.0,
+            revenue_growth=10.0, net_profit_growth=8.0,
+            total_assets=1e12,
+        )
+        data = fm.model_dump()
+        restored = FinancialMetrics.model_validate(data)
+        assert restored.eps == fm.eps
+        assert restored.roe == fm.roe
+        assert restored.debt_ratio == fm.debt_ratio
+        assert restored.total_assets == 1e12
+
+    def test_type_enforcement(self):
+        """类型错误应被拒绝"""
+        with pytest.raises(ValidationError):
+            FinancialMetrics(
+                stock_code="000001", report_date="2024-12-31",
+                eps="invalid",  # str 而不是 float
+            )
+
+    def test_missing_stock_code_raises(self):
+        """缺少股票代码应被拒绝"""
+        with pytest.raises(ValidationError):
+            FinancialMetrics(report_date="2024-12-31")  # type: ignore[call-arg]
+
+    def test_missing_report_date_defaults_empty(self):
+        """缺少报告期时默认为空字符串"""
+        fm = FinancialMetrics(stock_code="000001")
+        assert fm.report_date == ""
+
+    def test_all_fields_constructable(self):
+        """全字段构造验证"""
+        fm = FinancialMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            eps=2.5,
+            book_value_per_share=25.0,
+            operating_cf_per_share=3.2,
+            roe=15.0,
+            roa=8.0,
+            gross_margin=55.0,
+            net_profit_margin=20.0,
+            revenue_growth=12.0,
+            net_profit_growth=10.0,
+            debt_ratio=42.5,
+            current_ratio=2.5,
+            quick_ratio=1.8,
+            inventory_turnover=5.0,
+            asset_turnover=0.8,
+            total_assets=2e12,
+            operating_revenue=5e10,
+        )
+        assert fm.eps == 2.5
+        assert fm.book_value_per_share == 25.0
+        assert fm.roe == 15.0
+        assert fm.debt_ratio == 42.5
+        assert fm.total_assets == 2e12

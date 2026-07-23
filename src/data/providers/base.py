@@ -14,7 +14,15 @@ Usage:
 
 from typing import Protocol
 
-from src.data.models import BoardInfo, CapitalFlowItem, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import (
+    BoardInfo,
+    CapitalFlowItem,
+    FinancialMetrics,
+    KLine,
+    NewsItem,
+    StockInfo,
+    StockQuote,
+)
 
 
 class DataSource(Protocol):
@@ -66,6 +74,17 @@ class DataSource(Protocol):
         """
         ...
 
+    def get_financials(self, code: str) -> list[FinancialMetrics]:
+        """获取个股财务指标
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            FinancialMetrics 列表（失败时返回空列表）
+        """
+        ...
+
 
 # ── 通用 pandas Series 安全取值函数 ────────────────────────────────────
 
@@ -101,6 +120,7 @@ def safe_int(val: object, default: int = 0) -> int:
 
 __all__ = [
     "DataSource",
+    "FinancialMetrics",
     "safe_float",
     "safe_int",
     "safe_str",

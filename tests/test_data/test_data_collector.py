@@ -323,3 +323,42 @@ class TestFormatMarketBrief:
         assert header_idx is not None
         assert sep_idx is not None
         assert sep_idx == header_idx + 1, "分隔线应紧跟在标题后"
+
+
+# ── Tests: get_financials ──────────────────────────────────────────
+
+
+class TestGetFinancials:
+    """DataCollector.get_financials 测试"""
+
+    def test_returns_financial_metrics(self, mock_empty_cache):
+        """正常返回财务指标"""
+        result = mock_empty_cache.get_financials("000001")
+        assert len(result) == 1
+        assert result[0].stock_code == "000001"
+        assert result[0].eps == 1.25
+        assert result[0].roe == 10.5
+        assert result[0].debt_ratio == 55.0
+
+    def test_network_error_returns_empty(self, failing_collector):
+        """网络失败时返回空列表"""
+        result = failing_collector.get_financials("000001")
+        assert result == []
+
+    def test_cache_hit_avoids_source_call(self, mock_empty_cache):
+        """缓存命中时不应调数据源"""
+        mock_empty_cache.cache.set("financials:000001", [{"stock_code": "cached"}])
+        mock_empty_cache._source.get_financials = MagicMock(
+            side_effect=AssertionError("不应调用"),
+        )
+        result = mock_empty_cache.get_financials("000001")
+        assert result == [{"stock_code": "cached"}]
+
+    def test_cache_ttl(self, collector):
+        """财务数据应有缓存"""
+        collector.cache.clear()
+        result = collector.get_financials("000001")
+        assert len(result) == 1
+        cached = collector.cache.get("financials:000001")
+        assert cached is not None
+        assert cached[0].eps == 1.25

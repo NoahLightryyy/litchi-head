@@ -127,11 +127,73 @@ class MarketBrief(BaseModel):
         return "\n".join(lines).rstrip()
 
 
+class FinancialMetrics(BaseModel):
+    """个股核心财务指标（季度）
+
+    从 akshare stock_financial_analysis_indicator 提取的关键指标，
+    用于基本面价值分析。报告期为季度末日期（如 "2024-12-31"）。
+
+    不含 PE/PB（需要股价数据在消费层组合计算）。
+
+    Attributes:
+        stock_code: 股票代码
+        report_date: 报告期
+        eps: 摊薄每股收益(元)
+        book_value_per_share: 每股净资产_调整后(元)
+        operating_cf_per_share: 每股经营性现金流(元)
+        roe: 净资产收益率(%)
+        roa: 总资产利润率(%)
+        gross_margin: 销售毛利率(%)
+        net_profit_margin: 销售净利率(%)
+        revenue_growth: 主营业务收入增长率(%)
+        net_profit_growth: 净利润增长率(%)
+        debt_ratio: 资产负债率(%)
+        current_ratio: 流动比率
+        quick_ratio: 速动比率
+        inventory_turnover: 存货周转率(次)
+        asset_turnover: 总资产周转率(次)
+        total_assets: 总资产(元)
+        operating_revenue: 主营业务利润(元)
+    """
+
+    stock_code: str
+    report_date: str = ""
+
+    # ── 每股指标 ──
+    eps: float = Field(default=0.0, description="摊薄每股收益(元)")
+    book_value_per_share: float = Field(default=0.0, ge=0.0, description="每股净资产_调整后(元)")
+    operating_cf_per_share: float = Field(default=0.0, description="每股经营性现金流(元)")
+
+    # ── 盈利能力 ──
+    roe: float = Field(default=0.0, description="净资产收益率(%)")
+    roa: float = Field(default=0.0, description="总资产利润率(%)")
+    gross_margin: float = Field(default=0.0, description="销售毛利率(%)")
+    net_profit_margin: float = Field(default=0.0, description="销售净利率(%)")
+
+    # ── 增长能力 ──
+    revenue_growth: float = Field(default=0.0, description="主营业务收入增长率(%)")
+    net_profit_growth: float = Field(default=0.0, description="净利润增长率(%)")
+
+    # ── 财务健康 ──
+    debt_ratio: float = Field(default=0.0, ge=0.0, le=100.0, description="资产负债率(%)")
+    current_ratio: float = Field(default=0.0, ge=0.0, description="流动比率")
+    quick_ratio: float = Field(default=0.0, ge=0.0, description="速动比率")
+
+    # ── 运营效率 ──
+    inventory_turnover: float = Field(default=0.0, ge=0.0, description="存货周转率(次)")
+    asset_turnover: float = Field(default=0.0, ge=0.0, description="总资产周转率(次)")
+
+    # ── 规模 ──
+    total_assets: float = Field(default=0.0, ge=0.0, description="总资产(元)")
+    operating_revenue: float = Field(default=0.0, description="主营业务利润(元)")
+
+
 __all__ = [
     "BoardInfo",
     "BoardType",
     "BriefSection",
     "CapitalFlowItem",
+    "FinancialMetrics",
     "KLine",
     "MarketBrief",
     "NewsItem",

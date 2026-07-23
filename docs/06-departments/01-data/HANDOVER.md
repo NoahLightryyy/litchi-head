@@ -15,7 +15,7 @@ last_updated: 2026-06-21
 | Provider 抽象层（4 文件） | ✅ | AKShareSource / AData / ZzShareSource / FallbackSource |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
-| 数据模型（7 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / Sector 等 |
+| 数据模型（8 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection |
 | HealthStats 健康监控 | ✅ | 成功率/延迟/错误统计，/api/health 暴露 |
 | 数据源审计 | ✅ | DATA_SOURCE_AUDIT.md 覆盖 10+ 平台 |
 
@@ -57,18 +57,21 @@ last_updated: 2026-06-21
 | 2 🟢 | TD-034 修 zzshare 死条件 | 无 |
 | 3 🟢 | TD-057 补 zzshare 测试到 ≥80% | 无 |
 
-### 基本面深度（FD 系列，2026-06-23 新增）
+### 基本面深度（FD 系列，2026-07-23 更新）
 
 > 完整背景见 [FUNDAMENTAL_RESEARCH.md](../../02-requirements/FUNDAMENTAL_RESEARCH.md)。
 
-| FD | 事项 | 依赖 | 预估 |
-|:--:|:-----|:----|:----:|
-| **FD-001a** 🥇 | **数据模型扩展** — 新增 `FinancialMetric` / `IndustryPosition` / `SupplyChainNode` Pydantic 模型 | 无 | ~1h |
-| **FD-001b** 🥇 | **Provider 协议扩展** — DataSource Protocol 新增 `get_financial_metrics()` + `get_industry_position()` | FD-001a | ~1h |
-| **FD-001c** 🥇 | **AKShare 实现** — 用 `stock_financial_analysis_indicator` 实现财务指标 + 行业分类实现产业链定位 | FD-001b | ~2h |
-| **FD-001d** 🥇 | **Collector 方法** — 新增 `get_financial_metrics()` + `get_industry_position()`，TTL=24h | FD-001b | ~1h |
-| **FD-001e** 🥇 | **填充基本面占位符** — `format_market_brief()` 替换"暂无基本面数据"为真实数据 | FD-001c | ~1h |
-| **FD-003** 🥈 | **供应链数据调研** — 评估年报 PDF 解析前5大客户/供应商的可行性 | 无 | ~2h |
+| FD | 事项 | 状态 | 依赖 | 预估 |
+|:--:|:-----|:----:|:----|:----:|
+| **FD-001a** 🥇 | **数据模型** — `FinancialMetrics`（17 指标：每股/盈利/增长/健康/运营/规模） | ✅ | 无 | ~1h |
+| **FD-001b** 🥇 | **Provider 协议** — `DataSource.get_financials()` | ✅ | FD-001a | ~1h |
+| **FD-001c** 🥇 | **AKShare 实现** — `stock_financial_analysis_indicator` → `FinancialMetrics` | ✅ | FD-001b | ~2h |
+| **FD-001d** 🥇 | **Collector 方法** — `get_financials()` + TTL 1h 缓存 | ✅ | FD-001b | ~1h |
+| **FD-001e** 🥇 | **填充基本面占位符** — `format_market_brief()` 替换"暂无基本面数据"为真实数据 | ⬜ | FD-001c | ~1h |
+| **FD-001h** 🥇 | **多源财务数据** — ADataSource + ZzshareSource 实现 `get_financials()`（当前返回 `[]`） | ⬜ | FD-001c | ~1h |
+| **FD-002** 🥇 | **估值比率模型** — PE(市盈率)/PB(市净率)/PS(市销率) 模型，需组合股价+财务数据 | ⬜ | FD-001e + 股价数据 | ~1h |
+| **FD-003** 🥈 | **供应链数据调研** — 评估年报 PDF 解析前5大客户/供应商的可行性 | ⬜ | 无 | ~2h |
+| **FD-004** 🥈 | **财务指标覆盖率审计** — akshare 86 列中当前只取了 17 列，审计遗漏关键指标 | ⬜ | FD-001c | ~1h |
 
 ### 用户经验反馈闭环（UI 系列，2026-06-23 新增）
 
@@ -83,25 +86,21 @@ last_updated: 2026-06-21
 ### 数据流变更
 
 ```
-新增数据流：
-akshare.stock_financial_analysis_indicator(code)
-     ↓
-AKShareSource.get_financial_metrics(code)          ← Provider 协议
-     ↓
-DataCollector.get_financial_metrics(code)            ← 缓存 TTL=24h
-     ↓
-format_market_brief() → brief.sections["fundamentals"]  ← 填充占位符
-     ↓
-DebateState.market_data["financials"]               ← 辩论引擎消费
+现有数据流（2026-07-23 更新）：
 
-akshare 行业分类 + 主营业务构成
+akshare.stock_financial_analysis_indicator(code)          ← 86 列季度财务数据
      ↓
-AKShareSource.get_industry_position(code)           ← Provider 协议
+AKShareSource.get_financials(code)                        ← Provider 协议 ✅
      ↓
-DataCollector.get_industry_position(code)
+DataCollector.get_financials(code)                        ← 缓存 TTL=1h ✅
      ↓
-后端 API / 辩论引擎                                 ← 下游消费
-```
+format_market_brief() → brief.sections["fundamentals"]    ← 待填充占位符 ⬜ FD-001e
+     ↓
+DebateState.market_data["financials"]                     ← 待辩论引擎消费 ⬜ FD-001f
+
+待扩展：
+ADataSource.get_financials() / ZzshareSource.get_financials()  ← ⬜ FD-001h
+FinancialSnapshot + ValuationRatios (PE/PB/PS)                  ← ⬜ FD-002
 
 ---
 

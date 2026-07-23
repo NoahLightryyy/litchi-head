@@ -70,14 +70,15 @@ last_updated: 2026-06-23
 | 1 🔴 | **拆分 orchestrator.py**（1622→800）— 按节点拆分到 `orchestrator/nodes/` 目录 | 无 |
 | 2 🟡 | TD-018 成本优化 — 短路优化、层合并、模型分层 | 无 |
 
-### 基本面深度（FD 系列，2026-06-23 新增）
+### 基本面深度（FD 系列，2026-07-23 更新）
 
-> 完整背景见 [FUNDAMENTAL_RESEARCH.md](../../02-requirements/FUNDAMENTAL_RESEARCH.md)。
+> 数据管道部已提前完成 FD-001a~d（FinancialMetrics 模型 + Provider 协议 + AKShare 实现 + Collector），
+> 以下等待数据层 FD-001e 填充占位符后激活。
 
-| FD | 事项 | 依赖 | 预估 |
-|:--:|:-----|:----|:----:|
-| **FD-001f** 🥇 | **辩论注入财务数据** — `collect_data_node` 新增调用 `DataCollector.get_financial_metrics()`，存入 `market_data["financials"]` | 数据管道部 FD-001d | ~1h |
-| **FD-001g** 🥇 | **基本面分析师增强** — 接收结构化 `FinancialMetric` 数据（不再是"暂无基本面数据"占位符） | FD-001f | ~1h |
+| FD | 事项 | 状态 | 依赖 | 预估 |
+|:--:|:-----|:----:|:----|:----:|
+| **FD-001f** 🥇 | **辩论注入财务数据** — `collect_data_node` 调用 `DataCollector.get_financials()`，存入 `market_data["financials"]` | ⬜ | 数据部 FD-001e | ~1h |
+| **FD-001g** 🥇 | **基本面分析师增强** — 接收结构化财务数据，不再显示"暂无基本面数据" | ⬜ | FD-001f | ~1h |
 
 ### 结果回调（RC 系列，2026-06-23 新增 — 架构级修复）
 

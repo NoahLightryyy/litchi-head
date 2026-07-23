@@ -24,6 +24,7 @@ from src.data.models import (
     BoardInfo,
     BriefSection,
     CapitalFlowItem,
+    FinancialMetrics,
     KLine,
     MarketBrief,
     NewsItem,
@@ -42,6 +43,7 @@ TTL_KLINES_DAILY = 300  # 日 K 线：5 分钟
 TTL_NEWS = 120          # 新闻：2 分钟
 TTL_BOARDS = 3600       # 板块：1 小时
 TTL_CAPITAL_FLOW = 300  # 资金流向：5 分钟
+TTL_FINANCIALS = 3600  # 财务数据：1 小时（日内不变）
 
 
 # ── 健康监控 ────────────────────────────────────────────────────────
@@ -362,6 +364,35 @@ class DataCollector:
         except Exception as e:
             _health_stats.record_call("capital_flow", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取资金流向失败: code=%s", code)
+            return []
+
+    # ── 财务数据 ─────────────────────────────────────────────────────
+
+    def get_financials(self, code: str) -> list[FinancialMetrics]:
+        """获取个股财务指标
+
+        Cache TTL: 1 小时（财务数据日内不变）
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            FinancialMetrics 列表，网络异常时返回空列表
+        """
+        cache_key = f"financials:{code}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        t0 = time.time()
+        try:
+            result = self._source.get_financials(code)
+            self.cache.set(cache_key, result, ttl=TTL_FINANCIALS)
+            _health_stats.record_call("financials", (time.time() - t0) * 1000)
+            return result
+        except Exception as e:
+            _health_stats.record_call("financials", (time.time() - t0) * 1000, error=str(e))
+            logger.exception("获取财务数据失败: code=%s", code)
             return []
 
 

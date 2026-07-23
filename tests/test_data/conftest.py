@@ -20,7 +20,7 @@ import pytest
 
 from src.data.cache import DataCache
 from src.data.collector import DataCollector
-from src.data.models import BoardInfo, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import BoardInfo, FinancialMetrics, KLine, NewsItem, StockInfo, StockQuote
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mock 数据源
@@ -94,6 +94,30 @@ class MockDataSource:
     def get_concept_boards(self) -> list[BoardInfo]:
         return []
 
+    def get_financials(self, code: str) -> list[FinancialMetrics]:
+        return [
+            FinancialMetrics(
+                stock_code=code,
+                report_date="2024-12-31",
+                eps=1.25,
+                book_value_per_share=12.50,
+                operating_cf_per_share=2.10,
+                roe=10.5,
+                roa=5.2,
+                gross_margin=35.0,
+                net_profit_margin=15.0,
+                revenue_growth=8.5,
+                net_profit_growth=12.3,
+                debt_ratio=55.0,
+                current_ratio=1.5,
+                quick_ratio=1.1,
+                inventory_turnover=5.0,
+                asset_turnover=0.8,
+                total_assets=1.0e12,
+                operating_revenue=5.0e10,
+            ),
+        ]
+
 
 class MockFailingDataSource:
     """模拟网络异常的数据源 —— 所有方法抛 ConnectionError"""
@@ -124,6 +148,9 @@ class MockFailingDataSource:
         raise ConnectionError("no network")
 
     def get_capital_flow(self, code: str) -> list:
+        raise ConnectionError("no network")
+
+    def get_financials(self, code: str) -> list:
         raise ConnectionError("no network")
 
 

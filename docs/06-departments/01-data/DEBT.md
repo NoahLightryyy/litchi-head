@@ -16,6 +16,9 @@ department: 数据管道部
 | TD-034 | zzshare.py 字段选择死条件 | 🟢 low | 代码质量 | 📋 待评估 |
 | TD-041 | 数据新鲜度标注缺失 | 🟡 moderate | 功能缺失 | 📋 待评估 |
 | TD-057 | Provider 层测试未达标 | 🟡 moderate | 测试覆盖 | 🔧 修复中 |
+| **TD-062** | **ADataSource/ZzshareSource 财务数据缺失** — 两数据源 `get_financials()` 返回 `[]`，仅 AKShareSource 有实现 | 🟡 moderate | 功能缺失 | 📋 待评估 |
+| **TD-063** | **估值比率模型缺失** — PE(市盈率)/PB(市净率)/PS(市销率) 无定义，需股价+财务数据组合 | 🟡 moderate | 功能缺失 | 📋 待评估 |
+| **TD-064** | **财务指标覆盖率不足** — akshare 86 列中仅实现 17 列，未审计遗漏关键指标 | 🟢 low | 功能缺失 | 📋 待评估 |
 
 ## 已关闭债务
 

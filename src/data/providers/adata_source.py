@@ -15,7 +15,15 @@ GitHub: https://github.com/1nchaos/adata
 import logging
 from typing import Any
 
-from src.data.models import BoardInfo, CapitalFlowItem, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import (
+    BoardInfo,
+    CapitalFlowItem,
+    FinancialMetrics,
+    KLine,
+    NewsItem,
+    StockInfo,
+    StockQuote,
+)
 from src.data.providers.base import safe_float, safe_int, safe_str
 
 logger = logging.getLogger("data.providers.adata")
@@ -142,6 +150,10 @@ class ADataSource:
 
     def get_capital_flow(self, code: str) -> list[CapitalFlowItem]:
         """adata 暂不直接提供资金流向接口，返回空列表"""
+        return []
+
+    def get_financials(self, code: str) -> list[FinancialMetrics]:
+        """adata 暂不直接提供财务指标接口，返回空列表"""
         return []
 
 

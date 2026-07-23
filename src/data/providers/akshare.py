@@ -9,7 +9,15 @@ import logging
 import akshare as ak
 import pandas as pd
 
-from src.data.models import BoardInfo, CapitalFlowItem, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import (
+    BoardInfo,
+    CapitalFlowItem,
+    FinancialMetrics,
+    KLine,
+    NewsItem,
+    StockInfo,
+    StockQuote,
+)
 from src.data.providers.base import safe_float, safe_int, safe_str
 
 logger = logging.getLogger("data.providers.akshare")
@@ -162,6 +170,33 @@ class AKShareSource:
             logger.exception("akshare stock_individual_fund_flow 失败: code=%s", code)
             return []
 
+    # ── 财务数据 ─────────────────────────────────────────────────────
+
+    def get_financials(self, code: str) -> list[FinancialMetrics]:
+        """获取个股财务指标
+
+        使用 akshare stock_financial_analysis_indicator 获取季度财务分析指标。
+        返回最近 N 个报告期的列表，最新在前。
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            FinancialMetrics 列表，每季度一条
+        """
+        try:
+            df: pd.DataFrame = ak.stock_financial_analysis_indicator(
+                symbol=code, start_year="2024",
+            )
+            if df is None or df.empty:
+                return []
+            return [_row_to_financial(row, code) for _, row in df.iterrows()]
+        except Exception:
+            logger.exception(
+                "akshare stock_financial_analysis_indicator 失败: code=%s", code,
+            )
+            return []
+
 
 # ── DataFrame → Model 转换函数 ────────────────────────────────────────
 
@@ -205,6 +240,34 @@ def _row_to_news(row: pd.Series, code: str) -> NewsItem:
         content=safe_str(row.get("content", "")),
         source=safe_str(row.get("source", "")),
         url=safe_str(row.get("url", "")),
+    )
+
+
+def _row_to_financial(row: pd.Series, code: str) -> FinancialMetrics:
+    """将 akshare 财务分析 DataFrame 行转换为 FinancialMetrics
+
+    akshare stock_financial_analysis_indicator 返回约 86 列，
+    此函数提取关键指标，缺失列安全默认 0.0。
+    """
+    return FinancialMetrics(
+        stock_code=code,
+        report_date=safe_str(row.get("日期", "")),
+        eps=safe_float(row.get("摊薄每股收益(元)", 0.0)),
+        book_value_per_share=safe_float(row.get("每股净资产_调整后(元)", 0.0)),
+        operating_cf_per_share=safe_float(row.get("每股经营性现金流(元)", 0.0)),
+        roe=safe_float(row.get("净资产收益率(%)", 0.0)),
+        roa=safe_float(row.get("总资产利润率(%)", 0.0)),
+        gross_margin=safe_float(row.get("销售毛利率(%)", 0.0)),
+        net_profit_margin=safe_float(row.get("销售净利率(%)", 0.0)),
+        revenue_growth=safe_float(row.get("主营业务收入增长率(%)", 0.0)),
+        net_profit_growth=safe_float(row.get("净利润增长率(%)", 0.0)),
+        debt_ratio=safe_float(row.get("资产负债率(%)", 0.0)),
+        current_ratio=safe_float(row.get("流动比率", 0.0)),
+        quick_ratio=safe_float(row.get("速动比率", 0.0)),
+        inventory_turnover=safe_float(row.get("存货周转率(次)", 0.0)),
+        asset_turnover=safe_float(row.get("总资产周转率(次)", 0.0)),
+        total_assets=safe_float(row.get("总资产(元)", 0.0)),
+        operating_revenue=safe_float(row.get("主营业务利润(元)", 0.0)),
     )
 
 

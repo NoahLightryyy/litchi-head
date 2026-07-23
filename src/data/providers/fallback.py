@@ -19,7 +19,15 @@
 import logging
 from collections import defaultdict
 
-from src.data.models import BoardInfo, CapitalFlowItem, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import (
+    BoardInfo,
+    CapitalFlowItem,
+    FinancialMetrics,
+    KLine,
+    NewsItem,
+    StockInfo,
+    StockQuote,
+)
 from src.data.providers.base import DataSource
 
 logger = logging.getLogger("data.providers.fallback")
@@ -107,6 +115,13 @@ class FallbackSource:
             "capital_flow",
             lambda: self._primary.get_capital_flow(code),
             lambda: self._fallback.get_capital_flow(code),
+        )
+
+    def get_financials(self, code: str) -> list[FinancialMetrics]:
+        return self._call(
+            "financials",
+            lambda: self._primary.get_financials(code),
+            lambda: self._fallback.get_financials(code),
         )
 
     # ── 核心切换逻辑 ─────────────────────────────────────────────────
