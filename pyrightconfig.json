@@ -1,0 +1,10 @@
+{
+    "typeCheckingMode": "basic",
+    "include": ["src"],
+    "exclude": ["**/__pycache__"],
+    "pythonVersion": "3.13",
+    "pythonPlatform": "All",
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false,
+    "reportMissingModuleSource": false
+}

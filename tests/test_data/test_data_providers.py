@@ -676,6 +676,95 @@ class TestADataSourceImport:
         assert hasattr(ADataSource, "get_financials")
 
 
+class TestADataRowToCoreIndex:
+    """_adata_row_to_core_index 财务指标行转换"""
+
+    def test_normal_row(self):
+        from src.data.providers.adata_source import _adata_row_to_core_index
+
+        row = {
+            "report_date": "2024-12-31",
+            "basic_eps": 1.25,
+            "net_asset_ps": 12.50,
+            "oper_cf_ps": 2.10,
+            "roe_wtd": 10.5,
+            "roa_wtd": 5.2,
+            "gross_margin": 35.0,
+            "net_margin": 15.0,
+            "total_rev_yoy_gr": 8.5,
+            "net_profit_yoy_gr": 12.3,
+            "asset_liab_ratio": 55.0,
+            "curr_ratio": 1.5,
+            "quick_ratio": 1.1,
+            "inv_turn_rate": 5.0,
+            "total_asset_turn_rate": 0.8,
+            "total_rev": 5e10,
+        }
+        m = _adata_row_to_core_index(row, code="000001")
+        assert m.stock_code == "000001"
+        assert m.report_date == "2024-12-31"
+        assert m.eps == 1.25
+        assert m.roe == 10.5
+        assert m.debt_ratio == 55.0
+        assert m.operating_revenue == 5e10
+        assert m.total_assets == 0.0  # adata 无此列
+
+    def test_missing_keys_default_to_zero(self):
+        from src.data.providers.adata_source import _adata_row_to_core_index
+
+        row = {"report_date": "2024-12-31"}
+        m = _adata_row_to_core_index(row, code="000001")
+        assert m.eps == 0.0
+        assert m.roe == 0.0
+        assert m.gross_margin == 0.0
+        assert m.asset_turnover == 0.0
+
+    def test_none_values_safe(self):
+        from src.data.providers.adata_source import _adata_row_to_core_index
+
+        row = {
+            "report_date": "2024-12-31",
+            "basic_eps": None,
+            "roe_wtd": None,
+            "curr_ratio": None,
+        }
+        m = _adata_row_to_core_index(row, code="000001")
+        assert m.eps == 0.0
+        assert m.roe == 0.0
+        assert m.current_ratio == 0.0
+
+
+class TestADataFinancialErrorHandling:
+    """ADataSource 财务数据异常路径"""
+
+    def test_get_financials_returns_empty_on_error(self, mocker):
+        import adata
+
+        from src.data.providers.adata_source import ADataSource
+
+        mocker.patch.object(
+            adata.stock.finance, "get_core_index",
+            side_effect=ConnectionError("网络错误"),
+        )
+        source = ADataSource()
+        result = source.get_financials("000001")
+        assert result == []
+
+    def test_get_financials_empty_df(self, mocker):
+        import adata
+        import pandas as pd
+
+        from src.data.providers.adata_source import ADataSource
+
+        mocker.patch.object(
+            adata.stock.finance, "get_core_index",
+            return_value=pd.DataFrame(),
+        )
+        source = ADataSource()
+        result = source.get_financials("000001")
+        assert result == []
+
+
 # ── zzshare 工具函数测试 ────────────────────────────────────────────
 
 
@@ -767,6 +856,66 @@ class TestZzshareSourceImport:
         assert hasattr(ZzshareSource, "get_concept_boards")
         assert hasattr(ZzshareSource, "get_capital_flow")
         assert hasattr(ZzshareSource, "get_financials")
+
+
+class TestZzshareRowToFinancial:
+    """_zz_row_to_financial 财务指标行转换"""
+
+    def test_normal_row(self):
+        from src.data.providers.zzshare import _zz_row_to_financial
+
+        row = {
+            "end_date": "2024-12-31",
+            "eps": 1.25,
+            "bps": 12.50,
+            "ocfps": 2.10,
+            "roe": 10.5,
+            "roa": 5.2,
+            "gross_margin": 35.0,
+            "netprofit_margin": 15.0,
+            "or_yoy": 8.5,
+            "nprofit_yoy": 12.3,
+            "debt_to_assets": 55.0,
+            "current_ratio": 1.5,
+            "quick_ratio": 1.1,
+            "inv_turnover": 5.0,
+            "assets_turn": 0.8,
+            "total_assets": 1e12,
+            "oper_rev": 5e10,
+        }
+        m = _zz_row_to_financial(row, code="000001")
+        assert m.stock_code == "000001"
+        assert m.report_date == "2024-12-31"
+        assert m.eps == 1.25
+        assert m.roe == 10.5
+        assert m.debt_ratio == 55.0
+        assert m.total_assets == 1e12
+        assert m.operating_revenue == 5e10
+
+    def test_missing_keys_default_to_zero(self):
+        from src.data.providers.zzshare import _zz_row_to_financial
+
+        row = {"end_date": "2024-12-31"}
+        m = _zz_row_to_financial(row, code="000001")
+        assert m.eps == 0.0
+        assert m.roe == 0.0
+        assert m.gross_margin == 0.0
+        assert m.asset_turnover == 0.0
+        assert m.total_assets == 0.0
+
+    def test_none_values_safe(self):
+        from src.data.providers.zzshare import _zz_row_to_financial
+
+        row = {
+            "end_date": "2024-12-31",
+            "eps": None,
+            "roe": None,
+            "current_ratio": None,
+        }
+        m = _zz_row_to_financial(row, code="000001")
+        assert m.eps == 0.0
+        assert m.roe == 0.0
+        assert m.current_ratio == 0.0
 
 
 # ── FallbackSource ──────────────────────────────────────────────────

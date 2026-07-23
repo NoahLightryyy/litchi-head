@@ -114,7 +114,8 @@ class DataSource(Protocol):
 
 所有 4 个 Source 类都实现了这个方法：
 - `AKShareSource` → 真实调用 akshare API
-- `ADataSource` / `ZzshareSource` → 返回 `[]`（待后续接入）
+- `ADataSource` → `adata.stock.finance.get_core_index(code)`（43 列核心指标）
+- `ZzshareSource` → Tushare Pro 兼容 `pro.fina_indicator(ts_code)`（40+ 列指标）
 - `FallbackSource` → 委托主/备源的该方法
 
 ### DataCollector 封装

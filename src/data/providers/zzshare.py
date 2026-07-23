@@ -139,8 +139,26 @@ class ZzshareSource:
         return []
 
     def get_financials(self, code: str) -> list[FinancialMetrics]:
-        """zzshare 财务指标接口待接入，返回空列表"""
-        return []
+        """获取个股财务指标
+
+        使用 zzshare（Tushare Pro 兼容）fina_indicator 获取财务指标。
+        返回所有报告期的列表，最新在前。
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            FinancialMetrics 列表，网络异常时返回空列表
+        """
+        try:
+            ts_code = _to_ts_code(code)
+            df = self._pro.fina_indicator(ts_code=ts_code)
+            if df is None or df.empty:
+                return []
+            return [_zz_row_to_financial(row, code) for _, row in df.iterrows()]
+        except Exception:
+            logger.exception("zzshare fina_indicator 失败: code=%s", code)
+            return []
 
 
 # ── 工具函数 ──────────────────────────────────────────────────────────
@@ -172,6 +190,36 @@ def _zz_row_to_kline(row) -> KLine:
         low=safe_float(row.get("low", 0.0)),
         volume=safe_int(row.get("vol", 0)),
         amount=safe_float(row.get("amount", 0.0)),
+    )
+
+
+def _zz_row_to_financial(row, code: str) -> FinancialMetrics:
+    """将 zzshare fina_indicator DataFrame 行转换为 FinancialMetrics
+
+    zzshare 兼容 Tushare Pro fina_indicator 接口返回约 40+ 列财务指标，
+    此函数提取 FinancialMetrics 所需的 17 个字段。
+    """
+    # fina_indicator 使用 end_date 作为报告期
+    report_date = safe_str(row.get("end_date", "")) or safe_str(row.get("ann_date", ""))
+    return FinancialMetrics(
+        stock_code=code,
+        report_date=report_date,
+        eps=safe_float(row.get("eps", 0.0)),
+        book_value_per_share=safe_float(row.get("bps", 0.0)),
+        operating_cf_per_share=safe_float(row.get("ocfps", 0.0)),
+        roe=safe_float(row.get("roe", 0.0)),
+        roa=safe_float(row.get("roa", 0.0)),
+        gross_margin=safe_float(row.get("gross_margin", 0.0)),
+        net_profit_margin=safe_float(row.get("netprofit_margin", 0.0)),
+        revenue_growth=safe_float(row.get("or_yoy", 0.0)),
+        net_profit_growth=safe_float(row.get("nprofit_yoy", 0.0)),
+        debt_ratio=safe_float(row.get("debt_to_assets", 0.0)),
+        current_ratio=safe_float(row.get("current_ratio", 0.0)),
+        quick_ratio=safe_float(row.get("quick_ratio", 0.0)),
+        inventory_turnover=safe_float(row.get("inv_turnover", 0.0)),
+        asset_turnover=safe_float(row.get("assets_turn", 0.0)),
+        total_assets=safe_float(row.get("total_assets", 0.0)),
+        operating_revenue=safe_float(row.get("oper_rev", 0.0)),
     )
 
 

@@ -12,6 +12,7 @@ Usage:
     collector = DataCollector(source=MySource())
 """
 
+import math
 from typing import Protocol
 
 from src.data.models import (
@@ -99,11 +100,14 @@ def safe_str(val: object, default: str = "") -> str:
 
 
 def safe_float(val: object, default: float = 0.0) -> float:
-    """安全提取浮点数"""
+    """安全提取浮点数，NaN → default"""
     if val is None:
         return default
     try:
-        return float(val)  # type: ignore[arg-type]
+        result = float(val)  # type: ignore[arg-type]
+        if math.isnan(result):
+            return default
+        return result
     except (ValueError, TypeError):
         return default
 

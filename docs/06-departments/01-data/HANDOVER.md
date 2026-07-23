@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-23 (FD-002)
+last_updated: 2026-07-23 (FD-001h)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -23,7 +23,7 @@ last_updated: 2026-07-23 (FD-002)
 
 | 测试集 | 测试数 | 覆盖率 |
 |:-------|:------:|:------:|
-| Provider 层单元测试 | 84 | 平均 83%（adata→83%, akshare→90%, fallback→100%） |
+| Provider 层单元测试 | 97 | 平均 83%（adata→83%, akshare→90%, fallback→100%） |
 | 数据模型测试 | 31 | 100%（含 ValuationMetrics 9 测试） |
 | 契约测试 data→debate | 4 | JSON roundtrip + format_market_brief |
 | DataCollector 测试 | 81 | 含 get_valuation 8 测试 |
@@ -65,7 +65,7 @@ last_updated: 2026-07-23 (FD-002)
 
 | 优先级 | 事项 | 预估 | 说明 |
 |:------:|:-----|:----:|:------|
-| 🥇 P0 | **FD-001h 多源财务数据** — ADataSource + ZzshareSource 实现 `get_financials()` | ~1h | 当前返回 `[]`，需各源实现 |
+| 🥇 P0 | **FD-001h 多源财务数据** — ADataSource + ZzshareSource 实现 `get_financials()` | ✅ **已完成** | AData 用 `get_core_index`、Zzshare 用 `fina_indicator` |
 | 🥇 P0 | **FD-002 估值比率模型** — PE/PB/PS 模型 + DataCollector.get_valuation() | ✅ **已完成** | 纯计算模型，8 测试 |
 | 🥈 P1 | **FD-003 供应链数据调研** — 评估年报 PDF 解析可行性 | ~2h | 仅调研，非实现 |
 | 🥈 P1 | **FD-004 财务指标覆盖率审计** — akshare 86 列审计遗漏关键指标 | ~1h | 当前仅取 17 列 |
@@ -82,7 +82,7 @@ last_updated: 2026-07-23 (FD-002)
 | **FD-001c** 🥇 | **AKShare 实现** — `stock_financial_analysis_indicator` → `FinancialMetrics` | ✅ | FD-001b | ~2h |
 | **FD-001d** 🥇 | **Collector 方法** — `get_financials()` + TTL 1h 缓存 | ✅ | FD-001b | ~1h |
 | **FD-001e** 🥇 | **填充基本面占位符** — `format_market_brief()` 已替换为真实财务数据，按6维度格式化输出 | ✅ | FD-001c | ~1h |
-| **FD-001h** 🥇 | **多源财务数据** — ADataSource + ZzshareSource 实现 `get_financials()`（当前返回 `[]`） | ⬜ **待办** | FD-001c | ~1h |
+| **FD-001h** 🥇 | **多源财务数据** — ADataSource + ZzshareSource 实现 `get_financials()`（当前返回 `[]`） | ✅ **已完成** | FD-001c | ~1h |
 | **FD-002** 🥇 | **估值比率模型** — PE(市盈率)/PB(市净率)/PS(市销率) 模型，Pure computation，纯计算不依赖 Provider | ✅ **已完成** | 股价+财务数据 | ~1h |
 | **FD-003** 🥈 | **供应链数据调研** — 评估年报 PDF 解析前5大客户/供应商的可行性 | ⬜ **待办** | 无 | ~2h |
 | **FD-004** 🥈 | **财务指标覆盖率审计** — akshare 86 列中当前只取了 17 列，审计遗漏关键指标 | ⬜ **待办** | FD-001c | ~1h |
@@ -96,6 +96,24 @@ last_updated: 2026-07-23 (FD-002)
 |:--:|:-----|:----|:----:|
 | **UI-1d** 🥇 | **UserBehaviorStore 存储层** — `data/user_profiles/` 目录 + JSONL 写入接口，按用户 ID 隔离（`src/callback/callbacks/ub_track.py` 中的 `UserBehaviorStore` 类归数据管道部维护）| RC-001 引擎 | ~1h |
 | **UI-2b** 🥇 | **实际盈亏追踪** — 用户卖出时回填 `actual_outcome` / `actual_return_pct` / `holding_days`；定时扫描未了结交易计算浮动盈亏 | UI-1d | ~1h |
+
+### 产品定位新任务（PD 系列，2026-07-23 新增）
+
+> **战略背景**：详见 [PRODUCT-POSITIONING.md](../../99-archive/PRODUCT-POSITIONING.md)。
+> 核心方向：动态指标选择（行业+产业链位置决定看哪 5-10 个指标），不和 Wind 比数据量。
+> 配套任务：产业链位置判断 → 动态选指标 → AI 按行业上下文推理。
+
+| PD | 事项 | 状态 | 依赖 | 预估 |
+|:--:|:-----|:----:|:----|:----:|
+| **PD-001** 🥇 | **IndicatorRegistry 模型** — (industry, position) → [indicator] 映射表的 Pydantic 数据模型 + 注册表配置（YAML/代码字典） | ⬜ **待办** | 无 | ~1h |
+| **PD-002** 🥇 | **产业链位置判断** — 基于行业分类 + 主营业务构成（akshare `stock_zygc_em`）判断公司属于上游/中游/下游；返回位置标签 + 理由 | ⬜ **待办** | PD-001 | ~2h |
+| **PD-003** 🥇 | **动态采集引擎** — DataCollector 扩展：支持按股票行业+位置只拉取注册表中指定的字段，不拉全部 86 列；需要和现有 get_financials() 兼容 | ⬜ **待办** | PD-001, PD-002 | ~2h |
+| **PD-004** 🥈 | **行业指标覆盖扩展** — 逐步补齐 10+ 行业的指标映射（初始 6 个行业，后续社区贡献） | ⬜ **待办** | PD-001 | ~1h |
+
+**技术栈建议**：
+- IndicatorRegistry 先做代码字典（prod start 阶段），不进数据库
+- 产业链位置用行业分类 + 主营业务关键词判断（如"电池制造"→中游）
+- 扩展路径：代码字典 → YAML 配置 → 可编辑配置
 
 ### 数据流变更
 
@@ -114,8 +132,7 @@ format_market_brief(financials=...)                       ← ✅ FD-001e
 collect_data_node (辩论引擎部)                             ← ✅ FD-001f
   → market_data["brief"] 含财务数据 → 分析师自动消费
 
-待扩展：
-ADataSource.get_financials() / ZzshareSource.get_financials()  ← ⬜ FD-001h（数据部）
+ADataSource.get_financials() (get_core_index) / ZzshareSource.get_financials() (fina_indicator)  ← ✅ FD-001h
 ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数据部 · 纯计算）
 
 ---

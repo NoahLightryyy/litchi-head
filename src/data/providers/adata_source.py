@@ -153,8 +153,25 @@ class ADataSource:
         return []
 
     def get_financials(self, code: str) -> list[FinancialMetrics]:
-        """adata 暂不直接提供财务指标接口，返回空列表"""
-        return []
+        """获取个股财务指标
+
+        使用 adata stock.finance.get_core_index 获取核心财务指标。
+        返回所有报告期的列表，最新在前（DataFrame 已按时间倒序）。
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            FinancialMetrics 列表，网络异常时返回空列表
+        """
+        try:
+            df = self._adata.stock.finance.get_core_index(stock_code=code)
+            if df is None or df.empty:
+                return []
+            return [_adata_row_to_core_index(row, code) for _, row in df.iterrows()]
+        except Exception:
+            logger.exception("adata get_core_index 失败: code=%s", code)
+            return []
 
 
 # ── DataFrame → Model 转换函数 ────────────────────────────────────────
@@ -187,6 +204,34 @@ def _adata_row_to_kline(row: Any) -> KLine:
         low=safe_float(row.get("low", 0.0)),
         volume=safe_int(row.get("volume", 0)),
         amount=safe_float(row.get("amount", 0.0)),
+    )
+
+
+def _adata_row_to_core_index(row: Any, code: str) -> FinancialMetrics:
+    """将 adata get_core_index DataFrame 行转换为 FinancialMetrics
+
+    adata stock.finance.get_core_index 返回约 43 列核心财务指标，
+    此函数提取 FinancialMetrics 所需的 17 个字段。
+    """
+    return FinancialMetrics(
+        stock_code=code,
+        report_date=safe_str(row.get("report_date", "")),
+        eps=safe_float(row.get("basic_eps", 0.0)),
+        book_value_per_share=safe_float(row.get("net_asset_ps", 0.0)),
+        operating_cf_per_share=safe_float(row.get("oper_cf_ps", 0.0)),
+        roe=safe_float(row.get("roe_wtd", 0.0)),
+        roa=safe_float(row.get("roa_wtd", 0.0)),
+        gross_margin=safe_float(row.get("gross_margin", 0.0)),
+        net_profit_margin=safe_float(row.get("net_margin", 0.0)),
+        revenue_growth=safe_float(row.get("total_rev_yoy_gr", 0.0)),
+        net_profit_growth=safe_float(row.get("net_profit_yoy_gr", 0.0)),
+        debt_ratio=safe_float(row.get("asset_liab_ratio", 0.0)),
+        current_ratio=safe_float(row.get("curr_ratio", 0.0)),
+        quick_ratio=safe_float(row.get("quick_ratio", 0.0)),
+        inventory_turnover=safe_float(row.get("inv_turn_rate", 0.0)),
+        asset_turnover=safe_float(row.get("total_asset_turn_rate", 0.0)),
+        total_assets=0.0,  # adata get_core_index 无总资产列
+        operating_revenue=safe_float(row.get("total_rev", 0.0)),
     )
 
 

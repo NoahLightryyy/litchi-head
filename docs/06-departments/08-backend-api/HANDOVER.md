@@ -104,10 +104,21 @@ last_updated: 2026-07-23 (FD 编号对齐)
 | **伪产业链数据** | `market.py:187-228` | 按涨幅排序把成分股分为"上游/中游/下游"，不反映真实供应链关系，违反"零造假数据"政策 | 🔴 CRITICAL |
 | **绕过 Provider 层** | `market.py:114-138` | 直接调 akshare，无缓存/健康监控，违反数据部规范 ROLE.md §禁止行为 | 🟡 HIGH |
 
+### 产品定位新任务（PD 系列，2026-07-23 新增）
+
+> **战略背景**：详见 [PRODUCT-POSITIONING.md](../../99-archive/PRODUCT-POSITIONING.md)。
+> 核心方向：新增 2 个端点暴露行业定位 + 动态指标集，供前端展示"这个公司是什么位置、该看什么"。
+
+| PD | 事项 | 状态 | 依赖 | 预估 |
+|:--:|:-----|:----:|:----|:----:|
+| **PD-008** 🥇 | **行业定位端点** — `GET /api/industry/{code}/position` 返回：产业链位置（上游/中游/下游）、判断理由（基于主营构成/行业分类）、该行业关键指标列表（名称+含义+当前值）| ⬜ **待办** | 数据部 PD-001~002 | ~1h |
+| **PD-009** 🥇 | **动态指标端点** — `GET /api/industry/{code}/indicators` 返回：当前股票该看的 5-10 个指标（指标名+值+同行业分位+正常区间+一句话解读） | ⬜ **待办** | 数据部 PD-003 | ~1h |
+| **PD-010** 🥇 | **FD-003a 伪产业链修复** — 同下方 FD-003a 任务，PD 系列重新编号以对齐产品定位，不再重复描述 | ⬜ **待办**（同 FD-003a） | 无 | 同 FD-003a |
+
 ### 新端点一览
 
 ```python
-# 新增 3 个端点
+# 新增 5 个端点（原 3 个 + PD 新增 2 个）
 @router.get("/api/financial/{code}", response_model=FinancialMetricResponse)
 async def get_financial_metrics(code: str):
     """个股财务指标（ROE/毛利率/负债率/估值等），含多报告期"""
@@ -115,6 +126,14 @@ async def get_financial_metrics(code: str):
 @router.get("/api/industry/{code}", response_model=IndustryPositionResponse)
 async def get_industry_position(code: str):
     """个股产业链定位（上游/中游/下游 + 同行 + 主营构成）"""
+
+@router.get("/api/industry/{code}/position")  # 🆕 PD-008
+async def get_industry_position_v2(code: str):
+    """产业链位置 + 关键指标集 + 判断理由"""
+
+@router.get("/api/industry/{code}/indicators")  # 🆕 PD-009
+async def get_dynamic_indicators(code: str):
+    """当前股票该看的 5-10 个指标 + 值 + 分位 + 解读"""
 
 # 修复 1 个端点
 @router.get("/api/market/sector/{id}") 
