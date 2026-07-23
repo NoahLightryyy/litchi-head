@@ -30,6 +30,7 @@ from src.data.models import (
     NewsItem,
     StockInfo,
     StockQuote,
+    ValuationMetrics,
 )
 from src.data.providers import AKShareSource, DataSource
 
@@ -44,6 +45,7 @@ TTL_NEWS = 120          # 新闻：2 分钟
 TTL_BOARDS = 3600       # 板块：1 小时
 TTL_CAPITAL_FLOW = 300  # 资金流向：5 分钟
 TTL_FINANCIALS = 3600  # 财务数据：1 小时（日内不变）
+TTL_VALUATION = 300   # 估值比率：5 分钟（随股价变化）
 
 
 # ── 健康监控 ────────────────────────────────────────────────────────
@@ -394,6 +396,70 @@ class DataCollector:
             _health_stats.record_call("financials", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取财务数据失败: code=%s", code)
             return []
+
+    # ── 估值比率 ─────────────────────────────────────────────────────
+
+    def get_valuation(self, code: str) -> ValuationMetrics | None:
+        """计算个股估值比率（PE/PB/PS）
+
+        组合财务指标 + 实时行情计算估值比率。
+        无财务数据或无行情时返回 None。
+
+        Cache TTL: 5 分钟（随股价变化）
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            ValuationMetrics 对象，数据不足时返回 None
+        """
+        cache_key = f"valuation:{code}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        t0 = time.time()
+        try:
+            financials = self.get_financials(code)
+            if not financials:
+                _health_stats.record_call("valuation", (time.time() - t0) * 1000)
+                return None
+
+            quote = self.get_realtime_quote(code)
+            if quote is None or quote.price <= 0:
+                _health_stats.record_call("valuation", (time.time() - t0) * 1000)
+                return None
+
+            latest = financials[0]  # 最新一期
+
+            pe = 0.0
+            if latest.eps > 0:
+                pe = round(quote.price / latest.eps, 2)
+
+            pb = 0.0
+            if latest.book_value_per_share > 0:
+                pb = round(quote.price / latest.book_value_per_share, 2)
+
+            ps = 0.0
+            if quote.market_cap > 0 and latest.operating_revenue > 0:
+                ps = round(quote.market_cap / latest.operating_revenue, 2)
+
+            result = ValuationMetrics(
+                stock_code=code,
+                report_date=latest.report_date,
+                pe=pe,
+                pb=pb,
+                ps=ps,
+                market_cap=quote.market_cap,
+            )
+
+            self.cache.set(cache_key, result, ttl=TTL_VALUATION)
+            _health_stats.record_call("valuation", (time.time() - t0) * 1000)
+            return result
+        except Exception as e:
+            _health_stats.record_call("valuation", (time.time() - t0) * 1000, error=str(e))
+            logger.exception("计算估值比率失败: code=%s", code)
+            return None
 
 
 # ── 市场简报 ────────────────────────────────────────────────────────────

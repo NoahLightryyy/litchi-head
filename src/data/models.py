@@ -28,6 +28,7 @@ class StockQuote(BaseModel):
     low: float = Field(default=0.0, ge=0.0)
     open_: float = Field(default=0.0, ge=0.0)
     prev_close: float = Field(default=0.0, ge=0.0)
+    market_cap: float = Field(default=0.0, ge=0.0, description="总市值(元)")
 
 
 class KLine(BaseModel):
@@ -188,6 +189,26 @@ class FinancialMetrics(BaseModel):
     operating_revenue: float = Field(default=0.0, description="主营业务利润(元)")
 
 
+class ValuationMetrics(BaseModel):
+    """个股估值比率（由财务指标 + 股价计算）
+
+    基于最新财报指标和当前股价计算关键估值比率。
+    PE = 股价 / EPS（市盈率）
+    PB = 股价 / 每股净资产（市净率）
+    PS = 总市值 / 主营业务收入（市销率）
+
+    所有字段 ge=0.0：负估值（亏损公司）标记为 0.0 而非负值。
+    连续亏损公司 PE = 0.0（负 PE 无经济含义）。
+    """
+
+    stock_code: str
+    report_date: str = Field(default="", description="财务数据报告期")
+    pe: float = Field(default=0.0, ge=0.0, description="市盈率 = 股价 / EPS")
+    pb: float = Field(default=0.0, ge=0.0, description="市净率 = 股价 / 每股净资产")
+    ps: float = Field(default=0.0, ge=0.0, description="市销率 = 总市值 / 主营业务收入")
+    market_cap: float = Field(default=0.0, ge=0.0, description="总市值(元)")
+
+
 __all__ = [
     "BoardInfo",
     "BoardType",
@@ -199,4 +220,5 @@ __all__ = [
     "NewsItem",
     "StockInfo",
     "StockQuote",
+    "ValuationMetrics",
 ]

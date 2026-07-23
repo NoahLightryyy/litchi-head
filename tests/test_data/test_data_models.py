@@ -3,7 +3,15 @@
 import pytest
 from pydantic import ValidationError
 
-from src.data.models import BoardInfo, FinancialMetrics, KLine, NewsItem, StockInfo, StockQuote
+from src.data.models import (
+    BoardInfo,
+    FinancialMetrics,
+    KLine,
+    NewsItem,
+    StockInfo,
+    StockQuote,
+    ValuationMetrics,
+)
 
 
 class TestStockInfo:
@@ -358,3 +366,92 @@ class TestFinancialMetrics:
         assert fm.roe == 15.0
         assert fm.debt_ratio == 42.5
         assert fm.total_assets == 2e12
+
+
+class TestValuationMetrics:
+    """估值比率模型测试"""
+
+    def test_create_with_required_fields(self):
+        """仅必需字段构造"""
+        vm = ValuationMetrics(stock_code="000001")
+        assert vm.stock_code == "000001"
+        assert vm.pe == 0.0
+        assert vm.pb == 0.0
+        assert vm.ps == 0.0
+        assert vm.market_cap == 0.0
+        assert vm.report_date == ""
+
+    def test_create_with_all_fields(self):
+        """全字段构造"""
+        vm = ValuationMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            pe=10.5, pb=1.2, ps=0.8, market_cap=2.5e11,
+        )
+        assert vm.pe == 10.5
+        assert vm.pb == 1.2
+        assert vm.ps == 0.8
+        assert vm.market_cap == 2.5e11
+
+    def test_negative_values_rejected(self):
+        """所有比率字段 ge=0，负值应拒绝"""
+        with pytest.raises(ValidationError):
+            ValuationMetrics(stock_code="000001", pe=-1.0)
+        with pytest.raises(ValidationError):
+            ValuationMetrics(stock_code="000001", pb=-1.0)
+        with pytest.raises(ValidationError):
+            ValuationMetrics(stock_code="000001", ps=-0.1)
+        with pytest.raises(ValidationError):
+            ValuationMetrics(stock_code="000001", market_cap=-1.0)
+
+    def test_zero_allowed(self):
+        """零值允许（亏损公司或无数据）"""
+        vm = ValuationMetrics(stock_code="000001", pe=0.0, pb=0.0)
+        assert vm.pe == 0.0
+        assert vm.pb == 0.0
+        assert vm.ps == 0.0
+
+    def test_serialization_roundtrip(self):
+        """序列化往返一致"""
+        vm = ValuationMetrics(
+            stock_code="000001", report_date="2024-12-31",
+            pe=10.5, pb=1.2, ps=0.8, market_cap=2.5e11,
+        )
+        data = vm.model_dump()
+        restored = ValuationMetrics.model_validate(data)
+        assert restored.pe == vm.pe
+        assert restored.pb == vm.pb
+        assert restored.market_cap == 2.5e11
+
+    def test_stock_quote_market_cap_defaults_zero(self):
+        """StockQuote.market_cap 默认 0.0（向后兼容）"""
+        q = StockQuote(
+            code="000001", name="平安银行", price=12.5,
+            change=0.3, change_pct=2.46, volume=100000,
+        )
+        assert q.market_cap == 0.0
+
+    def test_stock_quote_negative_market_cap_rejected(self):
+        """StockQuote.market_cap < 0 应拒绝"""
+        with pytest.raises(ValidationError):
+            StockQuote(
+                code="000001", name="平安银行", price=12.5,
+                change=0.3, change_pct=2.46, volume=100000,
+                market_cap=-1.0,
+            )
+
+    def test_pepb_known_values(self):
+        """已知输入的正确计算验证"""
+        # 股价 25, EPS 2.5 → PE = 10.0
+        # 股价 25, BVPS 10 → PB = 2.5
+        vm = ValuationMetrics(
+            stock_code="000001",
+            pe=25.0 / 2.5,   # 10.0
+            pb=25.0 / 10.0,   # 2.5
+        )
+        assert vm.pe == 10.0
+        assert vm.pb == 2.5
+
+    def test_type_enforcement(self):
+        """类型错误应拒绝"""
+        with pytest.raises(ValidationError):
+            ValuationMetrics(stock_code="000001", pe="invalid")

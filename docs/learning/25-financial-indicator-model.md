@@ -270,4 +270,81 @@ if brief:
 
 **上一篇：[结果回调引擎架构](23-result-callback-engine.md)**
 
-**下一篇：待定**
+**下一篇：[估值比率模型 — ValuationMetrics PE/PB/PS](26-valuation-metrics-model.md)**
+
+---
+
+## 补充：FD-002 估值比率模型（PE/PB/PS）
+
+> 估值比率是「股价 + 财务数据」的派生指标，不在 DataSource 协议中新增方法。
+
+### ValuationMetrics 模型
+
+打开 `src/data/models.py`：
+
+```python
+class ValuationMetrics(BaseModel):
+    """个股估值比率（由财务指标 + 股价计算）"""
+    stock_code: str
+    report_date: str = ""
+    pe: float = Field(default=0.0, ge=0.0, description="市盈率 = 股价 / EPS")
+    pb: float = Field(default=0.0, ge=0.0, description="市净率 = 股价 / 每股净资产")
+    ps: float = Field(default=0.0, ge=0.0, description="市销率 = 总市值 / 主营业务收入")
+    market_cap: float = Field(default=0.0, ge=0.0, description="总市值(元)")
+```
+
+**关键设计：**
+- 所有字段 `ge=0.0` — 负估值（亏损公司）标记为 0.0，负 PE 无经济含义
+- 纯计算模型：不需要新的数据源 API 调用
+- `market_cap` 从 `StockQuote` 中取（akshare 的 spot API 已提供）
+
+### StockQuote 扩展
+
+`StockQuote` 新增 `market_cap: float = Field(default=0.0, ge=0.0)`：
+- 向后兼容：现有代码构造 `StockQuote` 时不传 `market_cap` 则默认为 0.0
+- akshare `_row_to_quote()` 新增 `row.get("总市值", 0.0)` 映射
+
+### DataCollector.get_valuation()
+
+无需新增 `DataSource` 协议方法——组合已有数据计算：
+
+```python
+def get_valuation(self, code: str) -> ValuationMetrics | None:
+    financials = self.get_financials(code)     # 已有
+    quote = self.get_realtime_quote(code)       # 已有
+    if not financials or not quote:
+        return None
+    latest = financials[0]
+    pe = quote.price / latest.eps if latest.eps > 0 else 0.0
+    pb = quote.price / latest.book_value_per_share if latest.book_value_per_share > 0 else 0.0
+    ps = quote.market_cap / latest.operating_revenue if ... else 0.0
+    return ValuationMetrics(code, pe=pe, pb=pb, ps=ps, market_cap=quote.market_cap)
+```
+
+| 字段 | 公式 | 数据来源 |
+|:-----|:-----|:---------|
+| PE | 股价 / EPS | StockQuote.price ÷ FinancialMetrics.eps |
+| PB | 股价 / 每股净资产 | StockQuote.price ÷ FinancialMetrics.book_value_per_share |
+| PS | 总市值 / 主营业务收入 | StockQuote.market_cap ÷ FinancialMetrics.operating_revenue |
+
+### 为什么不在 DataSource 协议中新增方法？
+
+估值比率是派生指标，不是原始数据。原始数据（股价、财务指标）已经通过现有协议获取了。估值是消费层的计算：
+
+```
+DataSource.get_financials() → FinancialMetrics
+DataSource.get_realtime_quotes() → StockQuote
+                              ↓
+                    DataCollector.get_valuation()
+                              ↓
+                    ValuationMetrics (PE/PB/PS)
+```
+
+如果未来需要更准确的 PE（比如 TTM 使用 4 个季度 EPS 之和），只需要改计算逻辑，不动协议、不动 Provider。这是「计算与数据分离」的设计原则。
+
+### 测试覆盖
+
+| 测试 | 数量 | 验证内容 |
+|:-----|:----:|:---------|
+| ValuationMetrics 模型 | 9 | 构造/约束/序列化/边界 |
+| DataCollector.get_valuation | 8 | 正常/无数据/网络失败/缓存/负EPS/PS计算 |

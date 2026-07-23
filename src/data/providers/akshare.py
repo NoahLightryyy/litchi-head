@@ -215,6 +215,7 @@ def _row_to_quote(row: pd.Series) -> StockQuote:
         low=safe_float(row.get("最低", 0.0)),
         open_=safe_float(row.get("今开", 0.0)),
         prev_close=safe_float(row.get("昨收", 0.0)),
+        market_cap=safe_float(row.get("总市值", 0.0)),
     )
 
 

@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-23
+last_updated: 2026-07-23 (FD-002)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -15,7 +15,7 @@ last_updated: 2026-07-23
 | Provider 抽象层（4 文件） | ✅ | AKShareSource / AData / ZzShareSource / FallbackSource |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
-| 数据模型（8 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection |
+| 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
 | HealthStats 健康监控 | ✅ | 成功率/延迟/错误统计，/api/health 暴露 |
 | 数据源审计 | ✅ | DATA_SOURCE_AUDIT.md 覆盖 10+ 平台 |
 
@@ -24,8 +24,9 @@ last_updated: 2026-07-23
 | 测试集 | 测试数 | 覆盖率 |
 |:-------|:------:|:------:|
 | Provider 层单元测试 | 84 | 平均 83%（adata→83%, akshare→90%, fallback→100%） |
-| 数据模型测试 | 22 | 100% |
+| 数据模型测试 | 31 | 100%（含 ValuationMetrics 9 测试） |
 | 契约测试 data→debate | 4 | JSON roundtrip + format_market_brief |
+| DataCollector 测试 | 81 | 含 get_valuation 8 测试 |
 
 ### 关键架构决策
 
@@ -65,7 +66,7 @@ last_updated: 2026-07-23
 | 优先级 | 事项 | 预估 | 说明 |
 |:------:|:-----|:----:|:------|
 | 🥇 P0 | **FD-001h 多源财务数据** — ADataSource + ZzshareSource 实现 `get_financials()` | ~1h | 当前返回 `[]`，需各源实现 |
-| 🥇 P0 | **FD-002 估值比率模型** — PE/PB/PS Pydantic 模型 + Provider 扩展 | ~1h | 需股价+财务组合计算 |
+| 🥇 P0 | **FD-002 估值比率模型** — PE/PB/PS 模型 + DataCollector.get_valuation() | ✅ **已完成** | 纯计算模型，8 测试 |
 | 🥈 P1 | **FD-003 供应链数据调研** — 评估年报 PDF 解析可行性 | ~2h | 仅调研，非实现 |
 | 🥈 P1 | **FD-004 财务指标覆盖率审计** — akshare 86 列审计遗漏关键指标 | ~1h | 当前仅取 17 列 |
 
@@ -82,7 +83,7 @@ last_updated: 2026-07-23
 | **FD-001d** 🥇 | **Collector 方法** — `get_financials()` + TTL 1h 缓存 | ✅ | FD-001b | ~1h |
 | **FD-001e** 🥇 | **填充基本面占位符** — `format_market_brief()` 已替换为真实财务数据，按6维度格式化输出 | ✅ | FD-001c | ~1h |
 | **FD-001h** 🥇 | **多源财务数据** — ADataSource + ZzshareSource 实现 `get_financials()`（当前返回 `[]`） | ⬜ **待办** | FD-001c | ~1h |
-| **FD-002** 🥇 | **估值比率模型** — PE(市盈率)/PB(市净率)/PS(市销率) 模型，需组合股价+财务数据 | ⬜ **待办** | FD-001e + 股价数据 | ~1h |
+| **FD-002** 🥇 | **估值比率模型** — PE(市盈率)/PB(市净率)/PS(市销率) 模型，Pure computation，纯计算不依赖 Provider | ✅ **已完成** | 股价+财务数据 | ~1h |
 | **FD-003** 🥈 | **供应链数据调研** — 评估年报 PDF 解析前5大客户/供应商的可行性 | ⬜ **待办** | 无 | ~2h |
 | **FD-004** 🥈 | **财务指标覆盖率审计** — akshare 86 列中当前只取了 17 列，审计遗漏关键指标 | ⬜ **待办** | FD-001c | ~1h |
 
@@ -115,7 +116,7 @@ collect_data_node (辩论引擎部)                             ← ✅ FD-001f
 
 待扩展：
 ADataSource.get_financials() / ZzshareSource.get_financials()  ← ⬜ FD-001h（数据部）
-FinancialSnapshot + ValuationRatios (PE/PB/PS)                  ← ⬜ FD-002（数据部）
+ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数据部 · 纯计算）
 
 ---
 

@@ -17,7 +17,6 @@ department: 数据管道部
 | TD-041 | 数据新鲜度标注缺失 | 🟡 moderate | 功能缺失 | 📋 待评估 |
 | TD-057 | Provider 层测试未达标 | 🟡 moderate | 测试覆盖 | 🔧 修复中 |
 | **TD-062** | **ADataSource/ZzshareSource 财务数据缺失** — 两数据源 `get_financials()` 返回 `[]`，仅 AKShareSource 有实现 | 🟡 moderate | 功能缺失 | 📋 待评估 |
-| **TD-063** | **估值比率模型缺失** — PE(市盈率)/PB(市净率)/PS(市销率) 无定义，需股价+财务数据组合 | 🟡 moderate | 功能缺失 | 📋 待评估 |
 | **TD-064** | **财务指标覆盖率不足** — akshare 86 列中仅实现 17 列，未审计遗漏关键指标 | 🟢 low | 功能缺失 | 📋 待评估 |
 
 ## 已关闭债务
@@ -26,3 +25,4 @@ department: 数据管道部
 |:---|:-----|:--------|:---------|
 | TD-032 | FallbackSource 永不恢复主源 | 2026-06-18 | 备用模式每次先尝试主源，成功自动切回 |
 | TD-047 | collector health_stats 异常文本硬编码 | 2026-06-18 | 改为 str(e) 传递真实异常文本 |
+| TD-063 | 估值比率模型缺失 — PE/PB/PS 由 FD-002 实现 (ValuationMetrics + DataCollector.get_valuation) | 2026-07-23 | 纯计算模型，17 测试 |

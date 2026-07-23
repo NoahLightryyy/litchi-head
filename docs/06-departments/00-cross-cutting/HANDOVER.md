@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-07-23
+last_updated: 2026-07-23 (FD 编号对齐)
 ---
 
 # 🔄 跨部门状态总览
@@ -24,7 +24,7 @@ last_updated: 2026-07-23
 
 | 指标 | 当前值 |
 |:-----|:------:|
-| 全量测试 | 1012 collected, 全部通过 ✅ |
+| 全量测试 | 1029 collected, 全部通过 ✅ |
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |
@@ -49,10 +49,11 @@ last_updated: 2026-07-23
 | 优先级 | 事项 | 涉及部门 |
 |:------:|:-----|:---------|
 | 🥇 | **FD-001 基本面数据接入** — ✅ 模型+Provider+辩论注入+分析师增强（数据+辩论完成），⬜ 前端财务 Tab（前端部） | 数据管道部 ✅ + 辩论引擎部 ✅ + 后端 API 部 + 前端部 ⬜ |
-| 🥇 | **FD-002 产业链修复** — 真实行业分类替换伪产业链数据 | 后端 API 部 + 前端部 |
+| 🥇 | **FD-002 估值比率模型** — ✅ PE/PB/PS 模型 + DataCollector.get_valuation()（纯计算，无需新 Provider） | 数据管道部 ✅ |
+| 🥇 | **FD-003 产业链修复** — 真实行业分类替换伪产业链数据 | 后端 API 部 + 前端部 |
 | 🥇 | **RC-003 UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore + 操作理由记录 | 后端 API 部 + 前端部 + 数据管道部 |
 | 🥈 | **RC-004 RP-TUNE 风险参数自适应** — 回测结果 → 自动调止损/仓位 | 风控管理部 + 回测研究部 |
-| 🥈 | **FD-003 供应链图谱（调研评估）** — 年报 PDF 解析前5大客户/供应商可行性 | 数据管道部 |
+| 🥈 | **FD-004 供应链图谱（调研评估）** — 年报 PDF 解析前5大客户/供应商可行性 | 数据管道部 |
 | 🥈 | **RC-005 CALIBRATE 置信度校准** — Brier score 过高时动态校准 | 辩论引擎部 |
 | 🥉 | **RC-006 STRAT-ROUTE 策略路由** — 按市场条件追踪大师胜率并自动降级 | 辩论引擎部 |
 | 🥉 | **UI-4a DP-006 镜子 Agent** — BehaviorComparisonReport，决策前历史对比提示，三段式解锁 | AI Agent 架构部 + 辩论引擎部 + 前端部 |

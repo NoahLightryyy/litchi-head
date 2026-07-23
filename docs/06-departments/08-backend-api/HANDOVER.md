@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-06-21
+last_updated: 2026-07-23 (FD 编号对齐)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -91,11 +91,11 @@ last_updated: 2026-06-21
 
 | FD | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **FD-002a** 🔴 | **修复伪产业链** — `_build_chain_map()` 改用真实行业分类（从 DataCollector.get_industry_position 获取），停止按照涨幅虚构上下游 | 无（可用现有 akshare 行业分类） | ~2h |
-| **FD-002b** 🥇 | **新增财务指标端点** — `GET /api/financial/{code}` 返回 `list[FinancialMetric]` JSON | 数据管道部 FD-001d | ~1h |
-| **FD-002c** 🥇 | **新增产业链定位端点** — `GET /api/industry/{code}` 返回 `IndustryPosition` JSON | 数据管道部 FD-001d | ~1h |
-| **FD-002d** 🥇 | **路由规范化** — 移除 `market.py` 中直接调 akshare 的代码（第114-138行），改为通过 `DataCollector` | 数据管道部 FD-001d | ~1h |
-| **FD-002e** 🥈 | **板块详情页增强** — 新增财务摘要字段到 `/api/market/sector/{id}` 响应 | 数据管道部 FD-001d | ~1h |
+| **FD-003a** 🔴 | **修复伪产业链** — `_build_chain_map()` 改用真实行业分类（从 DataCollector.get_industry_position 获取），停止按照涨幅虚构上下游 | 无（可用现有 akshare 行业分类） | ~2h |
+| **FD-003b** 🥇 | **新增财务指标端点** — `GET /api/financial/{code}` 返回 `list[FinancialMetric]` JSON | 数据管道部 FD-001d | ~1h |
+| **FD-003c** 🥇 | **新增产业链定位端点** — `GET /api/industry/{code}` 返回 `IndustryPosition` JSON | 数据管道部 FD-001d | ~1h |
+| **FD-003d** 🥇 | **路由规范化** — 移除 `market.py` 中直接调 akshare 的代码（第114-138行），改为通过 `DataCollector` | 数据管道部 FD-001d | ~1h |
+| **FD-003e** 🥈 | **板块详情页增强** — 新增财务摘要字段到 `/api/market/sector/{id}` 响应 | 数据管道部 FD-001d | ~1h |
 
 ### 🔴 必须修复的问题
 

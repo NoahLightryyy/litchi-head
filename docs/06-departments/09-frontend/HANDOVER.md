@@ -1,7 +1,7 @@
 ---
 department: 前端部
 codebase: frontend/
-last_updated: 2026-06-22
+last_updated: 2026-07-23 (FD 编号对齐)
 ---
 
 # 🎨 前端部工作交接
@@ -94,26 +94,26 @@ last_updated: 2026-06-22
 
 | FD | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **FD-003a** 🥇 | **前端金融类型** — 新增 `FinancialMetric` / `IndustryPosition` / `SupplyChainNode` 类型定义到 `lib/types/market.ts` | 后端 API 部 FD-002b/002c | ~30min |
-| **FD-003b** 🥇 | **FinancialSummary 组件** — 财务健康概览卡片（ROE/毛利率/负债率/PE四宫格+趋势），覆盖 loading/error/empty/data 四态 | FD-003a | ~3h |
-| **FD-003c** 🥇 | **个股页新增财务 Tab** — 在 stock/[code] 4 Tab 基础上增加"财务"Tab 面板 | FD-003b | ~1h |
-| **FD-003d** 🥈 | **ChainMap 注入真实数据** — `frontend/components/sector/chain-map.tsx` 从后端真实 API 获取产业链数据替代伪数据 | 后端 API 部 FD-002a | ~2h |
-| **FD-003e** 🥈 | **板块页财务聚合** — sector/[id] 页面展示板块级财务汇总（行业平均 ROE/负债率等） | FD-003b + 后根部 FD-002e | ~2h |
+| **FD-004a** 🥇 | **前端金融类型** — 新增 `FinancialMetric` / `IndustryPosition` / `SupplyChainNode` 类型定义到 `lib/types/market.ts` | 后端 API 部 FD-003b/003c | ~30min |
+| **FD-004b** 🥇 | **FinancialSummary 组件** — 财务健康概览卡片（ROE/毛利率/负债率/PE四宫格+趋势），覆盖 loading/error/empty/data 四态 | FD-004a | ~3h |
+| **FD-004c** 🥇 | **个股页新增财务 Tab** — 在 stock/[code] 4 Tab 基础上增加"财务"Tab 面板 | FD-004b | ~1h |
+| **FD-004d** 🥈 | **ChainMap 注入真实数据** — `frontend/components/sector/chain-map.tsx` 从后端真实 API 获取产业链数据替代伪数据 | 后端 API 部 FD-003a | ~2h |
+| **FD-004e** 🥈 | **板块页财务聚合** — sector/[id] 页面展示板块级财务汇总（行业平均 ROE/负债率等） | FD-004b + 后根部 FD-003e | ~2h |
 
 ### 组件树变更
 
 ```
 frontend/components/
 ├── sector/
-│   └── chain-map.tsx          ← FD-003d: 注入真实产业链数据
+│   └── chain-map.tsx          ← FD-004d: 注入真实产业链数据
 ├── stock/
 │   ├── debate-panel.tsx
 │   ├── technical-indicators-panel.tsx
 │   ├── capital-flow-panel.tsx
-│   ├── financial-summary.tsx  🆕 ← FD-003b: 财务健康卡片
-│   └── fundamentals-panel.tsx 🆕 ← FD-003c: 基本面分析 Tab（含多期对比）
+│   ├── financial-summary.tsx  🆕 ← FD-004b: 财务健康卡片
+│   └── fundamentals-panel.tsx 🆕 ← FD-004c: 基本面分析 Tab（含多期对比）
 
-frontend/lib/types/market.ts  ← FD-003a: 新增类型
+frontend/lib/types/market.ts  ← FD-004a: 新增类型
   ├── FinancialMetric
   ├── IndustryPosition
   └── SupplyChainNode
@@ -126,7 +126,7 @@ frontend/lib/types/market.ts  ← FD-003a: 新增类型
 ├── Tab 1: 🤖 AI 辩论      （已有）
 ├── Tab 2: 📊 技术指标      （已有）
 ├── Tab 3: 💰 资金流向      （已有）
-├── Tab 4: 🏛️ 财务健康 🆕  ← FD-003c
+├── Tab 4: 🏛️ 财务健康 🆕  ← FD-004c
 │   ├── 盈利能力卡片（ROE/ROA/毛利率 多期趋势）
 │   ├── 估值水平卡片（PE/PB/PS 当前值+历史分位）
 │   ├── 成长性卡片（营收增速/利润增速）
@@ -135,8 +135,8 @@ frontend/lib/types/market.ts  ← FD-003a: 新增类型
 
 板块分析页（sector/[id]）
 ├── 板块行情卡片              （已有）
-├── 产业链图谱                ← FD-003d: 真实数据替代伪数据
-├── 板块财务概览 🆕           ← FD-003e: 行业平均指标
+├── 产业链图谱                ← FD-004d: 真实数据替代伪数据
+├── 板块财务概览 🆕           ← FD-004e: 行业平均指标
 └── 成分股列表                （已有）
 ```
 
