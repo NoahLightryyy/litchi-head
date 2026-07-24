@@ -25,10 +25,12 @@ from backend.main import app
 from src.data.models import (
     BoardInfo,
     CapitalFlowItem,
+    FinancialMetrics,
     KLine,
     NewsItem,
     StockInfo,
     StockQuote,
+    ValuationMetrics,
 )
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -115,6 +117,46 @@ def make_mock_board(**overrides: Any) -> BoardInfo:
     data = {"code": "BK001", "name": "银行", "board_type": "industry"}
     data.update(overrides)
     return BoardInfo(**data)
+
+
+def make_mock_financial(**overrides: Any) -> FinancialMetrics:
+    """创建模拟财务指标"""
+    data = {
+        "stock_code": "000001",
+        "report_date": "2024-12-31",
+        "eps": 1.25,
+        "book_value_per_share": 8.92,
+        "operating_cf_per_share": 0.85,
+        "roe": 12.5,
+        "roa": 5.2,
+        "gross_margin": 35.8,
+        "net_profit_margin": 18.2,
+        "revenue_growth": 15.3,
+        "net_profit_growth": 22.7,
+        "debt_ratio": 45.2,
+        "current_ratio": 1.85,
+        "quick_ratio": 1.32,
+        "inventory_turnover": 8.5,
+        "asset_turnover": 0.65,
+        "total_assets": 285_000_000_000.0,
+        "operating_revenue": 85_000_000_000.0,
+    }
+    data.update(overrides)
+    return FinancialMetrics(**data)
+
+
+def make_mock_valuation(**overrides: Any) -> ValuationMetrics:
+    """创建模拟估值比率"""
+    data = {
+        "stock_code": "000001",
+        "report_date": "2024-12-31",
+        "pe": 15.2,
+        "pb": 1.8,
+        "ps": 2.1,
+        "market_cap": 285_000_000_000.0,
+    }
+    data.update(overrides)
+    return ValuationMetrics(**data)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -206,6 +248,12 @@ class MockCollector:
             make_mock_board(code="BK001", name="银行", board_type="industry"),
             make_mock_board(code="BK002", name="券商", board_type="industry"),
         ]
+        self._financials: list[FinancialMetrics] = [
+            make_mock_financial(stock_code="000001", report_date="2024-12-31", eps=1.25),
+            make_mock_financial(stock_code="000001", report_date="2024-09-30", eps=0.92),
+            make_mock_financial(stock_code="000001", report_date="2024-06-30", eps=0.58),
+        ]
+        self._valuation: ValuationMetrics | None = make_mock_valuation(stock_code="000001")
 
     def get_realtime_quotes(self) -> list[StockQuote]:
         return self._quotes
@@ -236,6 +284,14 @@ class MockCollector:
 
     def get_industry_boards(self) -> list[BoardInfo]:
         return self._boards
+
+    def get_financials(self, code: str) -> list[FinancialMetrics]:
+        return [f for f in self._financials if f.stock_code == code]
+
+    def get_valuation(self, code: str) -> ValuationMetrics | None:
+        if self._valuation is not None and self._valuation.stock_code == code:
+            return self._valuation
+        return None
 
 
 # ═══════════════════════════════════════════════════════════════════════

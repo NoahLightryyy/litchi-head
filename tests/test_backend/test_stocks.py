@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from tests.test_backend.conftest import make_mock_kline
+from tests.test_backend.conftest import make_mock_financial, make_mock_kline
 
 # ═══════════════════════════════════════════════════════════════════════
 # GET /api/stocks/search
@@ -244,3 +244,88 @@ class TestGetCapitalFlow:
 
         assert resp.status_code == 200
         assert resp.json()["data"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# GET /api/stocks/{code}/financials
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestGetFinancials:
+    """财务指标"""
+
+    def test_returns_financials(self, client, mock_collector):
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/000001/financials")
+
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert len(data) == 3
+        assert data[0]["eps"] == 1.25
+        assert data[0]["report_date"] == "2024-12-31"
+
+    def test_contains_core_fields(self, client, mock_collector):
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/000001/financials")
+
+        data = resp.json()["data"][0]
+        assert "roe" in data
+        assert "gross_margin" in data
+        assert "debt_ratio" in data
+        assert "revenue_growth" in data
+        assert "eps" in data
+
+    def test_max_10_periods(self, client, mock_collector):
+        mock_collector._financials = [
+            make_mock_financial(report_date=f"2024-{m:02d}-01")
+            for m in range(1, 15)
+        ]
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/000001/financials")
+
+        data = resp.json()["data"]
+        assert len(data) <= 10
+
+    def test_empty_financials(self, client, mock_collector):
+        mock_collector._financials = []
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/999999/financials")
+
+        assert resp.status_code == 200
+        assert resp.json()["data"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# GET /api/stocks/{code}/valuation
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestGetValuation:
+    """估值比率"""
+
+    def test_returns_valuation(self, client, mock_collector):
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/000001/valuation")
+
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data is not None
+        assert data["pe"] == 15.2
+        assert data["pb"] == 1.8
+
+    def test_has_all_fields(self, client, mock_collector):
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/000001/valuation")
+
+        data = resp.json()["data"]
+        assert "pe" in data
+        assert "pb" in data
+        assert "ps" in data
+        assert "market_cap" in data
+
+    def test_not_found(self, client, mock_collector):
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/999999/valuation")
+
+        assert resp.status_code == 200
+        assert resp.json()["data"] is None

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchQuote, fetchKline, fetchNews, fetchCapitalFlow, fetchTechnicalIndicators, searchStocks } from "@/lib/api/stocks";
+import { fetchQuote, fetchKline, fetchNews, fetchCapitalFlow, fetchTechnicalIndicators, fetchFinancials, fetchValuation, fetchIndicators, searchStocks } from "@/lib/api/stocks";
 import { useDebounce } from "./use-debounce";
 
 /* ── 搜索（300ms 防抖） ── */
@@ -62,6 +62,36 @@ export function useCapitalFlow(code: string) {
     queryKey: ["stocks", code, "capital-flow"],
     queryFn: () => fetchCapitalFlow(code),
     staleTime: 60_000,
+    enabled: !!code,
+  });
+}
+
+/* ── 财务指标 ── */
+export function useFinancials(code: string) {
+  return useQuery({
+    queryKey: ["stocks", code, "financials"],
+    queryFn: () => fetchFinancials(code),
+    staleTime: 300_000,
+    enabled: !!code,
+  });
+}
+
+/* ── 估值比率 ── */
+export function useValuation(code: string) {
+  return useQuery({
+    queryKey: ["stocks", code, "valuation"],
+    queryFn: () => fetchValuation(code),
+    staleTime: 300_000,
+    enabled: !!code,
+  });
+}
+
+/* ── 动态关键指标（行业感知） ── */
+export function useIndicators(code: string) {
+  return useQuery({
+    queryKey: ["stocks", code, "indicators"],
+    queryFn: () => fetchIndicators(code),
+    staleTime: 300_000,
     enabled: !!code,
   });
 }

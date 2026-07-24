@@ -77,3 +77,54 @@ export interface TechnicalIndicators {
   macd: MacdResult;
   bollinger: BollingerResult;
 }
+
+/* ── 财务指标类型 ── */
+
+export interface FinancialMetrics {
+  stock_code: string;
+  report_date: string;
+  eps: number;
+  book_value_per_share: number;
+  operating_cf_per_share: number;
+  roe: number;
+  roa: number;
+  gross_margin: number;
+  net_profit_margin: number;
+  revenue_growth: number;
+  net_profit_growth: number;
+  debt_ratio: number;
+  current_ratio: number;
+  quick_ratio: number;
+  inventory_turnover: number;
+  asset_turnover: number;
+  total_assets: number;
+  operating_revenue: number;
+}
+
+export interface ValuationMetrics {
+  stock_code: string;
+  report_date: string;
+  pe: number;
+  pb: number;
+  ps: number;
+  market_cap: number;
+}
+
+/* ── 动态指标类型（PD 行业感知） ── */
+
+export interface IndicatorDef {
+  id: string;
+  name: string;
+  description: string;
+  unit: string;
+  normal_range_hint: string;
+  higher_is_better: boolean;
+  priority: number;
+}
+
+export interface DynamicIndicators {
+  industry: string;
+  chain_position: string;
+  indicator_ids: string[];
+  indicators: IndicatorDef[];
+}

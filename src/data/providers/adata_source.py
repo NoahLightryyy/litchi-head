@@ -173,6 +173,12 @@ class ADataSource:
             logger.exception("adata get_core_index 失败: code=%s", code)
             return []
 
+    # ── 行业分类（占位） ─────────────────────────────────────────────
+
+    def get_stock_industry(self, code: str) -> str | None:
+        """获取个股所属行业（占位实现，待 adata 提供 API）"""
+        return None
+
 
 # ── DataFrame → Model 转换函数 ────────────────────────────────────────
 

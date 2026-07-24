@@ -118,6 +118,16 @@ class MockDataSource:
             ),
         ]
 
+    def get_stock_industry(self, code: str) -> str | None:
+        """模拟返回行业：平安银行→银行Ⅱ，其余可配置"""
+        mapping = {
+            "000001": "银行Ⅱ",
+            "600519": "白酒Ⅱ",
+            "000002": "房地产开发",
+            "300750": "电池",
+        }
+        return mapping.get(code, None)
+
 
 class MockFailingDataSource:
     """模拟网络异常的数据源 —— 所有方法抛 ConnectionError"""
@@ -151,6 +161,9 @@ class MockFailingDataSource:
         raise ConnectionError("no network")
 
     def get_financials(self, code: str) -> list:
+        raise ConnectionError("no network")
+
+    def get_stock_industry(self, code: str) -> str | None:
         raise ConnectionError("no network")
 
 

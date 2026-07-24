@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-23 (FD-001h)
+last_updated: 2026-07-24 (PD-004 前端行业感知完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -97,23 +97,32 @@ last_updated: 2026-07-23 (FD-001h)
 | **UI-1d** 🥇 | **UserBehaviorStore 存储层** — `data/user_profiles/` 目录 + JSONL 写入接口，按用户 ID 隔离（`src/callback/callbacks/ub_track.py` 中的 `UserBehaviorStore` 类归数据管道部维护）| RC-001 引擎 | ~1h |
 | **UI-2b** 🥇 | **实际盈亏追踪** — 用户卖出时回填 `actual_outcome` / `actual_return_pct` / `holding_days`；定时扫描未了结交易计算浮动盈亏 | UI-1d | ~1h |
 
-### 产品定位新任务（PD 系列，2026-07-23 新增）
+### 产品定位新任务（PD 系列，2026-07-23 新增 → 2026-07-24 全部完成 ✅）
 
 > **战略背景**：详见 [PRODUCT-POSITIONING.md](../../99-archive/PRODUCT-POSITIONING.md)。
 > 核心方向：动态指标选择（行业+产业链位置决定看哪 5-10 个指标），不和 Wind 比数据量。
 > 配套任务：产业链位置判断 → 动态选指标 → AI 按行业上下文推理。
+>
+> **2026-07-24 实锤 API 验证**：
+> - `ak.stock_board_industry_name_em()` → 496 个行业板块 ✅
+> - `ak.stock_individual_info_em('000001')` → f127="银行Ⅱ" ✅
+>
+> 确认 API 返回二级行业名，需要归一化到一级行业（31 个，与申万一级对齐）。
 
 | PD | 事项 | 状态 | 依赖 | 预估 |
 |:--:|:-----|:----:|:----|:----:|
-| **PD-001** 🥇 | **IndicatorRegistry 模型** — (industry, position) → [indicator] 映射表的 Pydantic 数据模型 + 注册表配置（YAML/代码字典） | ⬜ **待办** | 无 | ~1h |
-| **PD-002** 🥇 | **产业链位置判断** — 基于行业分类 + 主营业务构成（akshare `stock_zygc_em`）判断公司属于上游/中游/下游；返回位置标签 + 理由 | ⬜ **待办** | PD-001 | ~2h |
-| **PD-003** 🥇 | **动态采集引擎** — DataCollector 扩展：支持按股票行业+位置只拉取注册表中指定的字段，不拉全部 86 列；需要和现有 get_financials() 兼容 | ⬜ **待办** | PD-001, PD-002 | ~2h |
-| **PD-004** 🥈 | **行业指标覆盖扩展** — 逐步补齐 10+ 行业的指标映射（初始 6 个行业，后续社区贡献） | ⬜ **待办** | PD-001 | ~1h |
+| **PD-001** 🥇 | **IndicatorRegistry 模型+注册表** — IndicatorDef Pydantic 模型 + 455 条行业归一化映射 + 31 个行业 × 5-8 个关键指标 + 18 个指标展开定义 | ✅ **已完成**（34 测试） | 无 | ~2h |
+| **PD-002** 🥇 | **产业链位置判断** — 5 个上游/14 个中游/9 个下游/2 个金融/1 个综合 = 31 行业全覆盖 | ✅ **已完成** | PD-001 | ~1h |
+| **PD-003** 🥇 | **动态采集引擎/选择器** — `DynamicIndicatorSelector.for_stock(code)` 全链路 + DataCollector 3 个公开方法 + TTL 1 天缓存 | ✅ **已完成** | PD-001, PD-002 | ~2h |
+| **PD-004** 🥈 | **行业覆盖扩展** — 初始 31 个一级行业全覆盖（与申万一级对齐），455 条子板块归一化映射 | ✅ **一期已覆盖** | PD-001 | ~1h |
+| **PD-005** 🥇 | **前端 FinancialPanel 行业感知** — 只显示注册表中该行业的关键指标，隐藏不相关字段 | ✅ **已完成** | PD-001~003 | ~1h |
+| **PD-006** 🥇 | **行业定位 API 端点** — `/api/stocks/{code}/indicators` 返回动态指标 | ✅ **已完成** | PD-001~003 | ~1h |
 
-**技术栈建议**：
-- IndicatorRegistry 先做代码字典（prod start 阶段），不进数据库
-- 产业链位置用行业分类 + 主营业务关键词判断（如"电池制造"→中游）
-- 扩展路径：代码字典 → YAML 配置 → 可编辑配置
+**技术要点**：
+- 455 条行业归一化映射覆盖东方财富全部 496 个子板块
+- 使用静态 dict 而非数据库（编译时已知，启动时加载）
+- 选择器全链路：stock_code → raw_industry → normalize → classify → REGISTRY → IndicatorDef
+- 银行不显示毛利率/存货周转率 ✅
 
 ### 数据流变更
 
@@ -149,5 +158,7 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 | `src/data/providers/adata_source.py` | AData 免费数据源 |
 | `src/data/providers/zzshare.py` | ZzShare 兼容数据源 |
 | `src/data/providers/fallback.py` | 故障自动切换（已修复自动恢复） |
+| `src/data/indicators/registry.py` | PD 动态指标体系 —— 模型+31行业注册表+455条归一化映射 |
+| `src/data/indicators/selector.py` | PD 动态指标选择器 —— 全链路 for_stock(code) |
 | `docs/06-departments/01-data/ROLE.md` | 👤 数据管道部角色定义 |
 | `docs/06-departments/01-data/STANDARDS.md` | 📐 数据管道部技术规范 |

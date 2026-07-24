@@ -46,8 +46,8 @@ class MockDataSource:
     def get_financials(self, code: str) -> list:
         return []
 
-
-class TestProviderProtocol:
+    def get_stock_industry(self, code: str) -> str | None:
+        return None
     """验证 MockDataSource 满足 DataSource Protocol（鸭子类型）"""
 
     def test_mock_is_valid_datasource(self):

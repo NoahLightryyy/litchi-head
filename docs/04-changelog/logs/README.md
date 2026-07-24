@@ -8,6 +8,9 @@
 | 2026-07-23 (2) | [链接](2026-07-23/2026-07-23-2.md) | **FD-001 Step 2 基本面数据注入辩论引擎** — format_market_brief 填充 + collect_data_node + 分析师增强，+6 测试 |
 | 2026-07-23 (3) | [链接](2026-07-23/2026-07-23-3.md) | **FD-002 估值比率模型** — ValuationMetrics(PE/PB/PS) + StockQuote.market_cap + DataCollector.get_valuation()，+17 测试 |
 | 2026-07-23 (4) | [链接](2026-07-23/2026-07-23-4.md) | **FD-001h 多源财务数据** — ADataSource + ZzshareSource `get_financials()` + safe_float NaN 修复，+7 测试 |
+| **2026-07-24** | [链接](2026-07-24/2026-07-24.md) | **FD-001i 前端财务 Tab** — API 端点(financials+valuation) + FinancialPanel 组件 + 1044 tests ✅ |
+| **2026-07-24 (2)** | [链接](2026-07-24/2026-07-24-2.md) | **PD-001/002/003 动态指标体系** — IndicatorRegistry + 产业链位置 + 动态选择器，34 测试，1076 全量通过 🎯 |
+| **2026-07-24 (3)** | [链接](2026-07-24/2026-07-24-3.md) | **PD-004 前端行业感知** — FinancialPanel 按行业注册表动态过滤指标 + `GET /indicators` 端点 + 325 测试 ✅ |
 | 2026-07-13 | [链接](2026-07-13/2026-07-13.md) | **RC-002 真实结果 dispatch 接通** — `reflect_on_decision()` 分发实际结果，M3-EXT 更新 TrustTracker |
 | 2026-06-16 | [链接](2026-06-16/2026-06-16.md) | **回测←→辩论桥接适配器** — TradePlan → TradeRecord 转换，4 个公开函数 + 20 测试 |
 | 2026-06-16 (2) | [链接](2026-06-16/2026-06-16-2.md) | **M4 动态权重** — VoteSummary 信任度因子叠加 |

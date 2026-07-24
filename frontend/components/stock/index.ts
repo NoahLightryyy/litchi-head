@@ -5,3 +5,4 @@ export { NewsFeed } from "./news-feed";
 export { TrustChart } from "./trust-chart";
 export { CapitalFlowPanel } from "./capital-flow-panel";
 export { TechnicalIndicatorsPanel } from "./technical-indicators-panel";
+export { FinancialPanel } from "./financial-panel";

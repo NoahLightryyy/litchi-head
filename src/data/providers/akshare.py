@@ -197,6 +197,32 @@ class AKShareSource:
             )
             return []
 
+    # ── 行业分类 ─────────────────────────────────────────────────────
+
+    def get_stock_industry(self, code: str) -> str | None:
+        """获取个股所属行业（东方财富行业分类）
+
+        使用 akshare stock_individual_info_em 获取个股信息，
+        从中提取"行业"字段（f127）。
+
+        已验证（2026-07-24）：
+            ak.stock_individual_info_em('000001') → f127="银行Ⅱ"
+
+        Returns:
+            行业名称（如"银行Ⅱ"、"白酒Ⅱ"），失败时返回 None
+        """
+        try:
+            df: pd.DataFrame = ak.stock_individual_info_em(symbol=code)
+            if df is None or df.empty:
+                return None
+            industry_row = df.loc[df["item"] == "行业"]
+            if industry_row.empty:
+                return None
+            return str(industry_row["value"].iloc[0])
+        except Exception:
+            logger.exception("akshare stock_individual_info_em 失败: code=%s", code)
+            return None
+
 
 # ── DataFrame → Model 转换函数 ────────────────────────────────────────
 

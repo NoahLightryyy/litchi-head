@@ -1,7 +1,7 @@
 ---
 department: 前端部
 codebase: frontend/
-last_updated: 2026-07-23 (FD 编号对齐)
+last_updated: 2026-07-24 (PD-004 PD-012 前端行业感知完成)
 ---
 
 # 🎨 前端部工作交接
@@ -17,7 +17,7 @@ last_updated: 2026-07-23 (FD 编号对齐)
 | K 线真渲染（CandlestickChart） | ✅ | Lightweight Charts 成交量直方图 |
 | 暗色主题系统 | ✅ | CSS 变量 + Tailwind, Bloomberg × TradingView 配色 |
 | 搜索 autocomplete | ✅ | 防抖 300ms + useStockSearch hook |
-| 4 Tab 面板（个股页） | ✅ | 辩论/技术指标/资金流向/信任度 |
+| 4 Tab 面板（个股页） | ✅ | 辩论/技术指标/资金流向/财务分析/信任度 |
 | 离线检测 | ✅ | `useOnlineStatus()` + 全局离线横幅 |
 | Error Boundary | ✅ | `error.tsx` + `not-found.tsx` |
 | 全局状态 | ✅ | Zustand 面包屑 + 最近浏览 |
@@ -94,9 +94,9 @@ last_updated: 2026-07-23 (FD 编号对齐)
 
 | FD | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **FD-004a** 🥇 | **前端金融类型** — 新增 `FinancialMetric` / `IndustryPosition` / `SupplyChainNode` 类型定义到 `lib/types/market.ts` | 后端 API 部 FD-003b/003c | ~30min |
-| **FD-004b** 🥇 | **FinancialSummary 组件** — 财务健康概览卡片（ROE/毛利率/负债率/PE四宫格+趋势），覆盖 loading/error/empty/data 四态 | FD-004a | ~3h |
-| **FD-004c** 🥇 | **个股页新增财务 Tab** — 在 stock/[code] 4 Tab 基础上增加"财务"Tab 面板 | FD-004b | ~1h |
+| **FD-004a** 🥇 | **前端金融类型** — 新增 `FinancialMetrics` / `ValuationMetrics` 类型定义到 `lib/types/stock.ts` | 无 | ✅ 已完成 |
+| **FD-004b** 🥇 | **FinancialPanel 组件** — 财务健康概览（估值比率四宫格+盈利能力+增长+财务健康+每股指标+运营效率+历史对比表），覆盖 loading/error/empty/data 四态 | FD-004a | ✅ 已完成 |
+| **FD-004c** 🥇 | **个股页新增财务 Tab** — 在 stock/[code] 5 Tab 基础上增加"财务分析"Tab 面板 | FD-004b | ✅ 已完成 |
 | **FD-004d** 🥈 | **ChainMap 注入真实数据** — `frontend/components/sector/chain-map.tsx` 从后端真实 API 获取产业链数据替代伪数据 | 后端 API 部 FD-003a | ~2h |
 | **FD-004e** 🥈 | **板块页财务聚合** — sector/[id] 页面展示板块级财务汇总（行业平均 ROE/负债率等） | FD-004b + 后根部 FD-003e | ~2h |
 
@@ -109,7 +109,7 @@ last_updated: 2026-07-23 (FD 编号对齐)
 | PD | 事项 | 状态 | 依赖 | 预估 |
 |:--:|:-----|:----:|:----|:----:|
 | **PD-011** 🥇 | **产业链位置标签** — 个股页顶部新增"产业链位置"标签条（如"电池制造 · 中游"），点击展开理由（"主营动力电池制造→处于中游加工位置"）| ⬜ **待办** | 后端 PD-008 | ~1h |
-| **PD-012** 🥇 | **关键指标卡片** — 个股页新增"当前关键指标"卡片，只显示该行业/位置相关的 5-10 个指标（银行只看净息差/不良率/PB等，不显示毛利率/存货周转率等无关指标）| ⬜ **待办** | 后端 PD-009 | ~2h |
+| **PD-012** 🥇 | **关键指标卡片** — 个股页新增"当前关键指标"卡片，只显示该行业/位置相关的 5-10 个指标（银行只看净息差/不良率/PB等，不显示毛利率/存货周转率等无关指标）| ✅ **已完成**（融入 FinancialPanel） | 后端 PD-009 | ~2h |
 | **PD-013** 🥇 | **指标解读气泡** — 每个关键指标旁带 ? 气泡，点击显示一句话解释（如"净息差=银行赚利差的能力，越高越好"），同时标注"这个指标在行业中的分位" | ⬜ **待办** | PD-012 | ~1h |
 | **PD-014** 🥈 | **行业对比模块** — 在个股页展示当前指标与同行业均值的对比（柱状图/雷达图） | ⬜ **待办** | PD-012 | ~2h |
 
@@ -118,6 +118,7 @@ last_updated: 2026-07-23 (FD 编号对齐)
 ```
 frontend/components/
 ├── stock/
+│   ├── financial-panel.tsx         ✅ ← FD-004b: 财务指标+估值比率面板
 │   ├── industry-position-badge.tsx  🆕 ← PD-011: 产业链位置标签条
 │   ├── key-indicators-card.tsx     🆕 ← PD-012: 动态关键指标卡片
 │   ├── indicator-tooltip.tsx       🆕 ← PD-013: 指标解读气泡
@@ -139,7 +140,7 @@ frontend/components/
 ├── Tab 1: 🤖 AI 辩论      （已有）
 ├── Tab 2: 📊 技术指标      （已有）
 ├── Tab 3: 💰 资金流向      （已有）
-├── Tab 4: 🏛️ 财务健康      （FD-004c 待办）
+├── Tab 4: 🏛️ 财务分析      （✅ FD-004c 已完成）
 └── Tab 5: 🎯 信任度        （已有）
 
 
@@ -158,10 +159,11 @@ frontend/components/
 |:-----|:----:|:------|
 | `frontend/app/page.tsx` | — | 宏观总览页 |
 | `frontend/app/sector/[id]/page.tsx` | 134 | 板块分析页 |
-| `frontend/app/stock/[code]/page.tsx` | 130 | 个股决策页（4 Tab） |
+| `frontend/app/stock/[code]/page.tsx` | 130 | 个股决策页（5 Tab：技术分析+资金流向+财务分析+AI辩论+信任度） |
 | `frontend/components/stock/candlestick-chart.tsx` | 138 | K 线图（Lightweight Charts） |
 | `frontend/components/stock/debate-panel.tsx` | 191 | 辩论面板 |
 | `frontend/components/stock/technical-indicators-panel.tsx` | 302 | 技术指标面板 |
 | `frontend/components/stock/capital-flow-panel.tsx` | 134 | 资金流向面板（⚠️ TD-033） |
+| `frontend/components/stock/financial-panel.tsx` | 🆕 | 🏛️ 财务分析面板（财务指标+估值比率+历史对比表） |
 | `docs/06-departments/09-frontend/ROLE.md` | — | 👤 前端部角色定义 |
 | `docs/06-departments/09-frontend/STANDARDS.md` | — | 📐 前端部技术规范 |

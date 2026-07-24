@@ -124,6 +124,33 @@ class FallbackSource:
             lambda: self._fallback.get_financials(code),
         )
 
+    def get_stock_industry(self, code: str) -> str | None:
+        failures = self._consecutive_failures
+        key = "stock_industry"
+        if self._using_fallback[key]:
+            try:
+                result = self._primary.get_stock_industry(code)
+                failures[key] = 0
+                self._using_fallback[key] = False
+                return result
+            except Exception:
+                pass
+            try:
+                return self._fallback.get_stock_industry(code)
+            except Exception:
+                failures[key] = failures.get(key, 0) + 1
+                return None
+        try:
+            return self._primary.get_stock_industry(code)
+        except Exception:
+            failures[key] = failures.get(key, 0) + 1
+            if failures[key] >= self._max_failures:
+                self._using_fallback[key] = True
+            try:
+                return self._fallback.get_stock_industry(code)
+            except Exception:
+                return None
+
     # ── 核心切换逻辑 ─────────────────────────────────────────────────
 
     def _call(self, endpoint: str, primary_fn, fallback_fn):

@@ -160,6 +160,10 @@ class ZzshareSource:
             logger.exception("zzshare fina_indicator 失败: code=%s", code)
             return []
 
+    def get_stock_industry(self, code: str) -> str | None:
+        """获取个股所属行业（占位实现，待 zzshare 提供）"""
+        return None
+
 
 # ── 工具函数 ──────────────────────────────────────────────────────────
 

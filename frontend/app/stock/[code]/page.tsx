@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { TrendingUp, DollarSign, MessageSquare, ShieldCheck } from "lucide-react";
+import { TrendingUp, DollarSign, MessageSquare, ShieldCheck, BarChart3 } from "lucide-react";
 import { useStockQuote, useStockNews } from "@/lib/hooks/use-stock";
 import { QuoteCard } from "@/components/stock/quote-card";
 import { KlineChart } from "@/components/stock/kline-chart";
@@ -10,12 +10,14 @@ import { DebatePanel } from "@/components/stock/debate-panel";
 import { NewsFeed } from "@/components/stock/news-feed";
 import { CapitalFlowPanel } from "@/components/stock/capital-flow-panel";
 import { TechnicalIndicatorsPanel } from "@/components/stock/technical-indicators-panel";
+import { FinancialPanel } from "@/components/stock/financial-panel";
 import { TrustChart } from "@/components/stock/trust-chart";
 import { useTrustLeaderboard } from "@/lib/hooks/use-debate";
 
 const TABS = [
   { id: "technical", label: "技术分析", icon: TrendingUp },
   { id: "capital", label: "资金流向", icon: DollarSign },
+  { id: "financial", label: "财务分析", icon: BarChart3 },
   { id: "debate", label: "AI 辩论", icon: MessageSquare },
   { id: "trust", label: "信任度", icon: ShieldCheck },
 ] as const;
@@ -114,6 +116,9 @@ export default function StockPage() {
         )}
         {activeTab === "capital" && (
           <CapitalFlowPanel key={`cap-${code}`} code={code} />
+        )}
+        {activeTab === "financial" && (
+          <FinancialPanel key={`fin-${code}`} code={code} />
         )}
         {activeTab === "debate" && (
           <DebatePanel stockCode={code} stockName={stockName} />

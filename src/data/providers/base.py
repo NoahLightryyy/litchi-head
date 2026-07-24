@@ -86,6 +86,20 @@ class DataSource(Protocol):
         """
         ...
 
+    def get_stock_industry(self, code: str) -> str | None:
+        """获取个股所属行业
+
+        返回东方财富行业分类名称（如"银行Ⅱ"、"白酒Ⅱ"），
+        用于 PD 动态指标体系按行业选取关键指标。
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            行业名称字符串（如"银行Ⅱ"），失败或无法识别时返回 None
+        """
+        ...
+
 
 # ── 通用 pandas Series 安全取值函数 ────────────────────────────────────
 

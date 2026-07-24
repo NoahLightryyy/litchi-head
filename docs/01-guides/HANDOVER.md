@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `211f3b9` — feat: FD-002 估值比率模型 + docs 编号对齐 |
-| **全量测试** | 1037 collected, 全部通过 ✅ |
+| **最新提交** | `b0336b1` + `feat: PD-004 前端行业感知 + static 目录注册` （未提交）|
+| **全量测试** | 1076 collected, 全部通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | 🟢 → 最近 4 次全绿 ✅ |
@@ -70,7 +70,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 | 部门 | 代码 | 状态 | 开放债务 | → 看这里 |
 |:-----|:-----|:----:|:--------:|:---------|
-| 🗄️ 数据管道部 | `src/data/` | ✅ | 3 | [HANDOVER](06-departments/01-data/HANDOVER.md) |
+| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | ✅ | 3 | [HANDOVER](06-departments/01-data/HANDOVER.md) |
 | 🎯 辩论引擎部 | `src/debate/` | ✅ | 2 | [HANDOVER](06-departments/02-debate-engine/HANDOVER.md) |
 | 🤖 AI Agent 架构部 | `src/agents/` + `src/core/` | ✅ | 3 | [HANDOVER](06-departments/03-ai-agents/HANDOVER.md) |
 | 🧠 记忆系统部 | `src/memory/` | ✅ | 1 | [HANDOVER](06-departments/04-memory-systems/HANDOVER.md) |
@@ -96,10 +96,11 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 | 优先级 | 事项 | 牵头部门 | 预估 |
 |:------:|:-----|:---------|:----:|
-| 🔥 **P0** | **PD 动态指标体系** — 按行业+产业链位置动态选 5-10 个关键指标，不做 Wind 式 6000 指标堆砌。详见跨部门总览 PD 节 | **全部门** | ~3-5 天 |
+| 🔥 **P0** | **PD-001/002/003 动态指标体系** — ✅ 全完成（34 tests + 325 ✅）详见跨部门总览 PD 节 |
+| 🔥 P0 | **PD-004 行业覆盖验证 + 前端行业感知** — ✅ PD-004b 完成（FinancialPanel 按行业过滤指标）详见跨部门总览 PD 节 |
 | 🔥 P0 | **YahooFinanceSource Provider** — 美股数据源（K 线+基本面+Provider Protocol） | 数据管道部 | ~半天 |
 | 🔥 P0 | **美股前端 Tab** — 市场切换 + 美股行情 | 前端部 | ~半天 |
-| 🔥 P0 | **FD-001 基本面数据接入** — ✅ 模型+Provider+多源财务数据+辩论注入+分析师增强（数据部+辩论部完成），⬜ 后端 API 端点+前端 Tab | 数据管道部 ✅ → 辩论引擎部 ✅ → 后端 API ⬜ → 前端部 ⬜ | ~0.5 天剩余 |
+| 🔥 P0 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务数据+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ | ~0.5 天 ⏱️ |
 | 🔥 P0 | **R4 置信度量化** — AI 建议附带明确置信度数字 | 辩论引擎部 | ~2 天 |
 | 🔥 P0 | **交易复盘看板（极简版）** — TradeRecord 记录+AI推荐 vs 实际盈亏 | 后端 API 部+前端部 | ~2 天 |
 
@@ -192,4 +193,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-07-23 | FD-001h 多源财务数据（ADataSource+ZzshareSource get_financials）+ safe_float NaN 修复
+> **最后更新**：2026-07-24 | PD-001/002/003 动态指标体系基建（IndicatorRegistry + 产业链位置 + 选择器 + 34 tests, 1076 ✅）

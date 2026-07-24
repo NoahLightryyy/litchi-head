@@ -62,6 +62,7 @@
 | 24 | 🆕 [按场景校准信任度 — Contextual Trust](24-contextual-trust-calibration.md) | `src/debate/trust.py` + `src/callback/callbacks/m3_ext.py` + `src/debate/orchestrator.py` |
 | 25 | 🆕 [财务指标数据模型 — DataSource 协议扩展模式](25-financial-indicator-model.md) | `src/data/models.py` → `FinancialMetrics` + `src/data/providers/akshare.py` |
 | 26 | 🆕 [估值比率模型 — ValuationMetrics PE/PB/PS](26-valuation-metrics-model.md) | `src/data/models.py` → `ValuationMetrics` + `src/data/collector.py` |
+| 27 | 🆕 [PD 动态指标体系 — 行业感知的关键指标选择](27-pd-dynamic-indicators.md) | `src/data/indicators/registry.py` + `src/data/indicators/selector.py` |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
@@ -72,7 +73,7 @@
 | 你的目标 | 建议读哪些 |
 |:---------|:-----------|
 | 快速上手项目 | 01 → 02 → 03 → 04 → 05 |
-| 理解后端设计 | 01 → 03 → 04 → 05 → 08 → 09 |
+| 理解后端设计 | 01 → 03 → 04 → 05 → 08 → 09 → **27** |
 | 理解 Agent 系统 | 02 → 03 → 10 |
 | 理解前端设计 | 04 → 12 → 13 |
 | 理解质量保障 | 15 → 16 → 17 → 文档 `docs/03-modules/12-quality-assurance/` |

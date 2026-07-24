@@ -44,8 +44,9 @@ TTL_KLINES_DAILY = 300  # 日 K 线：5 分钟
 TTL_NEWS = 120          # 新闻：2 分钟
 TTL_BOARDS = 3600       # 板块：1 小时
 TTL_CAPITAL_FLOW = 300  # 资金流向：5 分钟
-TTL_FINANCIALS = 3600  # 财务数据：1 小时（日内不变）
-TTL_VALUATION = 300   # 估值比率：5 分钟（随股价变化）
+TTL_FINANCIALS = 3600   # 财务数据：1 小时（日内不变）
+TTL_VALUATION = 300     # 估值比率：5 分钟（随股价变化）
+TTL_INDUSTRY = 86400    # 行业分类：1 天（不会天天变）
 
 
 # ── 健康监控 ────────────────────────────────────────────────────────
@@ -460,6 +461,96 @@ class DataCollector:
             _health_stats.record_call("valuation", (time.time() - t0) * 1000, error=str(e))
             logger.exception("计算估值比率失败: code=%s", code)
             return None
+
+    # ── PD 动态指标体系 ─────────────────────────────────────────────
+
+    def get_stock_industry(self, code: str) -> str | None:
+        """获取个股所属行业（东方财富行业分类）
+
+        Cache TTL: 1 天（行业分类不会天天变）
+
+        Args:
+            code: 股票代码，如 "000001"
+
+        Returns:
+            行业名称（如"银行Ⅱ"），失败时返回 None
+        """
+        cache_key = f"industry:{code}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        t0 = time.time()
+        try:
+            result = self._source.get_stock_industry(code)
+            if result:
+                self.cache.set(cache_key, result, ttl=TTL_INDUSTRY)
+            _health_stats.record_call("stock_industry", (time.time() - t0) * 1000)
+            return result
+        except Exception as e:
+            _health_stats.record_call("stock_industry", (time.time() - t0) * 1000, error=str(e))
+            logger.exception("获取行业分类失败: code=%s", code)
+            return None
+
+    def get_stock_chain_position(self, code: str) -> str:
+        """获取个股产业链位置
+
+        基于行业分类判断产业链位置（上游/中游/下游/金融/其他）。
+
+        Args:
+            code: 股票代码
+
+        Returns:
+            产业链位置字符串: "upstream" / "midstream" / "downstream" / "financial" / "other"
+        """
+        from src.data.indicators.registry import classify_chain_position, normalize_industry
+
+        raw = self.get_stock_industry(code)
+        if not raw:
+            return "other"
+        industry = normalize_industry(raw)
+        return classify_chain_position(industry).value
+
+    def get_dynamic_indicators(
+        self, code: str,
+    ) -> dict[str, object]:
+        """获取个股动态关键指标
+
+        组合行业→产业链位置→注册表选择 5-10 个最关键的指标。
+
+        Args:
+            code: 股票代码
+
+        Returns:
+            {
+                "industry": "银行",
+                "chain_position": "financial",
+                "indicator_ids": ["pe", "pb", "roe", ...],
+                "indicators": [ { id, name, description, unit, ... }, ... ]
+            }
+        """
+        from src.data.indicators.selector import DynamicIndicatorSelector
+
+        selector = DynamicIndicatorSelector(source=self._source)
+        result = selector.for_stock(code)
+
+        return {
+            "industry": result.industry,
+            "chain_position": result.chain_position.value,
+            "indicator_ids": result.indicator_ids,
+            "indicators": [
+                {
+                    "id": d.id,
+                    "name": d.name,
+                    "description": d.description,
+                    "unit": d.unit,
+                    "normal_range_hint": d.normal_range_hint,
+                    "higher_is_better": d.higher_is_better,
+                    "priority": d.priority,
+                }
+                for d in result.indicator_defs
+            ],
+        }
 
 
 # ── 市场简报 ────────────────────────────────────────────────────────────

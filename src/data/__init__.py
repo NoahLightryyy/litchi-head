@@ -12,24 +12,50 @@
     - 个股新闻（stock_news_em，TTL 2min）
     - 行业/概念板块列表（TTL 1h）
     - 透明缓存层（DataCache，TTL 可配置）
+    - PD 动态指标体系（行业 → 产业链位置 → 关键指标选择）
 """
 
 from src.data.cache import DataCache
 from src.data.collector import DataCollector
+from src.data.indicators import (
+    INDICATOR_DEFS,
+    INDICATOR_DEFS_MAP,
+    INDUSTRY_CHAIN_MAP,
+    REGISTRY,
+    DynamicIndicatorSelector,
+    IndicatorDef,
+    IndustryChainPosition,
+    SelectorResult,
+    normalize_industry,
+)
 from src.data.models import (
     BoardInfo,
+    FinancialMetrics,
     KLine,
     NewsItem,
     StockInfo,
     StockQuote,
+    ValuationMetrics,
 )
 
 __all__ = [
     "BoardInfo",
     "DataCache",
     "DataCollector",
+    "DynamicIndicatorSelector",
+    "FinancialMetrics",
+    "INDICATOR_DEFS",
+    "INDICATOR_DEFS_MAP",
+    "INDUSTRY_CHAIN_MAP",
+    "IndicatorDef",
+    "IndustryChainPosition",
     "KLine",
     "NewsItem",
+    "REGISTRY",
+    "SelectorResult",
     "StockInfo",
     "StockQuote",
+    "ValuationMetrics",
+    "normalize_industry",
 ]
+
