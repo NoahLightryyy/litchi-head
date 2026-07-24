@@ -40,6 +40,7 @@ def mock_collector() -> MagicMock:
     col.get_klines.return_value = []
     col.get_news.return_value = []
     col.get_financials.return_value = []
+    col.get_dynamic_indicators.return_value = {}
     return col
 
 
@@ -161,6 +162,40 @@ class TestCollectDataNode:
         assert "暂无行情数据" in md["brief"]
         # quote 应为 None（空数据时）
         assert md["quote"] is None
+
+    def test_collect_data_node_with_industry(self, mock_collector):
+        """PD-005: 行业数据应出现在 market_data 和 brief 中"""
+        # 配置 mock 返回行业数据
+        mock_collector.get_dynamic_indicators.return_value = {
+            "industry": "银行",
+            "chain_position": "financial",
+            "indicator_ids": ["pe", "pb", "roe"],
+            "indicators": [
+                {"id": "pe", "name": "市盈率", "description": "股价/每股收益",
+                 "unit": "倍", "normal_range_hint": "10-20倍"},
+            ],
+        }
+        state: DebateState = {
+            "session_id": "test-industry",
+            "debate_input": {
+                "stock_code": "000001",
+                "stock_name": "平安银行",
+            },
+            "current_round": 0,
+            "analyses": {},
+            "market_data": {},
+            "vote_summary": {},
+            "errors": [],
+        }
+        result = collect_data_node(state, mock_collector)
+        md = result["market_data"]
+        # market_data 顶层包含行业字段
+        assert md.get("industry") == "银行"
+        assert md.get("chain_position") == "financial"
+        # brief 中包含行业分析层
+        assert "行业分析层" in md["brief"]
+        assert "所属行业: 银行" in md["brief"]
+        assert "市盈率" in md["brief"]
 
 
 class TestMasterRoundNode:

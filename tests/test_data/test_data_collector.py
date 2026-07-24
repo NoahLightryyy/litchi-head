@@ -462,6 +462,59 @@ class TestFormatMarketBrief:
         assert "净利润增长 -12.80%" in result
         assert "EPS -0.1500" in result
 
+    def test_with_industry_data(self):
+        """PD-005: 行业分析层应正确显示行业+位置+关键指标"""
+        from src.data.collector import format_market_brief
+
+        indicators = [
+            {"id": "pe", "name": "市盈率", "description": "股价/每股收益",
+             "unit": "倍", "normal_range_hint": "10-20倍"},
+            {"id": "pb", "name": "市净率", "description": "股价/每股净资产",
+             "unit": "倍", "normal_range_hint": "1-3倍"},
+            {"id": "roe", "name": "净资产收益率",
+             "description": "净利润/净资产", "unit": "%",
+             "normal_range_hint": "10-20%"},
+        ]
+
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            industry="银行",
+            chain_position="financial",
+            key_indicators=indicators,
+        )
+
+        # 验证行业分析层
+        assert "----- 行业分析层 -----" in result
+        assert "所属行业: 银行" in result
+        assert "产业链位置: 金融行业" in result
+        assert "市盈率" in result
+        assert "市净率" in result
+        assert "净资产收益率" in result
+        assert "10-20倍" in result
+
+    def test_with_industry_no_chain_position(self):
+        """产业链位置为空时不应显示"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(
+            stock_code="600519", stock_name="贵州茅台",
+            industry="食品饮料",
+        )
+
+        assert "----- 行业分析层 -----" in result
+        assert "所属行业: 食品饮料" in result
+        assert "产业链位置" not in result
+
+    def test_without_industry_data(self):
+        """无行业数据时行业层应显示占位信息"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+        )
+
+        assert "暂无行业分类数据" in result
+
 
 # ── Tests: get_financials ──────────────────────────────────────────
 

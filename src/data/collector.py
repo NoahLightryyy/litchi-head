@@ -563,10 +563,13 @@ def format_market_brief(
     klines: list[KLine] | None = None,
     news: list[NewsItem] | None = None,
     financials: list[FinancialMetrics] | None = None,
+    industry: str = "",
+    chain_position: str = "",
+    key_indicators: list[dict] | None = None,
 ) -> str:
-    """生成结构化市场简报（C1 分区输出）
+    """生成结构化市场简报（C1 分区输出 + PD-005 行业分析层）
 
-    按 4 层分区输出：行情层 / 新闻层 / 情绪层 / 基本面层。
+    按 5 层分区输出：行情层 / 行业分析层 / 新闻层 / 情绪层 / 基本面层。
     各层使用 ``----- 层名 -----`` 视觉分隔线，让 LLM 能按需聚焦。
 
     Args:
@@ -576,6 +579,9 @@ def format_market_brief(
         klines: K 线数据
         news: 新闻列表
         financials: 财务指标列表（FD-001e），取最新一期展示
+        industry: 一级行业名称（如"银行"），来自 REGISTRY
+        chain_position: 产业链位置（upstream/midstream/downstream/financial/other）
+        key_indicators: 关键指标列表，每个含 id/name/description/unit/normal_range_hint
 
     Returns:
         格式化文本，以 "📊 市场简报" 开头
@@ -621,6 +627,41 @@ def format_market_brief(
         title="行情层",
         content="\n".join(quote_lines) if quote_lines else "暂无行情数据",
         has_data=has_quote,
+    )
+
+    # ── 行业分析层（PD-005: 三维分析上下文注入） ──
+    industry_lines: list[str] = []
+    has_industry = bool(industry) or bool(key_indicators)
+
+    if industry:
+        position_labels = {
+            "upstream": "上游（资源采掘）",
+            "midstream": "中游（制造加工）",
+            "downstream": "下游（品牌/渠道/服务）",
+            "financial": "金融行业",
+            "other": "综合",
+        }
+        pos_label = position_labels.get(chain_position, chain_position)
+        industry_lines.append(f"所属行业: {industry}")
+        if chain_position:
+            industry_lines.append(f"产业链位置: {pos_label}")
+
+    if key_indicators:
+        industry_lines.append("关键指标:")
+        for kid in key_indicators:
+            kid_name = kid.get("name", kid.get("id", "?"))
+            kid_desc = kid.get("description", "")
+            kid_range = kid.get("normal_range_hint", "")
+            hint = f"（正常范围 {kid_range}）" if kid_range else ""
+            if kid_desc:
+                industry_lines.append(f"  • {kid_name}: {kid_desc}{hint}")
+            else:
+                industry_lines.append(f"  • {kid_name}{hint}")
+
+    brief.sections["industry"] = BriefSection(
+        title="行业分析层",
+        content="\n".join(industry_lines) if industry_lines else "暂无行业分类数据",
+        has_data=has_industry,
     )
 
     # ── 新闻层 ──

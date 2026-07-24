@@ -166,6 +166,20 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
     except Exception as e:
         logger.exception("财务数据获取失败 [%s]: %s", code, e)
 
+    # PD-005: 获取行业分类 + 产业链位置 + 关键指标
+    industry_name = ""
+    chain_pos = ""
+    key_indicators: list[dict] = []
+    try:
+        di = collector.get_dynamic_indicators(code)
+        if di:
+            raw_indicators = di.get("indicators", [])
+            industry_name = str(di.get("industry", ""))
+            chain_pos = str(di.get("chain_position", ""))
+            key_indicators = list(raw_indicators) if isinstance(raw_indicators, list) else []
+    except Exception as e:
+        logger.exception("动态指标获取失败 [%s]: %s", code, e)
+
     # 按个股过滤行情
     target_quote: StockQuote | None = None
     for q in quotes:
@@ -173,7 +187,7 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
             target_quote = q
             break
 
-    # 生成市场简报
+    # 生成市场简报（含 PD-005 行业分析层）
     brief = format_market_brief(
         stock_code=code,
         stock_name=inp.get("stock_name", ""),
@@ -181,11 +195,16 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
         klines=klines,
         news=news,
         financials=financial_data,
+        industry=industry_name,
+        chain_position=chain_pos,
+        key_indicators=key_indicators,
     )
 
     return {
         "market_data": {
             "brief": brief,
+            "industry": industry_name,
+            "chain_position": chain_pos,
             "quote": target_quote.model_dump() if target_quote else None,
             "quotes": [q.model_dump() for q in quotes],
             "klines": [k.model_dump() for k in klines],
