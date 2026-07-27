@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from datetime import date
 from typing import Any, TypedDict, cast
 
@@ -60,6 +61,7 @@ from src.callback.callbacks import register_m3_ext_callback  # noqa: E402
 from src.data.collector import DataCollector, format_market_brief  # noqa: E402
 from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote  # noqa: E402
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
+from src.debate.mirror import generate_mirror_report  # noqa: E402
 from src.debate.models import (  # noqa: E402
     AgentAnalysis,
     AnalystReport,
@@ -67,6 +69,7 @@ from src.debate.models import (  # noqa: E402
     DebateInput,
     DebateResult,
     IndependentReview,
+    MirrorReport,
     PeerReviewRound,
     RebuttalAnalysis,
     VoteSummary,
@@ -143,6 +146,7 @@ class DebateState(TypedDict):
     trade_recommendation: dict  # 序列化的 TradeRecommendation（R1 PM 裁决）
     trust_weight_factors: dict  # M4: agent_name → compute_weight_factor()
     calibration_map: dict  # R4: agent_name → calibration_curve list
+    mirror_report: dict  # DP-006: 序列化的 MirrorReport
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
@@ -1127,6 +1131,47 @@ def compute_bias_report(direction_distribution: dict[str, int]) -> BiasReport:
     )
 
 
+def make_mirror_node(
+    memory_store: MemoryStore | None = None,
+    trust_tracker: TrustTracker | None = None,
+    sector: str = "",
+) -> Callable:  # type: ignore[type-arg]
+    """创建镜子反思节点 —— 辩论结束后产出一份历史对比
+
+    从 MemoryStore 查询历史辩论记录，对比当前分析中各位大师的表现。
+    纯统计计算，不调用 LLM。
+
+    Args:
+        memory_store: 记忆存储（用于查询历史辩论和反思记录）
+        trust_tracker: 信任度追踪器（用于板块胜率补充）
+        sector: 板块标识（可选，用于筛选同板块记录）
+
+    Returns:
+        异步节点函数
+    """
+
+    async def mirror_node(state: DebateState) -> dict:
+        if memory_store is None:
+            return {"mirror_report": {}}
+
+        inp = state.get("debate_input", {})
+        code = str(inp.get("stock_code", ""))
+        name = str(inp.get("stock_name", ""))
+        analyses = state.get("analyses", {})
+
+        report = await generate_mirror_report(
+            stock_code=code,
+            stock_name=name,
+            current_analyses=analyses,
+            memory_store=memory_store,
+            trust_tracker=trust_tracker,
+            sector=sector,
+        )
+        return {"mirror_report": report.model_dump()}
+
+    return mirror_node
+
+
 async def aggregate_node(state: DebateState) -> dict:
     """投票聚合节点 —— 汇总所有大师分析
 
@@ -1355,6 +1400,7 @@ class DebateOrchestrator:
         enable_trust: bool = False,
         callback_engine: ResultCallbackEngine | None = None,
         min_trust_factor: float = 0.7,
+        enable_mirror: bool = False,
     ):
         """初始化辩论编排器
 
@@ -1378,6 +1424,9 @@ class DebateOrchestrator:
             enable_trust: 是否启用 M4 动态权重（默认 False）
                 启用后，aggregate 节点使用 TrustTracker 的 compute_weight_factor()
                 自动调整每位大师的投票权重。需要同时提供 memory_store。
+            enable_mirror: 是否启用 DP-006 镜子反思（默认 False）
+                启用后，辩论结束后自动产出一份历史对比报告。
+                需要同时提供 memory_store。
             callback_engine: 结果回调引擎（可选）。
                 不提供且 enable_trust=True 时自动创建并注册 M3-EXT 回调。
             min_trust_factor: DP-004 最低信任权重阈值（默认 0.7）。
@@ -1392,6 +1441,7 @@ class DebateOrchestrator:
         self.enable_trader = enable_trader
         self.enable_reflection = enable_reflection
         self.enable_trust = enable_trust
+        self.enable_mirror = enable_mirror
         self.callback_engine = callback_engine
         self.min_trust_factor = min_trust_factor
         if self.callback_engine is None and enable_trust:
@@ -1465,6 +1515,24 @@ class DebateOrchestrator:
         graph.add_node("aggregate", aggregate_node)
         graph.add_edge("review_report", "aggregate")
 
+        # ── DP-006: 镜子反思节点（可选）─────────────────
+        if self.enable_mirror:
+            graph.add_node(
+                "mirror",
+                make_mirror_node(
+                    memory_store=self.memory_store,
+                    trust_tracker=(
+                        TrustTracker(memory_store=self.memory_store)
+                        if self.enable_mirror
+                        else None
+                    ),
+                    sector="",
+                ),
+            )
+            after_aggregate = "mirror"
+        else:
+            after_aggregate = "aggregate"
+
         # ── R1: 三层风控 + T1 交易员 + PM 裁决（可选）──────────
         if self.enable_risk:
             from src.risk.orchestrator import (
@@ -1483,7 +1551,7 @@ class DebateOrchestrator:
                 "risk_round",
                 make_risk_round_node(officers),  # type: ignore[arg-type]
             )
-            graph.add_edge("aggregate", "risk_round")
+            graph.add_edge(after_aggregate, "risk_round")
 
             # T1 交易员层（可选，在风控和 PM 之间）
             if self.enable_trader:
@@ -1509,7 +1577,7 @@ class DebateOrchestrator:
 
             graph.add_edge("pm_round", END)
         else:
-            graph.add_edge("aggregate", END)
+            graph.add_edge(after_aggregate, END)
 
         return graph
 
@@ -1770,6 +1838,7 @@ class DebateOrchestrator:
             "trade_recommendation": {},
             "trust_weight_factors": trust_weight_factors,
             "calibration_map": calibration_map,
+            "mirror_report": {},
         }
 
         final_state = await app.ainvoke(initial_state)
@@ -1829,6 +1898,15 @@ class DebateOrchestrator:
         if tr_raw and isinstance(tr_raw, dict) and tr_raw.get("action"):
             trade_rec = tr_raw
 
+        # 解析 mirror_report（DP-006 镜子反思，如果启用）
+        mr_raw = final_state.get("mirror_report", {})
+        mirror_report_result: MirrorReport | None = None
+        if mr_raw and isinstance(mr_raw, dict) and mr_raw.get("total_histories_found", 0) > 0:
+            try:
+                mirror_report_result = MirrorReport(**mr_raw)
+            except Exception as e:
+                logger.warning("MirrorReport 解析失败(结果构建): %s", e)
+
         result = DebateResult(
             session_id=debate_input.session_id,
             stock_code=debate_input.stock_code,
@@ -1842,6 +1920,7 @@ class DebateOrchestrator:
             risk_round=risk_round_result,
             trader_round=trader_round_result,
             trade_recommendation=trade_rec,
+            mirror_report=mirror_report_result,
             total_latency_ms=round(total_latency, 0),
         )
 

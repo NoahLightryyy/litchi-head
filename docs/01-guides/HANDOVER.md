@@ -59,7 +59,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
 | **最新提交** | `6d3fb00` — `docs: 补充 PD-005 工作日志 commit 引用` |
-| **全量测试** | 1136 collected ✅ |
+| **全量测试** | 1155 collected ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | 🟢 → 最近 4 次全绿 ✅ |
@@ -116,7 +116,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 | 事项 | 原预估 | 原因 |
 |:-----|:------:|:-----|
-| DP-006 镜子反思 | ~3h | 美观但不致命 |
+| DP-006 镜子反思 | ~3h | ✅ 已完成（mirror.py + 19 tests） |
 | UI Phase 2~4 完整闭环 | ~14h | 到国外安顿后迭代 |
 | FD-003/004 供应链图谱 | ~5-7 天 | 有更好，没有也能炒 |
 | Phase 3 实盘下单 | — | 先熟悉当地券商合规 |
@@ -201,4 +201,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-07-27 | TD-041 数据新鲜度标注 + 1136 tests ✅
+> **最后更新**：2026-07-27 | Phase R+1 全部完成（DP-001~007 ✅）+ 1155 tests ✅

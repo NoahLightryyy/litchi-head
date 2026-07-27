@@ -70,7 +70,7 @@ last_updated: 2026-06-21
 
 | UI | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **UI-4a** 🥉 | **DP-006 镜子 Agent** — 新增 `src/agents/behavior_mirror.py`，继承 `BaseAgent`，输出 `BehaviorComparisonReport`（当前操作 vs 历史相似模式）。三段式解锁（1-9仅记录→10+出对比报告→30+可参与辩论）。代码参考 `docs/99-archive/USER-BEHAVIOR-MIRROR.md` 完整设计 | 后端 API 部 + 前端部 用户行为数据就绪 | ~3h |
+| **UI-4a** 🥉 | **DP-006 镜子 Agent**（全功能版）— 继承 `BaseAgent`，输出 `BehaviorComparisonReport`。MVP 版本由辩论引擎部 `src/debate/mirror.py` 实现（纯统计），全功能版需用户行为数据积累后再升级 | 后端 API 部 + 前端部 用户行为数据就绪 | ~3h |
 
 ### DP-005 灵感官设计要点
 

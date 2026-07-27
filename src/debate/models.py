@@ -208,6 +208,69 @@ class VoteSummary(BaseModel):
     bias_report: BiasReport = Field(default_factory=BiasReport)
 
 
+# ═══════════════════════════════════════════════════
+# MirrorEntry / MirrorReport — DP-006 镜子反思（2026-07-27 新增）
+# ═══════════════════════════════════════════════════
+
+
+class MirrorEntry(BaseModel):
+    """单条历史对比记录 —— 一次历史辩论中各位大师的方向判断 vs 实际市场结果
+
+    用于镜子反思报告，展示在相似市况下哪位大师的判断最准。
+    纯统计计算，不调用 LLM。
+
+    Attributes:
+        stock_code: 股票代码
+        stock_name: 股票名称
+        decision_date: 决策日期
+        consensus_direction: 共识方向
+        consensus_confidence: 共识置信度
+        actual_direction: 实际方向（有 RC-002 数据时填充）
+        actual_price_change_pct: 实际涨跌幅（有 RC-002 数据时填充）
+        was_correct: 共识方向是否正确（None=无实际结果）
+        master_results: 每位大师的方向正确性 {agent_name: is_correct}
+    """
+
+    stock_code: str
+    stock_name: str = ""
+    decision_date: str = ""
+    consensus_direction: str = "Neutral"
+    consensus_confidence: float = 0.0
+    actual_direction: str | None = None
+    actual_price_change_pct: float | None = None
+    was_correct: bool | None = None
+    master_results: dict[str, bool | None] = Field(default_factory=dict)
+
+
+class MirrorReport(BaseModel):
+    """DP-006 镜子反思报告 —— 辩论结束后的历史对比
+
+    在辩论结束后生成，从 MemoryStore 查询历史决策记录，
+    对比当前分析结果与历史大师表现，只展示不自动注入。
+
+    Attributes:
+        stock_code: 当前股票代码
+        stock_name: 当前股票名称
+        total_histories_found: 查到的历史记录总数
+        same_stock_histories: 同股票的历史对比记录
+        sector_histories: 同板块的历史对比记录
+        masters_accuracy: 每位大师在相似情境下的胜率 {agent_name: win_rate}
+        masters_sample_count: 每位大师的统计样本数 {agent_name: count}
+        data_sufficient: 数据是否足以生成有意义的对比
+        summary: 文本摘要（一句话总结）
+    """
+
+    stock_code: str
+    stock_name: str = ""
+    total_histories_found: int = 0
+    same_stock_histories: list[MirrorEntry] = Field(default_factory=list)
+    sector_histories: list[MirrorEntry] = Field(default_factory=list)
+    masters_accuracy: dict[str, float] = Field(default_factory=dict)
+    masters_sample_count: dict[str, int] = Field(default_factory=dict)
+    data_sufficient: bool = False
+    summary: str = ""
+
+
 class IndependentReview(BaseModel):
     """独立评审 Agent 的输出
 
@@ -291,6 +354,7 @@ class DebateResult(BaseModel):
     - 分析师报告（可选，分析师层产出）
     - 三层风控审核（可选，R1 功能）
     - PM 最终交易建议（可选，R1 功能）
+    - 镜子反思报告（可选，DP-006 功能）
     - 总耗时
     """
 
@@ -306,6 +370,7 @@ class DebateResult(BaseModel):
     risk_round: dict | None = None  # 序列化的 RiskRoundResult
     trader_round: dict | None = None  # 序列化的 TraderRoundResult (T1)
     trade_recommendation: dict | None = None  # 序列化的 TradeRecommendation
+    mirror_report: MirrorReport | None = None  # DP-006: 镜子反思报告
     total_latency_ms: float = 0.0
 
     def to_summary_dict(self) -> dict[str, Any]:
@@ -415,6 +480,16 @@ class DebateResult(BaseModel):
             result["执行摘要"] = tr_data.get("execution_summary", "")
             if tr_data.get("pm_review_required"):
                 result["需PM复审"] = tr_data.get("pm_review_reason", "")
+        # ── DP-006: 镜子反思 ──────────────────────────
+        if self.mirror_report is not None:
+            mr = self.mirror_report
+            result["镜子反思"] = True
+            result["历史对比数"] = mr.total_histories_found
+            result["数据充足"] = mr.data_sufficient
+            if mr.masters_accuracy:
+                result["大师历史准确率"] = mr.masters_accuracy
+            if mr.summary:
+                result["镜像摘要"] = mr.summary
         return result
 
 
@@ -425,6 +500,8 @@ __all__ = [
     "DebateInput",
     "DebateResult",
     "IndependentReview",
+    "MirrorEntry",
+    "MirrorReport",
     "PeerReviewRound",
     "RebuttalAnalysis",
     "VoteSummary",
