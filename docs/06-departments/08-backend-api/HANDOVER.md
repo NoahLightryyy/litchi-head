@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-07-24 (PD-006 PD-009 动态指标端点完成 + 86 测试)
+last_updated: 2026-07-27 (TD-036 全覆盖收官 — 176 tests，1203 全量)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -25,12 +25,15 @@ last_updated: 2026-07-24 (PD-006 PD-009 动态指标端点完成 + 86 测试)
 
 | 测试集 | 测试数 |
 |:-------|:------:|
-| test_market.py（6 端点 + 5 辅助函数） | 52 |
-| test_stocks.py（8 端点 + financial+valuation） | 25 |
-| test_debate.py（3 端点 + session 生命周期） | 9 |
+| test_market.py（6 端点 + 5 辅助函数 + hot-news） | 52 + 5 |
+| test_stocks.py（8 端点 + financials/valuation/indicators） | 28 |
+| test_debate.py（3 端点 + session 生命周期 + 限流） | 10 |
 | test_trust.py（2 端点 + 映射逻辑） | 11 |
-| test_indicators.py（技术指标 100% 覆盖） | 43 |
-| **backend 合计** | **85** |
+| test_retro.py（6 端点：records/summary/action/outcome/refresh/delete） | 26 |
+| test_indicators.py（技术指标 100% 覆盖） | 47 |
+| test_main.py（health + 异常处理） | 7 |
+| test_utils_backend.py（config 环境变量 + async_utils 超时） | 7 |
+| **backend 合计** | **176** |
 
 ### 关键架构决策
 
@@ -54,7 +57,7 @@ last_updated: 2026-07-24 (PD-006 PD-009 动态指标端点完成 + 86 测试)
 | TD-020 | 板块数据增强层缺失 | 2026-06-17 |
 | TD-023 | 全返回 200 状态码 | 2026-06-17 |
 | TD-024 | 数据源调用无超时 | 2026-06-17 |
-| TD-036 | 路由测试全覆盖 | 2026-06-18 |
+| TD-036 | 路由测试全覆盖（176 tests） | 2026-07-27 |
 
 ---
 
@@ -165,6 +168,6 @@ async def get_dynamic_indicators(code: str):
 | `backend/indicators.py` | 纯 Python 技术指标计算 |
 | `backend/async_utils.py` | 同步→异步超时桥接 |
 | `backend/config.py` | 后端环境变量配置 |
-| `tests/test_backend/` | 85 测试覆盖 19 端点 |
+| `tests/test_backend/` | 176 测试覆盖全部 19 端点 + 辅助函数 + 工具模块 |
 | `docs/06-departments/08-backend-api/ROLE.md` | 👤 后端 API 部角色定义 |
 | `docs/06-departments/08-backend-api/STANDARDS.md` | 📐 后端 API 部技术规范 |
