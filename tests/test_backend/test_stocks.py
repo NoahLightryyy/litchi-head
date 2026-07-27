@@ -329,3 +329,41 @@ class TestGetValuation:
 
         assert resp.status_code == 200
         assert resp.json()["data"] is None
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# GET /api/stocks/{code}/indicators
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestGetIndicators:
+    """动态关键指标"""
+
+    def test_returns_indicators(self, client, mock_collector):
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/000001/indicators")
+
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data is not None
+        assert "industry" in data
+        assert "chain_position" in data
+        assert "indicators" in data
+
+    def test_contains_industry_info(self, client, mock_collector):
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/000001/indicators")
+
+        data = resp.json()["data"]
+        assert data["industry"] == "银行"
+        assert data["chain_position"] == "下游"
+
+    def test_indicator_list_format(self, client, mock_collector):
+        with patch("backend.routers.financials.collector", mock_collector):
+            resp = client.get("/api/stocks/000001/indicators")
+
+        indicators = resp.json()["data"]["indicators"]
+        assert len(indicators) >= 1
+        assert all("name" in i for i in indicators)
+        assert all("display" in i for i in indicators)
+        assert all("value" in i for i in indicators)

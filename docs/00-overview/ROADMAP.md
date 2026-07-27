@@ -8,7 +8,7 @@
 ## 快速统计
 
 ```
-总 Python 测试数 │ 1155 passed（+19 mirror + 复盘看板 27 + DP 系列）
+总 Python 测试数 │ 1203 passed（+48 mirror + retro + main + hot-news + utils）
 技术债务         │ 62 条总记 / 37 条已关闭 / 25 条开放
 紧急指数         │ 3.0/10（Phase R+1 全部完成 + CI 绿）
 当前阶段         │ 🟢 Phase R+1 全部完成 — DP-001~007 全部交付，1155 tests ✅，下一步等待方向
@@ -161,7 +161,7 @@
 | 🔥 P0 | **TD-031 辩论轮询停止条件** | ✅ 已完成 | pnpm build ✅ |
 | 🔥 P0 | **TD-032 FallbackSource 恢复主源** | Provider 层就绪 | ~1h |
 | 🔥 P0 | **QA 质量保障体系** — Hookify 规则 + Post-tool hooks + except:pass 修复 | 文档就绪 | ~2h |
-| 🔴 P1 | **TD-036 backend 测试覆盖** | 全部就绪 | ~2d |
+| ✅ P1 | **TD-036 backend 测试覆盖** — ✅ 已完成：retro/main/hot-news/indicators/config/async-utils 全覆盖 176 测试 | 后端 API 部 | ~2d ✅ |
 | ✅ P1 | **TD-038 密钥安全管理** | ✅ 已修复 — 迁移至 Windows Credential Manager | ~30min ✅ |
 | ✅ P1 | **TD-039 API 速率限制** | ✅ 已修复 — slowapi 三层限流（run 6/min, status/result 30/min） | ~1h ✅ |
 | 🟡 P1 | **测试架构提升** — 模块级 conftest 创建 + fixture 迁移 TODO | 全部就绪 | ~2h |
@@ -255,7 +255,7 @@
   ├── P0 复盘看板(极简) ── 2 天 ──→ ✅         │
   ├── P1 DP-004/005/007 ── 1 天 ──→ ✅         │
   ├── P1 新鲜度标注 ────── 2h ──→ ⟳ 待做        │
-  ├── P1 TD-036 ────────── 2 天 ──→ (可选穿插)  │
+  ├── P1 TD-036 ────────── 2 天 ──→ ✅ 已完成（176 tests）
   ├── 留白（适应出国+小仓位试水）─→ 5 周缓冲     │
   └── 9月初 → 简历提交 ──→ "实盘辅助使用中" ✅   │
 ```

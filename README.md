@@ -13,7 +13,7 @@
   <a href="https://github.com/NoahLightryyy/litchi-head/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/NoahLightryyy/litchi-head/ci.yml?branch=main&label=CI&logo=github" alt="CI Status">
   </a>
-  <img src="https://img.shields.io/badge/tests-1155%20passed-2ea44f?logo=pytest" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-1203%20passed-2ea44f?logo=pytest" alt="Tests">
   <img src="https://img.shields.io/badge/coverage-80%25%2B-brightgreen" alt="Coverage">
   <img src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/type_check-pyright-brightgreen" alt="Pyright">
@@ -166,7 +166,7 @@
 
 ### 🧪 工程质量
 
-- **1155 测试全绿** — 单元测试 + 模块测试 + 辩论全流程（含FD财务注入 + DP-006 镜子反思）+ 回测桥接 + 真实 LLM 集成测试 + 财务端点到前端Tab + PD 动态指标体系 34 测试 + 交易复盘看板 27 测试
+- **1203 测试全绿** — 单元测试 + 模块测试 + 辩论全流程（含FD财务注入 + DP-006 镜子反思）+ 回测桥接 + 真实 LLM 集成测试 + 财务端点到前端Tab + PD 动态指标体系 34 测试 + 交易复盘看板 27 测试 + backend 路由全覆盖 176 测试
 - **CI/CD 全自动** — GitHub Actions 流水线（Ruff 风格检查 + Pyright 类型检查 + Pytest 测试）
 - **类型安全** — 全项目完整类型注解，Pyright basic mode 零错误
 - **结果回调审计** — `CallbackRecord` 记录每次结果事件响应，坏回调自动熔断不拖垮主流程
@@ -251,7 +251,7 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 ### 工程素养
 
 - 📐 **9 份架构决策记录** — 每步选型有理由有权衡，不是"跟着教程写"
-- 🧪 **1155 测试** — 含真实 LLM 集成测试 + 10 层完整链路 + 财务端点到前端全链路 + 交易复盘看板 + DP-006 镜子反思，不是 mock 到死
+- 🧪 **1203 测试** — 含真实 LLM 集成测试 + 10 层完整链路 + 财务端点到前端全链路 + 交易复盘看板 + DP-006 镜子反思 + backend 路由全覆盖 176 测试，不是 mock 到死
 - 📝 **完整的文档体系** — 设计文档/流程规范/工作日志，代码即文档
 - 🔄 **CI/CD 全自动流水线** — GitHub Actions 一键 lint + type + test
 - 🔁 **结果驱动闭环地基** — RC-001/002 让“实际走势出来了”可以统一触发大师信任度校准

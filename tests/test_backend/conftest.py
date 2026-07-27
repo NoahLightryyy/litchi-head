@@ -298,6 +298,17 @@ class MockCollector:
             return self._valuation
         return None
 
+    def get_dynamic_indicators(self, code: str) -> dict:
+        """模拟动态指标查询（PD 动态指标体系）"""
+        return {
+            "industry": "银行",
+            "chain_position": "下游",
+            "indicators": [
+                {"name": "roe", "display": "ROE", "value": 12.5},
+                {"name": "debt_ratio", "display": "负债率", "value": 45.2},
+            ],
+        }
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # pytest Fixtures

@@ -22,4 +22,4 @@ department: 后端 API 部
 | TD-020 | 板块数据增强层缺失 | 2026-06-17 | market.py 重写，全面板真实数据 |
 | TD-023 | 后端全返回 HTTP 200 | 2026-06-17 | trust.py→503, debate.py→500 |
 | TD-024 | 数据源调用无超时 | 2026-06-17 | async_utils.py 15s 超时 |
-| TD-036 | backend 路由测试不足 | 2026-06-18 | 77 测试覆盖 17 端点 |
+| TD-036 | backend 路由测试全覆盖 | 2026-07-27 | 176 测试（含 retro/main/hot-news/utils）+ indicators 100% |

@@ -415,3 +415,100 @@ class TestGetMacroBrief:
         meta = resp.json()["meta"]
         assert "latency_ms" in meta
         assert meta["latency_ms"] >= 0
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# GET /api/market/hot-news
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestHotNews:
+    """热点快讯"""
+
+    def test_returns_hot_news(self, client):
+        """正常返回热点新闻列表"""
+        mock_df = pd.DataFrame({
+            "title": ["新闻1", "新闻2"],
+            "date": ["2024-01-02", "2024-01-02"],
+            "source": ["源1", "源2"],
+            "url": ["http://url1", "http://url2"],
+        })
+        with (
+            patch("backend.routers.market._HOT_NEWS_CACHE", {}),
+            patch("akshare.stock_news_main_cx", return_value=mock_df),
+        ):
+            resp = client.get("/api/market/hot-news")
+
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert len(data) == 2
+        assert data[0]["title"] == "新闻1"
+
+    def test_hot_news_fields(self, client):
+        """每条新闻含必要字段"""
+        mock_df = pd.DataFrame({
+            "title": ["测试新闻"],
+            "date": ["2024-01-02"],
+            "source": ["测试源"],
+            "url": ["http://example.com"],
+        })
+        with (
+            patch("backend.routers.market._HOT_NEWS_CACHE", {}),
+            patch("akshare.stock_news_main_cx", return_value=mock_df),
+        ):
+            resp = client.get("/api/market/hot-news")
+
+        item = resp.json()["data"][0]
+        assert "title" in item
+        assert "date" in item
+        assert "source" in item
+        assert "url" in item
+
+    def test_empty_data(self, client):
+        """空 DataFrame 返回空列表"""
+        with (
+            patch("backend.routers.market._HOT_NEWS_CACHE", {}),
+            patch("akshare.stock_news_main_cx", return_value=pd.DataFrame()),
+        ):
+            resp = client.get("/api/market/hot-news")
+
+        assert resp.status_code == 200
+        assert resp.json()["data"] == []
+
+    def test_error_fallback_to_stale_cache(self, client):
+        """API 异常时返回过期缓存（如果有）
+
+        原理：直接往 _HOT_NEWS_CACHE 写入旧时间戳的数据，
+        绕过正常请求路径（避免新鲜缓存提前返回），
+        然后让 API 抛异常触发 stale 返回路径。
+        """
+        import time
+
+        from backend.routers.market import _HOT_NEWS_CACHE
+
+        _HOT_NEWS_CACHE.clear()
+        _HOT_NEWS_CACHE["data"] = [
+            {"title": "过期新闻", "date": "2024-01-01", "source": "测试", "url": ""},
+        ]
+        _HOT_NEWS_CACHE["ts"] = time.time() - 300  # 5 分钟前->过期
+
+        with patch("akshare.stock_news_main_cx", side_effect=RuntimeError("API异常")):
+            resp = client.get("/api/market/hot-news")
+
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert len(data) == 1
+        assert data[0]["title"] == "过期新闻"
+        assert resp.json()["meta"].get("stale") is True
+
+    def test_error_no_cache_returns_empty(self, client):
+        """API 异常且无缓存时返回空列表"""
+        with (
+            patch("backend.routers.market._HOT_NEWS_CACHE", {}),
+            patch("akshare.stock_news_main_cx", side_effect=RuntimeError("API异常")),
+        ):
+            resp = client.get("/api/market/hot-news")
+
+        assert resp.status_code == 200
+        assert resp.json()["data"] == []
+        assert "error" in resp.json()["meta"]
