@@ -223,7 +223,12 @@ class MockCollector:
         mock._boards     — get_industry_boards
     """
 
+    @property
+    def cache_hit(self) -> dict[str, bool]:
+        return self._cache_hit
+
     def __init__(self) -> None:
+        self._cache_hit: dict[str, bool] = {}
         self._quotes: list[StockQuote] = [
             make_mock_quote(code="000001", name="上证指数", price=3200.0, change_pct=0.47),
             make_mock_quote(code="399001", name="深证成指", price=10500.0, change_pct=0.85),

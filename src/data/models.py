@@ -3,6 +3,7 @@
 所有跨模块数据传输使用此模块定义的 BaseModel。
 """
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -29,6 +30,7 @@ class StockQuote(BaseModel):
     open_: float = Field(default=0.0, ge=0.0)
     prev_close: float = Field(default=0.0, ge=0.0)
     market_cap: float = Field(default=0.0, ge=0.0, description="总市值(元)")
+    fetched_at: datetime | None = Field(default=None, description="数据采集时间")
 
 
 class KLine(BaseModel):
@@ -40,6 +42,7 @@ class KLine(BaseModel):
     low: float = Field(ge=0.0)
     volume: int = Field(ge=0)
     amount: float = Field(default=0.0, ge=0.0)
+    fetched_at: datetime | None = Field(default=None, description="数据采集时间")
 
     @model_validator(mode="after")
     def validate_kline_ranges(self) -> "KLine":

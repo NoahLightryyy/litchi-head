@@ -15,6 +15,7 @@ export interface StockQuote {
   fund_flow: number;
   market_cap: number;
   amount: number;
+  fetched_at: string | null;
 }
 
 export interface KLineData {
@@ -25,6 +26,7 @@ export interface KLineData {
   low: number;
   volume: number;
   amount: number;
+  fetched_at: string | null;
 }
 
 export interface NewsItem {

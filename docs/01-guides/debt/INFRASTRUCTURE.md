@@ -96,31 +96,24 @@ LLMService 架构上支持多 provider，但所有测试只在 DeepSeek 上验�
 
 ---
 
-###### TD-041 数据新鲜度标注缺失
+###### TD-041 数据新鲜度标注缺失 — ✅ 已修复 (2026-07-27)
 
 | 属性 | 值 |
 |------|-----|
 | **分类** | `⚙️ infrastructure` `severity:moderate` `module:data` `impact:可观测性` |
 | **发现日期** | 2026-06-17 |
 | **发现人** | AI 审计 |
-| **状态** | `🆕 待评估` |
-| **本金估算** | ∼2h |
-| **实盘影响** | 🟡 用户不能判断看到的 K 线/行情是不是最新的 |
-| **触发场景** | 缓存过期、数据源延迟、盘中查看历史数据 |
-| **用户能发现吗** | ❌ 不能 — 数据看起来正常但可能已经过期 10 分钟 |
+| **状态** | ✅ **已修复** |
+| **本金估算** | ∼2h（实耗 ~1.5h） |
+| **实盘影响** | 🟡 已解除 |
 
-**描述**：
-KLine 和 StockQuote 模型没有 `collected_at` 时间戳字段。前端无法展示"数据采集时间"，用户无法判断数据的新鲜度。`DataCollector` 的缓存元数据中 `"cached": false` 被硬编码为 false，即使数据来自缓存也不标注。
-
-**具体问题**：
-1. ❌ `src/data/models.py:35` — `KLine.date` 是字符串，无采集时间戳
-2. ❌ `src/data/models.py:19` — `StockQuote` 无 `collected_at`
-3. ❌ `src/data/collector.py:160` — `meta.cached` 始终为 false
-
-**修复方向**：
-1. 在 KLine 和 StockQuote 模型中添加 `collected_at: datetime` 字段
-2. DataCollector 填充缓存时自动记录采集时间
-3. 前端数据卡片展示"数据时间: HH:mm:ss"
+**修复内容**：
+1. ✅ `src/data/models.py` — `KLine.fetched_at` + `StockQuote.fetched_at: datetime | None`
+2. ✅ `src/data/providers/*.py` — 所有 3 个提供者（akshare/adata/zzshare）在构造时设置 `fetched_at=datetime.now()`
+3. ✅ `src/data/collector.py` — 添加 `_cached_or_none()` 跟踪缓存命中状态，路由层不再硬编码 `"cached": False`
+4. ✅ `frontend/components/shared/data-freshness.tsx` — 通用数据新鲜度标签组件（"刚刚" / "N秒前" / "N分钟前"）
+5. ✅ `frontend/components/stock/quote-card.tsx` — 行情卡片尾部显示数据时间
+6. ✅ `frontend/components/stock/kline-chart.tsx` — K 线工具栏显示数据时间
 
 ---
 

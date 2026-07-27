@@ -321,9 +321,11 @@ async def get_indices():
     t0 = time.time()
     quotes = await run_sync(collector.get_realtime_quotes)
     indices = [_pick_index(quotes, code, name) for code, name in _INDEX_CODES]
+    cached = collector.cache_hit.get("all_quotes", False)
+    latency = round((time.time() - t0) * 1000)
     return {
         "data": [i.model_dump() for i in indices],
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": {"cached": cached, "latency_ms": latency},
     }
 
 
@@ -454,9 +456,11 @@ async def get_macro_brief():
         summary=summary,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
     )
+    cached = collector.cache_hit.get("all_quotes", False)
+    latency = round((time.time() - t0) * 1000)
     return {
         "data": brief.model_dump(),
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": {"cached": cached, "latency_ms": latency},
     }
 
 

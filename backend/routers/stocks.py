@@ -26,9 +26,11 @@ async def search_stocks(q: str = Query("", description="搜索关键词")):
         return {"data": [], "meta": {"cached": False, "latency_ms": 0}}
     stocks = await run_sync(collector.get_all_stocks)
     results = [s.model_dump() for s in stocks if q.upper() in s.code or q in s.name]
+    cached = collector.cache_hit.get("all_stocks", False)
+    latency = round((time.time() - t0) * 1000)
     return {
         "data": results[:20],
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": {"cached": cached, "latency_ms": latency},
     }
 
 
@@ -45,9 +47,11 @@ async def get_quote(code: str):
     d["fund_flow"] = d.get("fund_flow", 0.0)
     d["market_cap"] = d.get("market_cap", 0.0)
     d["open"] = d.pop("open_", 0.0)  # 对齐前端类型
+    cached = collector.cache_hit.get("all_quotes", False)
+    latency = round((time.time() - t0) * 1000)
     return {
         "data": d,
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": {"cached": cached, "latency_ms": latency},
     }
 
 
@@ -61,9 +65,12 @@ async def get_kline(
     """个股 K 线数据"""
     t0 = time.time()
     klines = await run_sync(collector.get_klines, code, period=period, start=start, end=end)
+    cache_key = f"klines:{code}:{period}:"
+    cached = collector.cache_hit.get(cache_key, False)
+    latency = round((time.time() - t0) * 1000)
     return {
         "data": [k.model_dump() for k in klines],
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": {"cached": cached, "latency_ms": latency},
     }
 
 
@@ -72,9 +79,11 @@ async def get_news(code: str):
     """个股新闻"""
     t0 = time.time()
     news = await run_sync(collector.get_news, code)
+    cached = collector.cache_hit.get(f"news:{code}", False)
+    latency = round((time.time() - t0) * 1000)
     return {
         "data": [n.model_dump() for n in news[:20]],
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": {"cached": cached, "latency_ms": latency},
     }
 
 
@@ -96,14 +105,13 @@ async def get_technical_indicators(
 
     # K 线序列需足够长（至少 60 日）
     raw = [k.model_dump() for k in klines]
-    if len(raw) < 60:
-        # 数据不足时仍尝试计算
-        pass
 
     indicators = calc_all(raw)
+    cached = collector.cache_hit.get(f"klines:{code}:{period}:", False)
+    latency = round((time.time() - t0) * 1000)
     return {
         "data": indicators,
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": {"cached": cached, "latency_ms": latency},
     }
 
 
@@ -112,7 +120,9 @@ async def get_capital_flow(code: str):
     """个股资金流向（主力/散户/机构净流入）"""
     t0 = time.time()
     items = await run_sync(collector.get_capital_flow, code)
+    cached = collector.cache_hit.get(f"capital_flow:{code}", False)
+    latency = round((time.time() - t0) * 1000)
     return {
         "data": [i.model_dump() for i in items],
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": {"cached": cached, "latency_ms": latency},
     }

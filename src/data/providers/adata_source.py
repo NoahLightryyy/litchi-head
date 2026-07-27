@@ -13,6 +13,7 @@ GitHub: https://github.com/1nchaos/adata
 """
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from src.data.models import (
@@ -197,6 +198,7 @@ def _adata_row_to_quote(row: Any) -> StockQuote:
         low=safe_float(row.get("low", 0.0)),
         open_=safe_float(row.get("open", 0.0)),
         prev_close=safe_float(row.get("pre_close", 0.0)),
+        fetched_at=datetime.now(),
     )
 
 
@@ -210,6 +212,7 @@ def _adata_row_to_kline(row: Any) -> KLine:
         low=safe_float(row.get("low", 0.0)),
         volume=safe_int(row.get("volume", 0)),
         amount=safe_float(row.get("amount", 0.0)),
+        fetched_at=datetime.now(),
     )
 
 

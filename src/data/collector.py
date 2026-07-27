@@ -152,6 +152,18 @@ class DataCollector:
     def __init__(self, source: DataSource | None = None, cache: DataCache | None = None):
         self._source = source or DataCollector.default_source or AKShareSource()
         self.cache = cache or DataCache()
+        self._cache_hit: dict[str, bool] = {}
+
+    def _cached_or_none(self, key: str):
+        """从缓存获取，记录是否命中"""
+        data = self.cache.get(key)
+        self._cache_hit[key] = data is not None
+        return data
+
+    @property
+    def cache_hit(self) -> dict[str, bool]:
+        """返回各缓存键的最新命中状态"""
+        return dict(self._cache_hit)
 
     # ── 股票信息 ─────────────────────────────────────────────────────
 
@@ -163,7 +175,7 @@ class DataCollector:
         Returns:
             股票信息列表，网络异常时返回空列表
         """
-        cached = self.cache.get("all_stocks")
+        cached = self._cached_or_none("all_stocks")
         if cached is not None:
             return cached
 
@@ -188,7 +200,7 @@ class DataCollector:
         Returns:
             行情列表，网络异常时返回空列表
         """
-        cached = self.cache.get("all_quotes")
+        cached = self._cached_or_none("all_quotes")
         if cached is not None:
             return cached
 
@@ -246,7 +258,7 @@ class DataCollector:
             K 线列表，网络异常时返回空列表
         """
         cache_key = f"klines:{code}:{period}:{adjust}"
-        cached = self.cache.get(cache_key)
+        cached = self._cached_or_none(cache_key)
         if cached is not None:
             return cached
 
@@ -278,7 +290,7 @@ class DataCollector:
             新闻列表，网络异常时返回空列表
         """
         cache_key = f"news:{code}"
-        cached = self.cache.get(cache_key)
+        cached = self._cached_or_none(cache_key)
         if cached is not None:
             return cached
 
@@ -303,7 +315,7 @@ class DataCollector:
         Returns:
             行业板块列表，网络异常时返回空列表
         """
-        cached = self.cache.get("industry_boards")
+        cached = self._cached_or_none("industry_boards")
         if cached is not None:
             return cached
 
@@ -326,7 +338,7 @@ class DataCollector:
         Returns:
             概念板块列表，网络异常时返回空列表
         """
-        cached = self.cache.get("concept_boards")
+        cached = self._cached_or_none("concept_boards")
         if cached is not None:
             return cached
 
@@ -355,7 +367,7 @@ class DataCollector:
             CapitalFlowItem 列表，网络异常时返回空列表
         """
         cache_key = f"capital_flow:{code}"
-        cached = self.cache.get(cache_key)
+        cached = self._cached_or_none(cache_key)
         if cached is not None:
             return cached
 
@@ -384,7 +396,7 @@ class DataCollector:
             FinancialMetrics 列表，网络异常时返回空列表
         """
         cache_key = f"financials:{code}"
-        cached = self.cache.get(cache_key)
+        cached = self._cached_or_none(cache_key)
         if cached is not None:
             return cached
 
@@ -416,7 +428,7 @@ class DataCollector:
             ValuationMetrics 对象，数据不足时返回 None
         """
         cache_key = f"valuation:{code}"
-        cached = self.cache.get(cache_key)
+        cached = self._cached_or_none(cache_key)
         if cached is not None:
             return cached
 
@@ -477,7 +489,7 @@ class DataCollector:
             行业名称（如"银行Ⅱ"），失败时返回 None
         """
         cache_key = f"industry:{code}"
-        cached = self.cache.get(cache_key)
+        cached = self._cached_or_none(cache_key)
         if cached is not None:
             return cached
 

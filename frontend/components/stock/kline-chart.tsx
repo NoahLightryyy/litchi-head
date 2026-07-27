@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useKline } from "@/lib/hooks/use-stock";
 import { CandlestickChart } from "@/components/stock/candlestick-chart";
+import { DataFreshnessTag } from "@/components/shared/data-freshness";
 
 interface KlineChartProps {
   code: string;
@@ -35,6 +36,10 @@ export function KlineChart({ code }: KlineChartProps) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-text-primary">K 线图</h2>
         <div className="flex items-center gap-2">
+          {/* 数据时间 */}
+          {klines && klines.length > 0 && klines[0].fetched_at && (
+            <DataFreshnessTag fetchedAt={klines[0].fetched_at} />
+          )}
           {/* 周期切换 */}
           <div className="flex gap-1 bg-bg-tertiary rounded-md p-0.5">
             {PERIOD_MAP.map((p) => (

@@ -2,6 +2,7 @@
 
 import type { StockQuote } from "@/lib/types/stock";
 import { formatPrice, formatChangePct } from "@/lib/utils";
+import { DataFreshnessTag } from "@/components/shared/data-freshness";
 
 interface QuoteCardProps {
   quote: StockQuote | null;
@@ -59,6 +60,9 @@ export function QuoteCard({ quote, loading }: QuoteCardProps) {
         <StatItem label="主力流入" value={`+${quote.fund_flow.toFixed(1)}亿`} color="text-accent-green" />
         <StatItem label="成交额" value={`${(quote.amount / 10000_0000).toFixed(1)}亿`} />
       </div>
+
+      {/* 数据新鲜度 */}
+      <DataFreshnessTag fetchedAt={quote.fetched_at} />
     </div>
   );
 }

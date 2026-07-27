@@ -13,6 +13,7 @@ GitHub: https://github.com/zzquant/zzshare
 """
 
 import logging
+from datetime import datetime
 
 from src.data.models import (
     BoardInfo,
@@ -194,6 +195,7 @@ def _zz_row_to_kline(row) -> KLine:
         low=safe_float(row.get("low", 0.0)),
         volume=safe_int(row.get("vol", 0)),
         amount=safe_float(row.get("amount", 0.0)),
+        fetched_at=datetime.now(),
     )
 
 
