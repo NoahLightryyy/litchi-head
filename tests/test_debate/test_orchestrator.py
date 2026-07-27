@@ -32,8 +32,6 @@ def sample_debate_input() -> DebateInput:
         stock_name="平安银行",
         question="是否值得投资？",
     )
-
-
 @pytest.fixture
 def mock_collector() -> MagicMock:
     """Mock DataCollector 返回空列表（避免网络调用）"""
@@ -46,13 +44,9 @@ def mock_collector() -> MagicMock:
     col.get_market_sentiment.return_value = None
     return col
 
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 图结构测试
 # ═══════════════════════════════════════════════════════════════════
-
-
 class TestGraphConstruction:
     """验证辩论编排器的 LangGraph 图构建"""
 
@@ -90,13 +84,9 @@ class TestGraphConstruction:
         assert len(orch.master_skills) == 2
         assert orch.master_skills[0].skill_id == "buffett"
         assert orch.master_skills[1].skill_id == "dalio"
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 节点函数测试
 # ═══════════════════════════════════════════════════════════════════
-
-
 class TestCollectDataNode:
     """collect_data_node 验证"""
 
@@ -200,8 +190,6 @@ class TestCollectDataNode:
         assert "行业分析层" in md["brief"]
         assert "所属行业: 银行" in md["brief"]
         assert "市盈率" in md["brief"]
-
-
 class TestMasterRoundNode:
     """make_master_round_node 验证"""
 
@@ -302,8 +290,6 @@ class TestMasterRoundNode:
             assert analysis.error == "分析超时"
             assert analysis.rating == "中性"
             assert analysis.score == 0
-
-
 class TestAggregateNode:
     """aggregate_node 验证"""
 
@@ -443,19 +429,30 @@ class TestAggregateNode:
         result = await aggregate_node(state)
         vs = result["vote_summary"]
         assert vs.total_votes == 0
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 完整编排器运行测试
 # ═══════════════════════════════════════════════════════════════════
 
-
-@pytest.mark.slow
 class TestDebateOrchestratorRun:
-    """DebateOrchestrator.run() 完整流程（~120s 合计，标记为 slow）"""
+    """DebateOrchestrator.run() 完整流程（涉及异步 patching，~3s/ea）"""
+
+    @pytest.fixture
+    def mock_analyst_report(self):
+        """���拟 AnalystReport 返回值"""
+        from src.debate.models import AnalystReport  # noqa: PLC0415
+
+        return AnalystReport(
+            analyst_type="fundamental",
+            key_findings=["业绩稳定增长"],
+            data_evidence=["ROE 15%"],
+            confidence=0.8,
+            summary="基本面良好",
+            score=75,
+            direction_hint="Bullish",
+        )
 
     @pytest.mark.asyncio
-    async def test_full_flow(self, mock_collector):
+    async def test_full_flow(self, mock_collector, mock_analyst_report):
         """完整三节点流程"""
         orch = DebateOrchestrator(
             data_collector=mock_collector,
@@ -474,6 +471,10 @@ class TestDebateOrchestratorRun:
             confidence=0.8,
         )
         with patch(
+            "src.debate.orchestrator._run_single_analyst",
+            new_callable=AsyncMock,
+            return_value=mock_analyst_report,
+        ), patch(
             "src.debate.orchestrator._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
@@ -492,7 +493,7 @@ class TestDebateOrchestratorRun:
             assert result.total_latency_ms >= 0
 
     @pytest.mark.asyncio
-    async def test_run_with_default_masters(self, mock_collector):
+    async def test_run_with_default_masters(self, mock_collector, mock_analyst_report):
         """使用默认 5 位大师运行"""
         orch = DebateOrchestrator(data_collector=mock_collector)
 
@@ -508,6 +509,10 @@ class TestDebateOrchestratorRun:
             confidence=0.75,
         )
         with patch(
+            "src.debate.orchestrator._run_single_analyst",
+            new_callable=AsyncMock,
+            return_value=mock_analyst_report,
+        ), patch(
             "src.debate.orchestrator._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
@@ -519,7 +524,7 @@ class TestDebateOrchestratorRun:
             assert result.vote_summary.total_votes == 5
 
     @pytest.mark.asyncio
-    async def test_run_single_master(self, mock_collector):
+    async def test_run_single_master(self, mock_collector, mock_analyst_report):
         """单大师运行"""
         orch = DebateOrchestrator(
             data_collector=mock_collector,
@@ -539,6 +544,10 @@ class TestDebateOrchestratorRun:
             confidence=0.9,
         )
         with patch(
+            "src.debate.orchestrator._run_single_analyst",
+            new_callable=AsyncMock,
+            return_value=mock_analyst_report,
+        ), patch(
             "src.debate.orchestrator._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
@@ -552,7 +561,7 @@ class TestDebateOrchestratorRun:
             assert result.vote_summary.consensus == "看涨"
 
     @pytest.mark.asyncio
-    async def test_run_summary_dict(self, mock_collector):
+    async def test_run_summary_dict(self, mock_collector, mock_analyst_report):
         """to_summary_dict 可用"""
         orch = DebateOrchestrator(
             data_collector=mock_collector,
@@ -571,6 +580,10 @@ class TestDebateOrchestratorRun:
             confidence=0.85,
         )
         with patch(
+            "src.debate.orchestrator._run_single_analyst",
+            new_callable=AsyncMock,
+            return_value=mock_analyst_report,
+        ), patch(
             "src.debate.orchestrator._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
@@ -579,13 +592,9 @@ class TestDebateOrchestratorRun:
             summary = result.to_summary_dict()
             assert summary["共识"] == "看涨"
             assert summary["参与大师数"] == 1
-
-
 # ═══════════════════════════════════════════════════════════════════
 # DP-007 信息隔离测试
 # ═══════════════════════════════════════════════════════════════════
-
-
 class TestDP007InformationIsolation:
     """DP-007: 验证 state 裁剪行为"""
 

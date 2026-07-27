@@ -66,4 +66,17 @@ export const api = {
       body: data ? JSON.stringify(data) : undefined,
     });
   },
+
+  put: <T>(path: string, data?: unknown) => {
+    return request<T>(path, {
+      method: "PUT",
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+
+  del: <T>(path: string) => {
+    return request<T>(path, {
+      method: "DELETE",
+    });
+  },
 };

@@ -80,7 +80,10 @@ const STOCK_PREFIX = "/stock/";
 const SECTOR_PREFIX = "/sector/";
 
 function SidebarNav({ pathname }: { pathname: string }) {
-  const navItems = [{ href: "/", icon: "🏠", label: "宏观总览" }];
+  const navItems = [
+    { href: "/", icon: "🏠", label: "宏观总览" },
+    { href: "/retro", icon: "📋", label: "复盘看板" },
+  ];
 
   return (
     <aside className="w-56 border-r border-bg-tertiary bg-bg-secondary p-4 flex flex-col gap-6 shrink-0">

@@ -23,6 +23,71 @@ from backend.limiter import limiter
 logger = logging.getLogger("backend.debate")
 router = APIRouter(prefix="/api/debate")
 
+
+async def _auto_create_retro_record(
+    session_id: str,
+    result: object,
+    stock_code: str,
+) -> None:
+    """辩论完成后自动创建复盘记录，静默失败不影响主流程"""
+    try:
+        from uuid import uuid4 as _uuid4  # noqa: PLC0415
+
+        from src.data.collector import DataCollector  # noqa: PLC0415
+        from src.retro.models import RetroRecord  # noqa: PLC0415
+        from src.retro.store import RetroStore  # noqa: PLC0415
+
+        vs = getattr(result, "vote_summary", None)
+        if vs is None:
+            return
+
+        stock_name = getattr(result, "stock_name", stock_code)
+        consensus = getattr(vs, "consensus", "")
+        weighted_score = getattr(vs, "weighted_score", 0.0)
+        confidence = getattr(vs, "confidence", 0.0)
+        direction_dist = getattr(vs, "direction_distribution", {})
+        avg_score = getattr(vs, "average_score", 0.0)
+        rating_dist = getattr(vs, "rating_distribution", {})
+        total_latency = getattr(result, "total_latency_ms", 0.0)
+
+        price_at_debate: float | None = None
+        try:
+            collector = DataCollector()
+            quote = collector.get_realtime_quote(stock_code)
+            if quote is not None:
+                price_at_debate = float(quote.price)
+            if price_at_debate is not None and price_at_debate <= 0:
+                price_at_debate = None
+        except Exception:
+            pass
+
+        record = RetroRecord(
+            record_id=f"retro_{_uuid4().hex[:12]}",
+            session_id=session_id,
+            stock_code=stock_code,
+            stock_name=stock_name,
+            debate_latency_ms=round(total_latency, 0),
+            consensus=consensus,
+            weighted_score=round(weighted_score, 2),
+            confidence=round(confidence, 4),
+            direction_distribution=dict(direction_dist) if direction_dist else {},
+            avg_score=round(avg_score, 2),
+            rating_distribution=dict(rating_dist) if rating_dist else {},
+            price_at_debate=price_at_debate,
+        )
+
+        store = RetroStore()
+        await store.put(record)
+        logger.info(
+            "✅ 自动创建复盘记录: %s | %s | 共识=%s 置信度=%.2f",
+            record.record_id[-8:],
+            stock_code,
+            consensus,
+            confidence,
+        )
+    except Exception:
+        logger.exception("自动创建复盘记录失败（静默）: session=%s", session_id)
+
 # ── 请求模型 ──────────────────────────────────────────────────
 
 
@@ -67,6 +132,9 @@ async def run_debate(request: Request, req: DebateRequest):
             "progress": 100,
             "result": result.model_dump() if hasattr(result, "model_dump") else result,
         }
+
+        # ── 自动记录复盘 ──────────────────────────────
+        await _auto_create_retro_record(session_id, result, req.stock_code)
         return {
             "data": {"session_id": session_id, "status": "completed"},
             "meta": {"latency_ms": round((time.time() - t0) * 1000)},
