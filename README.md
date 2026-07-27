@@ -13,7 +13,7 @@
   <a href="https://github.com/NoahLightryyy/litchi-head/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/NoahLightryyy/litchi-head/ci.yml?branch=main&label=CI&logo=github" alt="CI Status">
   </a>
-  <img src="https://img.shields.io/badge/tests-1076%20passed-2ea44f?logo=pytest" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-1136%20passed-2ea44f?logo=pytest" alt="Tests">
   <img src="https://img.shields.io/badge/coverage-80%25%2B-brightgreen" alt="Coverage">
   <img src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/type_check-pyright-brightgreen" alt="Pyright">
@@ -120,19 +120,23 @@
 | 组件 | 说明 | 状态 |
 |:----|:-----|:----:|
 | **MasterAgent** | 通用化编排器 + Skill 插件盘 + RAG 知识库 + 结构化输出 | ✅ 完整实现 |
-| **辩论引擎** | LangGraph StateGraph 10 层完整链路（含用户经验反馈闭环 🆕） | ✅ D1-D4+M1+M2+M3+M4+R1+T1+FD财务注入 完成 |
-| **分析师层** | 4 位专业分析师（基本面/技术面/情绪面/宏观面）+ AnalystReport 结构化输出。财务指标已注入基本面分析 ✅ | ✅ Phase 1 完成 |
+| **辩论引擎** | LangGraph StateGraph 10 层完整链路 + DP 系列增强 | ✅ D1-D4+M1-M4+R1+T1+FD+DP 系列完成 |
+| **分析师层** | 4 位专业分析师（基本面/技术面/情绪面/宏观面）+ 财务指标注入 + 灵感官反共识分析 | ✅ Phase 1 完成 |
 | **风控模块** | 三层风控辩论（Aggressive/Conservative/Neutral）+ PM 裁决 + 交易纪律体系 | ✅ R1 就绪（26 tests） |
 | **交易员层** | T1 交易员执行规划 — ExecutionStep/TradePlan + 仓位计算 + 预案规划 | ✅ T1 就绪（20 tests） |
-| **7 位投资大师** | 巴菲特/芒格/费雪/卡拉曼/利弗莫尔/索罗斯/西蒙斯，每人独立人格 + 投资哲学 | ✅ 就绪 |
-| **信任度评分** | TrustTracker — 方向准确率/校准/偏差/趋势统计，支持按板块校准 Agent 输出可靠性 | ✅ M3 + RC-002 回调就绪（含 sector 统计） |
+| **7 位投资大师 + 灵感官** | 巴菲特/芒格/费雪/卡拉曼/利弗莫尔/索罗斯/西蒙斯，每人独立人格 + 投资哲学 + 第 5 位反共识分析师 🆕 | ✅ 就绪（含 DP-005 灵感官） |
+| **信任度评分** | TrustTracker — 方向准确率/校准/偏差/趋势统计 + DP-004 发言排序/低信任跳过 | ✅ M3 + RC-002 + DP-004 就绪 |
 | **动态权重** | `compute_weight_factor(metrics, sector=...)` 根据信任度和板块胜率动态调整聚合权重，D3 weight_suggestions 叠加 | ✅ M4 就绪（支持 sector） |
 | **教育小智** | RAG 驱动的问答 Agent（30 篇知识库 + TF 向量语义检索） | ✅ 就绪 |
 | **M2 反思闭环** | AI推荐 ↔ 实际走势对比反思，自动生成经验教训存储入库，并触发实际结果回调 | ✅ 反思入口已接 RC-002 |
 | **结果回调引擎 RC-001/002** 🆕 | ResultCallbackEngine 统一分发结果事件；M3-EXT 回调可把实际结果写入 TrustTracker | ✅ 核心分发器 + 信任度回调 + 反思 dispatch 完成 |
-| **用户经验反馈闭环** 🆕 | 记录用户操作 vs AI推荐 → 实际盈亏 → 经验教训 → 改进未来决策 | 🔧 信任度回调就绪·用户行为/复盘待接入（RC-003/004 + R4 复盘） |
+| **用户经验反馈闭环** 🆕 | 记录用户操作 vs AI推荐 → 实际盈亏 → 经验教训 → 改进未来决策 | 🟡 交易复盘看板完成，用户行为接入中 |
 | **记忆存储系统** | MemoryStore(ABC) + JsonFileStore + MemoryManager 语义化接口 + 用户行为存储 🆕 | ✅ MVP |
 | **数据采集层** | akshare 封装：实时行情 / K 线 / 新闻 / 板块 / 全部 A 股 + 财务指标(17列)+估值比率(PE/PB/PS)+API端点+前端Tab ✅ | ✅ 就绪 |
+| **情绪数据层（C2）** | 市场涨跌比 + 情绪评分，提供市场整体情绪信号 | ✅ 已接入真实数据 |
+| **数据新鲜度标注** | KLine/StockQuote 采集时间戳 + 前端 DataFreshnessTag（"刚刚/N秒前/N分钟前"） | ✅ TD-041 已修复 |
+| **交易复盘看板** | RetroBoard 记录 AI推荐 → 用户操作 → 实际盈亏 → 准确率统计，全栈实现 | ✅ R4 极简版完成（27 tests） |
+| **AI 输出置信度量化** | 校准曲线映射 + aggregate_node 校准 + 前端置信度可视化 | ✅ R4 完成 |
 | **基本面深度（FD）** ✅ | 财报纵深 + 产业链定位 + 供应链调研 — 机构级基本面分析能力 | ✅ FD-001 全链路完成（数据层+辩论注入+API+前端Tab） |
 
 > FD 基本面深度轨道基于 2026-06-23 调研结论：散户 vs 机构的核心壁垒在于财报纵深和供应链数据，而非分析模型。
@@ -142,7 +146,7 @@
 
 ```
 ├── agents/          Agent 定义（Base → Master → 7位大师 → 教育小智）    ← 🤖 AI Agent 架构部
-├── debate/          辩论编排器（D1-D4+M1-M4+R1+T1 九模块+FD财务注入🆕） ← 🎯 辩论引擎部
+├── debate/          辩论编排器（D1-D4+M1-M4+R1+T1+FD+DP🆕 全模块） ← 🎯 辩论引擎部
 ├── data/            数据采集（行情/K线/新闻 + 财务指标/产业链定位🆕）   ← 🗄️ 数据管道部
 ├── memory/          记忆系统（RAG 知识库 + MemoryStore）                 ← 🧠 记忆系统部
 ├── callback/        结果回调引擎（事件分发 + 冷却 + 自动禁用 + 审计）   ← 🧠 记忆系统部
@@ -151,7 +155,7 @@
 ├── risk/            风控模块（R1 三层风控辩论 + PM裁决）                 ← 🛡️ 风控管理部
 ├── trader/          交易员层（T1 执行规划 — TradePlan）                  ← 💹 交易执行部
 ├── backtest/        回测引擎（骨架 + TradePlan→TradeRecord）             ← 🔬 回测研究部
-├── backend/         FastAPI 桥接层（5+2路由 财务/估值/产业链端点）     ← 🌐 后端 API 部
+├── backend/         FastAPI 桥接层（行情/K线/新闻/财务/估值/产业链/复盘 ← 🌐 后端 API 部
 ├── frontend/        React + Next.js 前端（5 Tab含财务分析✅）          ← 🎨 前端部
 ├── .github/ + tests/  CI 流水线 + 测试架构 + 契约测试                    ← 🔄 质量保障部
 └── docs/             部门体系 · 模块规格 · 设计决策 · 工作日志            ← 📋 全部门共享
@@ -162,7 +166,7 @@
 
 ### 🧪 工程质量
 
-- **1076 测试全绿** — 单元测试 + 模块测试 + 辩论全流程（9层链路） + 回测桥接 + 真实 LLM 集成测试 + 财务端点到前端Tab + PD 动态指标体系 34 测试
+- **1136 测试全绿** — 单元测试 + 模块测试 + 辩论全流程（含FD财务注入）+ 回测桥接 + 真实 LLM 集成测试 + 财务端点到前端Tab + PD 动态指标体系 34 测试 + 交易复盘看板 27 测试
 - **CI/CD 全自动** — GitHub Actions 流水线（Ruff 风格检查 + Pyright 类型检查 + Pytest 测试）
 - **类型安全** — 全项目完整类型注解，Pyright basic mode 零错误
 - **结果回调审计** — `CallbackRecord` 记录每次结果事件响应，坏回调自动熔断不拖垮主流程
@@ -218,11 +222,14 @@ Phase 1 ──── MVP 链路 ████████████████
 Phase 2 ──── 增强辩论与风控 ██████████░░░░░░░░░░░░  40% 🟡
   │  M2 交易后反思 ✅ · M3 信任度评分 ✅ · M4 动态权重 ✅ · C1 简报分区 ✅
 
-Phase R ──── 实盘加固 ██████████████████░░░░░░░░░  65% 🟡
-  │  多源交叉验证 ✅ · 密钥安全 ✅ · API 限流 ✅ · 三层测试策略 ✅ · RC-001/002 ✅ · 前端四态 · 置信度量化
+Phase R ──── 实盘加固 ██████████████████████████░  90% 🟢
+  │  多源交叉验证 ✅ · 密钥安全 ✅ · API 限流 ✅ · 三层测试策略 ✅ · RC-001/002 ✅
+  │  C2 情绪数据层 ✅ · R4 置信度量化 ✅ · 交易复盘看板 ✅ · TD-041 数据新鲜度 ✅
 
-Phase R+1 ──── 设计哲学落地 ██░░░░░░░░░░░░░░░░░░░░  10% 🟡 ← 当前阶段
-  │  虚拟小投行 · D1 同侪审阅 · 偏斜公示 · 旋钮扩展 · 灵感官 · 镜子反思 · 信息隔离
+Phase R+1 ──── 设计哲学落地 █████████████████░░░░░░  68% 🟡 ← 当前阶段
+  │  DP-001 模型瘦身 ✅ · DP-002 三段式互评 ✅ · DP-003 偏斜公示 ✅
+  │  DP-004 旋钮扩展 ✅ · DP-005 灵感官 ✅ · DP-007 信息隔离 ✅
+  │  剩余: DP-006 镜子反思
 
 FD ──── 基本面深度 ✅ █████████░░░░░░░░░░░░░░░░░░░  30% 🟢 ← 数据层+API+前端已完成
   │  机构级基本面分析：财报纵深(FD-001全链路✅) · 产业链定位(FD-003 调研中) · 供应链图谱(FD-004 调研中)
@@ -245,7 +252,7 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 ### 工程素养
 
 - 📐 **9 份架构决策记录** — 每步选型有理由有权衡，不是"跟着教程写"
-- 🧪 **1044 测试** — 含真实 LLM 集成测试 + 10 层完整链路（含用户经验反馈闭环🆕）+ 财务端点到前端全链路，不是 mock 到死
+- 🧪 **1136 测试** — 含真实 LLM 集成测试 + 10 层完整链路 + 财务端点到前端全链路 + 交易复盘看板，不是 mock 到死
 - 📝 **完整的文档体系** — 设计文档/流程规范/工作日志，代码即文档
 - 🔄 **CI/CD 全自动流水线** — GitHub Actions 一键 lint + type + test
 - 🔁 **结果驱动闭环地基** — RC-001/002 让“实际走势出来了”可以统一触发大师信任度校准
@@ -277,6 +284,9 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 - [🔬 基本面深度调研报告](docs/02-requirements/FUNDAMENTAL_RESEARCH.md) — 机构级财报/供应链分析可行性（2026-06-23 新增）
 - [🎓 结果回调引擎学习卡片](docs/learning/23-result-callback-engine.md) — RC-001 如何让结果自动触发系统学习
 - [🎓 按场景校准信任度](docs/learning/24-contextual-trust-calibration.md) — RC-002 为什么要按板块评估大师胜率
+- [🎓 财务指标数据模型](docs/learning/25-financial-indicator-model.md) — FinancialMetrics 17 指标设计模式
+- [🎓 估值比率模型](docs/learning/26-valuation-metrics-model.md) — PE/PB/PS 估值模型设计
+- [🎓 PD 动态指标体系](docs/learning/27-pd-dynamic-indicators.md) — 产业链位置感知的指标注册表
 
 ---
 

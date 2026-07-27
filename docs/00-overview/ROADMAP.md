@@ -167,7 +167,7 @@
 | 🟡 P1 | **测试架构提升** — 模块级 conftest 创建 + fixture 迁移 TODO | 全部就绪 | ~2h |
 | 🟡 P1 | **契约测试** — tests/contract/ 目录 + data→debate 契约 | 全部就绪 | ~1h |
 | 🟡 P2 | **TD-040 LLM Provider fallback** | utils 就绪 | ~1d |
-| 🟡 P2 | **TD-041 数据新鲜度标注** | data + frontend | ~2h |
+| ✅ P2 | **TD-041 数据新鲜度标注** — ✅ 已修复：fetched_at + 前端标签 + 缓存标记 | data + frontend | ~2h ✅ |
 | 🟢 R4 | **📊 交易复盘看板 (Trade Retro Board)** — AI推荐记录 + 用户操作 + 实际盈亏 + 准确率统计 | data + debate + frontend | ~2d |
 | 🟢 R4 | **AI推荐置信度量化** — 不确定性明确标注，胡说检测 | debate | ~2d |
 | 🟢 R4 | **回测看板** — AI历史建议准确率可视化 | frontend | ~2d |
