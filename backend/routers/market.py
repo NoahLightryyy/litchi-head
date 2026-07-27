@@ -458,3 +458,72 @@ async def get_macro_brief():
         "data": brief.model_dump(),
         "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
     }
+
+
+class HotNewsItemResp(BaseModel):
+    """热点快讯条目"""
+    title: str
+    date: str
+    source: str = ""
+    url: str = ""
+
+
+_HOT_NEWS_CACHE: dict[str, object] = {}
+_HOT_NEWS_TTL = 120  # 2 分钟
+
+
+@router.get("/hot-news")
+async def get_hot_news():
+    """热点快讯 —— 全市场新闻聚合"""
+    t0 = time.time()
+    now = datetime.now().timestamp()
+
+    # 检查缓存
+    cached = _HOT_NEWS_CACHE.get("data")
+    cached_at = _HOT_NEWS_CACHE.get("ts", 0.0)
+    if (
+        cached is not None
+        and isinstance(cached_at, (int, float))
+        and (now - cached_at) < _HOT_NEWS_TTL
+    ):
+        return {
+            "data": cached,
+            "meta": {"cached": True, "latency_ms": round((time.time() - t0) * 1000)},
+        }
+
+    try:
+        df: pd.DataFrame = await run_sync(ak.stock_news_main_cx)
+        items: list[dict[str, str]] = []
+        for _, row in df.head(30).iterrows():
+            items.append(HotNewsItemResp(
+                title=safe_str(row.get("title", "")),
+                date=safe_str(row.get("date", "")),
+                source=safe_str(row.get("source", "")),
+                url=safe_str(row.get("url", "")),
+            ).model_dump())
+        _HOT_NEWS_CACHE["data"] = items
+        _HOT_NEWS_CACHE["ts"] = now
+        return {
+            "data": items,
+            "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        }
+    except Exception as e:
+        logger.exception("热点快讯获取失败: %s", e)
+        # 有缓存则返回过期缓存
+        if cached is not None:
+            return {
+                "data": cached,
+                "meta": {
+                    "cached": True,
+                    "latency_ms": round((time.time() - t0) * 1000),
+                    "stale": True,
+                },
+            }
+        return {
+            "data": [],
+            "meta": {
+                "cached": False,
+                "latency_ms": round((time.time() - t0) * 1000),
+                "error": str(e),
+            },
+        }

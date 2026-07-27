@@ -791,10 +791,48 @@ def compute_weight_factor(metrics: AgentTrustMetrics, sector: str = "") -> float
     return round(max(0.5, min(1.5, factor)), 2)
 
 
+def calibrate_confidence(
+    stated_confidence: float,
+    calibration_curve: list[dict[str, float]],
+) -> float:
+    """用校准曲线将陈述置信度映射为校准概率
+
+    算法：找到置信度所在的 bucket，返回该 bucket 的历史准确率。
+    无校准数据时原样返回。
+
+    Args:
+        stated_confidence: 原始置信度（0-1）
+        calibration_curve: 校准曲线，每个元素含 bucket/acc/count
+
+    Returns:
+        校准后置信度（0-1），无数据时返回原值
+    """
+    if not calibration_curve or stated_confidence <= 0.0:
+        return stated_confidence
+
+    # 找到置信度所在的 bucket
+    target_bucket = stated_confidence
+    best_acc = stated_confidence  # 无匹配时原值
+    best_dist = float("inf")
+
+    for point in calibration_curve:
+        bucket = point.get("bucket", 0.5)
+        acc = point.get("acc", stated_confidence)
+        dist = abs(bucket - target_bucket)
+        if dist < best_dist:
+            best_dist = dist
+            best_acc = acc
+
+    # 保守约束：校准置信度不低于原始值的 70%，不高于原始值的 130%
+    calibrated = max(stated_confidence * 0.7, min(stated_confidence * 1.3, best_acc))
+    return round(max(0.05, min(0.99, calibrated)), 3)
+
+
 __all__ = [
     "AgentOutcome",
     "AgentTrustMetrics",
     "TrustTracker",
     "TrustReport",
+    "calibrate_confidence",
     "compute_weight_factor",
 ]

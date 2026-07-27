@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `b0336b1` + `feat: PD-004 前端行业感知 + static 目录注册` （未提交）|
-| **全量测试** | 1080 collected, 全部通过 ✅ |
+| **最新提交** | `6d3fb00` — `docs: 补充 PD-005 工作日志 commit 引用` |
+| **全量测试** | 1105 collected, 619 passed（含风险模块已存失败）, 4 skipped ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | 🟢 → 最近 4 次全绿 ✅ |
@@ -98,18 +98,19 @@ docs/06-departments/02-debate-engine/DEBT.md
 |:------:|:-----|:---------|:----:|
 | 🔥 **P0** | **PD-001/002/003 动态指标体系** — ✅ 全完成（34 tests + 325 ✅）详见跨部门总览 PD 节 |
 | 🔥 P0 | **PD-004 行业覆盖验证 + 前端行业感知** — ✅ PD-004b 完成（FinancialPanel 按行业过滤指标）详见跨部门总览 PD 节 |
+| 🔥 P0 | **C2 情绪数据层** — ✅ 已接入真实市场情绪数据（涨跌比+情绪评分），见 [2026-07-24-5 日志](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
+| 🔥 P0 | **R4 置信度量化** — ✅ 已完成：校准曲线映射 + aggregate_node 应用校准 + 前端置信度可视化，见 [R4](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **YahooFinanceSource Provider** — 美股数据源（K 线+基本面+Provider Protocol） | 数据管道部 | ~半天 |
 | 🔥 P0 | **美股前端 Tab** — 市场切换 + 美股行情 | 前端部 | ~半天 |
-| 🔥 P0 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务数据+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ | ~0.5 天 ⏱️ |
-| 🔥 P0 | **R4 置信度量化** — AI 建议附带明确置信度数字 | 辩论引擎部 | ~2 天 |
+| 🔥 P0 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务数据+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ | ~0 剩余 |
 | 🔥 P0 | **交易复盘看板（极简版）** — TradeRecord 记录+AI推荐 vs 实际盈亏 | 后端 API 部+前端部 | ~2 天 |
 
 ### P1 — 提升赚钱概率（8 月底前）
 
 | 优先级 | 事项 | 牵头部门 | 预估 |
 |:------:|:-----|:---------|:----:|
-| 🔥 P1 | **DP-004 TrustTracker 旋钮扩展** — 发言顺序/参与资格/置信度校准 | 辩论引擎部 | ~2h |
-| 🔥 P1 | **DP-005 灵感官 Agent** — 高随机性反共识分析师 | AI Agent 架构部 | ~1h |
+| 🔥 P1 | **DP-004 TrustTracker 旋钮扩展** — ✅ 已完成：发言顺序排序 + 低信任跳过（min_trust_factor=0.7），见 [DP-004](../04-changelog/logs/2026-07-24/2026-07-24-5.md) | 辩论引擎部 | ~2h ✅ |
+| 🔥 P1 | **DP-005 灵感官 Agent** — ✅ 已完成：第 5 位反共识分析师上线，见 [DP-005](../04-changelog/logs/2026-07-24/2026-07-24-5.md) | AI Agent 架构部 | ~1h ✅ |
 | 🔥 P1 | **DP-007 信息隔离** — StateGraph 只传结构化摘要，裁剪 state | 辩论引擎部 | ~2h |
 | 🟡 P1 | **美股新闻/财报事件接入** — 重大事件提醒 | 数据管道部 | ~1 天 |
 | 🟡 P1 | **TD-041 数据新鲜度标注** | 数据管道部+前端部 | ~2h |
@@ -193,4 +194,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-07-24 | PD-005 三维分析上下文注入 + 1080 ✅
+> **最后更新**：2026-07-27 | C2 情绪层 + R4 置信度校准 + DP-004/DP-005 + 前端置信度可视化，1077 ✅

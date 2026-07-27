@@ -752,6 +752,8 @@ class TestGraphWithD3:
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
         mock_collector.get_financials.return_value = []
+        mock_collector.get_market_sentiment.return_value = None
+        mock_collector.get_dynamic_indicators.return_value = {}
 
         orch = DebateOrchestrator(data_collector=mock_collector)
         graph = orch._build_graph()
@@ -774,6 +776,8 @@ class TestGraphWithD3:
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
         mock_collector.get_financials.return_value = []
+        mock_collector.get_market_sentiment.return_value = None
+        mock_collector.get_dynamic_indicators.return_value = {}
 
         orch = DebateOrchestrator(data_collector=mock_collector)
         graph = orch._build_graph()
@@ -795,6 +799,8 @@ class TestFullFlowWithD3:
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
         mock_collector.get_financials.return_value = []
+        mock_collector.get_market_sentiment.return_value = None
+        mock_collector.get_dynamic_indicators.return_value = {}
 
         orch = DebateOrchestrator(
             data_collector=mock_collector,
@@ -886,6 +892,8 @@ class TestFullFlowWithD3:
         mock_collector.get_klines.return_value = []
         mock_collector.get_news.return_value = []
         mock_collector.get_financials.return_value = []
+        mock_collector.get_market_sentiment.return_value = None
+        mock_collector.get_dynamic_indicators.return_value = {}
 
         orch = DebateOrchestrator(
             data_collector=mock_collector,

@@ -636,3 +636,109 @@ class TestGetValuation:
         assert result.ps == 5.0  # 2.5e11 / 5.0e10
         assert result.market_cap == 2.5e11
 
+
+# ── C2: 市场情绪数据 ────────────────────────────────────────────────
+
+
+class TestMarketSentiment:
+    """DataCollector.get_market_sentiment() 单元测试"""
+
+    def test_sentiment_counts_from_quotes(self, collector):
+        """应从实时行情计算涨跌家数"""
+        result = collector.get_market_sentiment()
+        assert result.up_count == 1  # 平安银行 +2.46%
+        assert result.down_count == 1  # 贵州茅台 -0.79%
+        assert result.flat_count == 0
+        assert result.sentiment_score == 50.0  # 1/2 = 50%
+
+    def test_sentiment_label_neutral(self, collector):
+        """涨跌各半时情绪为中性"""
+        result = collector.get_market_sentiment()
+        assert result.label == "中性"
+
+    def test_sentiment_network_error_returns_defaults(self, failing_collector):
+        """网络异常应返回默认值"""
+        result = failing_collector.get_market_sentiment()
+        assert result.up_count == 0
+        assert result.down_count == 0
+        assert result.sentiment_score == 0.0
+        assert result.label == "中性"
+
+    def test_sentiment_with_cache(self, mock_empty_cache):
+        """缓存应生效"""
+        from unittest.mock import MagicMock
+
+        mock_empty_cache.cache.set("all_quotes", [
+            MagicMock(change_pct=5.0),
+            MagicMock(change_pct=-3.0),
+            MagicMock(change_pct=1.0),
+            MagicMock(change_pct=-2.0),
+        ])
+        mock_empty_cache._source.get_realtime_quotes = MagicMock(
+            side_effect=AssertionError("不应调用")
+        )
+        result = mock_empty_cache.get_market_sentiment()
+        assert result.up_count == 2
+        assert result.down_count == 2
+        assert result.sentiment_score == 50.0
+
+
+class TestFormatMarketBriefSentiment:
+    """format_market_brief 情绪层 C2 测试"""
+
+    def test_sentiment_section_shows_sentiment(self):
+        """传入情绪数据应显示涨跌比和情绪评级"""
+        from src.data.collector import format_market_brief
+        from src.data.models import MarketSentiment
+
+        sent = MarketSentiment(
+            up_count=2500, down_count=1500, flat_count=200,
+            sentiment_score=62.5, label="乐观",
+        )
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            sentiment=sent,
+        )
+
+        assert "市场情绪: 乐观（62/100）" in result
+        assert "上涨 2500 家" in result
+        assert "下跌 1500 家" in result
+        assert "涨跌比 2500:1500" in result
+
+    def test_sentiment_none_fallback(self):
+        """不传入情绪数据应显示暂无情绪数据"""
+        from src.data.collector import format_market_brief
+
+        result = format_market_brief(stock_code="000001", stock_name="平安银行")
+        assert "暂无情绪数据" in result
+
+    def test_sentiment_all_flat_defaults(self):
+        """全平盘时显示暂无情绪数据"""
+        from src.data.collector import format_market_brief
+        from src.data.models import MarketSentiment
+
+        sent = MarketSentiment(up_count=0, down_count=0, flat_count=500)
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            sentiment=sent,
+        )
+        assert "暂无情绪数据" in result
+
+    def test_sentiment_limit_up_down(self):
+        """涨停/跌停数据应显示"""
+        from src.data.collector import format_market_brief
+        from src.data.models import MarketSentiment
+
+        sent = MarketSentiment(
+            up_count=3000, down_count=500, flat_count=100,
+            limit_up_count=80, limit_down_count=5,
+            sentiment_score=85.7, label="极度乐观",
+        )
+        result = format_market_brief(
+            stock_code="000001", stock_name="平安银行",
+            sentiment=sent,
+        )
+
+        assert "涨停 80 家" in result
+        assert "跌停 5 家" in result
+

@@ -86,6 +86,22 @@ class BoardInfo(BaseModel):
     board_type: BoardType
 
 
+class MarketSentiment(BaseModel):
+    """市场情绪指标
+
+    从全市场实时行情计算的市场情绪数据，用于情绪层简报填充。
+    sentiment_score 范围 0-100，越高越乐观。
+    """
+
+    up_count: int = 0  # 上涨家数
+    down_count: int = 0  # 下跌家数
+    flat_count: int = 0  # 平盘家数
+    limit_up_count: int = 0  # 涨停家数
+    limit_down_count: int = 0  # 跌停家数
+    sentiment_score: float = 0.0  # 0-100 情绪评分
+    label: str = "中性"  # 极度恐慌/恐慌/中性/乐观/极度乐观
+
+
 class BriefSection(BaseModel):
     """简报的一个区块
 
@@ -101,7 +117,7 @@ class MarketBrief(BaseModel):
     """结构化市场简报
 
     按 5 个维度（行情/行业分析/新闻/情绪/基本面）分区的市场简报。
-    C1 实现：情绪层为占位区段，待后续接入实际数据源。
+    C2 实现：情绪层已接入实际市场情绪数据（涨跌家数+情绪评分）。
     PD-005 新增行业分析层。
     """
 
@@ -218,6 +234,7 @@ __all__ = [
     "FinancialMetrics",
     "KLine",
     "MarketBrief",
+    "MarketSentiment",
     "NewsItem",
     "StockInfo",
     "StockQuote",

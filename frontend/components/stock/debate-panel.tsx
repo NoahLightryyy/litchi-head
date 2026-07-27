@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, RefreshCw } from "lucide-react";
+import { MessageSquare, RefreshCw, Info } from "lucide-react";
 import { useRunDebate, useDebateResult } from "@/lib/hooks/use-debate";
 import type { AgentAnalysis, VoteSummary } from "@/lib/types/debate";
 
@@ -113,16 +113,40 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
                   label="加权评分"
                   value={results.voteSummary.weighted_score.toFixed(1)}
                 />
-                <KpiItem
-                  label="置信度"
-                  value={`${(results.voteSummary.confidence * 100).toFixed(0)}%`}
-                />
+                <div>
+                  <span className="text-text-muted">置信度</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-number text-text-primary">
+                      {`${(results.voteSummary.confidence * 100).toFixed(0)}%`}
+                    </span>
+                    <span className="text-[10px] text-text-muted bg-bg-tertiary px-1 rounded">
+                      校准
+                    </span>
+                  </div>
+                </div>
                 {results.voteSummary.direction_distribution && (
                   <KpiItem
                     label="看涨"
                     value={`${results.voteSummary.direction_distribution.Bullish ?? 0}`}
                   />
                 )}
+              </div>
+            </div>
+            {/* 置信度条 */}
+            <div className="mt-3">
+              <div className="h-1.5 rounded-full bg-bg-tertiary overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${results.voteSummary.confidence * 100}%`,
+                    backgroundColor:
+                      results.voteSummary.confidence >= 0.7
+                        ? "rgb(34, 197, 94)"
+                        : results.voteSummary.confidence >= 0.4
+                          ? "rgb(234, 179, 8)"
+                          : "rgb(239, 68, 68)",
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -135,36 +159,81 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-bg-tertiary flex items-center justify-center text-sm">
-                  {["🦅", "🦊", "🐺", "🦉"][i] ?? "🤖"}
+                  {["🦅", "🦊", "🐺", "🦉", "🦄", "🐻", "🐯"][i] ?? "🤖"}
                 </div>
                 <div>
                   <span className="text-sm font-medium text-text-primary">
-                    {a.agent_name}
+                    {a.skill_name || a.agent_name}
                   </span>
                   <span className="text-xs text-text-muted ml-2">
-                    {a.skill_name}
+                    {a.agent_name.replace("master.", "")}
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
+                {/* 方向 */}
                 <span
                   className={`font-number text-sm ${
                     a.direction === "Bullish"
                       ? "text-accent-green"
-                      : "text-accent-gold"
+                      : a.direction === "Bearish"
+                        ? "text-accent-red"
+                        : "text-accent-gold"
                   }`}
                 >
-                  {a.direction === "Bullish" ? "看涨" : "中性"}
+                  {a.direction === "Bullish"
+                    ? "看涨"
+                    : a.direction === "Bearish"
+                      ? "看跌"
+                      : "中性"}
                 </span>
+                {/* 评分 */}
                 <span className="font-number text-sm text-text-secondary">
                   {a.score}/100
                 </span>
-                <span className="text-xs text-text-muted">
-                  {(a.confidence * 100).toFixed(0)}%
-                </span>
+                {/* 置信度条 */}
+                <div className="flex items-center gap-1.5 min-w-[80px]">
+                  <div className="flex-1 h-1.5 rounded-full bg-bg-tertiary overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${a.confidence * 100}%`,
+                        backgroundColor:
+                          a.confidence >= 0.7
+                            ? "rgb(34, 197, 94)"
+                            : a.confidence >= 0.4
+                              ? "rgb(234, 179, 8)"
+                              : "rgb(239, 68, 68)",
+                      }}
+                    />
+                  </div>
+                  <span className="font-number text-xs text-text-muted w-8 text-right">
+                    {(a.confidence * 100).toFixed(0)}%
+                  </span>
+                </div>
               </div>
             </div>
           ))}
+
+          {/* 偏斜公示 */}
+          {results.voteSummary.bias_report && (
+            <div className="mt-3 p-3 rounded-md border border-bg-tertiary bg-bg-primary/30">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Info className="w-3 h-3 text-text-muted" />
+                <span className="text-xs text-text-muted">偏斜公示</span>
+              </div>
+              <div className="flex gap-3 text-xs">
+                <span className="text-text-muted">
+                  看涨 {results.voteSummary.bias_report.bullish_count}/
+                  看跌 {results.voteSummary.bias_report.bearish_count}/
+                  中性 {results.voteSummary.bias_report.neutral_count}
+                </span>
+                <span className="text-text-muted">
+                  共识强度: {(results.voteSummary.bias_report.consensus_strength * 100).toFixed(0)}%
+                </span>
+              </div>
+            </div>
+          )}
         </>
       )}
 

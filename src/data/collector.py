@@ -27,6 +27,7 @@ from src.data.models import (
     FinancialMetrics,
     KLine,
     MarketBrief,
+    MarketSentiment,
     NewsItem,
     StockInfo,
     StockQuote,
@@ -552,6 +553,46 @@ class DataCollector:
             ],
         }
 
+    def get_market_sentiment(self) -> MarketSentiment:
+        """计算全市场情绪指标
+
+        利用已缓存的 get_realtime_quotes() 数据计算市场涨跌比和情绪评分。
+        涨停/跌停家数需额外 API 调用，暂为 0。
+        """
+        quotes = self.get_realtime_quotes()
+        up = sum(1 for q in quotes if q.change_pct > 0)
+        down = sum(1 for q in quotes if q.change_pct < 0)
+        flat = sum(1 for q in quotes if q.change_pct == 0)
+
+        score = 0.0
+        total_traded = up + down
+        if total_traded > 0:
+            ratio = up / total_traded
+            score = round(ratio * 100, 1)
+
+        if total_traded == 0:
+            label = "中性"
+        elif score >= 80:
+            label = "极度乐观"
+        elif score >= 60:
+            label = "乐观"
+        elif score >= 40:
+            label = "中性"
+        elif score >= 20:
+            label = "悲观"
+        else:
+            label = "极度恐慌"
+
+        return MarketSentiment(
+            up_count=up,
+            down_count=down,
+            flat_count=flat,
+            limit_up_count=0,
+            limit_down_count=0,
+            sentiment_score=score,
+            label=label,
+        )
+
 
 # ── 市场简报 ────────────────────────────────────────────────────────────
 
@@ -566,8 +607,9 @@ def format_market_brief(
     industry: str = "",
     chain_position: str = "",
     key_indicators: list[dict] | None = None,
+    sentiment: MarketSentiment | None = None,
 ) -> str:
-    """生成结构化市场简报（C1 分区输出 + PD-005 行业分析层）
+    """生成结构化市场简报（C2 情绪层接入 + PD-005 行业分析层）
 
     按 5 层分区输出：行情层 / 行业分析层 / 新闻层 / 情绪层 / 基本面层。
     各层使用 ``----- 层名 -----`` 视觉分隔线，让 LLM 能按需聚焦。
@@ -582,6 +624,7 @@ def format_market_brief(
         industry: 一级行业名称（如"银行"），来自 REGISTRY
         chain_position: 产业链位置（upstream/midstream/downstream/financial/other）
         key_indicators: 关键指标列表，每个含 id/name/description/unit/normal_range_hint
+        sentiment: 市场情绪数据（C2 新增），传 None 则显示"暂无数据"
 
     Returns:
         格式化文本，以 "📊 市场简报" 开头
@@ -679,12 +722,32 @@ def format_market_brief(
         has_data=has_news,
     )
 
-    # ── 情绪层（占位） ──
-    brief.sections["sentiment"] = BriefSection(
-        title="情绪层",
-        content="暂无情绪数据",
-        has_data=False,
-    )
+    # ── 情绪层（C2: 真实市场情绪数据） ──
+    if sentiment is not None and (sentiment.up_count + sentiment.down_count) > 0:
+        s_lines: list[str] = []
+        s_lines.append(f"市场情绪: {sentiment.label}（{sentiment.sentiment_score:.0f}/100）")
+        total = sentiment.up_count + sentiment.down_count + sentiment.flat_count
+        s_lines.append(
+            f"上涨 {sentiment.up_count} 家 | 下跌 {sentiment.down_count} 家"
+            f" | 平盘 {sentiment.flat_count} 家 | 总计 {total} 家"
+        )
+        ratio = sentiment.up_count / max(sentiment.up_count + sentiment.down_count, 1) * 100
+        s_lines.append(f"涨跌比 {sentiment.up_count}:{sentiment.down_count}（{ratio:.1f}% 上涨）")
+        if sentiment.limit_up_count > 0 or sentiment.limit_down_count > 0:
+            s_lines.append(
+                f"涨停 {sentiment.limit_up_count} 家 | 跌停 {sentiment.limit_down_count} 家"
+            )
+        brief.sections["sentiment"] = BriefSection(
+            title="情绪层",
+            content="\n".join(s_lines),
+            has_data=True,
+        )
+    else:
+        brief.sections["sentiment"] = BriefSection(
+            title="情绪层",
+            content="暂无情绪数据",
+            has_data=False,
+        )
 
     # ── 基本面层（FD-001e: 真实财务数据） ──
     fund_lines: list[str] = []

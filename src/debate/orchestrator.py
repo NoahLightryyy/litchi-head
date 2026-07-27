@@ -2,7 +2,7 @@
 
 核心流程：
   1. collect_data — 采集行情 + K线 + 新闻
-  2. analyst_round — 4 位专业分析师（基本面/技术面/情绪面/宏观面）
+  2. analyst_round — 5 位专业分析师（基本面/技术面/情绪面/宏观面/灵感官）
   3. master_round — 策略师基于分析师报告综合判断
   4. review_round — D1 交叉审阅（赞同+补充+异议三段式）
   5. review_report — D3 独立评审
@@ -78,7 +78,7 @@ from src.debate.reflection import (  # noqa: E402
     _load_decision_from_memory,
     generate_reflection,
 )
-from src.debate.trust import TrustTracker, compute_weight_factor  # noqa: E402
+from src.debate.trust import TrustTracker, calibrate_confidence, compute_weight_factor  # noqa: E402
 from src.memory.skill_disk import MasterSkill, SkillDisk  # noqa: E402
 from src.memory.store import MemoryItem, MemoryStore  # noqa: E402
 from src.utils.llm import llm_service  # noqa: E402
@@ -123,6 +123,7 @@ class DebateState(TypedDict):
     trader_round: dict  # 序列化的 TraderRoundResult（T1 交易员层）
     trade_recommendation: dict  # 序列化的 TradeRecommendation（R1 PM 裁决）
     trust_weight_factors: dict  # M4: agent_name → compute_weight_factor()
+    calibration_map: dict  # R4: agent_name → calibration_curve list
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
@@ -187,7 +188,14 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
             target_quote = q
             break
 
-    # 生成市场简报（含 PD-005 行业分析层）
+    # 市场情绪数据（C2: 全市场涨跌比 + 情绪评分）
+    sentiment: object | None = None
+    try:
+        sentiment = collector.get_market_sentiment()
+    except Exception as e:
+        logger.exception("市场情绪获取失败: %s", e)
+
+    # 生成市场简报（含 PD-005 行业分析层 + C2 情绪层）
     brief = format_market_brief(
         stock_code=code,
         stock_name=inp.get("stock_name", ""),
@@ -198,6 +206,7 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
         industry=industry_name,
         chain_position=chain_pos,
         key_indicators=key_indicators,
+        sentiment=sentiment,
     )
 
     return {
@@ -839,21 +848,31 @@ def make_analyst_round_node(personas: list[AnalystPersona]):
     return analyst_round_node
 
 
-def make_master_round_node(skills: list[MasterSkill]):
-    """创建大师轮次节点 —— 顺序运行所有大师
+def make_master_round_node(
+    skills: list[MasterSkill],
+    min_trust_factor: float = 0.7,
+):
+    """创建大师轮次节点 —— 按信任度排序后顺序运行所有大师
 
-    使用顺序而非并行执行，避免 LangGraph 并行写入同一 state key 的冲突。
-    每位大师的 Agent.run_safe() 内部自带超时保护，失败不会阻塞后续大师。
+    支持 DP-004 TrustTracker 旋钮扩展：
+    - 发言顺序：按 trust_weight_factors 降序排列（信任度高的先发言）
+    - 参与资格：trust_weight_factor < min_trust_factor 的大师跳过辩论
+     - 注意：reliable 标记的过滤在 run() 阶段已处理，这里做二次保护。
 
     Args:
         skills: 参与辩论的大师列表
+        min_trust_factor: 最低信任权重阈值（低于此值跳过发言）
 
     Returns:
         异步节点函数 (state) -> dict
     """
 
     async def master_round_node(state: DebateState) -> dict:
-        """运行所有大师的策略分析（基于分析师报告）"""
+        """运行所有大师的策略分析（基于分析师报告）
+
+        DP-004: 从 state 读取 trust_weight_factors，
+        按信任度降序排序，低于阈值的大师跳过。
+        """
         inp = state.get("debate_input", {})
         code = inp.get("stock_code", "")
         question = inp.get("question", "请分析这只股票的投资价值")
@@ -863,6 +882,9 @@ def make_master_round_node(skills: list[MasterSkill]):
         history_ctx = state.get("history_context", "")
         reflection_ctx = state.get("reflection_context", "")
         analyst_reports_raw = state.get("analyst_reports", {})
+
+        # DP-004: 读取 trust_weight_factors
+        trust_factors: dict[str, float] = state.get("trust_weight_factors", {})
 
         # 将 state 中的 dict 转换为 AnalystReport 实例
         analyst_reports: dict[str, AnalystReport] = {}
@@ -876,10 +898,26 @@ def make_master_round_node(skills: list[MasterSkill]):
                 elif isinstance(v, AnalystReport):
                     analyst_reports[k] = v
 
+        # DP-004: 按 trust_weight_factor 排序（降序），过滤低于阈值的
+        skill_entries: list[tuple[float, MasterSkill]] = []
+        for skill in skills:
+            key = f"master.{skill.skill_id}"
+            factor = trust_factors.get(key, 1.0)
+            if factor < min_trust_factor:
+                logger.info(
+                    "DP-004 跳过大师 %s (factor=%.2f < %.2f)",
+                    skill.skill_id, factor, min_trust_factor,
+                )
+                continue
+            skill_entries.append((factor, skill))
+
+        # 降序排列：信任度高的优先发言
+        skill_entries.sort(key=lambda x: x[0], reverse=True)
+
         all_analyses: dict[str, AgentAnalysis] = {}
         all_errors: list[str] = []
 
-        for skill in skills:
+        for _, skill in skill_entries:
             analysis = await _run_single_master(
                 skill=skill,
                 session_id=sid,
@@ -1125,6 +1163,7 @@ async def aggregate_node(state: DebateState) -> dict:
     weighted_score_sum = 0.0
     total_weight = 0.0
     trust_weight_factors: dict[str, float] = {}
+    calibration_map: dict[str, list[dict[str, float]]] = state.get("calibration_map", {})
 
     for a in successful:
         rebuttal = rebuttal_map.get(a.agent_name)
@@ -1147,6 +1186,12 @@ async def aggregate_node(state: DebateState) -> dict:
             use_rating = a.rating
             use_score = a.score
             use_confidence = a.confidence
+
+        # ── R4: 用校准曲线校准置信度 ─────────────────
+        agent_calibration = calibration_map.get(a.agent_name, [])
+        if agent_calibration:
+            calibrated = calibrate_confidence(use_confidence, agent_calibration)
+            use_confidence = calibrated
 
         # 应用 weight_suggestion（如果有）
         weight_factor = weight_suggestions.get(a.agent_name, 1.0)
@@ -1288,6 +1333,7 @@ class DebateOrchestrator:
         enable_reflection: bool = False,
         enable_trust: bool = False,
         callback_engine: ResultCallbackEngine | None = None,
+        min_trust_factor: float = 0.7,
     ):
         """初始化辩论编排器
 
@@ -1313,6 +1359,8 @@ class DebateOrchestrator:
                 自动调整每位大师的投票权重。需要同时提供 memory_store。
             callback_engine: 结果回调引擎（可选）。
                 不提供且 enable_trust=True 时自动创建并注册 M3-EXT 回调。
+            min_trust_factor: DP-004 最低信任权重阈值（默认 0.7）。
+                低于此值的大师跳过辩论发言，仅保留投票权重参与 aggregate。
         """
         self.data_collector = data_collector or DataCollector()
         self.skill_disk = skill_disk or SkillDisk()
@@ -1324,6 +1372,7 @@ class DebateOrchestrator:
         self.enable_reflection = enable_reflection
         self.enable_trust = enable_trust
         self.callback_engine = callback_engine
+        self.min_trust_factor = min_trust_factor
         if self.callback_engine is None and enable_trust:
             self.callback_engine = ResultCallbackEngine(memory_store=memory_store)
             register_m3_ext_callback(self.callback_engine, memory_store=memory_store)
@@ -1360,17 +1409,20 @@ class DebateOrchestrator:
         )
         graph.set_entry_point("collect_data")
 
-        # 分析师轮次节点：4 位专业分析师（基本面/技术面/情绪面/宏观面）
+        # 分析师轮次节点：5 位专业分析师（基本面/技术面/情绪面/宏观面/灵感官）
         graph.add_node(
             "analyst_round",
             make_analyst_round_node(self.analyst_personas),
         )
         graph.add_edge("collect_data", "analyst_round")
 
-        # 大师轮次节点（策略师）：基于分析师报告进行综合判断
+        # 大师轮次节点（DP-004: 按信任度排序，低信任跳过）
         graph.add_node(
             "master_round",
-            make_master_round_node(self.master_skills),
+            make_master_round_node(
+                self.master_skills,
+                min_trust_factor=self.min_trust_factor if self.enable_trust else 0.0,
+            ),
         )
         graph.add_edge("analyst_round", "master_round")
 
@@ -1663,8 +1715,9 @@ class DebateOrchestrator:
             except Exception as e:
                 logger.exception("反思记忆查询失败: %s", e)
 
-        # 查询信任度权重（M4 动态权重）
+        # 查询信任度权重（M4 动态权重）+ 校准曲线（R4 置信度校准）
         trust_weight_factors: dict[str, float] = {}
+        calibration_map: dict[str, list[dict[str, float]]] = {}
         if self.memory_store and self.enable_trust:
             try:
                 tracker = TrustTracker(memory_store=self.memory_store)
@@ -1674,6 +1727,7 @@ class DebateOrchestrator:
                     if report.is_reliable:
                         factor = compute_weight_factor(report.metrics)
                         trust_weight_factors[agent_name] = factor
+                        calibration_map[agent_name] = report.metrics.calibration_curve
             except Exception as e:
                 logger.exception("信任度查询失败: %s", e)
 
@@ -1694,6 +1748,7 @@ class DebateOrchestrator:
             "trader_round": {},
             "trade_recommendation": {},
             "trust_weight_factors": trust_weight_factors,
+            "calibration_map": calibration_map,
         }
 
         final_state = await app.ainvoke(initial_state)

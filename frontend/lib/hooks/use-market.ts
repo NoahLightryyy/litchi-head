@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchMarketIndices, fetchSectors, fetchMacroBrief, fetchSectorDetail } from "@/lib/api/market";
+import { fetchMarketIndices, fetchSectors, fetchMacroBrief, fetchSectorDetail, fetchHotNews } from "@/lib/api/market";
 
 /* ── 三大指数 ── */
 export function useMarketIndices() {
@@ -40,5 +40,15 @@ export function useSectorDetail(sectorId: string) {
     queryFn: () => fetchSectorDetail(sectorId),
     staleTime: 60_000,
     enabled: !!sectorId,
+  });
+}
+
+/* ── 热点快讯 ── */
+export function useHotNews() {
+  return useQuery({
+    queryKey: ["market", "hot-news"],
+    queryFn: fetchHotNews,
+    refetchInterval: 120_000,     // 2 分钟刷新
+    staleTime: 60_000,
   });
 }

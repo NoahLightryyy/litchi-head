@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { MarketIndex, SectorItem, MacroBrief, SectorDetail, ChainAnalysis } from "@/lib/types/market";
+import type { MarketIndex, SectorItem, MacroBrief, SectorDetail, ChainAnalysis, HotNewsItem } from "@/lib/types/market";
 
 /** 三大指数行情 */
 export async function fetchMarketIndices(): Promise<MarketIndex[]> {
@@ -19,4 +19,9 @@ export async function fetchSectors(sort: string = "fund_flow"): Promise<SectorIt
 /** 板块详情 + 产业链分析 */
 export async function fetchSectorDetail(sectorId: string): Promise<SectorDetail> {
   return api.get(`/market/sector/${sectorId}`);
+}
+
+/** 热点快讯 */
+export async function fetchHotNews(): Promise<HotNewsItem[]> {
+  return api.get("/market/hot-news");
 }

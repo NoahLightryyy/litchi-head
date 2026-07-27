@@ -22,6 +22,7 @@ from src.debate.trust import (
     TrustReport,
     TrustTracker,
     _build_calibration_curve,
+    calibrate_confidence,
     compute_weight_factor,
 )
 from src.memory.store import MemoryItem, MemoryStore
@@ -948,3 +949,55 @@ class TestEdgeCases:
             )
         report = await tracker.get_trust_report("master.test")
         assert "master.test" in report.summary or report.agent_name == "master.test"
+
+
+# ── R4: 置信度校准 ───────────────────────────────────────────────
+
+
+class TestCalibrateConfidence:
+    """calibrate_confidence 单元测试"""
+
+    def test_no_calibration_curve_returns_original(self):
+        """无校准曲线时返回原始置信度"""
+        result = calibrate_confidence(0.8, [])
+        assert result == 0.8
+
+    def test_calibrated_with_perfect_curve(self):
+        """完美校准曲线应准确映射"""
+        curve = [
+            {"bucket": 0.05, "acc": 0.05, "count": 10},
+            {"bucket": 0.15, "acc": 0.15, "count": 10},
+            {"bucket": 0.25, "acc": 0.25, "count": 10},
+            {"bucket": 0.35, "acc": 0.35, "count": 10},
+            {"bucket": 0.45, "acc": 0.45, "count": 10},
+            {"bucket": 0.55, "acc": 0.55, "count": 10},
+            {"bucket": 0.65, "acc": 0.65, "count": 10},
+            {"bucket": 0.75, "acc": 0.75, "count": 10},
+            {"bucket": 0.85, "acc": 0.85, "count": 10},
+            {"bucket": 0.95, "acc": 0.95, "count": 10},
+        ]
+        result = calibrate_confidence(0.8, curve)
+        assert 0.75 <= result <= 0.85
+
+    def test_calibrated_with_low_accuracy(self):
+        """低准确率校准曲线应显著降低置信度"""
+        curve = [
+            {"bucket": 0.85, "acc": 0.30, "count": 100},
+        ]
+        result = calibrate_confidence(0.85, curve)
+        assert result < 0.6
+        assert result >= 0.56  # 0.85 * 0.7 保守下限
+
+    def test_confidence_floor_and_ceiling(self):
+        """置信度有上下限"""
+        curve = [{"bucket": 0.5, "acc": 0.0, "count": 10}]
+        result = calibrate_confidence(0.5, curve)
+        assert result >= 0.05
+        assert result <= 0.99
+
+    def test_calibrated_with_high_accuracy(self):
+        """高准确率应在保守约束内微提置信度"""
+        curve = [{"bucket": 0.8, "acc": 0.95, "count": 100}]
+        result = calibrate_confidence(0.8, curve)
+        assert result > 0.8
+        assert result <= 0.99

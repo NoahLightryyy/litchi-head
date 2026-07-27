@@ -25,7 +25,7 @@ class AnalystPersona(BaseModel):
     """分析师人格 —— 定义分析师的专注领域和方法论
 
     Attributes:
-        analyst_type: 分析师类型标识（fundamental / technical / sentiment / macro）
+        analyst_type: 分析师类型标识（fundamental / technical / sentiment / macro / inspiration）
         name: 显示名称（如"基本面分析师"）
         system_prompt: 系统提示词 —— 角色定义、分析框架、输出要求
     """
@@ -114,14 +114,36 @@ _BUILTIN_ANALYSTS: dict[str, dict[str, str]] = {
             "- 识别宏观层面的风险信号"
         ),
     },
+    "inspiration": {
+        "analyst_type": "inspiration",
+        "name": "灵感官（反共识）",
+        "system_prompt": (
+            "你是一位独特的投资灵感官。你的核心价值是提供反共识视角。\n\n"
+            "核心原则：\n"
+            "1. 反共识 —— 当所有人都看涨时，你主动寻找看空理由；当所有人看跌时，"
+            "你寻找被忽视的利好。你的存在是为了让团队不陷入集体盲点。\n"
+            "2. 跨界联想 —— 将其他行业、历史事件、自然现象的规律迁移到当前股票分析。"
+            "比如用生态系统的稳定性类比公司的护城河。\n"
+            "3. 情景推演 —— 提出 2-3 个极端但合理的情景（黑天鹅/灰犀牛），"
+            "即使概率只有 5-10%。\n"
+            "4. 质疑假设 —— 挑战市场上对该股票的共识假设。\n"
+            '"如果市场认为这个利多已经定价了，那定价错在哪里？"\n\n'
+            "输出要求：\n"
+            "- 给出评分 (1-100)，可以不同于主流观点\n"
+            "- 明确方向判断 (Bullish/Bearish/Neutral)\n"
+            '- 列出 3-5 个"反共识"的关键发现\n'
+            "- 明确标注每个发现与主流观点的分歧程度（轻微/中等/强烈）\n"
+            '- 如果观点和主流一致，请在最后注明"这次我与主流一致"'
+        ),
+    },
 }
 
 
 def get_default_analysts() -> list[AnalystPersona]:
-    """获取默认的 4 位分析师
+    """获取默认的 5 位分析师（含 DP-005 灵感官）
 
     顺序即执行顺序：
-        基本面 → 技术面 → 情绪面 → 宏观面
+        基本面 → 技术面 → 情绪面 → 宏观面 → 灵感官（反共识）
     """
     return [
         AnalystPersona(**data)

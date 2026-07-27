@@ -65,3 +65,12 @@ export interface SectorStock {
   fund_flow: number;
   ai_rating: string;
 }
+
+/* ── 热点快讯 ── */
+
+export interface HotNewsItem {
+  title: string;
+  date: string;
+  source: string;
+  url: string;
+}

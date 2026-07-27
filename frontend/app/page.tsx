@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Search, BarChart3, TrendingUp, Newspaper } from "lucide-react";
-import { useMarketIndices, useSectors, useMacroBrief } from "@/lib/hooks/use-market";
+import { useMarketIndices, useSectors, useMacroBrief, useHotNews } from "@/lib/hooks/use-market";
 import { useStockSearch } from "@/lib/hooks/use-stock";
 import { MarketIndices } from "@/components/macro/market-indices";
 import { SectorRanking } from "@/components/macro/sector-ranking";
@@ -17,6 +17,7 @@ export default function MacroPage() {
   const { data: indices, isLoading: idxLoading, isError: idxError } = useMarketIndices();
   const { data: sectors, isLoading: secLoading, isError: secError } = useSectors(sortBy);
   const { data: brief, isLoading: briefLoading, isError: briefError, refetch } = useMacroBrief();
+  const { data: hotNews, isLoading: newsLoading } = useHotNews();
   const { data: searchResults } = useStockSearch(searchQuery);
 
   const handleSortChange = useCallback((sort: string) => {
@@ -106,8 +107,35 @@ export default function MacroPage() {
           <h2 className="text-sm font-semibold text-text-primary">热点快讯</h2>
           <span className="text-xs text-text-muted ml-auto">实时市场动态</span>
         </div>
-        <div className="p-4 rounded-lg border border-bg-tertiary bg-bg-secondary">
-          <p className="text-xs text-text-muted text-center py-4">暂无实时快讯（待接入数据源）</p>
+        <div className="rounded-lg border border-bg-tertiary bg-bg-secondary divide-y divide-bg-tertiary">
+          {newsLoading ? (
+            <div className="p-4 space-y-3">
+              {[1,2,3].map((i) => (
+                <div key={i} className="h-4 bg-bg-tertiary rounded animate-pulse" />
+              ))}
+            </div>
+          ) : hotNews && hotNews.length > 0 ? (
+            <div className="max-h-64 overflow-y-auto">
+              {hotNews.map((item, idx) => (
+                <a
+                  key={idx}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block px-4 py-2.5 hover:bg-bg-tertiary transition-colors"
+                >
+                  <p className="text-xs text-text-primary leading-relaxed line-clamp-2">{item.title}</p>
+                  <p className="text-[11px] text-text-muted mt-1">
+                    {item.source && `${item.source} · `}{item.date}
+                  </p>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4">
+              <p className="text-xs text-text-muted text-center py-4">暂无实时快讯</p>
+            </div>
+          )}
         </div>
       </section>
     </div>
