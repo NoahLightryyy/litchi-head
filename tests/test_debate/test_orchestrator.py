@@ -16,8 +16,10 @@ from src.debate.models import AgentAnalysis, DebateInput, DebateResult
 from src.debate.orchestrator import (
     DebateOrchestrator,
     DebateState,
+    _trim_market_data,
     aggregate_node,
     collect_data_node,
+    make_analyst_round_node,
     make_master_round_node,
 )
 from src.memory.skill_disk import SkillDisk
@@ -577,3 +579,114 @@ class TestDebateOrchestratorRun:
             summary = result.to_summary_dict()
             assert summary["共识"] == "看涨"
             assert summary["参与大师数"] == 1
+
+
+# ═══════════════════════════════════════════════════════════════════
+# DP-007 信息隔离测试
+# ═══════════════════════════════════════════════════════════════════
+
+
+class TestDP007InformationIsolation:
+    """DP-007: 验证 state 裁剪行为"""
+
+    def test_trim_market_data_removes_raw_arrays(self):
+        """_trim_market_data 移除原始数据数组，保留简要字段"""
+        full_md = {
+            "brief": "平安银行 当前价 12.50 元...",
+            "industry": "银行",
+            "chain_position": "financial",
+            "quote": {"code": "000001", "price": 12.5},
+            "quotes": [{"code": "000001", "price": 12.5}],
+            "klines": [{"date": "2024-01-01", "close": 12.0}],
+            "news": [{"title": "银行板块大涨"}],
+            "financials": [{"roe": 0.15}],
+        }
+        trimmed = _trim_market_data(full_md)
+
+        # 简要字段应保留
+        assert trimmed["brief"] == full_md["brief"]
+        assert trimmed["industry"] == "银行"
+        assert trimmed["chain_position"] == "financial"
+
+        # 原始数据数组应移除
+        assert "quotes" not in trimmed
+        assert "klines" not in trimmed
+        assert "news" not in trimmed
+        assert "financials" not in trimmed
+        assert "quote" not in trimmed
+
+    def test_trim_market_data_handles_empty(self):
+        """空 dict 应返回所有保留字段的空值"""
+        trimmed = _trim_market_data({})
+        assert trimmed["brief"] == ""
+        assert trimmed["industry"] == ""
+        assert trimmed["chain_position"] == ""
+
+    def test_trim_market_data_unknown_keys_stripped(self):
+        """不在白名单中的 key 应被移除"""
+        trimmed = _trim_market_data({"brief": "test", "extra": "应该消失"})
+        assert "extra" not in trimmed
+        assert trimmed["brief"] == "test"
+
+    @pytest.mark.asyncio
+    async def test_analyst_round_trims_market_data(self):
+        """analyst_round_node 返回的 market_data 已裁剪"""
+        mock_analyst = MagicMock()
+        mock_analyst.analyst_type = "fundamental"
+        mock_analyst.system_prompt = "fundamental"
+
+        node_fn = make_analyst_round_node([mock_analyst])
+
+        with patch(
+            "src.debate.orchestrator._run_single_analyst",
+            new_callable=AsyncMock,
+            return_value=MagicMock(
+                analyst_type="fundamental",
+                key_findings=["发现1"],
+                data_evidence=["数据1"],
+                summary="摘要",
+                score=75,
+                confidence=0.8,
+                direction_hint="Bullish",
+            ),
+        ):
+            state: DebateState = {
+                "session_id": "test-dp007",
+                "debate_input": {
+                    "stock_code": "000001",
+                    "stock_name": "平安银行",
+                    "question": "是否值得投资？",
+                },
+                "current_round": 1,
+                "analyses": {},
+                "market_data": {
+                    "brief": "平安银行 当前价 12.50 元...",
+                    "industry": "银行",
+                    "chain_position": "financial",
+                    "quotes": [{"code": "000001", "price": 12.5}],
+                    "klines": [{"date": "2024-01-01", "close": 12.0}],
+                },
+                "vote_summary": {},
+                "review_round": {},
+                "review_report": {},
+                "errors": [],
+                "history_context": "",
+                "reflection_context": "",
+                "analyst_reports": {},
+                "risk_round": {},
+                "trader_round": {},
+                "trade_recommendation": {},
+                "trust_weight_factors": {},
+                "calibration_map": {},
+            }
+            result = await node_fn(state)
+
+            # analyst_reports 正常
+            assert "analyst_reports" in result
+            # market_data 已裁剪 — 仅含简要字段
+            assert "market_data" in result
+            md = result["market_data"]
+            assert md["brief"] == "平安银行 当前价 12.50 元..."
+            assert md["industry"] == "银行"
+            assert "quotes" not in md
+            assert "klines" not in md

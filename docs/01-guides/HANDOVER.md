@@ -59,7 +59,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
 | **最新提交** | `6d3fb00` — `docs: 补充 PD-005 工作日志 commit 引用` |
-| **全量测试** | 1105 collected, 619 passed（含风险模块已存失败）, 4 skipped ✅ |
+| **全量测试** | 1105 collected（辩论模块 283 passed）✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | 🟢 → 最近 4 次全绿 ✅ |
@@ -111,7 +111,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 |:------:|:-----|:---------|:----:|
 | 🔥 P1 | **DP-004 TrustTracker 旋钮扩展** — ✅ 已完成：发言顺序排序 + 低信任跳过（min_trust_factor=0.7），见 [DP-004](../04-changelog/logs/2026-07-24/2026-07-24-5.md) | 辩论引擎部 | ~2h ✅ |
 | 🔥 P1 | **DP-005 灵感官 Agent** — ✅ 已完成：第 5 位反共识分析师上线，见 [DP-005](../04-changelog/logs/2026-07-24/2026-07-24-5.md) | AI Agent 架构部 | ~1h ✅ |
-| 🔥 P1 | **DP-007 信息隔离** — StateGraph 只传结构化摘要，裁剪 state | 辩论引擎部 | ~2h |
+| 🔥 P1 | **DP-007 信息隔离** — ✅ 已完成：analyst_round 后裁剪 market_data 原始数据数组，仅留 brief 文本 | 辩论引擎部 | ~2h ✅ |
 | 🟡 P1 | **美股新闻/财报事件接入** — 重大事件提醒 | 数据管道部 | ~1 天 |
 | 🟡 P1 | **TD-041 数据新鲜度标注** | 数据管道部+前端部 | ~2h |
 
@@ -194,4 +194,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-07-27 | C2 情绪层 + R4 置信度校准 + DP-004/DP-005 + 前端置信度可视化，1077 ✅
+> **最后更新**：2026-07-27 | DP-007 信息隔离 + 283 debate tests ✅

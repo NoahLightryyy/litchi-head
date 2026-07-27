@@ -35,7 +35,7 @@ last_updated: 2026-07-23
 | D4 投票扩展（test_d4_vote） | 15 |
 | 信任度（test_trust） | 54 |
 | M4 动态权重（test_m4_dynamic） | 10 |
-| **辩论模块合计** | **235** |
+| **辩论模块合计** | **283** |
 
 ### 关键指标
 
@@ -211,7 +211,7 @@ master_round（所有大师看到更高质量的分析师报告）
 | **DP-003** 🥇 | **偏斜公示** — D4 聚合后统计正面/负面观点比例，输出偏斜度（`BiasReport`）供前端消费 | ~1h |
 | **DP-004** 🥇 | **TrustTracker 旋钮扩展** — 增加 `发言顺序权重`、`参与资格阈值`、`置信度校准系数` 三种新旋钮，全用公式计算不经过 LLM | ~2h |
 | **DP-006** 🥈 | **镜子反思** — 辩论结束后产出一份历史对比（上次类似市况谁的判断准），展示给用户看，不自动注入 | ~2h |
-| **DP-007** 🥈 | **信息隔离** — StateGraph 每层结束后裁剪 state，只保留该层的 Pydantic 结构化 model，删除原始 prompt 和中间结果 | ~2h |
+| **DP-007** 🥈 | **信息隔离** — StateGraph 每层结束后裁剪 state，只保留该层的 Pydantic 结构化 model，删除原始 prompt 和中间结果 | ✅ 已完成 |
 
 ### DP-003 偏斜度输出接口
 
@@ -255,7 +255,7 @@ class BiasReport:
 
 | 文件 | 行数 | 说明 |
 |:-----|:----:|:------|
-| `src/debate/orchestrator.py` | 1622 | 🔴 编排器主体（需拆分） |
+| `src/debate/orchestrator.py` | **1827** → 含 DP-007 `_trim_market_data()` | 🔴 编排器主体（需拆分） |
 | `src/debate/trust.py` | 759 | 🟡 信任度评分引擎 |
 | `src/debate/models.py` | 368 | 辩论数据模型（D1-D4 + M1-M4） |
 | `src/debate/reflection.py` | 345 | M2 反思闭环 |

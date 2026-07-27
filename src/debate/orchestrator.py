@@ -87,6 +87,25 @@ from src.utils.llm import llm_service  # noqa: E402
 
 _MAX_HISTORY_FETCH = 20  # 查询历史决策的最大条数
 
+
+def _trim_market_data(market_data: dict) -> dict:
+    """裁剪 market_data，只保留下游节点需要的简要字段（DP-007 信息隔离）
+
+    analyst_round 之后（含）的表决链路只需要 market_data 中的文本摘要，
+    原始行情/K线/新闻/财务数据数组不再需要，可以裁剪以减小 state 体积。
+
+    Args:
+        market_data: 原始 market_data dict
+
+    Returns:
+        裁剪后的 market_data，仅含 brief / industry / chain_position
+    """
+    return {
+        "brief": market_data.get("brief", ""),
+        "industry": market_data.get("industry", ""),
+        "chain_position": market_data.get("chain_position", ""),
+    }
+
 # ── LangGraph State ──────────────────────────────────────────────
 
 
@@ -843,6 +862,8 @@ def make_analyst_round_node(personas: list[AnalystPersona]):
         return {
             "analyst_reports": all_reports,
             "errors": all_errors,
+            # DP-007: 信息隔离 — 裁剪 market_data，下游只需要 brief 文本
+            "market_data": _trim_market_data(md),
         }
 
     return analyst_round_node
