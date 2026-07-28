@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -180,3 +181,34 @@ def test_snapshot_measurement_uses_real_debate_contract() -> None:
     assert measurement.result_bytes > 1_000
     assert len(measurement.sha256) == 64
 
+
+@pytest.mark.asyncio
+async def test_store_closes_every_sqlite_connection(tmp_path: Path) -> None:
+    real_connect = sqlite3.connect
+    opened: list[TrackingConnection] = []
+
+    class TrackingConnection(sqlite3.Connection):
+        was_closed = False
+
+        def close(self) -> None:
+            self.was_closed = True
+            super().close()
+
+    def tracking_connect(*args: object, **kwargs: object) -> TrackingConnection:
+        kwargs["factory"] = TrackingConnection
+        connection = real_connect(*args, **kwargs)
+        assert isinstance(connection, TrackingConnection)
+        opened.append(connection)
+        return connection
+
+    store = SqliteDebateSessionStore(tmp_path / "sessions.db")
+    with patch(
+        "src.debate.session_store.sqlite3.connect",
+        side_effect=tracking_connect,
+    ):
+        await store.save(_completed_record())
+        await store.get("deb_recovery_001")
+        await store.count()
+
+    assert opened
+    assert all(connection.was_closed for connection in opened)
