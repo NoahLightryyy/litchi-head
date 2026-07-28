@@ -42,6 +42,7 @@ def test_python_ci_checks_src_and_backend_with_node24_actions() -> None:
     actions = _used_actions(python_job)
 
     assert "pyright src/ backend/" in commands
+    assert 'python -m pytest -m "not slow" --cov=src' in commands
     assert "actions/checkout@v6" in actions
     assert "actions/setup-python@v6" in actions
 
