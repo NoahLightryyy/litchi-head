@@ -36,13 +36,16 @@ department: 基础设施部
 
 2026-07-28 全量检查剩余两条第三方警告：FastAPI `TestClient` 当前使用的
 `httpx` 兼容入口已弃用；`py_mini_racer` 仍导入已弃用的 `pkg_resources`。
-项目自身的 `max_tokens` 弃用警告已在本批修复，这两项需跟随上游兼容版本处理。
+同日发现 Python 3.13 环境在 coverage 跟踪开启时导入 AKShare → Pandas → NumPy
+会间歇失败，而普通 pytest、Ruff、Pyright 和全量项目闸门不受影响。项目自身的
+`max_tokens` 弃用警告已修复，其余问题需按完整依赖矩阵统一处理。
 
 **修复方向**：
 
 1. 核对 FastAPI、Starlette 与 httpx/httpx2 的官方兼容矩阵后统一升级；
 2. 确认 `py_mini_racer` 的直接或间接使用方，能替换则移除；
-3. 在 Python 3.12/3.13 CI 中将目标警告升级为错误，避免再次积累。
+3. 复现并锁定 coverage、Python 3.13、NumPy、Pandas、AKShare 的兼容组合；
+4. 在 Python 3.12/3.13 CI 中将目标警告升级为错误，避免再次积累。
 
 ## 已关闭债务
 

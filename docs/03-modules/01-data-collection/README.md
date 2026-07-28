@@ -7,7 +7,8 @@
 - ✅ Provider 抽象层设计完成
 - ✅ akshare 封装可用
 - ✅ 缓存层（TTL）就绪
-- ⬜ Provider 接口实现（OpenBB 模式移植）
+- ✅ 统一多源证据契约、来源注册中心与独立上游完整性评估
+- ⟳ 旧 Provider 正在逐个迁移到显式六态结果；尚未接入正式辩论链
 
 ## 文档
 
@@ -21,5 +22,6 @@
 ## 对应源码
 
 - `src/data/collector.py`
+- `src/data/evidence.py`
 - `src/data/models.py`
 - `src/data/cache.py`

@@ -108,4 +108,4 @@ resumed = resumed_graph.invoke(None, config)
 
 **上一篇：[可恢复 Session 信封](30-durable-session-envelope.md)**
 
-**下一篇：待续**
+**下一篇：[多源证据契约](32-multi-source-evidence-contract.md)**

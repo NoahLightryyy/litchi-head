@@ -20,21 +20,36 @@
 | 文件 | 说明 |
 |------|------|
 | `src/data/collector.py` | 主采集器，封装 akshare 调用 |
+| `src/data/evidence.py` | 多源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/models.py` | Pydantic 数据模型（StockInfo / KLine / NewsItem / StockQuote） |
 | `src/data/cache.py` | 缓存层（带 TTL） |
 
 ## 架构（当前状态）
 
 ```
-┌─────────────────────────────────────────────┐
-│  DataCollector                                │
-│  ├─ get_realtime_quotes() → ak.stock_zh_a_spot_em()  │
-│  ├─ get_kline() → ak.stock_zh_a_hist()               │
-│  └─ get_news() → ak.stock_zh_a_news()                │
-├─────────────────────────────────────────────┤
-│  每个方法直接调 akshare，耦合紧，加数据源改接口   │
-└─────────────────────────────────────────────┘
+旧链路（仍在运行）：
+DataCollector → DataSource → AKShare/AData/ZzShare/Fallback
+                           └─ 失败仍可能被压成 [] / None
+
+新契约（基础完成，待逐源接入）：
+DataEvidenceService（下一批）
+  → EvidenceSourceRegistry
+      → SourceDescriptor（适配器身份 + 真实 upstream_id + capabilities）
+      → SourceResult（SUCCESS_DATA / SUCCESS_EMPTY / FAILED /
+                      UNSUPPORTED / STALE / CONFLICTED）
+  → EvidencePolicy
+      → 按独立 upstream_id 判断完整性
+      → discovery_only 来源不计入证据门槛
 ```
+
+### 多源完整性不变量
+
+1. 同一个真实上游即使有多个适配器，也只算一个独立来源；
+2. `SUCCESS_EMPTY` 只表示上游成功完成查询并明确返回零条；
+3. 网络、解析和权限错误必须返回 `FAILED`，不能伪装成空数据；
+4. RSSHub 等发现型来源标记为 `discovery_only`，不参与证据门槛；
+5. 强制上游和独立来源数任一不足，评估结果均为 `complete=False`；
+6. 当前契约尚未接管旧 Provider 或正式辩论图，因此 TD-069 仍未关闭。
 
 ## 数据契约（关键模型）
 
@@ -60,6 +75,8 @@
 | **C1 结构化简报分区输出** | 已完成 ✅ | 26（含5分区测试） |
 | Provider 抽象层（4 源架构） | 已完成 ✅ | 84 |
 | 多数据源接入（akshare/adata/zzshare/fallback） | 已完成 ✅ | — |
+| **统一证据来源契约与注册中心** | **基础完成 ✅** | 11 |
+| **旧 Provider 六态适配 + DataEvidenceService** | **待接入 ⟳** | — |
 | **基本面指标采集（FD-001）** | **待实现** ⟳ | — |
 | **产业链定位（FD-001）** | **待实现** ⟳ | — |
 | **供应链数据（FD-003 调研评估）** | **待调研** ⬜ | — |

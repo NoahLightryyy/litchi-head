@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-24 (PD-004 前端行业感知完成)
+last_updated: 2026-07-28 (统一多源证据契约基础完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -13,6 +13,7 @@ last_updated: 2026-07-24 (PD-004 前端行业感知完成)
 | 子系统 | 状态 | 说明 |
 |:-------|:----:|:------|
 | Provider 抽象层（4 文件） | ✅ | AKShareSource / AData / ZzShareSource / FallbackSource |
+| 多源证据契约 | ⟳ | 身份、真实上游、能力、六态结果、注册与完整性评估已完成；旧 Provider 待迁移 |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
 | 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
@@ -33,6 +34,9 @@ last_updated: 2026-07-24 (PD-004 前端行业感知完成)
 - **四源架构**：akshare（主）→ adata（免费备）→ zzshare（兼容备）→ Fallback（自动切换）
 - **零成本优先**：所有数据源免费，无 Tushare Pro 付费依赖
 - **零造假数据**：全链路真实数据，无硬编码 mock
+- **来源独立性按上游计算**：多个适配器包装同一媒体只算一个来源
+- **失败不等于空数据**：新契约用六态结果显式区分成功空、失败、不支持、过期与冲突
+- **扩展而不锁定**：业务层未来只依赖 `EvidenceSource`，新增付费源只增加适配器和配置
 
 ---
 
@@ -49,6 +53,15 @@ last_updated: 2026-07-24 (PD-004 前端行业感知完成)
 ---
 
 ## 下一步优先级
+
+### R1 多源证据可靠性
+
+| 优先级 | 事项 | 依赖 |
+|:------:|:-----|:----:|
+| 1 🔥 | 为 CNINFO、东方财富、新浪/财联社建立首批免费来源适配器 | `src/data/evidence.py` |
+| 2 🔥 | 实现 `DataEvidenceService` 并在 LLM 前执行失败关闭 | 首批适配器 + TD-069 |
+| 3 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
+| 4 🟡 | Trafilatura + Newspaper4k 中文财经正文提取试验 | 50–100 篇样本 |
 
 ### 现有债务
 
@@ -151,6 +164,7 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 | 文件 | 说明 |
 |:-----|:------|
 | `src/data/collector.py` | 统一数据采集入口（469 行） |
+| `src/data/evidence.py` | 统一来源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/models.py` | 7 个 Pydantic 数据契约（140 行） |
 | `src/data/cache.py` | 内存 TTL 缓存 |
 | `src/data/providers/base.py` | DataSourceProtocol 抽象基类 |
