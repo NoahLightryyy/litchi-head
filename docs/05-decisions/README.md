@@ -11,7 +11,7 @@
 | ADR-007 | DeepSeek 主力 LLM | utils | ✅ 已采纳 |
 | ADR-008 | Agent 数据契约与通信协议 | agents/core | ✅ 已采纳 |
 | ADR-010 | Agent 运行时增强（LLMConfig/streaming/辩论上下文） | utils/agents | ✅ 已采纳 |
-| ADR-012 | SQL 事实源 + Redis 协调层 + Parquet 行情目录 | 跨模块 | 🟡 待验收 |
+| ADR-012 | SQL 事实源 + Redis 协调层 + Parquet 行情目录 | 跨模块 | 🟢 方向已批准，实施门禁中 |
 
 ## 模块专属 ADR
 
