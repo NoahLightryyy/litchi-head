@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -151,3 +153,21 @@ def test_cli_emits_machine_readable_report(
     assert exit_code == 0
     assert output["recovered"] is True
     assert output["hash_matches"] is True
+
+
+def test_direct_recovery_script_entrypoint_can_load_project_imports() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(project_root / "scripts" / "debate_recovery_gate.py"),
+            "--help",
+        ],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "Validate and recover an exported DebateResult" in completed.stdout
