@@ -4,8 +4,9 @@
 替代 `make check`，跨平台（Windows/Linux/macOS）。
 功能：
   1. ruff 代码风格检查
-  2. pyright 类型检查（src/）
+  2. pyright 类型检查（src/ + backend/）
   3. 按变更范围智能选择测试子集
+  4. 前端变更触发 TypeScript 类型检查
 
 用法：
   python scripts/check.py              # 检测变更范围 + 按需跑测试
@@ -16,6 +17,7 @@
 """
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -25,18 +27,27 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # ── 源码目录 → 测试目录映射 ─────────────────────────────
 # None = 该模块无独立测试目录，归入全量子集
 SRC_TO_TEST: dict[str, str | None] = {
-    "src/utils":    "tests/test_utils",
-    "src/data":     "tests/test_data",
-    "src/debate":   "tests/test_debate",
-    "src/agents":   "tests/test_agents",
-    "src/memory":   "tests/test_memory",
-    "src/risk":     "tests/test_risk",
-    "src/trader":   None,
+    "src/utils": "tests/test_utils",
+    "src/data": "tests/test_data",
+    "src/debate": "tests/test_debate",
+    "src/agents": "tests/test_agents",
+    "src/memory": "tests/test_memory",
+    "src/risk": "tests/test_risk",
+    "src/trader": None,
     "src/backtest": "tests/test_backtest",
-    "src/core":     "tests/test_agents",  # core 被 agents 使用
-    "backend":      "tests/test_backend",
+    "src/core": "tests/test_agents",  # core 被 agents 使用
+    "backend": "tests/test_backend",
+    "scripts": "tests/test_scripts",
 }
 # 不被映射覆盖的变更 -> 触发全量子集
+QUALITY_CONFIG_FILES = {
+    ".env.example",
+    "Dockerfile",
+    "Makefile",
+    "docker-compose.yml",
+    "pyproject.toml",
+    "pyrightconfig.json",
+}
 
 
 def _s(text: str) -> str:
@@ -54,17 +65,27 @@ def _bool_symbol(ok: bool) -> str:
 
 
 def git_diff(target: str = "HEAD") -> set[str]:
-    """返回当前分支相对 target 的变更文件路径集合（相对 REPO_ROOT）。"""
+    """返回当前分支相对 target 的全部变更文件，包括未跟踪文件。"""
     result = subprocess.run(
         ["git", "diff", "--name-only", target],
-        capture_output=True, text=True, cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
     )
     staged = subprocess.run(
         ["git", "diff", "--cached", "--name-only"],
-        capture_output=True, text=True, cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
     )
     files: set[str] = set()
-    for out in (result.stdout, staged.stdout):
+    for out in (result.stdout, staged.stdout, untracked.stdout):
         for line in out.strip().splitlines():
             line = line.strip()
             if line:
@@ -88,13 +109,16 @@ def pick_test_targets(changed_files: set[str]) -> list[str] | None:
     cross_module = False
 
     for f in changed_files:
-        # 工具目录/文档/配置变更 -> 不影响业务代码，不触发测试
+        # 质量配置和 CI 变更会影响全项目检查结果，必须跑全量子集。
+        if f in QUALITY_CONFIG_FILES or f.startswith(".github/workflows/"):
+            cross_module = True
+            continue
+
+        # 文档和前端由各自门禁处理，不触发 Python 测试。
         if (
             f.startswith("docs/")
-            or f.startswith("scripts/")
             or f.startswith("frontend/")
-            or f.startswith(".github/")
-            or f in (".env.example", "pyproject.toml", "README.md")
+            or f == "README.md"
         ):
             continue
 
@@ -133,6 +157,18 @@ def pick_test_targets(changed_files: set[str]) -> list[str] | None:
     return sorted(matched_tests) if matched_tests else []
 
 
+def needs_frontend_check(changed_files: set[str]) -> bool:
+    """当前变更是否需要运行前端 TypeScript 门禁。"""
+    return any(f.startswith("frontend/") for f in changed_files)
+
+
+def frontend_typecheck_command(os_name: str | None = None) -> list[str]:
+    """返回当前平台可直接执行的 pnpm TypeScript 检查命令。"""
+    platform_name = os_name or os.name
+    executable = "pnpm.cmd" if platform_name == "nt" else "pnpm"
+    return [executable, "--dir", "frontend", "type-check"]
+
+
 def run_step(name: str, cmd: list[str]) -> bool:
     """运行一个检查步骤。返回 True 表示通过。"""
     _s(f"\n  === {name} ===")
@@ -162,7 +198,7 @@ def _print_header() -> None:
     _s("")
     _s("=" * 60)
     _s("  litchi-head 本地 CI 检查")
-    _s("  ruff -> pyright -> 按变更范围智能测试")
+    _s("  ruff -> pyright -> 按变更范围智能测试 -> 前端类型检查")
     _s("=" * 60)
 
 
@@ -196,20 +232,21 @@ def main() -> int:
     _print_header()
     ensure_deps()
 
+    changed = git_diff(args.diff) if not args.full else set()
+    frontend_required = args.full or needs_frontend_check(changed)
+
     passes = 0
-    total = 3  # ruff + pyright + tests
+    total = 3 + int(frontend_required)  # ruff + pyright + tests + 可选前端
 
     # ── 1. Ruff ──
     if run_step("ruff", ["ruff", "check", "."]):
         passes += 1
 
     # ── 2. Pyright ──
-    if run_step("pyright", ["pyright", "src/"]):
+    if run_step("pyright", ["pyright", "src/", "backend/"]):
         passes += 1
 
     # ── 3. 测试 ──
-    changed = git_diff(args.diff) if not args.full else set()
-
     if args.full:
         test_target: list[str] | None = None
         _s("  [info] --full 模式：跑全量子集")
@@ -236,6 +273,13 @@ def main() -> int:
         )
 
     if test_ok:
+        passes += 1
+
+    # ── 4. 前端 TypeScript（前端变更或 --full）──
+    if frontend_required and run_step(
+        "frontend type-check",
+        frontend_typecheck_command(),
+    ):
         passes += 1
 
     _print_summary(passes, total)
