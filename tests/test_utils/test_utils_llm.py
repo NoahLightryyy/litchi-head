@@ -261,7 +261,7 @@ class TestBuildLLMWithConfig:
                 _build_llm("deepseek", LLMConfig())
                 mock_ds.assert_called_once_with(
                     model="deepseek-chat", temperature=0.3,
-                    model_kwargs={"max_tokens": 8192},
+                    max_tokens=8192,
                 )
 
     def test_build_with_custom_temperature(self):
@@ -272,7 +272,7 @@ class TestBuildLLMWithConfig:
                 _build_llm("deepseek", LLMConfig(temperature=0.7, max_tokens=4096))
                 mock_ds.assert_called_once_with(
                     model="deepseek-chat", temperature=0.7,
-                    model_kwargs={"max_tokens": 4096},
+                    max_tokens=4096,
                 )
 
     def test_build_with_model_override(self):
@@ -284,7 +284,7 @@ class TestBuildLLMWithConfig:
                 # deepseek-reasoner 不传 temperature（API 不支持）
                 mock_ds.assert_called_once_with(
                     model="deepseek-reasoner",
-                    model_kwargs={"max_tokens": 8192},
+                    max_tokens=8192,
                 )
 
     def test_build_without_config_uses_defaults(self):
@@ -295,7 +295,7 @@ class TestBuildLLMWithConfig:
                 _build_llm("deepseek")
                 mock_ds.assert_called_once_with(
                     model="deepseek-chat", temperature=0.3,
-                    model_kwargs={"max_tokens": 8192},
+                    max_tokens=8192,
                 )
 
 
