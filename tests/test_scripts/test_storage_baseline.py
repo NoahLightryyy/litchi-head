@@ -87,3 +87,13 @@ def test_capacity_suite_is_json_serializable_and_markdown_readable(
     assert "仅代表本机合成基线" in markdown
     assert report.environment.python_version
     assert len(report.results) == 3
+
+
+def test_capacity_suite_reused_directory_stays_deterministic(tmp_path: Path) -> None:
+    config = BenchmarkConfig(record_count=10, payload_bytes=256, lookup_count=5)
+
+    run_capacity_suite(tmp_path, config)
+    second = run_capacity_suite(tmp_path, config)
+
+    assert all(result.records_read == 10 for result in second.results)
+    assert all(result.errors == [] for result in second.results)
