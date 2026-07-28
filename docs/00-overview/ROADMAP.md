@@ -11,7 +11,7 @@
 总 Python 测试数 │ 1203 passed（+48 mirror + retro + main + hot-news + utils）
 技术债务         │ 62 条总记 / 37 条已关闭 / 25 条开放
 紧急指数         │ 3.0/10（Phase R+1 全部完成 + CI 绿）
-当前阶段         │ 🟢 Phase R+1 全部完成 — DP-001~007 全部交付，1155 tests ✅，下一步等待方向
+当前阶段         │ 🟡 Phase R 数据底座加固 — ADR-012 Batch A 容量基线完成，待验收
 前端进度         │ 全部 Tab 面板就绪（技术指标/资金流向/AI 辩论/信任度）+ 暗色主题打磨 + pnpm build ✅
 后端桥接         │ market/stocks/debate/trust 四组路由全部完整实现 + TD-020 板块增强 + 技术指标 + 生产配置 ✅
 数据源诚信        │ 全项目零造假 ✅ + Provider 抽象层 ✅ + 免费多源架构 ✅ + 生产配置 ✅
@@ -444,7 +444,7 @@ qa/（质量保障体系 — Hookify 规则 + Post-tool hooks）
 | 信息来源 | 位置 | 用途 |
 |---------|------|------|
 | 技术债务详情 | `docs/01-guides/debt/ROUTER.md` | 按部门路由的债务仪表盘 |
-| 架构决策 | `docs/05-decisions/README.md` | 10 条 ADR 全文 |
+| 架构决策 | `docs/05-decisions/README.md` | ADR 索引（含 ADR-012 分层存储提议） |
 | 🏢 部门体系 | `docs/06-departments/README.md` | 10 部门架构 + 数据流图 + 协作规程 |
 | 工作日志 | `docs/04-changelog/logs/README.md` | 按日期回溯每会话工作内容 |
 | 会话交接 | `docs/01-guides/HANDOVER.md` | 全局仪表盘 + 跨部门状态 |
@@ -492,6 +492,7 @@ qa/（质量保障体系 — Hookify 规则 + Post-tool hooks）
 | 2026-07-23 (4) | **FD-001h 多源财务数据** — ADataSource + ZzshareSource get_financials() 实现 + safe_float NaN 修复 + 7 测试，1037 全量通过 |
 | **2026-07-24** | **FD-001i 前端财务 Tab** — API 端点(/financials + /valuation) + FinancialPanel 组件(16 指标分类展示+估值四宫格+历史对比表) + 10 测试，1044 全量通过 |
 | **2026-07-24 (2)** | **PD-001/002/003 动态指标体系** — IndicatorRegistry + 产业链位置 + 动态选择器，实锤 API 验证 496 行业 + 31 行业全覆盖，34 测试，1076 全量通过 🎯 |
+| **2026-07-28** | **ADR-012 Batch A 数据底座基线** — JSON/SQLite/PostgreSQL/Redis 合成测量 + 同行调研 + 生命周期提议；未迁移生产数据 |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。

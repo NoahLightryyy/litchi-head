@@ -58,7 +58,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新提交** | `6d3fb00` — `docs: 补充 PD-005 工作日志 commit 引用` |
+| **最新功能提交** | `1cb6b1e` — `fix: keep storage baseline reruns deterministic` |
 | **全量测试** | 1203 collected ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
@@ -73,16 +73,16 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | ✅ | 3 | [HANDOVER](06-departments/01-data/HANDOVER.md) |
 | 🎯 辩论引擎部 | `src/debate/` | ✅ | 2 | [HANDOVER](06-departments/02-debate-engine/HANDOVER.md) |
 | 🤖 AI Agent 架构部 | `src/agents/` + `src/core/` | ✅ | 3 | [HANDOVER](06-departments/03-ai-agents/HANDOVER.md) |
-| 🧠 记忆系统部 | `src/memory/` | ✅ | 1 | [HANDOVER](06-departments/04-memory-systems/HANDOVER.md) |
+| 🧠 记忆系统部 | `src/memory/` | 🟡 | 2 | [HANDOVER](06-departments/04-memory-systems/HANDOVER.md) |
 | 🛡️ 风控管理部 | `src/risk/` | ✅ | 0 | [HANDOVER](06-departments/05-risk-management/HANDOVER.md) |
 | 💹 交易执行部 | `src/trader/` | ✅ | 0 | [HANDOVER](06-departments/06-trading/HANDOVER.md) |
 | 🔬 回测研究部 | `src/backtest/` | ✅ | 0 | [HANDOVER](06-departments/07-backtesting/HANDOVER.md) |
-| 🌐 后端 API 部 | `backend/` | ✅ | 1 | [HANDOVER](06-departments/08-backend-api/HANDOVER.md) |
+| 🌐 后端 API 部 | `backend/` | 🟡 | 2 | [HANDOVER](06-departments/08-backend-api/HANDOVER.md) |
 | 🎨 前端部 | `frontend/` | ✅ | 1 | [HANDOVER](06-departments/09-frontend/HANDOVER.md) |
 | ⚙️ 基础设施部 | `src/utils/` | ✅ | 5 | [HANDOVER](06-departments/10-infrastructure/HANDOVER.md) |
 | 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🟢 | 2 | [HANDOVER](06-departments/11-quality-assurance/HANDOVER.md) |
 
-**全代码库开放债务**: 26 条（紧急指数 3.0/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
+**全代码库开放债务**: 29 条（紧急指数 5.5/10）→ [跨部门债务](06-departments/00-cross-cutting/DEBT.md)
 
 ---
 
@@ -98,6 +98,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 |:------:|:-----|:---------|:----:|
 | 🔥 **P0** | **PD-001/002/003 动态指标体系** — ✅ 全完成（34 tests + 325 ✅）详见跨部门总览 PD 节 |
 | 🔥 P0 | **PD-004 行业覆盖验证 + 前端行业感知** — ✅ PD-004b 完成（FinancialPanel 按行业过滤指标）详见跨部门总览 PD 节 |
+| 🔥 P0 | **ADR-012 数据生命周期与持久化底座** — Batch A 基线完成，待用户确认保留期与下一批恢复门禁 |
 | 🔥 P0 | **C2 情绪数据层** — ✅ 已接入真实市场情绪数据（涨跌比+情绪评分），见 [2026-07-24-5 日志](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **R4 置信度量化** — ✅ 已完成：校准曲线映射 + aggregate_node 应用校准 + 前端置信度可视化，见 [R4](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务数据+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ | ~0 剩余 |

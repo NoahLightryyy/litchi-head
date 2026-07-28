@@ -112,7 +112,9 @@ Agent 历史记忆存储、检索、反思进化机制。让 Agent 能从过去�
 ## 下一步
 
 1. **M2 交易后反思机制** — 实现 `MemoryManager.store_decision()` / `resolve_pending()`，辩论结束时存 pending，下次同 ticker 运行时补写反思（依赖端到端链路跑通）
-2. **存储层升级评估** — 记忆量 > 500 条时，启动 JSON → SQLite → 向量数据库的升级路径评估
+2. **存储层升级门禁** — 容量评估已于 2026-07-28 启动；按
+   [ADR-012](../../05-decisions/ADR-012-layered-storage.md) 验证 SQL 事实源、
+   Redis 协调层与 Parquet 行情目录，具体 SQL 后端待恢复/部署证据决定
 3. **反思分析维度丰富** — 从 TradingAgents 的单维度（收益）扩展到决策质量、执行偏差、情绪影响等多维度分析
 
 > **关联文档**：[RESEARCH.md](RESEARCH.md) — 调研背景

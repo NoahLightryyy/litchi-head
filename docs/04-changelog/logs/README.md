@@ -4,6 +4,7 @@
 
 | 日期 | 日志 | 摘要 |
 |:----:|:----|:-----|
+| **2026-07-28** | [链接](2026-07-28/2026-07-28.md) | **ADR-012 Batch A 数据底座基线** — JSON/SQLite/PostgreSQL/Redis 实测 + 同行调研 + 生命周期提议 |
 | 2026-07-23 | [链接](2026-07-23/2026-07-23.md) | **FD-001 Step 1 财务指标数据模型** — `FinancialMetrics` 17 指标 + DataSource 协议扩展 + AKShareSource 实现 + DataCollector，28 测试 |
 | 2026-07-23 (2) | [链接](2026-07-23/2026-07-23-2.md) | **FD-001 Step 2 基本面数据注入辩论引擎** — format_market_brief 填充 + collect_data_node + 分析师增强，+6 测试 |
 | 2026-07-23 (3) | [链接](2026-07-23/2026-07-23-3.md) | **FD-002 估值比率模型** — ValuationMetrics(PE/PB/PS) + StockQuote.market_cap + DataCollector.get_valuation()，+17 测试 |

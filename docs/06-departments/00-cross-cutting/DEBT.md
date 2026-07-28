@@ -60,6 +60,34 @@ M2 反思（AI vs 市场）和 M3 信任度（大师权重统计）都只覆盖�
 | TD-019 | 强依赖单一 LLM 提供商 | 🟡 moderate | 基础设施 | 📋 待评估 | 所有模块 |
 | TD-017 | 缺少反思/学习闭环 | 🟢 low | 架构设计 | 📋 待评估 | debate + memory |
 | TD-061 | 结果参数回调引擎缺失 — M3/M4 仅覆盖"调大师权重"一个维度 | 🔴 critical | 架构设计 | 🔧 修复中 | 🔄 全部 11 部门 |
+| TD-067 | 后端 OpenAPI 与前端手写类型存在契约漂移 | 🟡 moderate | 数据契约 | 📋 已确认 | backend + frontend |
+
+### TD-067 后端 OpenAPI 与前端手写类型存在契约漂移
+
+| 属性 | 值 |
+|------|-----|
+| **分类** | `架构设计` `severity:moderate` `module:backend+frontend` `impact:接口正确性` |
+| **发现日期** | 2026-07-28 |
+| **发现人** | AI 审视 + 用户接口链提问 |
+| **状态** | `📋 已确认` |
+| **本金估算** | ∼1-2d |
+| **日利息** | 每次新增字段都需要人工同步，静默忽略和运行时错位概率持续上升 |
+| **实盘影响** | 用户选择的风控/交易开关可能被静默忽略，界面展示与后端真实结果不一致 |
+| **触发场景** | 前端传 `enable_risk/enable_trader/enable_reflection`，或后端调整 DebateResult 字段 |
+| **用户能发现吗** | ❌ 不一定；HTTP 仍可能成功，但功能没有按用户选择执行 |
+
+**描述**：
+
+前端 `DebateRequest` 声明三个 enable 开关，后端请求模型没有对应字段；前端结果
+要求 `created_at`，后端结果模型没有。多数路由未声明 `response_model`，前端类型
+又是手工维护，现有路由测试不能证明消费者契约一致。
+
+**修复方向**：
+
+1. 后端 Pydantic 请求使用 `extra="forbid"`；
+2. 所有路由声明标准 response/error model；
+3. 从 OpenAPI 生成 TypeScript 类型和客户端；
+4. CI 加 schema diff 与后端→前端消费者契约测试。
 
 ## 已关闭债务
 

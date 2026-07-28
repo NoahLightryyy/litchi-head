@@ -64,6 +64,7 @@
 | 26 | 🆕 [估值比率模型 — ValuationMetrics PE/PB/PS](26-valuation-metrics-model.md) | `src/data/models.py` → `ValuationMetrics` + `src/data/collector.py` |
 | 27 | 🆕 [PD 动态指标体系 — 行业感知的关键指标选择](27-pd-dynamic-indicators.md) | `src/data/indicators/registry.py` + `src/data/indicators/selector.py` |
 | 28 | 🆕 [结构化多层市场简报 — 让 LLM "看什么股说什么话"](28-structured-market-brief.md) | `src/data/collector.py` + `src/debate/orchestrator.py` |
+| 29 | 🆕 [SQL 事实源与 Redis 可重建投影](29-sql-redis-storage-layers.md) | `scripts/storage_baseline.py` + ADR-012 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

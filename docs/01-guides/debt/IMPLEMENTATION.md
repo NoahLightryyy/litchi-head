@@ -22,7 +22,7 @@
 
 **修复方向**：
 - 短期：添加 `save_snapshot()` / `load_snapshot()` JSON 持久化
-- 长期：SQLite 存储
+- 长期：按 ADR-012 迁移到 SQL 事实源（SQLite WAL / PostgreSQL 由恢复与部署门禁决定）
 
 ---
 

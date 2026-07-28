@@ -138,6 +138,8 @@ trading_memory.md:
 
 ### 未来：存储层升级
 - TradingAgents 的纯文本方案证明：Phase 1 根本不需要向量数据库
-- 存储方案升级（JSON→SQLite→向量数据库）应在记忆量 > 500 条时再评估
+- 原调研以“记忆量 > 500 条”作为 JSON→SQLite→向量数据库的评估触发线；
+  2026-07-28 已由容量基线提前触发，后续路线以
+  [ADR-012](../../05-decisions/ADR-012-layered-storage.md) 为准
 
 > **最后更新**：2026-06-15（从 SPEC.md 拆分）

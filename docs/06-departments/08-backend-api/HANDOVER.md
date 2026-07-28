@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-07-27 (TD-036 全覆盖收官 — 176 tests，1203 全量)
+last_updated: 2026-07-28 (容量调研：durable queue / 背压债务登记)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -15,7 +15,7 @@ last_updated: 2026-07-27 (TD-036 全覆盖收官 — 176 tests，1203 全量)
 | market 路由（5 endpoint） | ✅ | 指数/板块排行/板块详情/brief/4 端点 |
 | stocks 路由（5 endpoint） | ✅ | 搜索/行情/K 线/新闻/资金流向 |
 | financials 路由（3 endpoint） | ✅ | 财务指标 /financials + 估值比率 /valuation + 动态指标 /indicators 🆕 |
-| debate 路由（3 endpoint） | ✅ | 辩论触发/状态/结果 |
+| debate 路由（3 endpoint） | 🟡 | 功能可用；session 仍在内存，请求内同步执行 |
 | trust 路由（2 endpoint） | ✅ | 信任度报告/排行榜 |
 | 技术指标（indicators.py） | ✅ | MA/RSI/MACD/布林带纯 Python |
 | 异步超时控制（async_utils.py） | ✅ | `run_sync()` 15s 超时封装 |
@@ -48,6 +48,7 @@ last_updated: 2026-07-27 (TD-036 全覆盖收官 — 176 tests，1203 全量)
 | ID | 描述 | 优先级 | 预估 |
 |:---|:-----|:------:|:----:|
 | TD-054 | CORS 地址硬编码（需改环境变量） | 🟢 | 10min |
+| TD-068 | 重型辩论无 durable queue、全局背压与恢复 | 🟡 | 2d |
 
 ## 已关闭
 
@@ -67,7 +68,8 @@ last_updated: 2026-07-27 (TD-036 全覆盖收官 — 176 tests，1203 全量)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟢 | TD-054 CORS 改环境变量 | 无 |
+| 1 🟡 | TD-068 真实辩论容量、恢复与 1/3/5 并发门禁 | ADR-012 |
+| 2 🟢 | TD-054 CORS 改环境变量 | 无 |
 
 ### 结果回调（RC 系列，2026-06-23 新增）
 

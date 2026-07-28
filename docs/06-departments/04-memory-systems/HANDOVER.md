@@ -1,7 +1,7 @@
 ---
 department: 记忆系统部
 codebase: src/memory/
-last_updated: 2026-07-10
+last_updated: 2026-07-28 (存储容量基线 + ADR-012 提议)
 ---
 
 # 🧠 记忆系统部工作交接
@@ -13,7 +13,7 @@ last_updated: 2026-07-10
 | 子系统 | 状态 | 说明 |
 |:-------|:----:|:------|
 | KnowledgeBase 知识库 | ✅ | n-gram TF 向量语义检索 |
-| MemoryStore 存储抽象 | ✅ | MemoryStore(ABC) + JsonFileStore 实现 |
+| MemoryStore 存储抽象 | 🟡 | 接口完成；JsonFileStore 仅适合 MVP，迁移门禁已建立 |
 | MemoryManager 管理器 | ✅ | 命名空间语义化读写 |
 | SkillDisk 插件盘 | ✅ | 7 位投资大师人格定义加载 |
 
@@ -27,9 +27,14 @@ last_updated: 2026-07-10
 
 ### 关键架构决策
 
-- **抽象存储接口**：MemoryStore 抽象基类，可替换实现（当前 JsonFileStore → 未来 SQLiteStore）
+- **抽象存储接口**：MemoryStore 抽象基类可替换实现；当前 JsonFileStore →
+  ADR-012 SQL 事实源（SQLite WAL / PostgreSQL 待门禁决定）
 - **命名空间隔离**：不同领域数据（辩论历史/Agent 洞见/用户偏好）互不干扰
 - **优雅降级**：存储失败不抛异常，日志记录后不影响主流程
+- **ADR-012（待验收）**：SQL 保存不可丢事实，Redis 只保存可重建投影，
+  Parquet 保存批量行情；当前尚未迁移
+- **2026-07-28 合成基线**：1,000 条约 4 KB 决策下，JSON Object 写入
+  52.9 ops/s，SQLite WAL 约 19,448 ops/s；SQLite 主键查询 p95 约 0.014 ms
 
 ---
 
@@ -38,6 +43,7 @@ last_updated: 2026-07-10
 | ID | 描述 | 优先级 | 预估 |
 |:---|:-----|:------:|:----:|
 | TD-051 | MemoryManager 无存储失败测试（磁盘满/只读/损坏 JSON） | 🟡 | 30min |
+| TD-066 | JSON/JSONL 无生命周期、事务与跨进程安全 | 🟡 | 2-3d |
 
 ---
 
@@ -47,8 +53,9 @@ last_updated: 2026-07-10
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟡 | TD-051 补 MemoryManager 存储失败测试（IOError/损坏 JSON/只读） | 无 |
-| 2 🟢 | 定期清理过期记忆机制 | 无 |
+| 1 🟡 | 用户验收 ADR-012 与生命周期默认值 | Batch A 报告 |
+| 2 🟡 | TD-051 补 MemoryManager 存储失败测试（IOError/损坏 JSON/只读） | 无 |
+| 3 🟡 | TD-066 SQL 迁移与备份恢复门禁 | ADR-012 验收 |
 
 ### 设计哲学新任务（DP 系列）
 
