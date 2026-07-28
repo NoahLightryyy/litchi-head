@@ -63,7 +63,7 @@ def test_storage_backends_write_and_read_all_records(
     assert result.errors == []
 
 
-def test_sqlite_duplicate_session_is_idempotent(tmp_path: Path) -> None:
+def test_sqlite_reused_directory_does_not_duplicate_sessions(tmp_path: Path) -> None:
     config = BenchmarkConfig(record_count=10, payload_bytes=256, lookup_count=5)
 
     first = benchmark_sqlite(tmp_path / "sqlite", config)

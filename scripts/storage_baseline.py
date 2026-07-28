@@ -145,7 +145,7 @@ def benchmark_jsonl(base_path: Path, config: BenchmarkConfig) -> BenchmarkResult
     errors: list[str] = []
 
     started = time.perf_counter()
-    with path.open("a", encoding="utf-8") as stream:
+    with path.open("w", encoding="utf-8") as stream:
         for index in range(config.record_count):
             record = build_decision_record(index, config.payload_bytes)
             stream.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -183,6 +183,7 @@ def benchmark_json_object(base_path: Path, config: BenchmarkConfig) -> Benchmark
     base_path.mkdir(parents=True, exist_ok=True)
     path = base_path / "records.json"
     errors: list[str] = []
+    path.unlink(missing_ok=True)
 
     started = time.perf_counter()
     for index in range(config.record_count):
@@ -245,6 +246,8 @@ def benchmark_sqlite(base_path: Path, config: BenchmarkConfig) -> BenchmarkResul
         "CREATE INDEX IF NOT EXISTS idx_decisions_stock_date "
         "ON decisions(stock_code, decision_date)"
     )
+    with connection:
+        connection.execute("DELETE FROM decisions")
 
     started = time.perf_counter()
     batch: list[tuple[str, str, str, int, str]] = []
