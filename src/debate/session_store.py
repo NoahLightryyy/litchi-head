@@ -17,6 +17,10 @@ from src.debate.models import DebateResult
 
 SessionStatus = Literal["queued", "running", "completed", "failed"]
 _TERMINAL_STATUSES = frozenset({"completed", "failed"})
+_ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
+    "queued": frozenset({"queued", "running", "failed"}),
+    "running": frozenset({"running", "completed", "failed"}),
+}
 
 
 class SessionStoreError(RuntimeError):
@@ -136,18 +140,32 @@ class SqliteDebateSessionStore:
                     connection.execute("BEGIN IMMEDIATE")
                     existing = connection.execute(
                         """
-                        SELECT status, payload_sha256
+                        SELECT status, progress, payload_sha256
                         FROM debate_sessions
                         WHERE session_id = ?
                         """,
                         (record.session_id,),
                     ).fetchone()
                     if existing is not None and existing[0] in _TERMINAL_STATUSES:
-                        if existing[1] == digest:
+                        if existing[2] == digest:
                             return
                         raise SessionStoreError(
                             f"terminal session is immutable: {record.session_id}"
                         )
+                    if existing is not None:
+                        previous_status = str(existing[0])
+                        previous_progress = int(existing[1])
+                        allowed = _ALLOWED_TRANSITIONS.get(previous_status, frozenset())
+                        if record.status not in allowed:
+                            raise SessionStoreError(
+                                "invalid session transition: "
+                                f"{previous_status} -> {record.status}"
+                            )
+                        if record.progress < previous_progress:
+                            raise SessionStoreError(
+                                "session progress cannot move backwards: "
+                                f"{previous_progress} -> {record.progress}"
+                            )
                     connection.execute(
                         """
                         INSERT INTO debate_sessions (
