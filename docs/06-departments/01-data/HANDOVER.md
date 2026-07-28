@@ -12,8 +12,9 @@ last_updated: 2026-07-28 (统一多源证据契约基础完成)
 
 | 子系统 | 状态 | 说明 |
 |:-------|:----:|:------|
-| Provider 抽象层（4 文件） | ✅ | AKShareSource / AData / ZzShareSource / FallbackSource |
+| 旧 Provider 抽象层（4 实现） | ✅ | AKShareSource / AData / ZzShareSource / FallbackSource |
 | 多源证据契约 | ⟳ | 身份、真实上游、能力、六态结果、注册与完整性评估已完成；旧 Provider 待迁移 |
+| CNINFO 公告证据源 | 🟡 | 有数据链路真实烟测成功；AKShare 零公告窗口抛错，见 TD-071 |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
 | 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
@@ -46,9 +47,8 @@ last_updated: 2026-07-28 (统一多源证据契约基础完成)
 |:---|:-----|:------:|:----:|
 | TD-034 | zzshare.py 死条件逻辑（两边值一样） | 🟢 | 5min |
 | TD-057 | Provider 层测试（zzshare 46% 待补） | 🟡 | 30min |
-| TD-047 | collector health_stats 异常文本（已修复 ✅） | — | — |
-| TD-032 | FallbackSource 恢复主源（已修复 ✅） | — | — |
-| TD-041 | 数据新鲜度标注（已修复 ✅） | — | — |
+| TD-064 | 财务指标覆盖率不足 | 🟢 | 1h |
+| TD-071 | AKShare CNINFO 零公告窗口抛错 | 🟡 | 2–4h |
 
 ---
 
@@ -58,18 +58,20 @@ last_updated: 2026-07-28 (统一多源证据契约基础完成)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🔥 | 为 CNINFO、东方财富、新浪/财联社建立首批免费来源适配器 | `src/data/evidence.py` |
-| 2 🔥 | 实现 `DataEvidenceService` 并在 LLM 前执行失败关闭 | 首批适配器 + TD-069 |
-| 3 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
-| 4 🟡 | Trafilatura + Newspaper4k 中文财经正文提取试验 | 50–100 篇样本 |
+| 1 🔥 | TD-071 决定 CNINFO 直连或等待 AKShare 正式修复 | 用户确认接入路线 |
+| 2 🔥 | 接入东方财富、新浪/财联社免费新闻适配器 | `src/data/evidence.py` |
+| 3 🔥 | 实现 `DataEvidenceService` 并在 LLM 前执行失败关闭 | 首批适配器 + TD-069 |
+| 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
+| 5 🟡 | Trafilatura + Newspaper4k 中文财经正文提取试验 | 50–100 篇样本 |
 
 ### 现有债务
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟢 | **TD-041 数据新鲜度标注** — ✅ **已完成**（fetched_at + 前端标签 + 缓存标记） | 无 |
+| 1 🟡 | TD-071 修复 CNINFO 零公告窗口语义 | 接入路线决策 |
 | 2 🟢 | TD-034 修 zzshare 死条件 | 无 |
 | 3 🟢 | TD-057 补 zzshare 测试到 ≥80% | 无 |
+| 4 🟢 | TD-064 审计遗漏财务指标 | 无 |
 
 ### 基本面深度 — 下放任务（⬜ 待办）
 
@@ -165,6 +167,7 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 |:-----|:------|
 | `src/data/collector.py` | 统一数据采集入口（469 行） |
 | `src/data/evidence.py` | 统一来源身份、能力、六态结果、注册与完整性评估 |
+| `src/data/providers/cninfo.py` | CNINFO 权威公告统一证据适配器 |
 | `src/data/models.py` | 7 个 Pydantic 数据契约（140 行） |
 | `src/data/cache.py` | 内存 TTL 缓存 |
 | `src/data/providers/base.py` | DataSourceProtocol 抽象基类 |

@@ -68,6 +68,23 @@ if result.status in successful_statuses:
 `SUCCESS_EMPTY` 的含义非常严格：上游确实响应并明确返回零条。连接超时、解析失败
 或权限不足必须是 `FAILED`，并携带用户和日志都能看到的错误信息。
 
+### 第一个真实适配器
+
+打开 `src/data/providers/cninfo.py`：
+
+```python
+descriptor = SourceDescriptor(
+    source_id="akshare-cninfo",
+    upstream_id="cninfo",
+    display_name="巨潮资讯公告（AKShare）",
+    capabilities={EvidenceCapability.ANNOUNCEMENT},
+)
+```
+
+这里的两个身份故意不同：项目通过 AKShare 接口接入，但公告事实来自巨潮资讯，
+所以交叉验证必须按 `cninfo` 计数。适配器要求调用方显式给出日期窗口，严格检查
+公告编号、时间和链接；网络错误与上游格式变化都会返回 `FAILED`，不会变成空列表。
+
 ---
 
 ## 和传统 Fallback 有什么不同？
@@ -99,7 +116,8 @@ if result.status in successful_statuses:
 1. 打开 `tests/test_data/test_evidence_sources.py`。
 2. 找到两个 `upstream_id="eastmoney"` 的来源，运行对应测试。
 3. 把第二个上游改成 `sina`，观察完整性判断为什么改变。
-4. 思考题：如果一个聚合接口同时返回十家媒体，独立性应该按聚合商还是原始媒体算？
+4. 再打开 `tests/test_data/test_cninfo_provider.py`，观察网络失败与明确空结果的区别。
+5. 思考题：如果一个聚合接口同时返回十家媒体，独立性应该按聚合商还是原始媒体算？
 
 ---
 

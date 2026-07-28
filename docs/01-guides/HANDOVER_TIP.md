@@ -16,7 +16,7 @@
 
 | 部门 | 代码 | 债务 | 状态 |
 |:-----|:-----|:----:|:----:|
-| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 3 | ✅ |
+| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 4 | 🟡 |
 | 🎯 辩论引擎部 | `src/debate/`+`src/risk/` | 2 | ✅ |
 | 🤖 AI Agent 架构部 | `src/agents/`+`src/core/` | 3 | ✅ |
 | 🧠 记忆系统部 | `src/memory/` | 1 | ✅ |

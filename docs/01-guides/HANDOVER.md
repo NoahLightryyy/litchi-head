@@ -70,7 +70,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 | 部门 | 代码 | 状态 | 开放债务 | → 看这里 |
 |:-----|:-----|:----:|:--------:|:---------|
-| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | ✅ | 3 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
+| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 🟡 | 4 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
 | 🎯 辩论引擎部 | `src/debate/` | 🟡 | 3 | [HANDOVER](../06-departments/02-debate-engine/HANDOVER.md) |
 | 🤖 AI Agent 架构部 | `src/agents/` + `src/core/` | ✅ | 3 | [HANDOVER](../06-departments/03-ai-agents/HANDOVER.md) |
 | 🧠 记忆系统部 | `src/memory/` | 🟡 | 2 | [HANDOVER](../06-departments/04-memory-systems/HANDOVER.md) |
@@ -82,7 +82,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | ⚙️ 基础设施部 | `src/utils/` | 🟡 | 7 | [HANDOVER](../06-departments/10-infrastructure/HANDOVER.md) |
 | 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🟢 | 2 | [HANDOVER](../06-departments/11-quality-assurance/HANDOVER.md) |
 
-**全代码库开放债务**: 31 条（紧急指数 5.6/10）→ [债务路由](debt/ROUTER.md)
+**全代码库开放债务**: 32 条（紧急指数 5.6/10）→ [债务路由](debt/ROUTER.md)
 
 ---
 
@@ -98,7 +98,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 |:------:|:-----|:---------|:----:|
 | 🔥 **P0** | **PD-001/002/003 动态指标体系** — ✅ 全完成（34 tests + 325 ✅）详见跨部门总览 PD 节 |
 | 🔥 P0 | **PD-004 行业覆盖验证 + 前端行业感知** — ✅ PD-004b 完成（FinancialPanel 按行业过滤指标）详见跨部门总览 PD 节 |
-| 🔥 P0 | **ADR-012 数据生命周期与持久化底座** — 真实 LLM 容量 + 提交后恢复 + 最小节点续跑已通过；TD-069 已确认失败关闭，多源证据契约基础完成，待首批适配器和正式图集成 |
+| 🔥 P0 | **ADR-012 数据生命周期与持久化底座** — 恢复与容量门禁已通过；多源证据契约完成，CNINFO 有数据链路通过但零公告语义待 TD-071 决策 |
 | 🔥 P0 | **C2 情绪数据层** — ✅ 已接入真实市场情绪数据（涨跌比+情绪评分），见 [2026-07-24-5 日志](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **R4 置信度量化** — ✅ 已完成：校准曲线映射 + aggregate_node 应用校准 + 前端置信度可视化，见 [R4](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务数据+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ | ~0 剩余 |
@@ -202,4 +202,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-07-28 | TD-069 已确认失败关闭；统一多源证据契约基础完成，待免费来源适配和正式图集成
+> **最后更新**：2026-07-28 | 多源证据契约完成；CNINFO 有数据链路通过，零公告语义待 TD-071 决策

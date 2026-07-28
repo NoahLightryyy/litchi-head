@@ -23,6 +23,7 @@
 | `src/data/evidence.py` | 多源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/models.py` | Pydantic 数据模型（StockInfo / KLine / NewsItem / StockQuote） |
 | `src/data/cache.py` | 缓存层（带 TTL） |
+| `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（当前经 AKShare） |
 
 ## 架构（当前状态）
 
@@ -76,6 +77,7 @@ DataEvidenceService（下一批）
 | Provider 抽象层（4 源架构） | 已完成 ✅ | 84 |
 | 多数据源接入（akshare/adata/zzshare/fallback） | 已完成 ✅ | — |
 | **统一证据来源契约与注册中心** | **基础完成 ✅** | 11 |
+| **CNINFO 权威公告适配器** | **基础完成 🟡（TD-071）** | 10 |
 | **旧 Provider 六态适配 + DataEvidenceService** | **待接入 ⟳** | — |
 | **基本面指标采集（FD-001）** | **待实现** ⟳ | — |
 | **产业链定位（FD-001）** | **待实现** ⟳ | — |
