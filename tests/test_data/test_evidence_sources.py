@@ -234,3 +234,29 @@ def test_result_cannot_claim_a_different_upstream_than_registered_source() -> No
                 )
             ],
         )
+
+
+def test_assessment_rejects_multiple_final_results_from_same_source() -> None:
+    registry = EvidenceSourceRegistry()
+    registry.register(StubNewsSource(_descriptor("akshare-eastmoney", "eastmoney")))
+
+    with pytest.raises(ValueError, match="duplicate result.*akshare-eastmoney"):
+        registry.assess(
+            EvidencePolicy(
+                capability=EvidenceCapability.NEWS,
+                min_independent_upstreams=1,
+            ),
+            [
+                _result(
+                    "akshare-eastmoney",
+                    "eastmoney",
+                    SourceStatus.FAILED,
+                    error_message="第一次请求超时",
+                ),
+                _result(
+                    "akshare-eastmoney",
+                    "eastmoney",
+                    SourceStatus.SUCCESS_EMPTY,
+                ),
+            ],
+        )
