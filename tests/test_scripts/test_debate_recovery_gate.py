@@ -9,6 +9,7 @@ import pytest
 
 from scripts.debate_recovery_gate import (
     load_completed_session,
+    main,
     render_markdown,
     run_sqlite_recovery_gate,
 )
@@ -125,3 +126,28 @@ async def test_markdown_report_states_evidence_boundary(tmp_path: Path) -> None:
     assert "哈希一致" in markdown
     assert "不代表生产 QPS" in markdown
 
+
+def test_cli_emits_machine_readable_report(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    snapshot_path = tmp_path / "result.json"
+    snapshot_path.write_text(
+        json.dumps(_result_payload(), ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            str(snapshot_path),
+            "--database",
+            str(tmp_path / "sessions.db"),
+            "--format",
+            "json",
+        ]
+    )
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert output["recovered"] is True
+    assert output["hash_matches"] is True
