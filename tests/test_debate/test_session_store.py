@@ -127,6 +127,40 @@ async def test_terminal_session_cannot_be_reopened(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_running_session_cannot_regress_to_queued(tmp_path: Path) -> None:
+    store = SqliteDebateSessionStore(tmp_path / "sessions.db")
+    running = DebateSessionRecord(
+        session_id="deb_running",
+        stock_code="000001",
+        question="测试",
+        status="running",
+        progress=40,
+    )
+    await store.save(running)
+
+    stale_queued = running.model_copy(update={"status": "queued", "progress": 0})
+    with pytest.raises(SessionStoreError, match="transition"):
+        await store.save(stale_queued)
+
+
+@pytest.mark.asyncio
+async def test_running_session_progress_cannot_move_backwards(tmp_path: Path) -> None:
+    store = SqliteDebateSessionStore(tmp_path / "sessions.db")
+    running = DebateSessionRecord(
+        session_id="deb_progress",
+        stock_code="000001",
+        question="测试",
+        status="running",
+        progress=60,
+    )
+    await store.save(running)
+
+    stale_progress = running.model_copy(update={"progress": 30})
+    with pytest.raises(SessionStoreError, match="progress"):
+        await store.save(stale_progress)
+
+
+@pytest.mark.asyncio
 async def test_repeated_completed_write_is_idempotent(tmp_path: Path) -> None:
     store = SqliteDebateSessionStore(tmp_path / "sessions.db")
     completed = _completed_record()
