@@ -43,6 +43,8 @@ class TestRecordUsage:
                 completion_tokens=50,
                 agent="test_agent",
                 session_id="s1",
+                prompt_cache_hit_tokens=0,
+                prompt_cache_miss_tokens=None,
             )
 
     def test_record_without_metadata_uses_zero(self):
@@ -73,6 +75,8 @@ class TestRecordUsage:
                 completion_tokens=100,
                 agent="agent",
                 session_id="s1",
+                prompt_cache_hit_tokens=0,
+                prompt_cache_miss_tokens=None,
             )
 
 

@@ -65,8 +65,8 @@ class TestCostTracker:
             agent="a",
             session_id="s1",
         )
-        # 未知模型使用默认价格 input=0.5, output=1.0
-        assert tracker._records[0]["cost_yuan"] == 1.5
+        # 未知模型安全回退到当前 Flash 的未命中输入/输出价格
+        assert tracker._records[0]["cost_yuan"] == 3.0
 
     def test_session_cost(self):
         tracker = CostTracker(log_dir="/tmp/_test_cost_logs")

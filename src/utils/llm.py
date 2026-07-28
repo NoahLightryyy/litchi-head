@@ -172,10 +172,16 @@ def _record_usage(
     """
     model_name = getattr(llm, "model", "unknown")
     meta = getattr(response, "response_metadata", {}) or {}
+    if not isinstance(meta, dict):
+        meta = {}
     token_usage = meta.get("token_usage", meta.get("usage", {}) or {})
+    if not isinstance(token_usage, dict):
+        token_usage = {}
 
     pt = prompt_tokens or token_usage.get("prompt_tokens", 0) or 0
     ct = completion_tokens or token_usage.get("completion_tokens", 0) or 0
+    cache_hit = token_usage.get("prompt_cache_hit_tokens", 0) or 0
+    cache_miss = token_usage.get("prompt_cache_miss_tokens")
 
     cost_tracker.record(
         model=model_name,
@@ -183,6 +189,8 @@ def _record_usage(
         completion_tokens=ct,
         agent=agent_name,
         session_id=session_id,
+        prompt_cache_hit_tokens=cache_hit,
+        prompt_cache_miss_tokens=cache_miss,
     )
 
 
@@ -410,7 +418,7 @@ class LLMService:
             ValueError: LLM 返回内容无法解析为 output_model
         """
         llm = self.get_llm(provider, llm_config)
-        structured_llm = llm.with_structured_output(output_model, include_raw=False)
+        structured_llm = llm.with_structured_output(output_model, include_raw=True)
 
         messages = []
         if system_prompt:
@@ -418,11 +426,29 @@ class LLMService:
         messages.append(HumanMessage(content=prompt))
 
         try:
-            result = await self._call_with_retry(structured_llm, messages)
+            response = await self._call_with_retry(structured_llm, messages)
         except Exception as e:
             raise ValueError(
                 f"LLM 结构化输出解析失败 for {output_model.__name__}: {e}"
             ) from e
+
+        raw_response: BaseMessage | None = None
+        if isinstance(response, output_model):
+            # Backward-compatible path for custom/mock runnables.
+            result = response
+        elif isinstance(response, dict):
+            parsing_error = response.get("parsing_error")
+            if parsing_error is not None:
+                raise ValueError(
+                    f"LLM 结构化输出解析失败 for {output_model.__name__}: "
+                    f"{parsing_error}"
+                )
+            result = response.get("parsed")
+            raw_candidate = response.get("raw")
+            if isinstance(raw_candidate, BaseMessage):
+                raw_response = raw_candidate
+        else:
+            result = None
 
         if not isinstance(result, output_model):
             raise ValueError(
@@ -430,11 +456,10 @@ class LLMService:
                 f"实际 {type(result).__name__}"
             )
 
-        # 结构化调用不返回 BaseMessage，无法获取 token 用量
         if agent_name != "unknown":
             _record_usage(
                 llm,
-                _FALLBACK_RESPONSE,
+                raw_response or _FALLBACK_RESPONSE,
                 agent_name,
                 session_id,
             )
