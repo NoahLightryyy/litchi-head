@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from scripts.capture_debate_evidence import (
+    DebateEvidenceBundle,
     capture_debate_evidence,
+    main,
     summarize_debate_result,
 )
 from src.debate.models import AgentAnalysis, DebateInput, DebateResult, VoteSummary
@@ -119,3 +122,33 @@ async def test_capture_rejects_orchestrator_session_mismatch(tmp_path: Path) -> 
 
     assert list(tmp_path.iterdir()) == []
 
+
+def test_cli_prints_aggregate_paths(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    report = summarize_debate_result(_result(), _cost())
+    bundle = DebateEvidenceBundle(
+        result_path=tmp_path / "result.json",
+        report_path=tmp_path / "report.json",
+        report=report,
+    )
+    with patch(
+        "scripts.capture_debate_evidence.capture_debate_evidence",
+        new=AsyncMock(return_value=bundle),
+    ):
+        exit_code = main(
+            [
+                "--stock-code",
+                "000001",
+                "--stock-name",
+                "平安银行",
+                "--output-dir",
+                str(tmp_path),
+            ]
+        )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert '"evidence_kind":"real_llm_export"' in output.replace(" ", "")
+    assert f"result_path={bundle.result_path}" in output
