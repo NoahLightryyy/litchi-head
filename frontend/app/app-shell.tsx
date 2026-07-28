@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { BackendStatusIndicator, HeaderStatusDot } from "@/components/shared/backend-status";
 import { usePathname } from "next/navigation";
 
 /* ── 路径 → 标题 映射 ── */
@@ -45,6 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ⚠ 网络已断开，数据可能无法更新
           </div>
         )}
+        <BackendStatusIndicator />
         <LoadingBar />
         <Header meta={meta} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
@@ -135,6 +137,7 @@ function Header({ meta }: { meta: { title: string } }) {
         <span className="text-text-primary font-medium">{meta.title}</span>
       </div>
       <div className="flex items-center gap-4">
+        <HeaderStatusDot />
         <span className="text-xs text-text-muted">数据来源: akshare</span>
       </div>
     </header>
