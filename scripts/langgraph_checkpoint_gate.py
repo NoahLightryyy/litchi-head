@@ -7,8 +7,10 @@ import sys
 from pathlib import Path
 from typing import TypedDict
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel
 
 if __package__ in (None, ""):
@@ -41,7 +43,7 @@ def _build_graph(
     executions: dict[str, int],
     *,
     interrupt_after_collect: bool,
-):
+) -> CompiledStateGraph:
     def collect(state: CheckpointGateState) -> CheckpointGateState:
         executions["collect"] += 1
         return {"completed_nodes": [*state["completed_nodes"], "collect"]}
@@ -70,7 +72,7 @@ def run_sqlite_checkpoint_gate(
     """Stop after one node, release SQLite, then continue without rerunning it."""
     path = Path(database_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    config = {"configurable": {"thread_id": thread_id}}
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     executions = {"collect": 0, "analyze": 0}
 
     first_connection = sqlite3.connect(path, check_same_thread=False)

@@ -8,10 +8,10 @@
 ## 快速统计
 
 ```
-总 Python 测试数 │ 1225 passed / 4 skipped / 19 slow deselected
-技术债务         │ 65 条总记 / 36 条已关闭 / 29 条开放
-紧急指数         │ 5.5/10（TD-061 Critical；数据底座处于实施门禁）
-当前阶段         │ 🟡 Phase R 数据底座加固 — session 提交后恢复原型通过，真实采样/节点续跑待办
+总 Python 测试数 │ 1236 passed / 4 skipped / 19 slow deselected
+技术债务         │ 67 条总记 / 36 条已关闭 / 31 条开放
+紧急指数         │ 5.6/10（TD-061 Critical；数据底座处于实施门禁）
+当前阶段         │ 🟡 Phase R 数据底座加固 — 真实 LLM 容量与最小节点续跑通过，TD-069 待决策
 前端进度         │ 全部 Tab 面板就绪（技术指标/资金流向/AI 辩论/信任度）+ 暗色主题打磨 + pnpm build ✅
 后端桥接         │ market/stocks/debate/trust 四组路由全部完整实现 + TD-020 板块增强 + 技术指标 + 生产配置 ✅
 数据源诚信        │ 全项目零造假 ✅ + Provider 抽象层 ✅ + 免费多源架构 ✅ + 生产配置 ✅
@@ -492,7 +492,7 @@ qa/（质量保障体系 — Hookify 规则 + Post-tool hooks）
 | 2026-07-23 (4) | **FD-001h 多源财务数据** — ADataSource + ZzshareSource get_financials() 实现 + safe_float NaN 修复 + 7 测试，1037 全量通过 |
 | **2026-07-24** | **FD-001i 前端财务 Tab** — API 端点(/financials + /valuation) + FinancialPanel 组件(16 指标分类展示+估值四宫格+历史对比表) + 10 测试，1044 全量通过 |
 | **2026-07-24 (2)** | **PD-001/002/003 动态指标体系** — IndicatorRegistry + 产业链位置 + 动态选择器，实锤 API 验证 496 行业 + 31 行业全覆盖，34 测试，1076 全量通过 🎯 |
-| **2026-07-28** | **ADR-012 方向获批 + session 恢复原型** — 用户确认三层存储与生命周期；SQLite/PostgreSQL 提交后恢复通过，真实采样/节点续跑仍待办 |
+| **2026-07-28** | **ADR-012 方向获批 + 恢复门禁** — 用户确认三层存储与生命周期；SQLite/PostgreSQL 提交后恢复、68,896-byte 真实 LLM 结果容量和最小 LangGraph 节点续跑通过；TD-069 数据缺失策略待决策 |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。

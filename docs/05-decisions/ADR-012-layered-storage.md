@@ -74,9 +74,9 @@
 
 进入生产迁移前必须通过以下证据：
 
-1. ⬜ 真实辩论快照容量基线；
-2. 🟡 已提交 session 的 SQLite/PostgreSQL 重启恢复已通过；
-   LangGraph 节点级中断续跑待验证；
+1. ✅ 一场真实 LLM 辩论的结果容量、耗时、Token 与费用基线；
+2. ✅ 已提交 session 的 SQLite/PostgreSQL 重启恢复，以及独立 SQLite 连接上的
+   LangGraph 节点级中断续跑原型；
 3. Redis/SQL 故障注入；
 4. 行情并发 single-flight 压测；
 5. 一键启动与备份恢复演练；
@@ -85,7 +85,14 @@
 Batch B 已确定持久 session 的最低不变量：版本化 Pydantic 信封、主键幂等、
 终态不可改写、状态/进度单调前进、SHA-256 完整性检查，以及损坏时显式失败。
 SQLite WAL 和 PostgreSQL 17 均已用同一份 9,778-byte 代表性快照通过提交后重启恢复。
-该证据不决定最终从 SQLite 还是 PostgreSQL 起步。
+Batch C 又用一场真实 LLM 辩论得到 68,896-byte `DebateResult`，其 durable session
+为 69,248 bytes，并通过 SQLite 关闭、重开和哈希恢复。两节点 LangGraph 门禁在
+`collect` 后落盘，关闭连接后以同一 `thread_id` 恢复，只执行一次后续 `analyze`
+节点，已完成节点没有重跑。
+
+上述证据仍不决定最终从 SQLite 还是 PostgreSQL 起步，也不代表正式辩论图已经
+接入 checkpointer。真实辩论的数据采集发生降级，因此只能用于 LLM 容量、耗时和
+费用基线，不能作为完整市场数据质量样本。
 
 完整证据见：
 [数据生命周期、容量与 Redis + SQL 调研](../02-requirements/STORAGE_LIFECYCLE_RESEARCH.md)。

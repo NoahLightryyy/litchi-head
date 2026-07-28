@@ -43,8 +43,10 @@ department: 后端 API 部
 
 已新增版本化 `DebateSessionRecord`、SQLite WAL 持久原型和恢复门禁。同一份
 9,778-byte 代表性快照在 SQLite 与 PostgreSQL 17 上均通过提交后重启恢复和
-SHA-256 一致性校验。债务不关闭：后端路由仍使用进程内字典，durable queue、
-全局背压、真实辩论采样和 LangGraph 节点级续跑尚未完成。
+SHA-256 一致性校验。Batch C 又验证了 68,896-byte 真实 LLM 结果的 SQLite
+重开恢复，并用最小两节点图证明 LangGraph SQLite checkpoint 能跨连接续跑且
+不重跑已完成节点。债务不关闭：后端路由仍使用进程内字典，正式辩论图尚未接入
+checkpointer，durable queue、全局背压和 1/3/5 并发门禁仍未完成。
 
 ## 已关闭债务
 

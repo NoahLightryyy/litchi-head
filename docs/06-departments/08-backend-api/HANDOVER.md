@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-07-28 (durable session 恢复原型完成，尚未接管路由)
+last_updated: 2026-07-28 (真实结果与最小节点续跑门禁完成，尚未接管路由)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -41,7 +41,8 @@ last_updated: 2026-07-28 (durable session 恢复原型完成，尚未接管路�
 - **异步桥接**：所有同步数据采集调用通过 `run_sync(timeout=15)` 封装
 - **CORS 环境变量化**：从 `BACKEND_CORS_ORIGINS` 读取，硬编码默认值仅用于开发
 - **ADR-012 session 原型**：版本化信封 + SQLite WAL + 哈希恢复门禁；
-  PostgreSQL 同信封重启恢复通过，尚未接入路由
+  PostgreSQL 同信封重启恢复通过；真实 LLM 结果和最小 LangGraph 节点续跑已验证，
+  尚未接入正式辩论图或路由
 
 ---
 
@@ -70,9 +71,10 @@ last_updated: 2026-07-28 (durable session 恢复原型完成，尚未接管路�
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟡 | TD-068 采集真实辩论快照并验证 LangGraph 节点级续跑 | session 原型 |
-| 2 🟡 | TD-068 1/3/5 并发、durable queue 与全局背压门禁 | 真实快照 |
-| 3 🟢 | TD-054 CORS 改环境变量 | 无 |
+| 1 🟡 | 确认 TD-069 数据缺失时的失败/确认/降级策略 | 用户决定 |
+| 2 🟡 | TD-068 正式辩论图 checkpoint + 路由 durable session 集成 | TD-069 |
+| 3 🟡 | TD-068 1/3/5 并发、durable queue 与全局背压门禁 | 正式图恢复 |
+| 4 🟢 | TD-054 CORS 改环境变量 | 无 |
 
 ### 结果回调（RC 系列，2026-06-23 新增）
 

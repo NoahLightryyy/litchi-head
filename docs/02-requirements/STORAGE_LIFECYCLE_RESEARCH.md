@@ -196,9 +196,9 @@ NautilusTrader 的做法最接近我们的目标：
 
 在批准技术迁移前还需完成：
 
-1. ⬜ 采集真实一场完整辩论的序列化大小、节点数和耗时分布。
-2. 🟡 已证明 SQLite/PostgreSQL 能恢复已提交的 completed session；
-   LangGraph 节点级中断续跑仍待实现。
+1. ✅ 采集一场真实 LLM 辩论的序列化大小、节点数、耗时、Token 和费用。
+2. ✅ 已证明 SQLite/PostgreSQL 能恢复已提交的 completed session，并用独立
+   SQLite 连接证明 LangGraph 节点级中断续跑语义。
 3. 模拟 1/3/5 场并发辩论并测量 LLM 并发、费用和失败传播。
 4. 模拟 20/50/100 个并发行情请求并验证 single-flight。
 5. 模拟 Redis 关闭、SQL 关闭、磁盘满和损坏记录。
@@ -230,3 +230,37 @@ SQLite 单次写入约 8.11 ms，关闭连接后重新打开读取约 1.95 ms。
 - 仓库目前没有可复用的真实历史辩论，不能虚构真实容量结论；
 - 当前证明的是“已提交 completed session 可恢复”，不是 LangGraph 节点级续跑；
 - 原型尚未接管 `backend/routers/debate.py` 的进程内 session 字典。
+
+### 8.2 Batch C 真实 LLM 与节点续跑证据（2026-07-28）
+
+对 `000001 平安银行` 执行一次非交易、风险收益中性的真实辩论：
+
+| 指标 | 实测 |
+|:--|--:|
+| `DebateResult` JSON | 68,896 bytes |
+| durable session canonical JSON | 69,248 bytes |
+| 总耗时 | 175.775 秒 |
+| LLM 调用 | 16 次 |
+| 输入 / 输出 Token | 52,982 / 16,708 |
+| 缓存命中 / 未命中输入 Token | 4,480 / 48,502 |
+| 按当日 DeepSeek V4 Flash 兼容别名价格记录 | ¥0.082006 |
+| SQLite 写入 / 重开读取 | 8.6564 / 2.5055 ms |
+| SQLite 数据库文件 | 81,920 bytes |
+| 恢复与哈希一致 | ✅ |
+
+该次运行生成 5 份分析师结果、5 份大师结果、5 份交叉审阅和 1 份独立评审。
+但东方财富代理错误、新闻正则错误和行业数据代理错误导致部分真实数据未采到，
+系统仍执行了全部 16 次 LLM 调用。因此这份样本只证明真实 LLM 输出的容量、耗时
+和费用，不证明完整市场数据输入下的分析质量。该行为已登记 TD-069，修复策略需
+由产品侧确认。
+
+节点级恢复另用一个最小两节点 LangGraph 验证：
+
+1. `collect` 完成后由 `interrupt_after` 停止并持久化；
+2. 关闭第一个 SQLite 连接，模拟进程退出；
+3. 新建连接并使用同一 `thread_id` 调用 `invoke(None, config)`；
+4. 最终状态为 `["collect", "analyze"]`，两个节点执行次数均为 1。
+
+这证明 checkpointer 的重启续跑语义，不代表正式辩论图已经接入。当前 SQLite
+checkpointer 仅作为开发门禁依赖；生产环境仍需结合异步执行、PostgreSQL、
+幂等副作用和 durable queue 做集成验证。

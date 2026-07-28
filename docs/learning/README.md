@@ -60,6 +60,7 @@
 | 28 | 🆕 [结构化多层市场简报 — 让 LLM "看什么股说什么话"](28-structured-market-brief.md) | `src/data/collector.py` + `src/debate/orchestrator.py` |
 | 29 | 🆕 [SQL 事实源与 Redis 可重建投影](29-sql-redis-storage-layers.md) | `scripts/storage_baseline.py` + ADR-012 |
 | 30 | 🆕 [可恢复 Session 信封](30-durable-session-envelope.md) | `src/debate/session_store.py` + `scripts/debate_recovery_gate.py` |
+| 31 | 🆕 [LangGraph 持久检查点：让节点完成后可以断电续跑](31-langgraph-durable-checkpoint.md) | `scripts/langgraph_checkpoint_gate.py` |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
@@ -70,8 +71,8 @@
 | 你的目标 | 建议读哪些 |
 |:---------|:-----------|
 | 快速上手项目 | 01 → 02 → 03 → 04 → 05 |
-| 理解后端设计 | 01 → 03 → 04 → 05 → 08 → **29** → **30** |
-| 理解 Agent 系统 | 02 → 03 → 22 → 24 |
+| 理解后端设计 | 01 → 03 → 04 → 05 → 08 → **29** → **30** → **31** |
+| 理解 Agent 系统 | 02 → 03 → 22 → 24 → **31** |
 | 理解前端设计 | 04 → 07 → 28 |
 | 理解质量保障 | 15 → 16 → 17 → 文档 `docs/03-modules/12-quality-assurance/` |
 | 编写后端测试 | 17 → 18 |

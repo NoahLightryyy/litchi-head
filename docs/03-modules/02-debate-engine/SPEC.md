@@ -26,6 +26,8 @@
 | `src/debate/session_store.py` | 版本化 session 信封 + SQLite WAL 中断恢复原型（尚未接管后端路由） |
 | `src/debate/reflection.py` | M2 反思闭环（Record → Compare → Reflect → Inject） |
 | `scripts/debate_recovery_gate.py` | 对导出的 DebateResult 执行写入、关闭、重开与哈希门禁 |
+| `scripts/capture_debate_evidence.py` | 采集单场真实 LLM 辩论的容量、耗时、Token 与费用证据 |
+| `scripts/langgraph_checkpoint_gate.py` | 两节点 SQLite checkpointer 关闭连接后续跑门禁 |
 | `tests/test_debate_orchestrator.py` | 编排器 MVP 测试（52） |
 | `tests/test_debate_d1_cross_review.py` | 交叉审阅测试（25） |
 | `tests/test_debate_d2_direction_constraint.py` | 方向约束测试（31） |
@@ -83,7 +85,9 @@ END
 - queued → running → completed/failed，状态和进度只能单调前进；
 - SQLite 使用 WAL、`synchronous=FULL`、事务和校验摘要；
 - 读取到损坏 JSON 或摘要不一致时抛出 `SessionStoreError`，不能返回“未找到”；
-- 当前只证明提交后恢复，尚未接入 LangGraph checkpointer 或后端运行链。
+- 已证明已提交结果恢复，以及独立 SQLite 连接上的最小 LangGraph 节点续跑；
+- checkpointer 尚未接入正式辩论图或后端运行链，节点副作用幂等也未验证；
+- 真实采样发现数据源降级后仍跑完整 LLM 链，策略待 TD-069 决策。
 
 ## 当前实现状态
 
@@ -98,7 +102,7 @@ END
 | M2 — 反思闭环 | 🟡 已实现，待深度集成 | — |
 | M3 — 信任度评分 ✅ | 已实现 | 54 |
 | M4 — 动态权重 🆕 | ✅ 已实现 | 10 |
-| R-Session — 持久信封与提交后恢复原型 | 🟡 原型完成，待路由/节点续跑集成 | 17 |
+| R-Session — 持久信封与恢复原型 | 🟡 结果恢复 + 最小节点续跑已验证，待正式图/路由集成 | 19 |
 
 **辩论模块总测试：232 项（含 M3 + M4）**
 

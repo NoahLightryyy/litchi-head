@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能提交** | `7cef30d` — `fix: enforce monotonic debate session transitions` |
-| **全量测试** | 1248 collected；1225 passed、4 skipped、19 slow deselected ✅ |
+| **最新功能提交** | `4acca2c` — `fix: pass deepseek token limit explicitly` |
+| **全量测试** | 1259 collected；1236 passed、4 skipped、19 slow deselected ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | 🟢 → 最近 4 次全绿 ✅ |
@@ -71,7 +71,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 部门 | 代码 | 状态 | 开放债务 | → 看这里 |
 |:-----|:-----|:----:|:--------:|:---------|
 | 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | ✅ | 3 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
-| 🎯 辩论引擎部 | `src/debate/` | ✅ | 2 | [HANDOVER](../06-departments/02-debate-engine/HANDOVER.md) |
+| 🎯 辩论引擎部 | `src/debate/` | 🟡 | 3 | [HANDOVER](../06-departments/02-debate-engine/HANDOVER.md) |
 | 🤖 AI Agent 架构部 | `src/agents/` + `src/core/` | ✅ | 3 | [HANDOVER](../06-departments/03-ai-agents/HANDOVER.md) |
 | 🧠 记忆系统部 | `src/memory/` | 🟡 | 2 | [HANDOVER](../06-departments/04-memory-systems/HANDOVER.md) |
 | 🛡️ 风控管理部 | `src/risk/` | ✅ | 0 | [HANDOVER](../06-departments/05-risk-management/HANDOVER.md) |
@@ -79,10 +79,10 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 🔬 回测研究部 | `src/backtest/` | ✅ | 0 | [HANDOVER](../06-departments/07-backtesting/HANDOVER.md) |
 | 🌐 后端 API 部 | `backend/` | 🟡 | 3 | [HANDOVER](../06-departments/08-backend-api/HANDOVER.md) |
 | 🎨 前端部 | `frontend/` | ✅ | 1 | [HANDOVER](../06-departments/09-frontend/HANDOVER.md) |
-| ⚙️ 基础设施部 | `src/utils/` | ✅ | 6 | [HANDOVER](../06-departments/10-infrastructure/HANDOVER.md) |
+| ⚙️ 基础设施部 | `src/utils/` | 🟡 | 7 | [HANDOVER](../06-departments/10-infrastructure/HANDOVER.md) |
 | 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🟢 | 2 | [HANDOVER](../06-departments/11-quality-assurance/HANDOVER.md) |
 
-**全代码库开放债务**: 29 条（紧急指数 5.5/10）→ [跨部门债务](../06-departments/00-cross-cutting/DEBT.md)
+**全代码库开放债务**: 31 条（紧急指数 5.6/10）→ [债务路由](debt/ROUTER.md)
 
 ---
 
@@ -98,7 +98,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 |:------:|:-----|:---------|:----:|
 | 🔥 **P0** | **PD-001/002/003 动态指标体系** — ✅ 全完成（34 tests + 325 ✅）详见跨部门总览 PD 节 |
 | 🔥 P0 | **PD-004 行业覆盖验证 + 前端行业感知** — ✅ PD-004b 完成（FinancialPanel 按行业过滤指标）详见跨部门总览 PD 节 |
-| 🔥 P0 | **ADR-012 数据生命周期与持久化底座** — 提交后恢复原型已通过；下一批采集真实辩论并验证节点级续跑 |
+| 🔥 P0 | **ADR-012 数据生命周期与持久化底座** — 真实 LLM 容量 + 提交后恢复 + 最小节点续跑已通过；待 TD-069 错误策略和正式图集成 |
 | 🔥 P0 | **C2 情绪数据层** — ✅ 已接入真实市场情绪数据（涨跌比+情绪评分），见 [2026-07-24-5 日志](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **R4 置信度量化** — ✅ 已完成：校准曲线映射 + aggregate_node 应用校准 + 前端置信度可视化，见 [R4](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务数据+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ | ~0 剩余 |
@@ -202,4 +202,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-07-27 | Phase R+1 全部完成 + TD-036 backend 测试覆盖（1203 tests ✅）
+> **最后更新**：2026-07-28 | ADR-012 Batch C：真实 LLM 容量、成本与节点续跑门禁完成；TD-069 待产品决策
