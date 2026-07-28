@@ -13,6 +13,7 @@
     - 行业/概念板块列表（TTL 1h）
     - 透明缓存层（DataCache，TTL 可配置）
     - PD 动态指标体系（行业 → 产业链位置 → 关键指标选择）
+    - CNINFO 权威公告证据适配器（显式六态结果）
 """
 
 from src.data.cache import DataCache
@@ -29,6 +30,7 @@ from src.data.indicators import (
     normalize_industry,
 )
 from src.data.models import (
+    AnnouncementItem,
     BoardInfo,
     FinancialMetrics,
     KLine,
@@ -39,6 +41,7 @@ from src.data.models import (
 )
 
 __all__ = [
+    "AnnouncementItem",
     "BoardInfo",
     "DataCache",
     "DataCollector",
@@ -58,4 +61,3 @@ __all__ = [
     "ValuationMetrics",
     "normalize_industry",
 ]
-

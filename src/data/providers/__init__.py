@@ -7,7 +7,8 @@
         ├── AKShareSource    — 当前默认（akshare 爬虫）
         ├── ADataSource      — adata 免费 5 源融合
         ├── ZzshareSource    — zzshare Tushare 兼容零 Token
-        └── FallbackSource   — 主源故障自动切换
+        ├── FallbackSource   — 主源故障自动切换
+        └── CninfoAnnouncementSource — 新证据契约下的权威公告适配器
 """
 
 from src.data.providers.adata_source import ADataSource
