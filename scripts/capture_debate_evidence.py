@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,8 +13,13 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel
 
-from src.debate.models import DebateInput, DebateResult
-from src.utils.cost_tracker import SessionCostSummary, cost_tracker
+if __package__ in (None, ""):
+    project_root = str(Path(__file__).resolve().parents[1])
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+from src.debate.models import DebateInput, DebateResult  # noqa: E402
+from src.utils.cost_tracker import SessionCostSummary, cost_tracker  # noqa: E402
 
 
 class DebateRunner(Protocol):
@@ -178,4 +184,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

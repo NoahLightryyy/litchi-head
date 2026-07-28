@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import sys
 import time
 from pathlib import Path
 from typing import Sequence
 
 from pydantic import BaseModel, ValidationError
 
-from src.debate.models import DebateResult
-from src.debate.session_store import (
+if __package__ in (None, ""):
+    project_root = str(Path(__file__).resolve().parents[1])
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+from src.debate.models import DebateResult  # noqa: E402
+from src.debate.session_store import (  # noqa: E402
     DebateSessionRecord,
     SessionSnapshotMeasurement,
     SqliteDebateSessionStore,
@@ -147,4 +153,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
