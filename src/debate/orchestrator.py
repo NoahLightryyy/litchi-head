@@ -1363,7 +1363,7 @@ class DebateOrchestrator:
     工作流程：
     1. 接收 DebateInput（股票代码 + 问题）
     2. collect_data 节点采集行情/K线/新闻
-    3. analyst_round 节点运行 4 位专业分析师
+    3. analyst_round 节点运行 5 位专业分析师
     4. master_round 节点策略师基于分析师报告综合判断
     5. review_round 节点 D1 交叉审阅
     6. review_report 节点 D3 独立评审

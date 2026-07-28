@@ -7,7 +7,7 @@
 - 验证每层输出结构正确、不崩、不抛异常
 
 被测流程：
-  collect_data → analyst_round(4) → master_round(5)
+  collect_data → analyst_round(5) → master_round(5)
   → review_round(D1) → review_report(D3) → aggregate
   → risk_round(R1×3) → trader_round(T1) → pm_round(PM)
 """
@@ -30,6 +30,8 @@ def mock_collector():
     col.get_klines.return_value = []
     col.get_news.return_value = []
     col.get_financials.return_value = []
+    col.get_dynamic_indicators.return_value = {}
+    col.get_market_sentiment.return_value = None
     return col
 
 
@@ -88,7 +90,7 @@ class TestE2EFullPipeline:
 
         # 分析师层 (analyst_round)
         assert result.analyst_reports is not None
-        assert len(result.analyst_reports) == 4
+        assert len(result.analyst_reports) == 5
 
         # 大师层 (master_round)
         assert len(result.analyses) == 3
@@ -138,7 +140,7 @@ class TestE2EFullPipeline:
 
         # 分析师层
         assert result.analyst_reports is not None
-        assert len(result.analyst_reports) == 4
+        assert len(result.analyst_reports) == 5
 
         # 投票层
         assert result.vote_summary.total_votes == 2
@@ -277,6 +279,6 @@ class TestE2EFullPipeline:
         assert summary["共识"] != ""
         assert summary["平均评分"] > 0
         assert summary["总耗时(ms)"] >= 0
-        assert summary.get("分析师报告数") == 4
+        assert summary.get("分析师报告数") == 5
         # mock_llm 返回空数据 → 风控/交易/PM 层可能有默认值或为空
         # 只要不抛异常即通过
