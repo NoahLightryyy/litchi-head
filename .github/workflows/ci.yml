@@ -70,6 +70,9 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --dir frontend install --frozen-lockfile
 
+      - name: Frontend tests and coverage
+        run: pnpm --dir frontend test:coverage
+
       - name: Frontend type-check
         run: pnpm --dir frontend type-check
 
