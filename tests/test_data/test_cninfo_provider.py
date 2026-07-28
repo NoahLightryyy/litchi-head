@@ -95,6 +95,17 @@ def test_network_exception_is_visible_failure() -> None:
     assert result.error_message == "cninfo request timed out"
 
 
+def test_exception_without_message_still_becomes_visible_failure() -> None:
+    def failing_fetcher(**_: str) -> pd.DataFrame:
+        raise TimeoutError
+
+    result = CninfoAnnouncementSource(fetcher=failing_fetcher).fetch(_request())
+
+    assert result.status is SourceStatus.FAILED
+    assert result.error_code == "upstream_request_failed"
+    assert result.error_message == "TimeoutError"
+
+
 def test_unsupported_capability_does_not_call_upstream() -> None:
     called = False
 
