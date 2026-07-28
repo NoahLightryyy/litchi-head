@@ -104,6 +104,10 @@ def _extract_announcement_id(url: str) -> str:
     return values[0].strip()
 
 
+def _exception_message(exc: Exception) -> str:
+    return str(exc).strip() or exc.__class__.__name__
+
+
 def _frame_to_items(frame: pd.DataFrame) -> list[AnnouncementItem]:
     missing_columns = REQUIRED_COLUMNS - set(frame.columns)
     if missing_columns:
@@ -185,7 +189,7 @@ class CninfoAnnouncementSource:
                 capability=request.capability,
                 status=SourceStatus.FAILED,
                 error_code="upstream_request_failed",
-                error_message=str(exc),
+                error_message=_exception_message(exc),
             )
 
         if frame.empty:
@@ -209,7 +213,7 @@ class CninfoAnnouncementSource:
                 capability=request.capability,
                 status=SourceStatus.FAILED,
                 error_code="invalid_upstream_payload",
-                error_message=str(exc),
+                error_message=_exception_message(exc),
             )
 
         return SourceResult[AnnouncementItem](
