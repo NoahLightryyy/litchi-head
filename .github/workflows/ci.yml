@@ -6,18 +6,22 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -30,7 +34,7 @@ jobs:
         run: ruff check .
 
       - name: Pyright (类型检查)
-        run: pyright src/
+        run: pyright src/ backend/
 
       - name: Pytest (测试)
         run: python -m pytest -v --tb=short
@@ -44,3 +48,30 @@ jobs:
         run: |
           pip install pip-audit
           pip-audit || echo "⚠️ pip-audit 发现已知 CVE（仅警告，不阻塞构建）"
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm --dir frontend install --frozen-lockfile
+
+      - name: Frontend type-check
+        run: pnpm --dir frontend type-check
+
+      - name: Frontend production build
+        run: pnpm --dir frontend build
