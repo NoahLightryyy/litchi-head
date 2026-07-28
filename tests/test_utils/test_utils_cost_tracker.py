@@ -36,9 +36,25 @@ class TestCostTracker:
             agent="a",
             session_id="s1",
         )
-        # deepseek-chat: input=0.5/M, output=1.0/M
-        # cost = (1_000_000 * 0.5 + 1_000_000 * 1.0) / 1_000_000 = 1.5
-        assert tracker._records[0]["cost_yuan"] == 1.5
+        # deepseek-chat 兼容映射到 V4 Flash：缓存未命中输入 1/M、输出 2/M
+        assert tracker._records[0]["cost_yuan"] == 3.0
+
+    def test_record_uses_cache_hit_and_miss_prices(self):
+        tracker = CostTracker(log_dir="/tmp/_test_cost_logs")
+        tracker.record(
+            model="deepseek-v4-flash",
+            prompt_tokens=1_000_000,
+            prompt_cache_hit_tokens=600_000,
+            prompt_cache_miss_tokens=400_000,
+            completion_tokens=1_000_000,
+            agent="a",
+            session_id="s1",
+        )
+
+        record = tracker._records[0]
+        assert record["prompt_cache_hit_tokens"] == 600_000
+        assert record["prompt_cache_miss_tokens"] == 400_000
+        assert record["cost_yuan"] == 2.412
 
     def test_record_fallback_prices(self):
         tracker = CostTracker(log_dir="/tmp/_test_cost_logs")
@@ -73,6 +89,37 @@ class TestCostTracker:
     def test_session_cost_zero_for_nonexistent(self):
         tracker = CostTracker(log_dir="/tmp/_test_cost_logs")
         assert tracker.session_cost("nonexistent") == 0.0
+
+    def test_session_summary_reports_real_usage(self):
+        tracker = CostTracker(log_dir="/tmp/_test_cost_logs")
+        tracker.record(
+            model="deepseek-chat",
+            prompt_tokens=1_000,
+            prompt_cache_hit_tokens=300,
+            prompt_cache_miss_tokens=700,
+            completion_tokens=200,
+            agent="analyst.fundamental",
+            session_id="deb_real",
+        )
+        tracker.record(
+            model="deepseek-chat",
+            prompt_tokens=2_000,
+            prompt_cache_hit_tokens=500,
+            prompt_cache_miss_tokens=1_500,
+            completion_tokens=400,
+            agent="master.buffett",
+            session_id="deb_real",
+        )
+
+        summary = tracker.session_summary("deb_real")
+
+        assert summary.call_count == 2
+        assert summary.prompt_tokens == 3_000
+        assert summary.prompt_cache_hit_tokens == 800
+        assert summary.prompt_cache_miss_tokens == 2_200
+        assert summary.completion_tokens == 600
+        assert summary.models == {"deepseek-chat"}
+        assert summary.cost_yuan > 0
 
     def test_session_cost_rounds_to_4_decimals(self):
         tracker = CostTracker(log_dir="/tmp/_test_cost_logs")

@@ -160,6 +160,59 @@ class TestLLMService:
                 agent_name="test",
             )
 
+    @pytest.mark.asyncio
+    async def test_invoke_structured_records_raw_token_usage(self):
+        from langchain_core.messages import AIMessage
+        from pydantic import BaseModel
+
+        class DummyModel(BaseModel):
+            x: str
+
+        svc = LLMService()
+        mock_llm = MagicMock()
+        structured = AsyncMock()
+        raw = AIMessage(
+            content="",
+            response_metadata={
+                "token_usage": {
+                    "prompt_tokens": 120,
+                    "completion_tokens": 30,
+                    "prompt_cache_hit_tokens": 20,
+                    "prompt_cache_miss_tokens": 100,
+                }
+            },
+        )
+        structured.ainvoke.return_value = {
+            "raw": raw,
+            "parsed": DummyModel(x="ok"),
+            "parsing_error": None,
+        }
+        mock_llm.with_structured_output.return_value = structured
+        svc._instances["deepseek"] = mock_llm
+
+        with patch("src.utils.llm.settings") as mock_settings, patch(
+            "src.utils.llm._record_usage"
+        ) as record_usage:
+            mock_settings.llm_provider = "deepseek"
+            result = await svc.invoke_structured(
+                prompt="test",
+                output_model=DummyModel,
+                agent_name="analyst.test",
+                session_id="deb_real",
+            )
+
+        assert result == DummyModel(x="ok")
+        mock_llm.with_structured_output.assert_called_once_with(
+            DummyModel,
+            include_raw=True,
+        )
+        record_usage.assert_called_once_with(
+            mock_llm,
+            raw,
+            "analyst.test",
+            "deb_real",
+        )
+
 
 class TestLLMConfig:
     """LLMConfig 数据类测试（TD-012）"""
