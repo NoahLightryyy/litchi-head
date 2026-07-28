@@ -70,6 +70,21 @@ class NewsItem(BaseModel):
     url: str = ""
 
 
+class AnnouncementItem(BaseModel):
+    """上市公司权威公告。
+
+    ``external_id`` 使用上游公告编号，供 PostgreSQL 幂等入库和修订关系使用。
+    """
+
+    external_id: str = Field(min_length=1)
+    stock_code: str = Field(min_length=1)
+    stock_name: str = ""
+    title: str = Field(min_length=1)
+    published_at: datetime
+    source_name: str = Field(min_length=1)
+    url: str = Field(min_length=1)
+
+
 class CapitalFlowItem(BaseModel):
     """个股资金流向数据点（主力/散户/机构净流入）"""
 
@@ -230,6 +245,7 @@ class ValuationMetrics(BaseModel):
 
 
 __all__ = [
+    "AnnouncementItem",
     "BoardInfo",
     "BoardType",
     "BriefSection",

@@ -13,12 +13,14 @@
 from src.data.providers.adata_source import ADataSource
 from src.data.providers.akshare import AKShareSource
 from src.data.providers.base import DataSource
+from src.data.providers.cninfo import CninfoAnnouncementSource
 from src.data.providers.fallback import FallbackSource
 from src.data.providers.zzshare import ZzshareSource
 
 __all__ = [
     "ADataSource",
     "AKShareSource",
+    "CninfoAnnouncementSource",
     "DataSource",
     "FallbackSource",
     "ZzshareSource",
