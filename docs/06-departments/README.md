@@ -149,6 +149,7 @@
 | `StockQuote` | 数据管道部 | 辩论引擎部、后端 API 部、前端部 |
 | `KLine` | 数据管道部 | 辩论引擎部、后端 API 部、前端部 |
 | `NewsItem` | 数据管道部 | 辩论引擎部、后端 API 部、前端部 |
+| `AnnouncementItem` / `SourceResult[T]` | 数据管道部 | 辩论引擎部、后端 API 部、持久化层 |
 | `DebateInput/Output` | 辩论引擎部 | 后端 API 部、前端部 |
 | `TrustReport` | 辩论引擎部 | 后端 API 部、前端部 |
 | `AgentResult[T]` | AI Agent 架构部 | 辩论引擎部 |
@@ -218,6 +219,7 @@ Bug 报告
 | 提供方 | 接口 | 消费者 | 协议/契约 |
 |:-------|:-----|:-------|:----------|
 | 数据管道部 | `DataCollector.xxx()` | 辩论引擎部 / 后端 API 部 | Python 函数调用 / Pydantic 模型 |
+| 数据管道部 | `EvidenceSourceRegistry` | `DataEvidenceService`（待实现） | 独立上游 + 六态来源结果 |
 | AI Agent 架构部 | `BaseAgent`, `AgentResult[T]` | 辩论引擎部 | 继承 + 泛型 |
 | 基础设施部 | `LLMService.agenerate()` | 辩论引擎部 | LLMConfig 参数化调用 |
 | 记忆系统部 | `MemoryManager.xxx()` | 辩论引擎部 / AI Agent 架构部 | 语义化读写接口 |

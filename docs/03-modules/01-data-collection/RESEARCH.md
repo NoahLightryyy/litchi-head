@@ -117,7 +117,7 @@
 - [x] **结论**：无需像 TradingAgents 那样做信息隔离（大师需要全貌），但可以把分区做得更清晰，方便大师按需选择性关注。
 
 ### 架构层
-- [ ] 如何设计 Provider 抽象层，让切换数据源不改业务代码？
+- [x] 如何设计 Provider 抽象层，让切换数据源不改业务代码？→ `src/data/evidence.py` + ADR-013
 - [ ] 你的 DataCollector 是否应该拆成 `interface(Fetcher)` + `impl(AkShareFetcher, ...)`？
 - [ ] 未来接美股/加密货币数据时，接口是否通用？
 - [ ] OpenBB 的 Provider 模式能否移植到你当前的项目规模？

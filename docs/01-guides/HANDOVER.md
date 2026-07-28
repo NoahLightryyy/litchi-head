@@ -137,6 +137,22 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 ---
 
+## ▶️ 下次会话启动点（2026-07-28）
+
+1. 先读 [ADR-013 多源证据完整性](../05-decisions/ADR-013-multi-source-evidence.md)；
+2. 再读 [TD-071](../06-departments/01-data/DEBT.md#td-071-akshare-cninfo-在零公告窗口抛错)；
+3. 请用户确认 CNINFO 接入路线：
+   - 推荐：直接调用巨潮公开查询端点，AKShare 保留为可替换适配器；
+   - 备选：等待并锁定 AKShare 正式修复版本；
+4. 决策前不要把 CNINFO 接入正式辩论失败关闭链，也不要把 AKShare 的 `KeyError`
+   猜测为 `SUCCESS_EMPTY`；
+5. 决策后继续 TDD：先验证 `SUCCESS_DATA`、真实 `SUCCESS_EMPTY`、网络失败三态。
+
+当前分支在本次收尾提交前领先 `origin/main` 37 个提交；收尾提交后预计 38 个，
+仍按用户要求标记为待推送。
+
+---
+
 ## 关键设计决策（跨部门）
 
 ### 技术红线

@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-07-24 (PD-005 三维分析上下文注入 + 1080 测试)
+last_updated: 2026-07-28 (ADR-013 多源证据契约 + CNINFO 真实烟测)
 ---
 
 # 🔄 跨部门状态总览
@@ -24,12 +24,12 @@ last_updated: 2026-07-24 (PD-005 三维分析上下文注入 + 1080 测试)
 
 | 指标 | 当前值 |
 |:-----|:------:|
-| 全量测试 | 1080 collected, 全部通过 ✅ |
+| 全量测试 | 1280 collected；1257 passed、4 skipped、19 slow deselected ✅ |
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |
-| 技术债务开放 | 25 条 |
-| 紧急指数 | ~4.5/10 |
+| 技术债务开放 | 32 条 |
+| 紧急指数 | 5.6/10 |
 
 ## 跨部门协作现状
 
@@ -43,6 +43,7 @@ last_updated: 2026-07-24 (PD-005 三维分析上下文注入 + 1080 测试)
 | 记忆↔辩论接口 | ✅ | MemoryManager 语义化 |
 | 回测↔交易接口 | ✅ | TradeRecord 协议 |
 | LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
+| 多源证据（data→debate/backend） | 🟡 | 契约完成；CNINFO 有数据链路通过，TD-071 零公告待决策 |
 
 ## 当前未完成事项（跨部门）
 
@@ -51,6 +52,7 @@ last_updated: 2026-07-24 (PD-005 三维分析上下文注入 + 1080 测试)
 | 🥇 | **PD 动态指标体系** — 新增 PD 系列任务：行业→动态选 5-10 指标，产业链位置判断，三维分析（财务+位置+供应链）。详见下方 PD 段落 | 数据管道部 + 辩论引擎部 + 后端 API 部 + 前端部 |
 | 🥇 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ |
 | 🥇 | **FD-002 估值比率模型** — ✅ PE/PB/PS 模型 + DataCollector.get_valuation()（纯计算，无需新 Provider） | 数据管道部 ✅ |
+| 🥇 | **ADR-013 多源证据完整性** — 契约完成；TD-071、新闻双源、DataEvidenceService 和正式失败关闭待推进 | 数据管道部 + 辩论引擎部 + 后端 API 部 |
 | 🥇 | **FD-003 产业链修复** — 真实行业分类替换伪产业链数据 | 后端 API 部 + 前端部 |
 | 🥇 | **RC-003 UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore + 操作理由记录 | 后端 API 部 + 前端部 + 数据管道部 |
 | 🥈 | **RC-004 RP-TUNE 风险参数自适应** — 回测结果 → 自动调止损/仓位 | 风控管理部 + 回测研究部 |

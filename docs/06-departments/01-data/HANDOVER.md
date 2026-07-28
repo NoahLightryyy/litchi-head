@@ -179,3 +179,19 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 | `src/data/indicators/selector.py` | PD 动态指标选择器 —— 全链路 for_stock(code) |
 | `docs/06-departments/01-data/ROLE.md` | 👤 数据管道部角色定义 |
 | `docs/06-departments/01-data/STANDARDS.md` | 📐 数据管道部技术规范 |
+
+---
+
+## 下次精确启动步骤
+
+1. 确认 TD-071 路线，不先写代码：
+   - **推荐**：新增直连巨潮公开查询端点的适配器或调用器；
+   - **备选**：等待 AKShare 修复空 DataFrame 选列问题并锁定版本。
+2. 保留既有 `source_id="akshare-cninfo"` 和 `upstream_id="cninfo"` 语义；
+   若新增直连适配器，使用新的 `source_id`，但 `upstream_id` 仍为 `cninfo`。
+3. RED 测试必须覆盖真实零公告响应，不能通过匹配 `KeyError` 文本判断为空。
+4. 跑：
+   - `python -m pytest tests/test_data/test_cninfo_provider.py -q`
+   - `python -m pytest tests/test_data -q`
+   - `python scripts/check.py --full`
+5. CNINFO 三态门禁通过后，再接东方财富与新浪/财联社新闻双源。
