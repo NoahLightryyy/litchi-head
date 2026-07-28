@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -152,3 +154,21 @@ def test_cli_prints_aggregate_paths(
     assert exit_code == 0
     assert '"evidence_kind":"real_llm_export"' in output.replace(" ", "")
     assert f"result_path={bundle.result_path}" in output
+
+
+def test_direct_script_entrypoint_can_load_project_imports() -> None:
+    project_root = Path(__file__).resolve().parents[2]
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(project_root / "scripts" / "capture_debate_evidence.py"),
+            "--help",
+        ],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "Capture one real debate evidence bundle" in completed.stdout
