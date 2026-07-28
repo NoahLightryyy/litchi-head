@@ -142,14 +142,14 @@ def _build_llm(
     model = cfg.model or "deepseek-chat"
     kwargs: dict[str, Any] = {
         "model": model,
-        "model_kwargs": {"max_tokens": cfg.max_tokens},
+        "max_tokens": cfg.max_tokens,
     }
     # deepseek-reasoner 不支持 temperature 参数
     if "reasoner" not in model:
         kwargs["temperature"] = cfg.temperature
     # reasoning_effort 仅对 reasoner 模型生效
     if cfg.reasoning_effort and "reasoner" in model:
-        kwargs["model_kwargs"]["reasoning_effort"] = cfg.reasoning_effort
+        kwargs["model_kwargs"] = {"reasoning_effort": cfg.reasoning_effort}
     return ChatDeepSeek(**kwargs)
 
 
