@@ -13,7 +13,7 @@ department: 后端 API 部
 | ID | 标题 | 严重度 | 类型 | 状态 |
 |:---|:-----|:------:|:----|:----|
 | TD-054 | CORS 地址硬编码 | 🟢 low | 可部署性 | 📋 待评估 |
-| TD-068 | 重型辩论无 durable queue、全局背压与恢复 | 🟡 moderate | 运行时稳定 | 📋 已确认 |
+| TD-068 | 重型辩论无 durable queue、全局背压与恢复 | 🟡 moderate | 运行时稳定 | 🔧 原型验证中 |
 
 ### TD-068 重型辩论无 durable queue、全局背压与恢复
 
@@ -22,7 +22,7 @@ department: 后端 API 部
 | **分类** | `💻 implementation` `severity:moderate` `module:backend` `impact:容量与费用` |
 | **发现日期** | 2026-07-28 |
 | **发现人** | AI 审视 + 用户并发提问 |
-| **状态** | `📋 已确认` |
+| **状态** | `🔧 原型验证中` |
 | **本金估算** | ∼2d |
 | **日利息** | Agent 层数和用户入口增加后，LLM 并发、费用和失败恢复继续失控 |
 | **实盘影响** | 多次点击或并发请求可能重复产生昂贵辩论；重启后运行中任务和结果全部丢失 |
@@ -38,6 +38,13 @@ department: 后端 API 部
 
 采用 SQL job/outbox + Redis 通知或 SQL durable queue；为任务增加幂等键、全局并发
 上限、队列长度、取消、超时、重试和恢复；先通过 1/3/5 场并发成本门禁。
+
+**2026-07-28 进展**：
+
+已新增版本化 `DebateSessionRecord`、SQLite WAL 持久原型和恢复门禁。同一份
+9,778-byte 代表性快照在 SQLite 与 PostgreSQL 17 上均通过提交后重启恢复和
+SHA-256 一致性校验。债务不关闭：后端路由仍使用进程内字典，durable queue、
+全局背压、真实辩论采样和 LangGraph 节点级续跑尚未完成。
 
 ## 已关闭债务
 

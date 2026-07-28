@@ -1,7 +1,7 @@
 ---
 department: 记忆系统部
 codebase: src/memory/
-last_updated: 2026-07-28 (ADR-012 方向与生命周期已确认)
+last_updated: 2026-07-28 (ADR-012 durable session 提交后恢复原型通过)
 ---
 
 # 🧠 记忆系统部工作交接
@@ -33,6 +33,8 @@ last_updated: 2026-07-28 (ADR-012 方向与生命周期已确认)
 - **优雅降级**：存储失败不抛异常，日志记录后不影响主流程
 - **ADR-012（方向已批准）**：SQL 保存不可丢事实，Redis 只保存可重建投影，
   Parquet 保存批量行情；当前尚未迁移
+- **Batch B 恢复证据**：SQLite/PostgreSQL 已恢复同一份已提交 session；
+  真实辩论采样和 LangGraph 节点级续跑仍待完成
 - **2026-07-28 合成基线**：1,000 条约 4 KB 决策下，JSON Object 写入
   52.9 ops/s，SQLite WAL 约 19,448 ops/s；SQLite 主键查询 p95 约 0.014 ms
 
@@ -53,7 +55,7 @@ last_updated: 2026-07-28 (ADR-012 方向与生命周期已确认)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟡 | 真实辩论快照容量与 session 中断恢复门禁 | ADR-012 |
+| 1 🟡 | 真实辩论快照容量与 LangGraph 节点级续跑门禁 | ADR-012 session 原型 |
 | 2 🟡 | TD-051 补 MemoryManager 存储失败测试（IOError/损坏 JSON/只读） | 无 |
 | 3 🟡 | TD-066 SQL 迁移与备份恢复门禁 | 容量与恢复证据 |
 

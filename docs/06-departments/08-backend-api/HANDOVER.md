@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-07-28 (容量调研：durable queue / 背压债务登记)
+last_updated: 2026-07-28 (durable session 恢复原型完成，尚未接管路由)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -15,7 +15,7 @@ last_updated: 2026-07-28 (容量调研：durable queue / 背压债务登记)
 | market 路由（5 endpoint） | ✅ | 指数/板块排行/板块详情/brief/4 端点 |
 | stocks 路由（5 endpoint） | ✅ | 搜索/行情/K 线/新闻/资金流向 |
 | financials 路由（3 endpoint） | ✅ | 财务指标 /financials + 估值比率 /valuation + 动态指标 /indicators 🆕 |
-| debate 路由（3 endpoint） | 🟡 | 功能可用；session 仍在内存，请求内同步执行 |
+| debate 路由（3 endpoint） | 🟡 | 功能可用；持久 session 原型已验证，但路由仍在内存、请求内同步执行 |
 | trust 路由（2 endpoint） | ✅ | 信任度报告/排行榜 |
 | 技术指标（indicators.py） | ✅ | MA/RSI/MACD/布林带纯 Python |
 | 异步超时控制（async_utils.py） | ✅ | `run_sync()` 15s 超时封装 |
@@ -40,6 +40,8 @@ last_updated: 2026-07-28 (容量调研：durable queue / 背压债务登记)
 - **严格 HTTP 语义**：200 正常 / 404 无数据 / 422 验证失败 / 500 系统错误 / 503 数据源不可用
 - **异步桥接**：所有同步数据采集调用通过 `run_sync(timeout=15)` 封装
 - **CORS 环境变量化**：从 `BACKEND_CORS_ORIGINS` 读取，硬编码默认值仅用于开发
+- **ADR-012 session 原型**：版本化信封 + SQLite WAL + 哈希恢复门禁；
+  PostgreSQL 同信封重启恢复通过，尚未接入路由
 
 ---
 
@@ -68,8 +70,9 @@ last_updated: 2026-07-28 (容量调研：durable queue / 背压债务登记)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟡 | TD-068 真实辩论容量、恢复与 1/3/5 并发门禁 | ADR-012 |
-| 2 🟢 | TD-054 CORS 改环境变量 | 无 |
+| 1 🟡 | TD-068 采集真实辩论快照并验证 LangGraph 节点级续跑 | session 原型 |
+| 2 🟡 | TD-068 1/3/5 并发、durable queue 与全局背压门禁 | 真实快照 |
+| 3 🟢 | TD-054 CORS 改环境变量 | 无 |
 
 ### 结果回调（RC 系列，2026-06-23 新增）
 

@@ -196,8 +196,9 @@ NautilusTrader 的做法最接近我们的目标：
 
 在批准技术迁移前还需完成：
 
-1. 采集真实一场完整辩论的序列化大小、节点数和耗时分布。
-2. 证明 SQLite/PostgreSQL 能在进程中断后恢复 session。
+1. ⬜ 采集真实一场完整辩论的序列化大小、节点数和耗时分布。
+2. 🟡 已证明 SQLite/PostgreSQL 能恢复已提交的 completed session；
+   LangGraph 节点级中断续跑仍待实现。
 3. 模拟 1/3/5 场并发辩论并测量 LLM 并发、费用和失败传播。
 4. 模拟 20/50/100 个并发行情请求并验证 single-flight。
 5. 模拟 Redis 关闭、SQL 关闭、磁盘满和损坏记录。
@@ -205,3 +206,27 @@ NautilusTrader 的做法最接近我们的目标：
 7. 验证双击启动体验是否能可靠管理新增服务。
 
 只有这些门禁通过后，才能给出正式的并发承诺和数据库容量承诺。
+
+### 8.1 Batch B session 恢复证据（2026-07-28）
+
+本轮新增 `DebateSessionRecord` 版本化信封、SQLite WAL 原型和
+`scripts/debate_recovery_gate.py`。信封以 `session_id` 为主键，保存状态、
+进度、完整 `DebateResult`、schema version 与 SHA-256；终态不可改写，
+状态和进度只能单调前进，损坏记录必须显式报错。
+
+同一份基于当前完整 `DebateResult` 契约的五大师代表性快照：
+
+| 后端 | 原始 canonical JSON | 存储占用 | 重启/重开 | 哈希 |
+|:--|--:|--:|:--:|:--:|
+| SQLite WAL + FULL | 9,778 bytes | 24,576 bytes | ✅ | ✅ |
+| PostgreSQL 17 JSONB + 原文 | 9,778 bytes | JSONB 列 1,603 bytes；表含索引 48 KB | ✅ | ✅ |
+
+SQLite 单次写入约 8.11 ms，关闭连接后重新打开读取约 1.95 ms。PostgreSQL
+使用无持久卷临时容器，在提交后重启容器并重新查询，原文 SHA-256 一致。
+
+边界：
+
+- 这是完整契约的代表性样本，不是真实 LLM 生产输出；
+- 仓库目前没有可复用的真实历史辩论，不能虚构真实容量结论；
+- 当前证明的是“已提交 completed session 可恢复”，不是 LangGraph 节点级续跑；
+- 原型尚未接管 `backend/routers/debate.py` 的进程内 session 字典。

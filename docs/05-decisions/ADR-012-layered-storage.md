@@ -74,12 +74,18 @@
 
 进入生产迁移前必须通过以下证据：
 
-1. 真实辩论快照容量基线；
-2. session 中断恢复测试；
+1. ⬜ 真实辩论快照容量基线；
+2. 🟡 已提交 session 的 SQLite/PostgreSQL 重启恢复已通过；
+   LangGraph 节点级中断续跑待验证；
 3. Redis/SQL 故障注入；
 4. 行情并发 single-flight 压测；
 5. 一键启动与备份恢复演练；
 6. 生命周期策略配置化，并验证归档、删除和授权约束。
+
+Batch B 已确定持久 session 的最低不变量：版本化 Pydantic 信封、主键幂等、
+终态不可改写、状态/进度单调前进、SHA-256 完整性检查，以及损坏时显式失败。
+SQLite WAL 和 PostgreSQL 17 均已用同一份 9,778-byte 代表性快照通过提交后重启恢复。
+该证据不决定最终从 SQLite 还是 PostgreSQL 起步。
 
 完整证据见：
 [数据生命周期、容量与 Redis + SQL 调研](../02-requirements/STORAGE_LIFECYCLE_RESEARCH.md)。

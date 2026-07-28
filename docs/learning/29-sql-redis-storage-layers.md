@@ -133,4 +133,4 @@ Redis 的 RDB/AOF 可以帮助恢复 Redis 本身，但不会替代业务层的�
 
 **上一篇：[结构化多层市场简报](28-structured-market-brief.md)**
 
-**下一篇：待续**
+**下一篇：[可恢复 Session 信封](30-durable-session-envelope.md)**

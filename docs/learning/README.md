@@ -42,12 +42,6 @@
 | # | 卡片 | 项目里的对应 |
 |:-:|:-----|:-------------|
 | 08 | [类型注解与 Pyright](08-type-hints-pyright.md) | 全项目 |
-| 09 | [Pydantic Settings 配置管理](09-pydantic-settings.md) | `src/utils/config.py` |
-| 10 | [异步编程与 FastAPI](10-async-fastapi.md) | `backend/main.py` |
-| 11 | [多 Agent 辩论系统设计](11-multi-agent-debate.md) | `src/agents/` 辩论引擎 |
-| 12 | [架构决策记录 ADR](12-adr-architecture.md) | `docs/05-decisions/` |
-| 13 | [Next.js 服务端组件与客户端组件](13-nextjs-ssr-client.md) | `frontend/app/` |
-| 14 | [Lightweight Charts K 线图表](14-lightweight-charts.md) | `frontend/components/stock/` |
 
 | 15 | [Hookify 规则与 Claude Code Hooks](15-hookify-rules.md) | `.claude/hookify.*.local.md` |
 | 16 | [系统性代码按察 — Silent Failure 审计方法论](16-code-quality-audit.md) | 全代码库 `except` 块审计 |
@@ -65,6 +59,7 @@
 | 27 | 🆕 [PD 动态指标体系 — 行业感知的关键指标选择](27-pd-dynamic-indicators.md) | `src/data/indicators/registry.py` + `src/data/indicators/selector.py` |
 | 28 | 🆕 [结构化多层市场简报 — 让 LLM "看什么股说什么话"](28-structured-market-brief.md) | `src/data/collector.py` + `src/debate/orchestrator.py` |
 | 29 | 🆕 [SQL 事实源与 Redis 可重建投影](29-sql-redis-storage-layers.md) | `scripts/storage_baseline.py` + ADR-012 |
+| 30 | 🆕 [可恢复 Session 信封](30-durable-session-envelope.md) | `src/debate/session_store.py` + `scripts/debate_recovery_gate.py` |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
@@ -75,9 +70,9 @@
 | 你的目标 | 建议读哪些 |
 |:---------|:-----------|
 | 快速上手项目 | 01 → 02 → 03 → 04 → 05 |
-| 理解后端设计 | 01 → 03 → 04 → 05 → 08 → 09 → **27** |
-| 理解 Agent 系统 | 02 → 03 → 10 |
-| 理解前端设计 | 04 → 12 → 13 |
+| 理解后端设计 | 01 → 03 → 04 → 05 → 08 → **29** → **30** |
+| 理解 Agent 系统 | 02 → 03 → 22 → 24 |
+| 理解前端设计 | 04 → 07 → 28 |
 | 理解质量保障 | 15 → 16 → 17 → 文档 `docs/03-modules/12-quality-assurance/` |
 | 编写后端测试 | 17 → 18 |
 | Windows 开发调试 | **19** → `docs/01-guides/triage/git-bash-compat.md` |

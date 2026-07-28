@@ -23,7 +23,9 @@
 |------|------|
 | `src/debate/orchestrator.py` | LangGraph StateGraph 编排器（5 节点：collect → master_round → review_round → review_report → aggregate） |
 | `src/debate/models.py` | 辩论数据模型（DebateInput / DebateResult / AgentAnalysis / IndependentReview / VoteSummary 等） |
+| `src/debate/session_store.py` | 版本化 session 信封 + SQLite WAL 中断恢复原型（尚未接管后端路由） |
 | `src/debate/reflection.py` | M2 反思闭环（Record → Compare → Reflect → Inject） |
+| `scripts/debate_recovery_gate.py` | 对导出的 DebateResult 执行写入、关闭、重开与哈希门禁 |
 | `tests/test_debate_orchestrator.py` | 编排器 MVP 测试（52） |
 | `tests/test_debate_d1_cross_review.py` | 交叉审阅测试（25） |
 | `tests/test_debate_d2_direction_constraint.py` | 方向约束测试（31） |
@@ -72,6 +74,16 @@ END
 | `IndependentReview` | `models.py` | 独立评审（13 字段：评级 / 权重建议 / 偏见识别） |
 | `VoteSummary` | `models.py` | 汇总结果（direction_distribution / weighted_score / review_*） |
 | `DebateResult` | `models.py` | 最终输出（含完整辩论记录） |
+| `DebateSessionRecord` | `session_store.py` | 可恢复信封（状态/进度/结果/错误/schema version） |
+
+### Durable session 原型边界
+
+- `session_id` 是唯一键，重复写入相同终态幂等；
+- completed/failed 终态不可重新打开或改写；
+- queued → running → completed/failed，状态和进度只能单调前进；
+- SQLite 使用 WAL、`synchronous=FULL`、事务和校验摘要；
+- 读取到损坏 JSON 或摘要不一致时抛出 `SessionStoreError`，不能返回“未找到”；
+- 当前只证明提交后恢复，尚未接入 LangGraph checkpointer 或后端运行链。
 
 ## 当前实现状态
 
@@ -86,6 +98,7 @@ END
 | M2 — 反思闭环 | 🟡 已实现，待深度集成 | — |
 | M3 — 信任度评分 ✅ | 已实现 | 54 |
 | M4 — 动态权重 🆕 | ✅ 已实现 | 10 |
+| R-Session — 持久信封与提交后恢复原型 | 🟡 原型完成，待路由/节点续跑集成 | 17 |
 
 **辩论模块总测试：232 项（含 M3 + M4）**
 
