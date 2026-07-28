@@ -159,6 +159,7 @@ class EvidenceSourceRegistry:
         failed_source_ids: set[str] = set()
         discovery_only_source_ids: set[str] = set()
         unusable_source_ids: set[str] = set()
+        seen_source_ids: set[str] = set()
 
         successful_statuses = {
             SourceStatus.SUCCESS_DATA,
@@ -166,6 +167,10 @@ class EvidenceSourceRegistry:
         }
 
         for result in results:
+            if result.source_id in seen_source_ids:
+                raise ValueError(f"duplicate result for source_id: {result.source_id}")
+            seen_source_ids.add(result.source_id)
+
             source = self._sources.get(result.source_id)
             if source is None:
                 raise ValueError(f"unregistered source_id: {result.source_id}")
