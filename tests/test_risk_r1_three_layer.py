@@ -17,8 +17,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.debate.models import (
+    AnalystReport,
     DebateInput,
     DebateResult,
+    IndependentReview,
+    RebuttalAnalysis,
 )
 from src.risk.models import RiskAssessment, RiskRoundResult, TradeRecommendation
 
@@ -504,7 +507,17 @@ class TestOrchestratorWithRisk:
         from src.agents.master_agent import MasterAgent
         from src.debate.orchestrator import DebateOrchestrator
 
-        orch = DebateOrchestrator(enable_risk=True)
+        mock_collector = MagicMock()
+        mock_collector.get_realtime_quotes.return_value = []
+        mock_collector.get_klines.return_value = []
+        mock_collector.get_news.return_value = []
+        mock_collector.get_financials.return_value = []
+        mock_collector.get_dynamic_indicators.return_value = {}
+        mock_collector.get_market_sentiment.return_value = None
+        orch = DebateOrchestrator(
+            data_collector=mock_collector,
+            enable_risk=True,
+        )
 
         # Mock MasterAgent 绕开复杂的 LLM 调用序列
         mock_master = AsyncMock()
@@ -523,8 +536,6 @@ class TestOrchestratorWithRisk:
         mock_master_result.confidence = 0.80
         mock_master.run_safe.return_value = mock_master_result
 
-        # 构建足够长的 mock invoke_structured 序列
-        # 分析师 x4 + 独立评审 x1 + 风控 x3 + PM x1 + review_round rebuttals x5
         def make_analyst():
             r = MagicMock()
             r.analyst_type = "fundamental"
@@ -599,17 +610,21 @@ class TestOrchestratorWithRisk:
             r.discipline_summary = "通过"
             return r
 
-        # 足够的响应序列（分析×4 + review×1 + rebuttal×5 + risk×3 + pm×1 = 15）
-        side_effects = [make_analyst() for _ in range(4)]
-        side_effects.append(make_review())
-        side_effects.extend(make_rebuttal() for _ in range(5))
-        side_effects.extend(make_risk() for _ in range(3))
-        side_effects.append(make_pm())
+        async def structured_response(*args, **kwargs):
+            output_model = kwargs["output_model"]
+            factories = {
+                AnalystReport: make_analyst,
+                IndependentReview: make_review,
+                RebuttalAnalysis: make_rebuttal,
+                RiskAssessment: make_risk,
+                TradeRecommendation: make_pm,
+            }
+            return factories[output_model]()
 
         with patch(
             "src.debate.orchestrator.llm_service.invoke_structured",
             new_callable=AsyncMock,
-            side_effect=side_effects,
+            side_effect=structured_response,
         ):
             with patch.object(MasterAgent, "run_safe", mock_master.run_safe):
                 result = await orch.run(

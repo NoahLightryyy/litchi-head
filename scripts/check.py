@@ -129,7 +129,9 @@ def pick_test_targets(changed_files: set[str]) -> list[str] | None:
         # 测试文件本身 -> 跑对应目录
         if f.startswith("tests/"):
             test_dir = str(Path(f).parent).replace("\\", "/")
-            if test_dir != "tests":
+            if test_dir == "tests":
+                cross_module = True
+            else:
                 matched_tests.add(test_dir)
             continue
 

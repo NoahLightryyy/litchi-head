@@ -59,6 +59,10 @@ def test_check_script_change_runs_script_tests() -> None:
     assert check.pick_test_targets({"scripts/check.py"}) == ["tests/test_scripts"]
 
 
+def test_root_level_test_change_triggers_full_python_tests() -> None:
+    assert check.pick_test_targets({"tests/test_risk_r1_three_layer.py"}) is None
+
+
 def test_no_changes_skip_python_tests() -> None:
     assert check.pick_test_targets(set()) == []
 
