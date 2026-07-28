@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -144,11 +145,12 @@ async def test_corrupt_payload_is_reported_not_hidden(tmp_path: Path) -> None:
     completed = _completed_record()
     await store.save(completed)
 
-    with sqlite3.connect(database_path) as connection:
-        connection.execute(
-            "UPDATE debate_sessions SET payload_json = ? WHERE session_id = ?",
-            ("{broken-json", completed.session_id),
-        )
+    with closing(sqlite3.connect(database_path)) as connection:
+        with connection:
+            connection.execute(
+                "UPDATE debate_sessions SET payload_json = ? WHERE session_id = ?",
+                ("{broken-json", completed.session_id),
+            )
 
     with pytest.raises(SessionStoreError, match="corrupt"):
         await store.get(completed.session_id)
@@ -160,7 +162,7 @@ async def test_store_uses_recovery_pragmas_and_unique_session_id(tmp_path: Path)
     store = SqliteDebateSessionStore(database_path)
     await store.save(_completed_record())
 
-    with sqlite3.connect(database_path) as connection:
+    with closing(sqlite3.connect(database_path)) as connection:
         journal_mode = connection.execute("PRAGMA journal_mode").fetchone()
         synchronous = connection.execute("PRAGMA synchronous").fetchone()
         indexes = connection.execute("PRAGMA index_list(debate_sessions)").fetchall()
