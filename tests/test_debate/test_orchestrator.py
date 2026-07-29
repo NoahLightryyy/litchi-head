@@ -494,6 +494,57 @@ class TestDebateOrchestratorRun:
         analyst.assert_not_awaited()
         master.assert_not_awaited()
 
+    @pytest.mark.asyncio
+    async def test_incomplete_quote_evidence_stops_before_any_llm(
+        self,
+        mock_collector,
+    ):
+        request = EvidenceRequest(
+            capability=EvidenceCapability.REALTIME_QUOTE,
+            stock_code="000001",
+        )
+        policy = EvidencePolicy(
+            capability=EvidenceCapability.REALTIME_QUOTE,
+            min_independent_upstreams=2,
+        )
+        envelope = EvidenceEnvelope(
+            request=request,
+            policy=policy,
+            assessment=EvidenceAssessment(
+                capability=EvidenceCapability.REALTIME_QUOTE,
+                complete=False,
+                missing_independent_upstreams=1,
+                missing_required_upstream_ids={"sina"},
+            ),
+            complete=False,
+        )
+        evidence_service = MagicMock()
+        evidence_service.collect.return_value = envelope
+        analyst = AsyncMock()
+        master = AsyncMock()
+        orch = DebateOrchestrator(
+            data_collector=mock_collector,
+            quote_evidence_service=evidence_service,
+        )
+
+        with (
+            patch(
+                "src.debate.orchestrator._run_single_analyst",
+                analyst,
+            ),
+            patch(
+                "src.debate.orchestrator._run_single_master",
+                master,
+            ),
+            pytest.raises(EvidenceIncompleteError) as exc_info,
+        ):
+            await orch.run(DebateInput(stock_code="000001", stock_name="平安银行"))
+
+        assert exc_info.value.envelope == envelope
+        mock_collector.get_realtime_quotes.assert_not_called()
+        analyst.assert_not_awaited()
+        master.assert_not_awaited()
+
     @pytest.fixture
     def mock_analyst_report(self):
         """���拟 AnalystReport 返回值"""

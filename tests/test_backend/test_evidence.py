@@ -12,7 +12,7 @@ from src.data.evidence import (
     SourceResult,
     SourceStatus,
 )
-from src.data.models import NewsItem
+from src.data.models import NewsItem, StockQuote
 
 
 def _envelope() -> EvidenceEnvelope:
@@ -72,6 +72,94 @@ def _envelope() -> EvidenceEnvelope:
         assessment=assessment,
         complete=False,
     )
+
+
+def _quote_envelope() -> EvidenceEnvelope:
+    request = EvidenceRequest(
+        capability=EvidenceCapability.REALTIME_QUOTE,
+        stock_code="000001",
+    )
+    policy = EvidencePolicy(
+        capability=EvidenceCapability.REALTIME_QUOTE,
+        min_independent_upstreams=2,
+        required_upstream_ids={"eastmoney", "sina"},
+    )
+    quote = StockQuote(
+        code="000001",
+        name="平安银行",
+        price=11.28,
+        change=0.01,
+        change_pct=0.09,
+        volume=100_458_200,
+        fetched_at=datetime(2026, 7, 29, 2, 30, tzinfo=UTC),
+    )
+    results = [
+        SourceResult[StockQuote](
+            source_id="direct-eastmoney-quote",
+            upstream_id="eastmoney",
+            capability=EvidenceCapability.REALTIME_QUOTE,
+            status=SourceStatus.SUCCESS_DATA,
+            items=[quote],
+        ),
+        SourceResult[StockQuote](
+            source_id="direct-sina-quote",
+            upstream_id="sina",
+            capability=EvidenceCapability.REALTIME_QUOTE,
+            status=SourceStatus.SUCCESS_DATA,
+            items=[quote],
+        ),
+    ]
+    assessment = EvidenceAssessment(
+        capability=EvidenceCapability.REALTIME_QUOTE,
+        complete=True,
+        successful_upstream_ids={"eastmoney", "sina"},
+        successful_source_ids={
+            "direct-eastmoney-quote",
+            "direct-sina-quote",
+        },
+        missing_independent_upstreams=0,
+    )
+    return EvidenceEnvelope(
+        request=request,
+        policy=policy,
+        source_results=results,
+        items=[quote],
+        assessment=assessment,
+        complete=True,
+    )
+
+
+def test_quote_aggregate_returns_reconciled_envelope(client) -> None:
+    service = Mock()
+    service.collect.return_value = _quote_envelope()
+
+    with patch("backend.routers.evidence.quote_evidence_service", service):
+        response = client.post(
+            "/api/v1/evidence/quotes/aggregate",
+            json={"symbol": "000001"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["complete"] is True
+    assert payload["items"][0]["price"] == 11.28
+    assert payload["assessment"]["successful_upstream_ids"] == [
+        "eastmoney",
+        "sina",
+    ]
+    request, policy = service.collect.call_args.args
+    assert request.capability is EvidenceCapability.REALTIME_QUOTE
+    assert request.stock_code == "000001"
+    assert policy.required_upstream_ids == {"eastmoney", "sina"}
+
+
+def test_quote_aggregate_rejects_invalid_symbol(client) -> None:
+    response = client.post(
+        "/api/v1/evidence/quotes/aggregate",
+        json={"symbol": "INVALID"},
+    )
+
+    assert response.status_code == 422
 
 
 def test_news_aggregate_returns_partial_success_envelope(client) -> None:
