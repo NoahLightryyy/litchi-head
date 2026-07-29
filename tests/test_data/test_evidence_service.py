@@ -251,3 +251,32 @@ def test_collect_without_registered_sources_returns_incomplete_envelope() -> Non
     assert envelope.source_results == []
     assert envelope.items == []
     assert envelope.assessment.missing_independent_upstreams == 1
+
+
+def test_collect_deduplicates_business_items_but_keeps_source_evidence() -> None:
+    eastmoney = StubSource(
+        "direct-eastmoney",
+        "eastmoney",
+        _result(
+            "direct-eastmoney",
+            "eastmoney",
+            SourceStatus.SUCCESS_DATA,
+            items=[_item("同一条新闻")],
+        ),
+    )
+    sina = StubSource(
+        "direct-sina",
+        "sina",
+        _result(
+            "direct-sina",
+            "sina",
+            SourceStatus.SUCCESS_DATA,
+            items=[_item(" 同一条  新闻 ")],
+        ),
+    )
+
+    envelope = _service(eastmoney, sina).collect(_request(), _policy())
+
+    assert envelope.complete is True
+    assert len(envelope.source_results) == 2
+    assert [item.title for item in envelope.items] == ["同一条新闻"]
