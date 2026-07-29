@@ -18,7 +18,7 @@ from src.data.intraday_runtime import IntradayEvidenceService
 from src.data.providers.intraday import EastmoneyIntradaySource, TencentIntradaySource
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
-NOW = datetime(2026, 7, 29, 9, 31, 30, tzinfo=SHANGHAI)
+NOW = datetime(2026, 7, 29, 9, 30, 30, tzinfo=SHANGHAI)
 REQUEST = EvidenceRequest(
     capability=EvidenceCapability.INTRADAY,
     stock_code="000001",
@@ -77,12 +77,12 @@ def test_two_sources_normalize_incremental_and_cumulative_volume() -> None:
     ).fetch(REQUEST)
 
     assert eastmoney.status is SourceStatus.SUCCESS_DATA
-    assert eastmoney.items[0].bars[0].volume == 4_507
-    assert eastmoney.items[0].checkpoints[-1].cumulative_volume == 94_000
+    assert eastmoney.items[0].bars[0].volume == 450_700
+    assert eastmoney.items[0].checkpoints[-1].cumulative_volume == 9_400_000
     assert eastmoney.items[0].bars[0].state is IntradayBarState.FINAL
     assert eastmoney.items[0].bars[-1].state is IntradayBarState.PROVISIONAL
     assert tencent.status is SourceStatus.SUCCESS_DATA
-    assert tencent.items[0].checkpoints[-1].cumulative_volume == 94_000
+    assert tencent.items[0].checkpoints[-1].cumulative_volume == 9_400_000
     assert tencent.items[0].bars == []
 
 
@@ -111,10 +111,11 @@ def _series_pair(
     first_close: str = "11.19",
     first_volume: str = "4507",
     include_tencent_latest: bool = True,
+    now: datetime = NOW,
 ) -> tuple[IntradaySourceSeries, IntradaySourceSeries]:
     eastmoney_result = EastmoneyIntradaySource(
         fetcher=lambda code: _eastmoney_payload(),
-        now_provider=lambda: NOW,
+        now_provider=lambda: now,
     ).fetch(REQUEST)
     tencent_result = TencentIntradaySource(
         fetcher=lambda code: _tencent_payload(
@@ -122,7 +123,7 @@ def _series_pair(
             first_volume=first_volume,
             include_latest=include_tencent_latest,
         ),
-        now_provider=lambda: NOW,
+        now_provider=lambda: now,
     ).fetch(REQUEST)
     return eastmoney_result.items[0], tencent_result.items[0]
 
@@ -164,7 +165,7 @@ def test_finalized_close_difference_over_one_tick_fails_closed() -> None:
     } == {"intraday_price_conflict"}
 
 
-def test_finalized_cumulative_volume_difference_over_one_board_lot_fails_closed() -> None:
+def test_finalized_cumulative_volume_difference_over_transport_tolerance_fails_closed() -> None:
     eastmoney, tencent = _series_pair(first_volume="4708")
 
     envelope = _service(eastmoney, tencent).collect(REQUEST, POLICY)
@@ -176,9 +177,20 @@ def test_finalized_cumulative_volume_difference_over_one_board_lot_fails_closed(
     } == {"intraday_volume_conflict"}
 
 
+def test_finalized_volume_difference_at_empirical_tolerance_is_accepted() -> None:
+    eastmoney, tencent = _series_pair(first_volume="4502")
+
+    envelope = _service(eastmoney, tencent).collect(REQUEST, POLICY)
+
+    assert envelope.complete is True
+
+
 def test_source_missing_latest_finalized_minute_is_stale() -> None:
-    later = datetime(2026, 7, 29, 9, 32, 30, tzinfo=SHANGHAI)
-    eastmoney, tencent = _series_pair(include_tencent_latest=False)
+    later = datetime(2026, 7, 29, 9, 31, 30, tzinfo=SHANGHAI)
+    eastmoney, tencent = _series_pair(
+        include_tencent_latest=False,
+        now=later,
+    )
     service = _service(eastmoney, tencent)
     service._now_provider = lambda: later
 
@@ -186,5 +198,34 @@ def test_source_missing_latest_finalized_minute_is_stale() -> None:
 
     assert envelope.complete is False
     assert envelope.items == []
+    assert envelope.source_results[0].status is SourceStatus.SUCCESS_DATA
     assert envelope.source_results[1].status is SourceStatus.STALE
     assert envelope.source_results[1].error_code == "intraday_coverage_lag"
+
+
+def test_tencent_bse_accepts_rows_without_cumulative_amount() -> None:
+    request = EvidenceRequest(
+        capability=EvidenceCapability.INTRADAY,
+        stock_code="920002",
+    )
+    payload = {
+        "code": 0,
+        "data": {
+            "bj920002": {
+                "data": {
+                    "date": "20260729",
+                    "data": ["0930 52.82 77"],
+                },
+                "qt": {"bj920002": ["", "万达轴承"]},
+            }
+        },
+    }
+
+    result = TencentIntradaySource(
+        fetcher=lambda code: payload,
+        now_provider=lambda: NOW,
+    ).fetch(request)
+
+    assert result.status is SourceStatus.SUCCESS_DATA
+    assert result.items[0].checkpoints[0].cumulative_volume == 7_700
+    assert result.items[0].checkpoints[0].cumulative_amount == 0.0

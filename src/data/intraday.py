@@ -48,6 +48,46 @@ class IntradayBar(BaseModel):
         return self
 
 
+class IntradayCheckpoint(BaseModel):
+    """供不同上游对账的分钟收盘价与累计成交检查点。"""
+
+    code: str = Field(pattern=r"^\d{6}$")
+    timestamp: datetime
+    close: float = Field(ge=0.0)
+    cumulative_volume: int = Field(ge=0)
+    cumulative_amount: float = Field(ge=0.0)
+    state: IntradayBarState
+
+    @model_validator(mode="after")
+    def validate_timestamp(self) -> "IntradayCheckpoint":
+        if self.timestamp.tzinfo is None:
+            raise ValueError("timestamp must include timezone")
+        return self
+
+
+class IntradaySourceSeries(BaseModel):
+    """单个上游返回的当日分时序列及其可用数据层级。"""
+
+    code: str = Field(pattern=r"^\d{6}$")
+    name: str
+    checkpoints: list[IntradayCheckpoint] = Field(min_length=1)
+    bars: list[IntradayBar] = Field(default_factory=list)
+    ohlc_supported: bool
+
+    @model_validator(mode="after")
+    def validate_series(self) -> "IntradaySourceSeries":
+        timestamps = [point.timestamp for point in self.checkpoints]
+        if len(timestamps) != len(set(timestamps)):
+            raise ValueError("intraday checkpoints must have unique timestamps")
+        if any(point.code != self.code for point in self.checkpoints):
+            raise ValueError("checkpoint code must match series code")
+        if any(bar.code != self.code for bar in self.bars):
+            raise ValueError("bar code must match series code")
+        if self.ohlc_supported and not self.bars:
+            raise ValueError("OHLC-capable series requires bars")
+        return self
+
+
 class TimeOfDayVolumeBaseline(BaseModel):
     """过去交易日相同盘中时刻的累计成交量基线。"""
 
@@ -196,5 +236,7 @@ __all__ = [
     "IntradayBarState",
     "IntradayBattlefieldEngine",
     "IntradayBattlefieldSnapshot",
+    "IntradayCheckpoint",
+    "IntradaySourceSeries",
     "TimeOfDayVolumeBaseline",
 ]

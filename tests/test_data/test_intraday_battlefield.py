@@ -105,3 +105,18 @@ def test_l1_output_never_claims_trader_identity() -> None:
     assert "量化" not in serialized
     assert "机构" not in serialized
     assert "identity_attribution_unavailable_at_l1" in snapshot.limitations
+
+
+def test_vwap_uses_share_volume_not_upstream_board_lots() -> None:
+    snapshot = IntradayBattlefieldEngine().analyze(
+        [
+            _bar(
+                0,
+                close=11.19,
+                volume=450_700,
+                amount=5_043_333.00,
+            )
+        ]
+    )
+
+    assert snapshot.session_vwap == 11.19
