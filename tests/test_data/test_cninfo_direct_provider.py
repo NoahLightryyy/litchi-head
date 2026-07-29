@@ -39,7 +39,7 @@ def test_direct_fetch_maps_public_response_to_announcement_items() -> None:
                     "secCode": "000001",
                     "secName": "平安银行",
                     "announcementTitle": "2026年半年度报告",
-                    "announcementTime": 1785244200000,
+                    "announcementTime": 1785234600000,
                     "announcementId": "1212345678",
                     "orgId": "gssz0000001",
                 }
@@ -96,7 +96,7 @@ def test_direct_zero_total_with_items_is_invalid_payload() -> None:
                     "secCode": "000001",
                     "secName": "平安银行",
                     "announcementTitle": "不应出现",
-                    "announcementTime": 1785244200000,
+                    "announcementTime": 1785234600000,
                     "announcementId": "1212345678",
                     "orgId": "gssz0000001",
                 }
