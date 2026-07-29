@@ -61,13 +61,24 @@ class KLine(BaseModel):
 
 
 class NewsItem(BaseModel):
-    """个股新闻"""
+    """个股新闻。
+
+    旧字段继续供现有前端使用；新增字段为多源证据信封提供稳定身份、关联依据和
+    完整性校验。跨业务节点默认不传原始正文。
+    """
+
     code: str
     title: str
     date: str
     content: str = ""
     source: str = ""
     url: str = ""
+    external_id: str = ""
+    published_at: datetime | None = None
+    source_id: str = ""
+    publisher: str = ""
+    association_reason: str = ""
+    content_hash: str = ""
 
 
 class AnnouncementItem(BaseModel):

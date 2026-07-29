@@ -1,6 +1,7 @@
 """多通道证据并发汇总与统一打包服务。"""
 
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -118,7 +119,29 @@ class DataEvidenceService:
             emitted_upstreams.add(result.upstream_id)
             items.extend(result.items)
 
-        return items
+        return DataEvidenceService._deduplicate_items(items)
+
+    @staticmethod
+    def _deduplicate_items(items: list[Any]) -> list[Any]:
+        """按股票和规范化标题跨上游去重，来源原始结果仍完整保留。"""
+        seen: set[tuple[str, str]] = set()
+        unique_items: list[Any] = []
+
+        for item in items:
+            title = getattr(item, "title", "")
+            code = getattr(item, "code", "")
+            if not isinstance(title, str) or not title.strip():
+                unique_items.append(item)
+                continue
+
+            normalized_title = re.sub(r"\s+", "", title).casefold()
+            key = (str(code).strip(), normalized_title)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_items.append(item)
+
+        return unique_items
 
 
 __all__ = ["DataEvidenceService"]

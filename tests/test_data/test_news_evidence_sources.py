@@ -112,7 +112,7 @@ def test_eastmoney_exposes_malformed_payload_as_failure() -> None:
 def test_sina_matches_stock_name_and_transmits_metadata_only() -> None:
     def fetcher(*, page: int, page_size: int) -> dict[str, Any]:
         assert page == 1
-        assert page_size == 50
+        assert page_size == 100
         return {
             "result": {
                 "status": {"code": 0},
@@ -131,8 +131,13 @@ def test_sina_matches_stock_name_and_transmits_metadata_only() -> None:
                                 "rich_text": "国际市场快讯，与目标股票无关。",
                                 "docurl": "https://example.test/sina/2",
                             },
+                            {
+                                "id": "sina-boundary",
+                                "create_time": "2026-07-27 23:59:00",
+                                "rich_text": "用于证明时间窗已完整扫描的边界快讯。",
+                            },
                         ],
-                        "page_info": {"total": 2},
+                        "page_info": {"totalNum": 3, "totalPage": 1},
                     }
                 },
             }
@@ -163,9 +168,14 @@ def test_sina_returns_explicit_empty_when_feed_has_no_matching_stock() -> None:
                                 "id": "sina-2",
                                 "create_time": "2026-07-29 10:01:00",
                                 "rich_text": "国际市场快讯。",
+                            },
+                            {
+                                "id": "sina-boundary",
+                                "create_time": "2026-07-27 23:59:00",
+                                "rich_text": "时间窗边界快讯。",
                             }
                         ],
-                        "page_info": {"total": 1},
+                        "page_info": {"totalNum": 2, "totalPage": 1},
                     }
                 },
             }
@@ -175,6 +185,37 @@ def test_sina_returns_explicit_empty_when_feed_has_no_matching_stock() -> None:
 
     assert result.status is SourceStatus.SUCCESS_EMPTY
     assert result.items == []
+
+
+def test_sina_marks_result_stale_when_feed_cannot_cover_requested_window() -> None:
+    def fetcher(*, page: int, page_size: int) -> dict[str, Any]:
+        return {
+            "result": {
+                "status": {"code": 0},
+                "data": {
+                    "feed": {
+                        "list": [
+                            {
+                                "id": "sina-recent",
+                                "create_time": "2026-07-29 10:01:00",
+                                "rich_text": "国际市场快讯。",
+                            }
+                        ],
+                        "page_info": {
+                            "totalNum": 900,
+                            "totalPage": 9,
+                            "page": 1,
+                        },
+                    }
+                },
+            }
+        }
+
+    result = SinaNewsSource(fetcher=fetcher, max_pages=1).fetch(_request())
+
+    assert result.status is SourceStatus.STALE
+    assert result.error_code == "time_window_not_fully_covered"
+    assert result.error_message
 
 
 def test_news_sources_reject_non_news_capability_without_calling_upstream() -> None:

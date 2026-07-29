@@ -20,6 +20,7 @@ from src.data.providers.cninfo import (
     CninfoDirectAnnouncementSource,
 )
 from src.data.providers.fallback import FallbackSource
+from src.data.providers.news import EastmoneyNewsSource, SinaNewsSource
 from src.data.providers.zzshare import ZzshareSource
 
 __all__ = [
@@ -28,6 +29,8 @@ __all__ = [
     "CninfoAnnouncementSource",
     "CninfoDirectAnnouncementSource",
     "DataSource",
+    "EastmoneyNewsSource",
     "FallbackSource",
+    "SinaNewsSource",
     "ZzshareSource",
 ]

@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from backend.limiter import limiter
-from backend.routers import debate, financials, market, retro, stocks, trust
+from backend.routers import debate, evidence, financials, market, retro, stocks, trust
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(name)-24s  %(message)s")
 logger = logging.getLogger("backend")
@@ -94,6 +94,7 @@ app.include_router(financials.router)
 app.include_router(debate.router)
 app.include_router(trust.router)
 app.include_router(retro.router)
+app.include_router(evidence.router)
 
 
 # ── 全局异常处理 ──────────────────────────────────────────────

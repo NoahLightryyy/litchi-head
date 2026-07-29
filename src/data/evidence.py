@@ -50,6 +50,7 @@ class EvidenceRequest(BaseModel):
 
     capability: EvidenceCapability
     stock_code: str = ""
+    stock_name: str = ""
     start_at: datetime | None = None
     end_at: datetime | None = None
 
