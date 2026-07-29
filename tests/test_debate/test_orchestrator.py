@@ -12,6 +12,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.data.evidence import (
+    EvidenceAssessment,
+    EvidenceCapability,
+    EvidenceEnvelope,
+    EvidencePolicy,
+    EvidenceRequest,
+)
+from src.debate.evidence_gate import EvidenceIncompleteError
 from src.debate.models import AgentAnalysis, DebateInput, DebateResult
 from src.debate.orchestrator import (
     DebateOrchestrator,
@@ -21,14 +29,6 @@ from src.debate.orchestrator import (
     collect_data_node,
     make_analyst_round_node,
     make_master_round_node,
-)
-from src.debate.evidence_gate import EvidenceIncompleteError
-from src.data.evidence import (
-    EvidenceAssessment,
-    EvidenceCapability,
-    EvidenceEnvelope,
-    EvidencePolicy,
-    EvidenceRequest,
 )
 from src.memory.skill_disk import SkillDisk
 

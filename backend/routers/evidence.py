@@ -15,19 +15,14 @@ from src.data.evidence import (
     EvidenceEnvelope,
     EvidencePolicy,
     EvidenceRequest,
-    EvidenceSourceRegistry,
 )
-from src.data.evidence_service import DataEvidenceService
-from src.data.providers.news import EastmoneyNewsSource, SinaNewsSource
+from src.data.news_runtime import get_news_evidence_runtime
 
 logger = logging.getLogger("backend.evidence")
 router = APIRouter(prefix="/api/v1/evidence")
 collector = DataCollector()
 
-_registry = EvidenceSourceRegistry()
-_registry.register(EastmoneyNewsSource())
-_registry.register(SinaNewsSource())
-news_evidence_service = DataEvidenceService(_registry, max_workers=2)
+news_evidence_service = get_news_evidence_runtime().service
 
 
 class NewsAggregateRequest(BaseModel):
@@ -73,6 +68,7 @@ async def aggregate_news(payload: NewsAggregateRequest) -> EvidenceEnvelope:
     policy = EvidencePolicy(
         capability=EvidenceCapability.NEWS,
         min_independent_upstreams=2,
+        required_upstream_ids={"eastmoney", "sina"},
     )
     return await run_sync(news_evidence_service.collect, request, policy)
 

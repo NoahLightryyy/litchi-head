@@ -11,6 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from backend.config import (
@@ -102,9 +103,12 @@ class DebateRequest(BaseModel):
 
 def _get_orchestrator():
     """惰性导入 DebateOrchestrator，避免 Windows torch crash"""
+    from src.data.news_runtime import get_news_evidence_runtime  # noqa: PLC0415
     from src.debate.orchestrator import DebateOrchestrator  # noqa: PLC0415
 
-    return DebateOrchestrator()
+    return DebateOrchestrator(
+        news_evidence_service=get_news_evidence_runtime().service,
+    )
 
 
 # ── 内存状态存储（简化版，生产环境应换 Redis） ──────────────
@@ -139,7 +143,33 @@ async def run_debate(request: Request, req: DebateRequest):
             "data": {"session_id": session_id, "status": "completed"},
             "meta": {"latency_ms": round((time.time() - t0) * 1000)},
         }
-    except Exception:
+    except Exception as exc:
+        from src.debate.evidence_gate import EvidenceIncompleteError  # noqa: PLC0415
+
+        if isinstance(exc, EvidenceIncompleteError):
+            detail = exc.detail()
+            logger.warning(
+                "新闻证据不完整，辩论未启动: stock_code=%s detail=%s",
+                req.stock_code,
+                detail,
+            )
+            _debate_sessions[session_id] = {
+                "status": "failed",
+                "progress": 0,
+                "error": "EVIDENCE_INCOMPLETE",
+                "detail": detail,
+            }
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "error": {
+                        "code": "EVIDENCE_INCOMPLETE",
+                        "message": "新闻证据尚未完整覆盖最近 3 天，AI 分析未启动",
+                        "detail": detail,
+                    }
+                },
+                headers={"Retry-After": str(exc.retry_after_seconds)},
+            )
         logger.exception("辩论执行失败: stock_code=%s", req.stock_code)
         _debate_sessions[session_id] = {"status": "failed", "progress": 0}
         raise HTTPException(status_code=500, detail=f"辩论执行失败: {req.stock_code}")

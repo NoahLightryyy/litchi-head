@@ -594,4 +594,77 @@ class SinaNewsSource:
         )
 
 
-__all__ = ["EastmoneyNewsSource", "SinaNewsSource"]
+class SinaRollingFeedCollector:
+    """Collect recent global Sina feed metadata for durable rolling storage."""
+
+    def __init__(
+        self,
+        *,
+        fetcher: SinaNewsFetcher = _default_sina_fetcher,
+        max_pages: int = 2,
+    ) -> None:
+        if max_pages < 1:
+            raise ValueError("max_pages must be at least 1")
+        self._source = SinaNewsSource(fetcher=fetcher, max_pages=max_pages)
+        self._max_pages = max_pages
+
+    def collect(self) -> list[NewsItem]:
+        """Fetch latest pages and return metadata-only, unassociated items."""
+        raw_rows: list[Any] = []
+        seen_ids: set[str] = set()
+        total: int | None = None
+        for page in range(1, self._max_pages + 1):
+            page_rows, page_total = self._source._feed(  # noqa: SLF001
+                self._source._fetch_page(page)  # noqa: SLF001
+            )
+            if total is None:
+                total = page_total
+            new_rows: list[Any] = []
+            for raw_row in page_rows:
+                row = _mapping(raw_row, "新浪新闻条目")
+                row_id = str(row.get("id", "")).strip()
+                if not row_id:
+                    raise ValueError("新浪新闻缺少 id")
+                if row_id in seen_ids:
+                    continue
+                seen_ids.add(row_id)
+                new_rows.append(raw_row)
+            raw_rows.extend(new_rows)
+            if not page_rows or not new_rows:
+                break
+            if total is not None and len(raw_rows) >= total:
+                break
+            if len(page_rows) < SINA_PAGE_SIZE:
+                break
+
+        request = EvidenceRequest(capability=EvidenceCapability.NEWS)
+        items: list[NewsItem] = []
+        for raw_row in raw_rows:
+            row = _mapping(raw_row, "新浪新闻条目")
+            raw_text = _clean_text(row.get("rich_text"))
+            if not raw_text:
+                continue
+            external_id = str(row.get("id", "")).strip()
+            published_at = _parse_datetime(row.get("create_time"))
+            items.append(
+                _news_item(
+                    external_id=external_id,
+                    request=request,
+                    title=raw_text[:500],
+                    raw_text=raw_text,
+                    published_at=published_at,
+                    source_id=SinaNewsSource.descriptor.source_id,
+                    source_name=SinaNewsSource.descriptor.display_name,
+                    publisher="新浪财经",
+                    url=str(row.get("docurl", "")).strip(),
+                    association_reason="rolling_feed",
+                )
+            )
+        return items
+
+
+__all__ = [
+    "EastmoneyNewsSource",
+    "SinaNewsSource",
+    "SinaRollingFeedCollector",
+]

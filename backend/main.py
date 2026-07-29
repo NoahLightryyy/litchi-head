@@ -9,9 +9,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 import time
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,7 +60,28 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("数据源配置失败，使用默认 AKShareSource")
 
-    yield
+    from src.data.news_runtime import (  # noqa: PLC0415
+        DEFAULT_POLL_SECONDS,
+        get_news_evidence_runtime,
+        run_news_ingestion_loop,
+    )
+
+    poll_seconds = int(
+        os.getenv("LITCHI_NEWS_POLL_SECONDS", str(DEFAULT_POLL_SECONDS))
+    )
+    news_task = asyncio.create_task(
+        run_news_ingestion_loop(
+            get_news_evidence_runtime(),
+            poll_seconds=poll_seconds,
+        ),
+        name="sina-rolling-news-ingestion",
+    )
+    try:
+        yield
+    finally:
+        news_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await news_task
     logger.info("FastAPI 桥接层关闭")
 
 

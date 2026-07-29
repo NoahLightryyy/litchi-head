@@ -47,7 +47,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, TypedDict, cast
 
 logger = logging.getLogger(__name__)
@@ -59,8 +59,16 @@ from src.agents.master_agent import MasterAgent  # noqa: E402
 from src.callback import CallbackEventType, ResultCallbackEngine  # noqa: E402
 from src.callback.callbacks import register_m3_ext_callback  # noqa: E402
 from src.data.collector import DataCollector, format_market_brief  # noqa: E402
+from src.data.evidence import (  # noqa: E402
+    EvidenceCapability,
+    EvidenceEnvelope,
+    EvidencePolicy,
+    EvidenceRequest,
+)
+from src.data.evidence_service import DataEvidenceService  # noqa: E402
 from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote  # noqa: E402
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
+from src.debate.evidence_gate import EvidenceIncompleteError  # noqa: E402
 from src.debate.mirror import generate_mirror_report  # noqa: E402
 from src.debate.models import (  # noqa: E402
     AgentAnalysis,
@@ -147,12 +155,17 @@ class DebateState(TypedDict):
     trust_weight_factors: dict  # M4: agent_name → compute_weight_factor()
     calibration_map: dict  # R4: agent_name → calibration_curve list
     mirror_report: dict  # DP-006: 序列化的 MirrorReport
+    evidence_envelope: dict  # 新闻证据信封；不完整时用于显式终止
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
 
 
-def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
+def collect_data_node(
+    state: DebateState,
+    collector: DataCollector,
+    news_evidence_service: DataEvidenceService | None = None,
+) -> dict:
     """数据采集节点 —— 从 DataCollector 获取行情 + K线 + 新闻
 
     Args:
@@ -164,6 +177,28 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
     """
     inp = state.get("debate_input", {})
     code = inp.get("stock_code", "")
+    evidence_envelope: EvidenceEnvelope | None = None
+
+    if news_evidence_service is not None:
+        end_at = datetime.now(UTC)
+        request = EvidenceRequest(
+            capability=EvidenceCapability.NEWS,
+            stock_code=code,
+            stock_name=inp.get("stock_name", ""),
+            start_at=end_at - timedelta(days=3),
+            end_at=end_at,
+        )
+        policy = EvidencePolicy(
+            capability=EvidenceCapability.NEWS,
+            min_independent_upstreams=2,
+            required_upstream_ids={"eastmoney", "sina"},
+        )
+        evidence_envelope = news_evidence_service.collect(request, policy)
+        if not evidence_envelope.complete:
+            return {
+                "evidence_envelope": evidence_envelope.model_dump(mode="json"),
+                "errors": ["EVIDENCE_INCOMPLETE"],
+            }
 
     quotes: list[StockQuote] = []
     klines: list[KLine] = []
@@ -180,10 +215,13 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
     except Exception as e:
         logger.exception("K线数据获取失败 [%s]: %s", code, e)
 
-    try:
-        news = collector.get_news(code)
-    except Exception as e:
-        logger.exception("新闻数据获取失败 [%s]: %s", code, e)
+    if evidence_envelope is not None:
+        news = [NewsItem.model_validate(item) for item in evidence_envelope.items]
+    else:
+        try:
+            news = collector.get_news(code)
+        except Exception as e:
+            logger.exception("新闻数据获取失败 [%s]: %s", code, e)
 
     try:
         financial_data = collector.get_financials(code)
@@ -232,7 +270,7 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
         sentiment=sentiment,
     )
 
-    return {
+    result = {
         "market_data": {
             "brief": brief,
             "industry": industry_name,
@@ -244,6 +282,18 @@ def collect_data_node(state: DebateState, collector: DataCollector) -> dict:
             "financials": [f.model_dump() for f in financial_data],
         },
     }
+    if evidence_envelope is not None:
+        result["evidence_envelope"] = evidence_envelope.model_dump(mode="json")
+    return result
+
+
+def _route_after_collection(state: DebateState) -> str:
+    """Stop the graph before any LLM when the evidence gate failed."""
+    return (
+        "stop"
+        if "EVIDENCE_INCOMPLETE" in state.get("errors", [])
+        else "continue"
+    )
 
 
 def _format_history_context(items: list[MemoryItem], stock_code: str) -> str:
@@ -1401,6 +1451,7 @@ class DebateOrchestrator:
         callback_engine: ResultCallbackEngine | None = None,
         min_trust_factor: float = 0.7,
         enable_mirror: bool = False,
+        news_evidence_service: DataEvidenceService | None = None,
     ):
         """初始化辩论编排器
 
@@ -1442,6 +1493,7 @@ class DebateOrchestrator:
         self.enable_reflection = enable_reflection
         self.enable_trust = enable_trust
         self.enable_mirror = enable_mirror
+        self.news_evidence_service = news_evidence_service
         self.callback_engine = callback_engine
         self.min_trust_factor = min_trust_factor
         if self.callback_engine is None and enable_trust:
@@ -1476,7 +1528,11 @@ class DebateOrchestrator:
         # 数据采集节点
         graph.add_node(
             "collect_data",
-            lambda state: collect_data_node(state, self.data_collector),  # type: ignore[arg-type]
+            lambda state: collect_data_node(
+                cast(DebateState, state),
+                self.data_collector,
+                self.news_evidence_service,
+            ),
         )
         graph.set_entry_point("collect_data")
 
@@ -1485,7 +1541,11 @@ class DebateOrchestrator:
             "analyst_round",
             make_analyst_round_node(self.analyst_personas),
         )
-        graph.add_edge("collect_data", "analyst_round")
+        graph.add_conditional_edges(
+            "collect_data",
+            _route_after_collection,
+            {"continue": "analyst_round", "stop": END},
+        )
 
         # 大师轮次节点（DP-004: 按信任度排序，低信任跳过）
         graph.add_node(
@@ -1839,10 +1899,17 @@ class DebateOrchestrator:
             "trust_weight_factors": trust_weight_factors,
             "calibration_map": calibration_map,
             "mirror_report": {},
+            "evidence_envelope": {},
         }
 
         final_state = await app.ainvoke(initial_state)
         total_latency = (time.monotonic() - overall_start) * 1000
+
+        if "EVIDENCE_INCOMPLETE" in final_state.get("errors", []):
+            envelope = EvidenceEnvelope.model_validate(
+                final_state.get("evidence_envelope", {})
+            )
+            raise EvidenceIncompleteError(envelope)
 
         analyses = list(final_state.get("analyses", {}).values())
         vs_raw = final_state.get("vote_summary", {})
