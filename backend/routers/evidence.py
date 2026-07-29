@@ -16,12 +16,17 @@ from src.data.evidence import (
     EvidenceRequest,
 )
 from src.data.news_runtime import NEWS_EVIDENCE_POLICY, get_news_evidence_runtime
+from src.data.quote_runtime import (
+    REALTIME_QUOTE_EVIDENCE_POLICY,
+    get_realtime_quote_evidence_runtime,
+)
 
 logger = logging.getLogger("backend.evidence")
 router = APIRouter(prefix="/api/v1/evidence")
 collector = DataCollector()
 
 news_evidence_service = get_news_evidence_runtime().service
+quote_evidence_service = get_realtime_quote_evidence_runtime().service
 
 
 class NewsAggregateRequest(BaseModel):
@@ -38,6 +43,12 @@ class NewsAggregateRequest(BaseModel):
         if self.start_time > self.end_time:
             raise ValueError("start_time must not be later than end_time")
         return self
+
+
+class QuoteAggregateRequest(BaseModel):
+    """单只股票实时行情聚合请求。"""
+
+    symbol: str = Field(pattern=r"^\d{6}$")
 
 
 def resolve_stock_name(stock_code: str) -> str:
@@ -68,6 +79,20 @@ async def aggregate_news(payload: NewsAggregateRequest) -> EvidenceEnvelope:
         news_evidence_service.collect,
         request,
         NEWS_EVIDENCE_POLICY,
+    )
+
+
+@router.post("/quotes/aggregate", response_model=EvidenceEnvelope)
+async def aggregate_quotes(payload: QuoteAggregateRequest) -> EvidenceEnvelope:
+    """并发采集并校验东方财富、新浪两条实时行情。"""
+    request = EvidenceRequest(
+        capability=EvidenceCapability.REALTIME_QUOTE,
+        stock_code=payload.symbol,
+    )
+    return await run_sync(
+        quote_evidence_service.collect,
+        request,
+        REALTIME_QUOTE_EVIDENCE_POLICY,
     )
 
 

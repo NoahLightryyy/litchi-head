@@ -67,6 +67,10 @@ from src.data.evidence import (  # noqa: E402
 from src.data.evidence_service import DataEvidenceService  # noqa: E402
 from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote  # noqa: E402
 from src.data.news_runtime import NEWS_EVIDENCE_POLICY, NEWS_WINDOW  # noqa: E402
+from src.data.quote_runtime import (  # noqa: E402
+    REALTIME_QUOTE_EVIDENCE_POLICY,
+    RealtimeQuoteEvidenceService,
+)
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
 from src.debate.evidence_gate import EvidenceIncompleteError  # noqa: E402
 from src.debate.mirror import generate_mirror_report  # noqa: E402
@@ -165,6 +169,7 @@ def collect_data_node(
     state: DebateState,
     collector: DataCollector,
     news_evidence_service: DataEvidenceService | None = None,
+    quote_evidence_service: RealtimeQuoteEvidenceService | None = None,
 ) -> dict:
     """数据采集节点 —— 从 DataCollector 获取行情 + K线 + 新闻
 
@@ -177,7 +182,24 @@ def collect_data_node(
     """
     inp = state.get("debate_input", {})
     code = inp.get("stock_code", "")
-    evidence_envelope: EvidenceEnvelope | None = None
+    quote_evidence_envelope: EvidenceEnvelope | None = None
+    news_evidence_envelope: EvidenceEnvelope | None = None
+
+    if quote_evidence_service is not None:
+        quote_request = EvidenceRequest(
+            capability=EvidenceCapability.REALTIME_QUOTE,
+            stock_code=code,
+            stock_name=inp.get("stock_name", ""),
+        )
+        quote_evidence_envelope = quote_evidence_service.collect(
+            quote_request,
+            REALTIME_QUOTE_EVIDENCE_POLICY,
+        )
+        if not quote_evidence_envelope.complete:
+            return {
+                "evidence_envelope": quote_evidence_envelope.model_dump(mode="json"),
+                "errors": ["EVIDENCE_INCOMPLETE"],
+            }
 
     if news_evidence_service is not None:
         end_at = datetime.now(UTC)
@@ -188,13 +210,13 @@ def collect_data_node(
             start_at=end_at - NEWS_WINDOW,
             end_at=end_at,
         )
-        evidence_envelope = news_evidence_service.collect(
+        news_evidence_envelope = news_evidence_service.collect(
             request,
             NEWS_EVIDENCE_POLICY,
         )
-        if not evidence_envelope.complete:
+        if not news_evidence_envelope.complete:
             return {
-                "evidence_envelope": evidence_envelope.model_dump(mode="json"),
+                "evidence_envelope": news_evidence_envelope.model_dump(mode="json"),
                 "errors": ["EVIDENCE_INCOMPLETE"],
             }
 
@@ -203,18 +225,27 @@ def collect_data_node(
     news: list[NewsItem] = []
     financial_data: list[FinancialMetrics] = []
 
-    try:
-        quotes = collector.get_realtime_quotes()
-    except Exception as e:
-        logger.exception("行情数据获取失败: %s", e)
+    if quote_evidence_envelope is not None:
+        quotes = [
+            StockQuote.model_validate(item)
+            for item in quote_evidence_envelope.items
+        ]
+    else:
+        try:
+            quotes = collector.get_realtime_quotes()
+        except Exception as e:
+            logger.exception("行情数据获取失败: %s", e)
 
     try:
         klines = collector.get_klines(code, period="daily", start="", end="")
     except Exception as e:
         logger.exception("K线数据获取失败 [%s]: %s", code, e)
 
-    if evidence_envelope is not None:
-        news = [NewsItem.model_validate(item) for item in evidence_envelope.items]
+    if news_evidence_envelope is not None:
+        news = [
+            NewsItem.model_validate(item)
+            for item in news_evidence_envelope.items
+        ]
     else:
         try:
             news = collector.get_news(code)
@@ -280,6 +311,7 @@ def collect_data_node(
             "financials": [f.model_dump() for f in financial_data],
         },
     }
+    evidence_envelope = news_evidence_envelope or quote_evidence_envelope
     if evidence_envelope is not None:
         result["evidence_envelope"] = evidence_envelope.model_dump(mode="json")
     return result
@@ -1450,6 +1482,7 @@ class DebateOrchestrator:
         min_trust_factor: float = 0.7,
         enable_mirror: bool = False,
         news_evidence_service: DataEvidenceService | None = None,
+        quote_evidence_service: RealtimeQuoteEvidenceService | None = None,
     ):
         """初始化辩论编排器
 
@@ -1492,6 +1525,7 @@ class DebateOrchestrator:
         self.enable_trust = enable_trust
         self.enable_mirror = enable_mirror
         self.news_evidence_service = news_evidence_service
+        self.quote_evidence_service = quote_evidence_service
         self.callback_engine = callback_engine
         self.min_trust_factor = min_trust_factor
         if self.callback_engine is None and enable_trust:
@@ -1530,6 +1564,7 @@ class DebateOrchestrator:
                 cast(DebateState, state),
                 self.data_collector,
                 self.news_evidence_service,
+                self.quote_evidence_service,
             ),
         )
         graph.set_entry_point("collect_data")

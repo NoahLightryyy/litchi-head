@@ -106,10 +106,14 @@ class DebateRequest(BaseModel):
 def _get_orchestrator():
     """惰性导入 DebateOrchestrator，避免 Windows torch crash"""
     from src.data.news_runtime import get_news_evidence_runtime  # noqa: PLC0415
+    from src.data.quote_runtime import (  # noqa: PLC0415
+        get_realtime_quote_evidence_runtime,
+    )
     from src.debate.orchestrator import DebateOrchestrator  # noqa: PLC0415
 
     return DebateOrchestrator(
         news_evidence_service=get_news_evidence_runtime().service,
+        quote_evidence_service=get_realtime_quote_evidence_runtime().service,
     )
 
 
@@ -179,7 +183,7 @@ async def run_debate(request: Request, req: DebateRequest):
         if isinstance(exc, EvidenceIncompleteError):
             detail = exc.detail()
             logger.warning(
-                "新闻证据不完整，辩论未启动: stock_code=%s detail=%s",
+                "必要证据不完整，辩论未启动: stock_code=%s detail=%s",
                 req.stock_code,
                 detail,
             )
@@ -194,7 +198,7 @@ async def run_debate(request: Request, req: DebateRequest):
                 content={
                     "error": {
                         "code": "EVIDENCE_INCOMPLETE",
-                        "message": "新闻证据尚未完整覆盖最近 3 天，AI 分析未启动",
+                        "message": "必要市场数据不完整或不一致，AI 分析未启动",
                         "detail": detail,
                     }
                 },
