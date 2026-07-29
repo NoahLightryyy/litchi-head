@@ -11,6 +11,10 @@ from backend.main import app
 def test_invalid_news_poll_interval_fails_startup_before_serving() -> None:
     with (
         patch.dict("os.environ", {"LITCHI_NEWS_POLL_SECONDS": "59"}),
+        patch(
+            "backend.config.setup_production_source",
+            return_value="test-source",
+        ),
         pytest.raises(ValueError, match="at least 60"),
         TestClient(app),
     ):

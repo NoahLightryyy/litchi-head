@@ -56,7 +56,7 @@ async def get_kline(code: str, period: str = "daily", start: str = "", end: str 
 # 惰性导入避免 torch crash
 def _get_orchestrator():
     from src.debate.orchestrator import DebateOrchestrator
-    return DebateOrchestrator()
+    return DebateOrchestrator(news_evidence_service=get_news_evidence_runtime().service)
 
 @router.post("/run")
 async def run_debate(req: DebateRequest):
@@ -75,6 +75,27 @@ async def aggregate_news(payload: NewsAggregateRequest):
 
 请求时间必须带时区。单源失败或时间窗覆盖不足仍返回完整逐源诊断；只有两个独立
 上游都处于成功状态时，信封的 `complete` 才为 `true`。
+
+`POST /api/debate/run` 固定请求最近 3 天新闻。东方财富实时查询与新浪 SQLite
+滚动缓存并发汇总；任一必需上游不完整时返回 HTTP 503：
+
+```json
+{
+  "error": {
+    "code": "EVIDENCE_INCOMPLETE",
+    "message": "新闻证据尚未完整覆盖最近 3 天，AI 分析未启动",
+    "detail": {
+      "missing_upstream_ids": ["sina"],
+      "retry_after_seconds": 300
+    }
+  }
+}
+```
+
+响应同时带 `Retry-After: 300`，失败会保存在 session 状态中，且不会调用 LLM。
+若股票主数据无法解析名称，也返回同一错误码并标注缺失 `stock_name`，防止新浪
+标题仅含公司名称时被误判为空。后台采集任务异常退出时 `/api/health` 返回
+`status=degraded`、`news_ingestion=failed`。
 
 ## 3. CORS 配置
 

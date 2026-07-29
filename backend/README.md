@@ -62,8 +62,8 @@ backend/
 | GET | `/api/stocks/{code}/news` | 个股新闻 | ✅ |
 | GET | `/api/stocks/{code}/capital-flow` | 资金流向（主力/散户/机构） | ✅ |
 | GET | `/api/stocks/{code}/technical-indicators` | 技术指标（MA/RSI/MACD/布林带） | ✅ |
-| POST | `/api/v1/evidence/news/aggregate` | 东方财富 + 新浪并发新闻证据信封 | ✅ |
-| POST | `/api/debate/run` | 触发 AI 辩论 | ✅ |
+| POST | `/api/v1/evidence/news/aggregate` | 东方财富实时 + 新浪滚动缓存并发新闻证据信封 | ✅ |
+| POST | `/api/debate/run` | 触发 AI 辩论；3 天新闻证据不完整时 503 且零 LLM | ✅ |
 | GET | `/api/debate/status/{id}` | 辩论状态查询 | ✅ |
 | GET | `/api/debate/result/{id}` | 辩论结果获取 | ✅ |
 | GET | `/api/trust/report/{name}` | 信任度报告 | ✅ |
@@ -76,6 +76,10 @@ backend/
 - **错误转换**：Python 异常 → `{ error: { code, message } }` 统一格式
 - **惰性导入**：`debate.py` 用 `_get_orchestrator()` 懒加载，避免 Windows torch crash
 - **生产数据源**：`lifespan` 启动时自动调用 `config.setup_production_source()`，支持 `LITCHI_DATASOURCE` 环境变量
+- **新闻滚动采集**：启动后立即采集新浪元数据，默认每 300 秒轮询；SQLite 路径
+  `data/evidence/news.db`，可用 `LITCHI_NEWS_DATABASE` 与
+  `LITCHI_NEWS_POLL_SECONDS` 配置。首次启动需连续积累 3 天后才满足辩论门禁。
+  轮询值低于 60 秒会拒绝启动；后台任务异常退出时健康检查返回 `degraded`。
 
 ## 响应格式
 

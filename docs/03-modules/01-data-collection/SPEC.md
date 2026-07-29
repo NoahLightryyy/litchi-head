@@ -22,6 +22,8 @@
 | `src/data/collector.py` | 主采集器，封装 akshare 调用 |
 | `src/data/evidence.py` | 多源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/evidence_service.py` | 多通道并发采集、异常显式化、同上游去重与统一信封 |
+| `src/data/news_store.py` | SQLite WAL 新闻元数据滚动存储、去重、保留期与连续覆盖 |
+| `src/data/news_runtime.py` | 东方财富实时源 + 新浪滚动源的共享聚合运行时 |
 | `src/data/models.py` | Pydantic 数据模型（StockInfo / KLine / NewsItem / StockQuote） |
 | `src/data/cache.py` | 缓存层（带 TTL） |
 | `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（公开端点直连 + AKShare 可替换实现） |
@@ -34,7 +36,7 @@
 DataCollector → DataSource → AKShare/AData/ZzShare/Fallback
                            └─ 失败仍可能被压成 [] / None
 
-新契约（新闻双源已接入）：
+新契约（新闻双源已接入正式辩论）：
 DataEvidenceService
   → 并发调用多个 EvidenceSource
   → 按 capability 汇总并统一打包为业务节点输入
@@ -45,7 +47,17 @@ DataEvidenceService
   → EvidencePolicy
       → 按独立 upstream_id 判断完整性
       → discovery_only 来源不计入证据门槛
+
+新浪后台采集（默认每 5 分钟）
+  → 元数据写入 SQLite WAL（保留 3 天）
+  → 采集间隔超过 10 分钟即重置连续覆盖起点
+  → 满 3 天连续覆盖后才可作为成功上游
+  → 与东方财富实时查询并发进入同一 EvidenceEnvelope
 ```
+
+采集器必须确认已经读完整个当前可访问信息流；如果达到 20 页上限仍未耗尽，
+本轮抛出截断错误且不得推进连续覆盖。乱序到达的旧采集批次可以补写条目，但不能
+倒退 `last_success_at`。
 
 ### 多源完整性不变量
 
@@ -56,10 +68,15 @@ DataEvidenceService
 5. 强制上游和独立来源数任一不足，评估结果均为 `complete=False`；
 6. 汇总层只能传递统一证据模型、来源状态、时间范围和完整性结果，业务节点不依赖
    CNINFO、AKShare 等具体通道名称；
-7. 当前契约尚未接管旧 Provider 或正式辩论图，因此 TD-069 仍未关闭。
+7. 新闻契约已接管正式辩论图；不完整时图在首个 LLM 节点前结束并返回
+   `EVIDENCE_INCOMPLETE`。实时行情、K 线和行业证据仍待迁移，因此 TD-069 暂不关闭。
 8. 全局快讯没有覆盖完整请求时间窗时返回 `STALE`，不得用“当前页未命中”推断
    `SUCCESS_EMPTY`；
 9. 跨源业务条目按股票与规范化标题去重，完整来源诊断仍保留在 `source_results`。
+10. 新浪缓存只跨节点传输元数据，正文保持为空；首次部署或采集断档后必须重新积累
+    连续 3 天覆盖，期间不得降级启动 AI。
+11. 股票名称是新浪本地实体关联的必需输入；主数据无法解析名称时同样失败关闭，
+    不能只用六位代码把可信空结果误判为完整核验。
 
 ## 数据契约（关键模型）
 

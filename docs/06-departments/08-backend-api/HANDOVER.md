@@ -73,7 +73,8 @@ last_updated: 2026-07-29 (统一新闻证据聚合 API 完成)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🔥 | TD-069 消费 `EvidenceEnvelope` 暴露证据缺失错误；禁止不完整输入启动 LLM | DataEvidenceService ✅ |
+| 1 ✅ | 新闻 `EvidenceEnvelope` 缺失返回 503；禁止不完整输入启动 LLM | 已完成 |
+| 2 🔥 | 将同一错误契约扩展到实时行情、K 线和行业证据 | TD-069 |
 | 2 🟡 | TD-068 正式辩论图 checkpoint + 路由 durable session 集成 | TD-069 |
 | 3 🟡 | TD-068 1/3/5 并发、durable queue 与全局背压门禁 | 正式图恢复 |
 | 4 🟢 | TD-054 CORS 改环境变量 | 无 |
