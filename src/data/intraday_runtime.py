@@ -138,6 +138,15 @@ class IntradayEvidenceService:
                 error_code="intraday_identity_conflict",
                 error_message="Intraday series code does not match the request",
             )
+        if result.upstream_id == "eastmoney" and (
+            not series.ohlc_supported or not series.bars
+        ):
+            return _unusable(
+                result,
+                status=SourceStatus.CONFLICTED,
+                error_code="intraday_ohlc_missing",
+                error_message="Required Eastmoney OHLC minute bars are missing",
+            )
         expected = _expected_latest_finalized(now)
         finalized_times = {
             point.timestamp
@@ -174,6 +183,13 @@ class IntradayEvidenceService:
             for point in successful[1].items[0].checkpoints
             if point.state is IntradayBarState.FINAL
         }
+        if first.keys() != second.keys():
+            return IntradayEvidenceService._conflict(
+                results,
+                successful,
+                error_code="intraday_minute_set_conflict",
+                error_message="Finalized minute timestamp sets do not match",
+            )
         common = sorted(first.keys() & second.keys())
         if not common:
             return [

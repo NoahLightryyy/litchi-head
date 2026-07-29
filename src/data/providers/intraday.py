@@ -36,6 +36,10 @@ class IntradayFetcher(Protocol):
         ...
 
 
+class _UpstreamRequestError(RuntimeError):
+    """区分传输故障和成功响应中的字段损坏。"""
+
+
 def _now_shanghai() -> datetime:
     return datetime.now(SHANGHAI)
 
@@ -160,7 +164,12 @@ class EastmoneyIntradaySource:
                 status=SourceStatus.UNSUPPORTED,
             )
         try:
-            payload = self._fetcher(request.stock_code)
+            try:
+                payload = self._fetcher(request.stock_code)
+            except Exception as exc:
+                raise _UpstreamRequestError(
+                    str(exc).strip() or exc.__class__.__name__
+                ) from exc
             data = payload.get("data")
             if not isinstance(data, Mapping):
                 raise ValueError("Eastmoney intraday response is missing data")
@@ -219,6 +228,13 @@ class EastmoneyIntradaySource:
                 bars=bars,
                 ohlc_supported=True,
             )
+        except _UpstreamRequestError as exc:
+            logger.warning("Eastmoney intraday request failed: %s", exc)
+            return _failed(
+                self.descriptor,
+                exc,
+                error_code="upstream_request_failed",
+            )
         except Exception as exc:
             logger.exception("Eastmoney intraday collection failed")
             return _failed(
@@ -272,7 +288,12 @@ class TencentIntradaySource:
                 status=SourceStatus.UNSUPPORTED,
             )
         try:
-            payload = self._fetcher(request.stock_code)
+            try:
+                payload = self._fetcher(request.stock_code)
+            except Exception as exc:
+                raise _UpstreamRequestError(
+                    str(exc).strip() or exc.__class__.__name__
+                ) from exc
             if payload.get("code") != 0:
                 raise ValueError("Tencent intraday response code is not zero")
             symbol = f"{_market_prefix(request.stock_code)}{request.stock_code}"
@@ -348,6 +369,13 @@ class TencentIntradaySource:
                 checkpoints=checkpoints,
                 bars=[],
                 ohlc_supported=False,
+            )
+        except _UpstreamRequestError as exc:
+            logger.warning("Tencent intraday request failed: %s", exc)
+            return _failed(
+                self.descriptor,
+                exc,
+                error_code="upstream_request_failed",
             )
         except Exception as exc:
             logger.exception("Tencent intraday collection failed")

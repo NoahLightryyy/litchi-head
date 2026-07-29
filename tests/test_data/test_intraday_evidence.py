@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from src.data.evidence import (
     EvidenceCapability,
     EvidencePolicy,
@@ -229,3 +231,84 @@ def test_tencent_bse_accepts_rows_without_cumulative_amount() -> None:
     assert result.status is SourceStatus.SUCCESS_DATA
     assert result.items[0].checkpoints[0].cumulative_volume == 7_700
     assert result.items[0].checkpoints[0].cumulative_amount == 0.0
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        EastmoneyIntradaySource(
+            fetcher=lambda code: (_ for _ in ()).throw(TimeoutError("timeout")),
+            now_provider=lambda: NOW,
+        ),
+        TencentIntradaySource(
+            fetcher=lambda code: (_ for _ in ()).throw(TimeoutError("timeout")),
+            now_provider=lambda: NOW,
+        ),
+    ],
+)
+def test_transport_failure_is_not_mislabeled_as_invalid_payload(
+    source: EastmoneyIntradaySource | TencentIntradaySource,
+) -> None:
+    result = source.fetch(REQUEST)
+
+    assert result.status is SourceStatus.FAILED
+    assert result.error_code == "upstream_request_failed"
+    assert result.error_message == "timeout"
+
+
+def test_mismatched_finalized_minute_sets_fail_closed() -> None:
+    later = datetime(2026, 7, 29, 9, 32, 30, tzinfo=SHANGHAI)
+    eastmoney, tencent = _series_pair(now=later)
+    final_timestamp = later.replace(second=0, microsecond=0)
+    eastmoney_last = eastmoney.checkpoints[-1].model_copy(
+        update={
+            "timestamp": final_timestamp,
+            "cumulative_volume": 9_500_000,
+            "state": IntradayBarState.FINAL,
+        }
+    )
+    tencent_last = tencent.checkpoints[-1].model_copy(
+        update={
+            "timestamp": final_timestamp,
+            "cumulative_volume": 9_500_000,
+            "state": IntradayBarState.FINAL,
+        }
+    )
+    eastmoney = eastmoney.model_copy(
+        update={
+            "checkpoints": [*eastmoney.checkpoints, eastmoney_last],
+            "bars": [
+                *eastmoney.bars,
+                eastmoney.bars[-1].model_copy(
+                    update={
+                        "timestamp": final_timestamp,
+                        "state": IntradayBarState.FINAL,
+                    }
+                ),
+            ],
+        }
+    )
+    tencent = tencent.model_copy(
+        update={"checkpoints": [tencent.checkpoints[0], tencent_last]}
+    )
+    service = _service(eastmoney, tencent)
+    service._now_provider = lambda: later
+
+    envelope = service.collect(REQUEST, POLICY)
+
+    assert envelope.complete is False
+    assert {
+        result.error_code for result in envelope.source_results
+    } == {"intraday_minute_set_conflict"}
+
+
+def test_required_ohlc_source_without_bars_fails_closed() -> None:
+    eastmoney, tencent = _series_pair()
+    eastmoney = eastmoney.model_copy(
+        update={"bars": [], "ohlc_supported": False}
+    )
+
+    envelope = _service(eastmoney, tencent).collect(REQUEST, POLICY)
+
+    assert envelope.complete is False
+    assert envelope.source_results[0].error_code == "intraday_ohlc_missing"
