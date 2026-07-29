@@ -13,6 +13,12 @@ from src.data.evidence import (
     SourceStatus,
 )
 from src.data.models import NewsItem, StockQuote
+from src.data.intraday import (
+    IntradayBar,
+    IntradayBarState,
+    IntradayCheckpoint,
+    IntradaySourceSeries,
+)
 
 
 def _envelope() -> EvidenceEnvelope:
@@ -127,6 +133,116 @@ def _quote_envelope() -> EvidenceEnvelope:
         assessment=assessment,
         complete=True,
     )
+
+
+def _intraday_envelope() -> EvidenceEnvelope:
+    request = EvidenceRequest(
+        capability=EvidenceCapability.INTRADAY,
+        stock_code="000001",
+    )
+    policy = EvidencePolicy(
+        capability=EvidenceCapability.INTRADAY,
+        min_independent_upstreams=2,
+        required_upstream_ids={"eastmoney", "tencent"},
+    )
+    timestamp = datetime(2026, 7, 29, 2, 30, tzinfo=UTC)
+    bar = IntradayBar(
+        code="000001",
+        timestamp=timestamp,
+        open=11.19,
+        high=11.19,
+        low=11.19,
+        close=11.19,
+        volume=450_700,
+        amount=5_043_333,
+        state=IntradayBarState.FINAL,
+    )
+    checkpoint = IntradayCheckpoint(
+        code="000001",
+        timestamp=timestamp,
+        close=11.19,
+        cumulative_volume=450_700,
+        cumulative_amount=5_043_333,
+        state=IntradayBarState.FINAL,
+    )
+    eastmoney = IntradaySourceSeries(
+        code="000001",
+        name="平安银行",
+        checkpoints=[checkpoint],
+        bars=[bar],
+        ohlc_supported=True,
+    )
+    tencent = eastmoney.model_copy(
+        update={"bars": [], "ohlc_supported": False}
+    )
+    results = [
+        SourceResult[IntradaySourceSeries](
+            source_id="direct-eastmoney-intraday",
+            upstream_id="eastmoney",
+            capability=EvidenceCapability.INTRADAY,
+            status=SourceStatus.SUCCESS_DATA,
+            items=[eastmoney],
+        ),
+        SourceResult[IntradaySourceSeries](
+            source_id="direct-tencent-intraday",
+            upstream_id="tencent",
+            capability=EvidenceCapability.INTRADAY,
+            status=SourceStatus.SUCCESS_DATA,
+            items=[tencent],
+        ),
+    ]
+    assessment = EvidenceAssessment(
+        capability=EvidenceCapability.INTRADAY,
+        complete=True,
+        successful_upstream_ids={"eastmoney", "tencent"},
+        successful_source_ids={
+            "direct-eastmoney-intraday",
+            "direct-tencent-intraday",
+        },
+        missing_independent_upstreams=0,
+    )
+    return EvidenceEnvelope(
+        request=request,
+        policy=policy,
+        source_results=results,
+        items=[bar],
+        assessment=assessment,
+        complete=True,
+    )
+
+
+def test_intraday_battlefield_returns_bars_snapshot_and_source_diagnostics(client) -> None:
+    service = Mock()
+    service.collect.return_value = _intraday_envelope()
+
+    with patch("backend.routers.evidence.intraday_evidence_service", service):
+        response = client.post(
+            "/api/v1/evidence/intraday/battlefield",
+            json={"symbol": "000001"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["complete"] is True
+    assert payload["bars"][0]["volume"] == 450_700
+    assert payload["snapshot"]["evidence_level"] == "L1"
+    assert payload["snapshot"]["attribution_supported"] is False
+    assert [item["upstream_id"] for item in payload["source_diagnostics"]] == [
+        "eastmoney",
+        "tencent",
+    ]
+    request, policy = service.collect.call_args.args
+    assert request.capability is EvidenceCapability.INTRADAY
+    assert policy.required_upstream_ids == {"eastmoney", "tencent"}
+
+
+def test_intraday_battlefield_rejects_invalid_symbol(client) -> None:
+    response = client.post(
+        "/api/v1/evidence/intraday/battlefield",
+        json={"symbol": "INVALID"},
+    )
+
+    assert response.status_code == 422
 
 
 def test_quote_aggregate_returns_reconciled_envelope(client) -> None:
