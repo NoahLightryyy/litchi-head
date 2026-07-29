@@ -13,9 +13,9 @@ from src.data.evidence import (
 )
 from src.data.providers.news import (
     EastmoneyNewsSource,
+    SinaFeedTruncatedError,
     SinaNewsSource,
     SinaRollingFeedCollector,
-    SinaFeedTruncatedError,
 )
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")

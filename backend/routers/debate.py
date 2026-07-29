@@ -14,12 +14,14 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from backend.async_utils import run_sync
 from backend.config import (
     RATE_LIMIT_DEBATE_RESULT,
     RATE_LIMIT_DEBATE_RUN,
     RATE_LIMIT_DEBATE_STATUS,
 )
 from backend.limiter import limiter
+from backend.routers.evidence import resolve_stock_name
 
 logger = logging.getLogger("backend.debate")
 router = APIRouter(prefix="/api/debate")
@@ -125,11 +127,39 @@ async def run_debate(request: Request, req: DebateRequest):
     _debate_sessions[session_id] = {"status": "running", "progress": 0}
 
     try:
+        stock_name = await run_sync(resolve_stock_name, req.stock_code)
+        if not stock_name:
+            detail = {
+                "capability": "stock_identity",
+                "missing_fields": ["stock_name"],
+                "retry_after_seconds": 300,
+            }
+            _debate_sessions[session_id] = {
+                "status": "failed",
+                "progress": 0,
+                "error": "EVIDENCE_INCOMPLETE",
+                "detail": detail,
+            }
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "error": {
+                        "code": "EVIDENCE_INCOMPLETE",
+                        "message": "股票基础信息不可用，AI 分析未启动",
+                        "detail": detail,
+                    }
+                },
+                headers={"Retry-After": "300"},
+            )
         orch = _get_orchestrator()
         from src.debate.models import DebateInput  # noqa: PLC0415
 
         result = await orch.run(
-            DebateInput(stock_code=req.stock_code, question=req.question or "")
+            DebateInput(
+                stock_code=req.stock_code,
+                stock_name=stock_name,
+                question=req.question or "",
+            )
         )
         _debate_sessions[session_id] = {
             "status": "completed",

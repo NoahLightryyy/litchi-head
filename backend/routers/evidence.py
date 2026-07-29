@@ -13,10 +13,9 @@ from src.data.collector import DataCollector
 from src.data.evidence import (
     EvidenceCapability,
     EvidenceEnvelope,
-    EvidencePolicy,
     EvidenceRequest,
 )
-from src.data.news_runtime import get_news_evidence_runtime
+from src.data.news_runtime import NEWS_EVIDENCE_POLICY, get_news_evidence_runtime
 
 logger = logging.getLogger("backend.evidence")
 router = APIRouter(prefix="/api/v1/evidence")
@@ -65,12 +64,11 @@ async def aggregate_news(payload: NewsAggregateRequest) -> EvidenceEnvelope:
         start_at=payload.start_time,
         end_at=payload.end_time,
     )
-    policy = EvidencePolicy(
-        capability=EvidenceCapability.NEWS,
-        min_independent_upstreams=2,
-        required_upstream_ids={"eastmoney", "sina"},
+    return await run_sync(
+        news_evidence_service.collect,
+        request,
+        NEWS_EVIDENCE_POLICY,
     )
-    return await run_sync(news_evidence_service.collect, request, policy)
 
 
 __all__ = ["router"]

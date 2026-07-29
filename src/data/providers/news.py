@@ -64,6 +64,10 @@ class _UpstreamRequestError(RuntimeError):
     """区分网络/调用失败与响应格式损坏。"""
 
 
+class SinaFeedTruncatedError(RuntimeError):
+    """Raised when rolling ingestion cannot prove it scanned the whole feed."""
+
+
 def _mapping(value: object, context: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise ValueError(f"{context} 必须是 JSON 对象")
@@ -601,7 +605,7 @@ class SinaRollingFeedCollector:
         self,
         *,
         fetcher: SinaNewsFetcher = _default_sina_fetcher,
-        max_pages: int = 2,
+        max_pages: int = MAX_NEWS_PAGES,
     ) -> None:
         if max_pages < 1:
             raise ValueError("max_pages must be at least 1")
@@ -613,6 +617,7 @@ class SinaRollingFeedCollector:
         raw_rows: list[Any] = []
         seen_ids: set[str] = set()
         total: int | None = None
+        feed_exhausted = False
         for page in range(1, self._max_pages + 1):
             page_rows, page_total = self._source._feed(  # noqa: SLF001
                 self._source._fetch_page(page)  # noqa: SLF001
@@ -631,11 +636,18 @@ class SinaRollingFeedCollector:
                 new_rows.append(raw_row)
             raw_rows.extend(new_rows)
             if not page_rows or not new_rows:
+                feed_exhausted = True
                 break
             if total is not None and len(raw_rows) >= total:
+                feed_exhausted = True
                 break
             if len(page_rows) < SINA_PAGE_SIZE:
+                feed_exhausted = True
                 break
+        if not feed_exhausted:
+            raise SinaFeedTruncatedError(
+                f"新浪快讯超过采集上限: max_pages={self._max_pages}"
+            )
 
         request = EvidenceRequest(capability=EvidenceCapability.NEWS)
         items: list[NewsItem] = []
@@ -665,6 +677,7 @@ class SinaRollingFeedCollector:
 
 __all__ = [
     "EastmoneyNewsSource",
+    "SinaFeedTruncatedError",
     "SinaNewsSource",
     "SinaRollingFeedCollector",
 ]

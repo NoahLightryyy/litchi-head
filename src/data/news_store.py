@@ -108,14 +108,19 @@ class SqliteRollingNewsStore:
                         default=collected_utc,
                     )
                     continuous_since = oldest_item
+                    last_success_at = collected_utc
                     if existing is not None:
                         previous_success = datetime.fromisoformat(
                             str(existing["last_success_at"])
                         )
-                        if collected_utc - previous_success <= self._max_collection_gap:
-                            continuous_since = datetime.fromisoformat(
-                                str(existing["continuous_since"])
-                            )
+                        previous_continuous = datetime.fromisoformat(
+                            str(existing["continuous_since"])
+                        )
+                        if collected_utc <= previous_success:
+                            continuous_since = previous_continuous
+                            last_success_at = previous_success
+                        elif collected_utc - previous_success <= self._max_collection_gap:
+                            continuous_since = previous_continuous
 
                     for item in items:
                         if item.published_at is None:
@@ -162,7 +167,7 @@ class SqliteRollingNewsStore:
                         (
                             source_id,
                             continuous_since.isoformat(),
-                            collected_utc.isoformat(),
+                            last_success_at.isoformat(),
                         ),
                     )
                     connection.execute(

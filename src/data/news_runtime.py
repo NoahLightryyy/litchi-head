@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from src.data.evidence import (
     EvidenceCapability,
+    EvidencePolicy,
     EvidenceRequest,
     EvidenceSourceRegistry,
     SourceDescriptor,
@@ -25,6 +26,12 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_NEWS_DATABASE = Path("data/evidence/news.db")
 DEFAULT_POLL_SECONDS = 300
+NEWS_WINDOW = timedelta(days=3)
+NEWS_EVIDENCE_POLICY = EvidencePolicy(
+    capability=EvidenceCapability.NEWS,
+    min_independent_upstreams=2,
+    required_upstream_ids={"eastmoney", "sina"},
+)
 
 
 class RollingNewsSource:
@@ -132,14 +139,20 @@ def get_news_evidence_runtime() -> NewsEvidenceRuntime:
     return _runtime
 
 
+def validate_news_poll_seconds(poll_seconds: int) -> int:
+    """Validate the operational polling guard before the app starts serving."""
+    if poll_seconds < 60:
+        raise ValueError("poll_seconds must be at least 60")
+    return poll_seconds
+
+
 async def run_news_ingestion_loop(
     runtime: NewsEvidenceRuntime,
     *,
     poll_seconds: int = DEFAULT_POLL_SECONDS,
 ) -> None:
     """Poll immediately and then every interval; failures never advance coverage."""
-    if poll_seconds < 60:
-        raise ValueError("poll_seconds must be at least 60")
+    validate_news_poll_seconds(poll_seconds)
     while True:
         try:
             count = await asyncio.to_thread(runtime.ingest_once)
@@ -154,8 +167,11 @@ async def run_news_ingestion_loop(
 __all__ = [
     "DEFAULT_NEWS_DATABASE",
     "DEFAULT_POLL_SECONDS",
+    "NEWS_EVIDENCE_POLICY",
+    "NEWS_WINDOW",
     "NewsEvidenceRuntime",
     "RollingNewsSource",
     "get_news_evidence_runtime",
     "run_news_ingestion_loop",
+    "validate_news_poll_seconds",
 ]

@@ -47,7 +47,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Any, TypedDict, cast
 
 logger = logging.getLogger(__name__)
@@ -62,11 +62,11 @@ from src.data.collector import DataCollector, format_market_brief  # noqa: E402
 from src.data.evidence import (  # noqa: E402
     EvidenceCapability,
     EvidenceEnvelope,
-    EvidencePolicy,
     EvidenceRequest,
 )
 from src.data.evidence_service import DataEvidenceService  # noqa: E402
 from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote  # noqa: E402
+from src.data.news_runtime import NEWS_EVIDENCE_POLICY, NEWS_WINDOW  # noqa: E402
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
 from src.debate.evidence_gate import EvidenceIncompleteError  # noqa: E402
 from src.debate.mirror import generate_mirror_report  # noqa: E402
@@ -185,15 +185,13 @@ def collect_data_node(
             capability=EvidenceCapability.NEWS,
             stock_code=code,
             stock_name=inp.get("stock_name", ""),
-            start_at=end_at - timedelta(days=3),
+            start_at=end_at - NEWS_WINDOW,
             end_at=end_at,
         )
-        policy = EvidencePolicy(
-            capability=EvidenceCapability.NEWS,
-            min_independent_upstreams=2,
-            required_upstream_ids={"eastmoney", "sina"},
+        evidence_envelope = news_evidence_service.collect(
+            request,
+            NEWS_EVIDENCE_POLICY,
         )
-        evidence_envelope = news_evidence_service.collect(request, policy)
         if not evidence_envelope.complete:
             return {
                 "evidence_envelope": evidence_envelope.model_dump(mode="json"),

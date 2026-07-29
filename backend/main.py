@@ -64,10 +64,11 @@ async def lifespan(app: FastAPI):
         DEFAULT_POLL_SECONDS,
         get_news_evidence_runtime,
         run_news_ingestion_loop,
+        validate_news_poll_seconds,
     )
 
-    poll_seconds = int(
-        os.getenv("LITCHI_NEWS_POLL_SECONDS", str(DEFAULT_POLL_SECONDS))
+    poll_seconds = validate_news_poll_seconds(
+        int(os.getenv("LITCHI_NEWS_POLL_SECONDS", str(DEFAULT_POLL_SECONDS)))
     )
     news_task = asyncio.create_task(
         run_news_ingestion_loop(
@@ -76,12 +77,14 @@ async def lifespan(app: FastAPI):
         ),
         name="sina-rolling-news-ingestion",
     )
+    app.state.news_ingestion_task = news_task
     try:
         yield
     finally:
         news_task.cancel()
         with suppress(asyncio.CancelledError):
             await news_task
+        app.state.news_ingestion_task = None
     logger.info("FastAPI 桥接层关闭")
 
 
@@ -150,7 +153,19 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 @app.get("/api/health")
 async def health():
     """健康检查"""
-    return {"status": "ok", "service": "litchi-head-bridge", "timestamp": time.time()}
+    news_task = getattr(app.state, "news_ingestion_task", None)
+    news_status = "not_started"
+    status = "ok"
+    if news_task is not None:
+        news_status = "failed" if news_task.done() else "running"
+        if news_task.done():
+            status = "degraded"
+    return {
+        "status": status,
+        "service": "litchi-head-bridge",
+        "news_ingestion": news_status,
+        "timestamp": time.time(),
+    }
 
 
 @app.get("/api/health/data-source")

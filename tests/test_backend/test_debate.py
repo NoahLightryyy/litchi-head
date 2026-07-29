@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
 from pydantic import BaseModel
 
 from src.data.evidence import (
@@ -49,6 +50,14 @@ class _MockOrchestrator:
 
 class TestRunDebate:
     """触发辩论"""
+
+    @pytest.fixture(autouse=True)
+    def mock_stock_name_lookup(self):
+        with patch(
+            "backend.routers.debate.resolve_stock_name",
+            return_value="平安银行",
+        ):
+            yield
 
     def test_run_debate_success(self, client):
         mock_orch = _MockOrchestrator()
