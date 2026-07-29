@@ -127,6 +127,31 @@ class EvidenceAssessment(BaseModel):
     missing_independent_upstreams: int = Field(ge=0)
 
 
+class EvidenceEnvelope(BaseModel):
+    """多通道采集后交给业务节点的统一证据信封。"""
+
+    request: EvidenceRequest
+    policy: EvidencePolicy
+    source_results: list[SourceResult[Any]] = Field(default_factory=list)
+    items: list[Any] = Field(default_factory=list)
+    assessment: EvidenceAssessment
+    complete: bool
+    collected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    @model_validator(mode="after")
+    def validate_envelope_consistency(self) -> "EvidenceEnvelope":
+        capability = self.request.capability
+        if self.policy.capability is not capability:
+            raise ValueError("request and policy capability must match")
+        if self.assessment.capability is not capability:
+            raise ValueError("request and assessment capability must match")
+        if self.complete != self.assessment.complete:
+            raise ValueError("complete must match assessment.complete")
+        if any(result.capability is not capability for result in self.source_results):
+            raise ValueError("all source results must match request capability")
+        return self
+
+
 class EvidenceSourceRegistry:
     """配置驱动的来源注册中心与独立性评估器。"""
 
@@ -229,6 +254,7 @@ class EvidenceSourceRegistry:
 __all__ = [
     "EvidenceAssessment",
     "EvidenceCapability",
+    "EvidenceEnvelope",
     "EvidencePolicy",
     "EvidenceRequest",
     "EvidenceSource",
