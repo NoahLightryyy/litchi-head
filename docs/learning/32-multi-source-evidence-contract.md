@@ -96,8 +96,8 @@ descriptor = SourceDescriptor(
 
 ### 汇总层如何传给业务节点
 
-适配器不会直接把各自格式传给辩论引擎。下一层 `DataEvidenceService` 应把多个通道
-统一汇总：
+适配器不会直接把各自格式传给辩论引擎。`DataEvidenceService` 会把多个通道统一
+汇总：
 
 ```text
 CNINFO / 东方财富 / 新浪等通道
@@ -111,6 +111,23 @@ DataEvidenceService
 
 这样业务节点只认识统一证据信封，不认识具体网站或 Python 库。更换通道只影响
 适配器和配置，不会把来源细节扩散到业务代码。
+
+项目中的信封定义在 `src/data/evidence.py`：
+
+```python
+class EvidenceEnvelope(BaseModel):
+    request: EvidenceRequest
+    policy: EvidencePolicy
+    source_results: list[SourceResult[Any]]
+    items: list[Any]
+    assessment: EvidenceAssessment
+    complete: bool
+    collected_at: datetime
+```
+
+`source_results` 保留每个通道的完整诊断；`items` 是给业务节点使用的条目。同一个
+`upstream_id` 即使有多个适配器，诊断结果都会保留，但 `items` 只输出第一份成功
+数据，避免同一上游被重复包装后重复进入业务链。
 
 ---
 

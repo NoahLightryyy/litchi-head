@@ -219,7 +219,7 @@ Bug 报告
 | 提供方 | 接口 | 消费者 | 协议/契约 |
 |:-------|:-----|:-------|:----------|
 | 数据管道部 | `DataCollector.xxx()` | 辩论引擎部 / 后端 API 部 | Python 函数调用 / Pydantic 模型 |
-| 数据管道部 | `EvidenceSourceRegistry` | `DataEvidenceService`（待实现） | 独立上游 + 六态来源结果 |
+| 数据管道部 | `EvidenceSourceRegistry` | `DataEvidenceService`（已实现） | 独立上游 + 六态来源结果 + 统一信封 |
 | AI Agent 架构部 | `BaseAgent`, `AgentResult[T]` | 辩论引擎部 | 继承 + 泛型 |
 | 基础设施部 | `LLMService.agenerate()` | 辩论引擎部 | LLMConfig 参数化调用 |
 | 记忆系统部 | `MemoryManager.xxx()` | 辩论引擎部 / AI Agent 架构部 | 语义化读写接口 |

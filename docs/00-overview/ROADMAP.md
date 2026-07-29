@@ -8,10 +8,10 @@
 ## 快速统计
 
 ```
-总 Python 测试数 │ 1265 passed / 4 skipped / 19 slow deselected（1288 collected）
+总 Python 测试数 │ 1272 passed / 4 skipped / 19 slow deselected（1295 collected）
 技术债务         │ 70 条总记 / 39 条已关闭 / 31 条开放
 紧急指数         │ 5.6/10（TD-061 Critical；数据底座处于实施门禁）
-当前阶段         │ 🟡 Phase R 数据底座加固 — CNINFO 直连三态门禁完成；统一汇总服务待接入
+当前阶段         │ 🟡 Phase R 数据底座加固 — 多通道统一汇总服务完成；新闻双源待接入
 前端进度         │ 全部 Tab 面板就绪（技术指标/资金流向/AI 辩论/信任度）+ 暗色主题打磨 + pnpm build ✅
 后端桥接         │ market/stocks/debate/trust 四组路由全部完整实现 + TD-020 板块增强 + 技术指标 + 生产配置 ✅
 数据源诚信        │ 全项目零造假 ✅ + Provider 抽象层 ✅ + 免费多源架构 ✅ + 生产配置 ✅

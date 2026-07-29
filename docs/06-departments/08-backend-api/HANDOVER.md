@@ -71,7 +71,7 @@ last_updated: 2026-07-28 (真实结果与最小节点续跑门禁完成，尚未
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🔥 | TD-069 暴露证据缺失错误；禁止不完整输入启动 LLM | DataEvidenceService |
+| 1 🔥 | TD-069 消费 `EvidenceEnvelope` 暴露证据缺失错误；禁止不完整输入启动 LLM | DataEvidenceService ✅ |
 | 2 🟡 | TD-068 正式辩论图 checkpoint + 路由 durable session 集成 | TD-069 |
 | 3 🟡 | TD-068 1/3/5 并发、durable queue 与全局背压门禁 | 正式图恢复 |
 | 4 🟢 | TD-054 CORS 改环境变量 | 无 |

@@ -52,7 +52,8 @@ department: 辩论引擎部
 - 2026-07-28 已完成 `src/data/evidence.py` 基础契约和 10 项测试；
 - 2026-07-29 已完成 CNINFO 直连三态门禁：真实有数据、明确零公告和失败均可区分，
   AKShare 保留为同一上游的可替换适配器，TD-071 已关闭；
-- 后续仍需接入首批免费来源、`DataEvidenceService`、正式辩论图和用户可见错误。
+- 2026-07-29 已完成 `DataEvidenceService` 并发汇总和统一 `EvidenceEnvelope`；
+- 后续仍需接入首批免费新闻来源、正式辩论图和用户可见错误。
 
 ## 已关闭债务
 

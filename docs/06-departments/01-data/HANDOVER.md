@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-29 (CNINFO 直连三态门禁完成)
+last_updated: 2026-07-29 (DataEvidenceService 统一汇总信封完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -15,6 +15,7 @@ last_updated: 2026-07-29 (CNINFO 直连三态门禁完成)
 | 旧 Provider 抽象层（4 实现） | ✅ | AKShareSource / AData / ZzShareSource / FallbackSource |
 | 多源证据契约 | ⟳ | 身份、真实上游、能力、六态结果、注册与完整性评估已完成；旧 Provider 待迁移 |
 | CNINFO 公告证据源 | ✅ | 直连公开端点有数据、真实空、失败三态门禁通过；AKShare 保留为可替换适配器 |
+| DataEvidenceService | ✅ | 多通道并发采集、异常显式化、同 upstream 条目去重、统一 EvidenceEnvelope |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
 | 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
@@ -29,6 +30,7 @@ last_updated: 2026-07-29 (CNINFO 直连三态门禁完成)
 | 数据模型测试 | 31 | 100%（含 ValuationMetrics 9 测试） |
 | 契约测试 data→debate | 4 | JSON roundtrip + format_market_brief |
 | DataCollector 测试 | 81 | 含 get_valuation 8 测试 |
+| 多源证据与汇总服务 | 18 | 来源契约 11 + 汇总信封 7 |
 
 ### 关键架构决策
 
@@ -57,9 +59,9 @@ last_updated: 2026-07-29 (CNINFO 直连三态门禁完成)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🔥 | 定义 `DataEvidenceService` 统一汇总信封：多通道结果、来源状态、时间范围、完整性评估统一打包给业务节点 | 用户确认的汇总方向 + `src/data/evidence.py` |
-| 2 🔥 | 接入东方财富、新浪/财联社免费新闻适配器 | 统一汇总信封 |
-| 3 🔥 | 实现并发汇总并在 LLM 前执行失败关闭 | 首批适配器 + TD-069 |
+| 1 🔥 | 接入东方财富、新浪/财联社免费新闻适配器 | `DataEvidenceService` ✅ |
+| 2 🔥 | 配置新闻完整性策略并通过统一信封交给业务节点 | 新闻双源 |
+| 3 🔥 | 在 LLM 前执行失败关闭 | 首批适配器 + TD-069 |
 | 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
 | 5 🟡 | Trafilatura + Newspaper4k 中文财经正文提取试验 | 50–100 篇样本 |
 
@@ -182,9 +184,8 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 
 ## 下次精确启动步骤
 
-1. 先给用户审阅 `DataEvidenceService` 的统一汇总信封字段，至少包含：
-   查询范围、按 capability 分组的标准化条目、各通道状态、独立上游完整性评估；
-2. 业务节点只读取统一信封，不依赖 `cninfo-direct`、`akshare-cninfo` 等具体通道名；
-3. RED 测试覆盖多通道并发汇总、同 upstream 去重、部分失败、明确空结果和完整性不足；
-4. 汇总契约通过后，接东方财富与新浪/财联社新闻双源；
+1. 选择首个独立免费新闻上游（东方财富或新浪/财联社）并先确认字段与时间窗口；
+2. 新适配器只产出统一 `SourceResult[NewsItem]`，不把来源细节泄漏给业务节点；
+3. 通过 `DataEvidenceService` 验证有数据、明确空、失败和异常四类路径；
+4. 接入第二个独立新闻上游后配置 `EvidencePolicy`；
 5. 最后接入正式辩论图并验证证据不足时 LLM 调用数为零。

@@ -52,9 +52,9 @@
 
 ### 4. 业务层只依赖统一接口
 
-具体来源通过 `EvidenceSourceRegistry` 注册，未来由 `DataEvidenceService` 统一
-调度、格式化和执行完整性策略。新增或替换来源只增加适配器与配置，不修改辩论
-引擎和 Agent 业务逻辑。
+具体来源通过 `EvidenceSourceRegistry` 注册，由 `DataEvidenceService` 并发调度、
+格式化和执行完整性策略，再输出统一 `EvidenceEnvelope`。新增或替换来源只增加
+适配器与配置，不修改辩论引擎和 Agent 业务逻辑。
 
 ### 5. 低成本优先，但完整性标准不降低
 
@@ -83,13 +83,18 @@
   `source_id="akshare-cninfo"`，两者均声明 `upstream_id="cninfo"`，不会被误算为
   两个独立来源；
 - TD-071 已关闭。
+- `src/data/evidence_service.py`：并发调用同类通道，把请求范围、来源结果、统一条目
+  和完整性评估打包为 `EvidenceEnvelope`；
+- `tests/test_data/test_evidence_service.py`：7 项汇总契约测试；
+- 同一 `upstream_id` 的多个适配器保留全部诊断结果，但只向业务信封输出一份条目；
+- 来源抛出的未处理异常转换为可见 `FAILED / source_unhandled_exception`；
+- 真实 CNINFO 空窗口已通过服务打包为
+  `complete=True / SUCCESS_EMPTY / upstreams=["cninfo"]`。
 
 ## 后续门禁
 
-1. 定义 `DataEvidenceService` 的统一汇总信封，把多个通道的标准化结果、时间范围、
-   来源状态和完整性评估打包传给业务节点；
-2. 接入至少两个独立新闻上游；
-3. 实现每类证据策略和并发汇总；
+1. 接入至少两个独立新闻上游；
+2. 配置每类证据策略并通过统一信封交给业务节点；
 4. PostgreSQL 完成外部编号、规范链接、内容哈希和修订幂等；
 5. 正式辩论图验证证据不足时 LLM 调用数为零；
 6. 后端和前端展示缺失来源、时间范围、失败原因和重试建议。

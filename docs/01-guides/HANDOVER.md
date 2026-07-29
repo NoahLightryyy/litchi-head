@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能提交** | `98cbf57` — `feat: add direct cninfo announcement adapter` |
-| **全量测试** | 1288 collected；1265 passed、4 skipped、19 slow deselected ✅ |
+| **最新功能提交** | `dfd8ca3` — `feat: aggregate evidence into unified envelope` |
+| **全量测试** | 1295 collected；1272 passed、4 skipped、19 slow deselected ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | ⚠️ 远端最近两次已推送运行失败；本地全量闸门已通过，当前提交尚未推送 |
@@ -98,7 +98,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 |:------:|:-----|:---------|:----:|
 | 🔥 **P0** | **PD-001/002/003 动态指标体系** — ✅ 全完成（34 tests + 325 ✅）详见跨部门总览 PD 节 |
 | 🔥 P0 | **PD-004 行业覆盖验证 + 前端行业感知** — ✅ PD-004b 完成（FinancialPanel 按行业过滤指标）详见跨部门总览 PD 节 |
-| 🔥 P0 | **ADR-012 数据生命周期与持久化底座** — 恢复与容量门禁已通过；多源证据契约和 CNINFO 直连三态门禁完成，统一汇总服务待接入 |
+| 🔥 P0 | **ADR-012 数据生命周期与持久化底座** — 恢复、CNINFO 三态和多通道统一汇总服务完成，新闻双源待接入 |
 | 🔥 P0 | **C2 情绪数据层** — ✅ 已接入真实市场情绪数据（涨跌比+情绪评分），见 [2026-07-24-5 日志](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **R4 置信度量化** — ✅ 已完成：校准曲线映射 + aggregate_node 应用校准 + 前端置信度可视化，见 [R4](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务数据+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ | ~0 剩余 |
@@ -139,11 +139,11 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 ## ▶️ 下次会话启动点（2026-07-29）
 
-1. CNINFO 直连三态门禁已完成，TD-071 已关闭；
-2. 用户确认下一层采用“多个通道汇总 → 统一格式打包 → 传给其他业务节点”；
-3. 下个原子功能先审阅并 TDD 定义 `DataEvidenceService` 的统一汇总信封；
-4. 信封至少包含查询范围、标准化条目、各通道状态、独立上游完整性评估；
-5. 业务节点不得依赖具体来源名称；新闻双源和正式辩论失败关闭在汇总契约之后接入。
+1. CNINFO 直连三态和 `DataEvidenceService` 统一汇总信封均已完成；
+2. 信封包含查询范围、标准化条目、各通道状态和独立上游完整性评估；
+3. 下个原子功能选择首个独立免费新闻上游并确认字段/时间窗口；
+4. 新闻适配器只产出统一 `SourceResult[NewsItem]`，业务节点不依赖具体来源名称；
+5. 两个独立新闻源通过门禁后，再接正式辩论失败关闭。
 
 ---
 
@@ -212,4 +212,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-07-29 | CNINFO 直连三态门禁完成；下一步为多通道统一汇总信封
+> **最后更新**：2026-07-29 | 多通道统一汇总信封完成；下一步为独立新闻双源

@@ -21,6 +21,7 @@
 |------|------|
 | `src/data/collector.py` | 主采集器，封装 akshare 调用 |
 | `src/data/evidence.py` | 多源身份、能力、六态结果、注册与完整性评估 |
+| `src/data/evidence_service.py` | 多通道并发采集、异常显式化、同上游去重与统一信封 |
 | `src/data/models.py` | Pydantic 数据模型（StockInfo / KLine / NewsItem / StockQuote） |
 | `src/data/cache.py` | 缓存层（带 TTL） |
 | `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（公开端点直连 + AKShare 可替换实现） |
@@ -32,8 +33,8 @@
 DataCollector → DataSource → AKShare/AData/ZzShare/Fallback
                            └─ 失败仍可能被压成 [] / None
 
-新契约（基础完成，待逐源接入）：
-DataEvidenceService（下一批）
+新契约（汇总层完成，待逐源接入）：
+DataEvidenceService
   → 并发调用多个 EvidenceSource
   → 按 capability 汇总并统一打包为业务节点输入
   → EvidenceSourceRegistry
@@ -82,7 +83,8 @@ DataEvidenceService（下一批）
 | 多数据源接入（akshare/adata/zzshare/fallback） | 已完成 ✅ | — |
 | **统一证据来源契约与注册中心** | **基础完成 ✅** | 11 |
 | **CNINFO 权威公告适配器** | **直连三态门禁完成 ✅** | 18 |
-| **旧 Provider 六态适配 + DataEvidenceService** | **待接入 ⟳** | — |
+| **DataEvidenceService 多通道统一汇总信封** | **完成 ✅** | 7 |
+| **旧 Provider 六态适配** | **待接入 ⟳** | — |
 | **基本面指标采集（FD-001）** | **待实现** ⟳ | — |
 | **产业链定位（FD-001）** | **待实现** ⟳ | — |
 | **供应链数据（FD-003 调研评估）** | **待调研** ⬜ | — |

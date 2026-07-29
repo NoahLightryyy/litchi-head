@@ -74,7 +74,8 @@ lead: AI
 | `DataCollector.get_sector_xxx()` | 后端 API 部 | Python 函数 |
 | `DataSourceProtocol` | 辩论引擎部（可插拔数据源） | 抽象基类 |
 | `StockQuote` / `KLine` / `NewsItem` | **全部门！** 这就是数据契约 | Pydantic BaseModel |
-| `EvidenceSource` / `EvidenceSourceRegistry` | 数据聚合层（下一批） | Protocol + Pydantic 六态结果 |
+| `EvidenceSource` / `EvidenceSourceRegistry` | 数据来源契约与注册 | Protocol + Pydantic 六态结果 |
+| `DataEvidenceService` / `EvidenceEnvelope` | 多通道汇总层 | 并发采集 + 独立上游去重 + 统一业务信封 |
 | `AnnouncementItem` / `SourceResult[T]` | 辩论引擎部、后端 API 部、持久化层 | Pydantic BaseModel |
 
 ### 变更通知
