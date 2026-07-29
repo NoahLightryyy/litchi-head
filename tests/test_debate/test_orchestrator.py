@@ -22,6 +22,14 @@ from src.debate.orchestrator import (
     make_analyst_round_node,
     make_master_round_node,
 )
+from src.debate.evidence_gate import EvidenceIncompleteError
+from src.data.evidence import (
+    EvidenceAssessment,
+    EvidenceCapability,
+    EvidenceEnvelope,
+    EvidencePolicy,
+    EvidenceRequest,
+)
 from src.memory.skill_disk import SkillDisk
 
 
@@ -435,6 +443,56 @@ class TestAggregateNode:
 
 class TestDebateOrchestratorRun:
     """DebateOrchestrator.run() 完整流程（涉及异步 patching，~3s/ea）"""
+
+    @pytest.mark.asyncio
+    async def test_incomplete_news_evidence_stops_before_any_llm(
+        self,
+        mock_collector,
+    ):
+        request = EvidenceRequest(
+            capability=EvidenceCapability.NEWS,
+            stock_code="000001",
+        )
+        policy = EvidencePolicy(
+            capability=EvidenceCapability.NEWS,
+            min_independent_upstreams=2,
+        )
+        envelope = EvidenceEnvelope(
+            request=request,
+            policy=policy,
+            assessment=EvidenceAssessment(
+                capability=EvidenceCapability.NEWS,
+                complete=False,
+                missing_independent_upstreams=1,
+                missing_required_upstream_ids={"sina"},
+            ),
+            complete=False,
+        )
+        evidence_service = MagicMock()
+        evidence_service.collect.return_value = envelope
+        analyst = AsyncMock()
+        master = AsyncMock()
+        orch = DebateOrchestrator(
+            data_collector=mock_collector,
+            news_evidence_service=evidence_service,
+        )
+
+        with (
+            patch(
+                "src.debate.orchestrator._run_single_analyst",
+                analyst,
+            ),
+            patch(
+                "src.debate.orchestrator._run_single_master",
+                master,
+            ),
+            pytest.raises(EvidenceIncompleteError) as exc_info,
+        ):
+            await orch.run(DebateInput(stock_code="000001", stock_name="平安银行"))
+
+        assert exc_info.value.envelope == envelope
+        analyst.assert_not_awaited()
+        master.assert_not_awaited()
 
     @pytest.fixture
     def mock_analyst_report(self):

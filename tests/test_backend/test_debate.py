@@ -12,6 +12,15 @@ from unittest.mock import patch
 
 from pydantic import BaseModel
 
+from src.data.evidence import (
+    EvidenceAssessment,
+    EvidenceCapability,
+    EvidenceEnvelope,
+    EvidencePolicy,
+    EvidenceRequest,
+)
+from src.debate.evidence_gate import EvidenceIncompleteError
+
 
 class _MockDebateResult(BaseModel):
     """模拟 DebateOutput"""
@@ -95,6 +104,41 @@ class TestRunDebate:
 
         assert resp.status_code == 500
         assert "辩论执行失败" in resp.json()["detail"]
+
+    def test_incomplete_evidence_returns_503_with_retry_details(self, client):
+        error_orch = _MockOrchestrator()
+        request = EvidenceRequest(
+            capability=EvidenceCapability.NEWS,
+            stock_code="000001",
+        )
+        policy = EvidencePolicy(
+            capability=EvidenceCapability.NEWS,
+            min_independent_upstreams=2,
+        )
+        envelope = EvidenceEnvelope(
+            request=request,
+            policy=policy,
+            assessment=EvidenceAssessment(
+                capability=EvidenceCapability.NEWS,
+                complete=False,
+                missing_independent_upstreams=1,
+                missing_required_upstream_ids={"sina"},
+            ),
+            complete=False,
+        )
+
+        async def _raise_incomplete(*args: object, **kwargs: object) -> object:
+            raise EvidenceIncompleteError(envelope, retry_after_seconds=300)
+
+        error_orch.run = _raise_incomplete  # type: ignore[method-assign]
+        with patch("backend.routers.debate._get_orchestrator", return_value=error_orch):
+            resp = client.post("/api/debate/run", json={"stock_code": "000001"})
+
+        assert resp.status_code == 503
+        error = resp.json()["error"]
+        assert error["code"] == "EVIDENCE_INCOMPLETE"
+        assert error["detail"]["missing_upstream_ids"] == ["sina"]
+        assert error["detail"]["retry_after_seconds"] == 300
 
     def test_missing_stock_code_returns_422(self, client):
         """缺少必需字段 stock_code → 422"""
