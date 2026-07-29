@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-07-29 (统一新闻与实时行情证据 API 完成)
+last_updated: 2026-07-29 (统一 L1 分时战况 API 完成)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -20,7 +20,7 @@ last_updated: 2026-07-29 (统一新闻与实时行情证据 API 完成)
 | 技术指标（indicators.py） | ✅ | MA/RSI/MACD/布林带纯 Python |
 | 异步超时控制（async_utils.py） | ✅ | `run_sync()` 15s 超时封装 |
 | 健康监控（/api/health） | ✅ | 实时数据源健康暴露 |
-| evidence 路由（2 endpoint） | ✅ | 新闻与实时行情双源信封，逐源状态与完整性评估 |
+| evidence 路由（3 endpoint） | ✅ | 新闻、实时行情、L1 分时战况；逐源状态与完整性评估 |
 
 ### 测试
 
@@ -34,8 +34,8 @@ last_updated: 2026-07-29 (统一新闻与实时行情证据 API 完成)
 | test_indicators.py（技术指标 100% 覆盖） | 43 |
 | test_main.py + lifespan（health + 异常处理） | 9 |
 | test_utils_backend.py（config 环境变量 + async_utils 超时） | 7 |
-| test_evidence.py（新闻/行情聚合、股票代码和时间范围校验） | 7 |
-| **backend 合计（含 indicators）** | **188** |
+| test_evidence.py（新闻/行情/分时聚合、股票代码和时间范围校验） | 9 |
+| **backend 合计（含 indicators）** | **190** |
 
 ### 关键架构决策
 

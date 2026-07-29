@@ -64,6 +64,7 @@
 | 32 | 🆕 [多源证据契约：两个接口不一定是两个来源](32-multi-source-evidence-contract.md) | `src/data/evidence.py` |
 | 33 | 🆕 [滚动证据与 Fail-Closed 门禁](33-rolling-evidence-fail-closed.md) | `src/data/news_store.py` + `src/debate/orchestrator.py` |
 | 34 | 🆕 [实时行情对账：新鲜不等于一致](34-realtime-quote-reconciliation.md) | `src/data/providers/quotes.py` + `src/data/quote_runtime.py` |
+| 35 | 🆕 [分时证据分级：看见行为，不等于认出账户](35-intraday-evidence-levels.md) | `src/data/intraday.py` + `src/data/intraday_runtime.py` |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
@@ -74,7 +75,7 @@
 | 你的目标 | 建议读哪些 |
 |:---------|:-----------|
 | 快速上手项目 | 01 → 02 → 03 → 04 → 05 |
-| 理解后端设计 | 01 → 03 → 04 → 05 → 08 → **29** → **30** → **31** → **32** → **33** → **34** |
+| 理解后端设计 | 01 → 03 → 04 → 05 → 08 → **29** → **30** → **31** → **32** → **33** → **34** → **35** |
 | 理解 Agent 系统 | 02 → 03 → 22 → 24 → **31** |
 | 理解前端设计 | 04 → 07 → 28 |
 | 理解质量保障 | 15 → 16 → 17 → 文档 `docs/03-modules/12-quality-assurance/` |

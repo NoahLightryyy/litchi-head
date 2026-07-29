@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-07-29 (东方财富 + 新浪新闻双源聚合完成)
+last_updated: 2026-07-29 (L1 分时战况双源一期完成)
 ---
 
 # 🔄 跨部门状态总览
@@ -24,11 +24,11 @@ last_updated: 2026-07-29 (东方财富 + 新浪新闻双源聚合完成)
 
 | 指标 | 当前值 |
 |:-----|:------:|
-| 全量测试 | 1307 collected；1284 passed、4 skipped、19 slow deselected ✅ |
+| 全量测试 | 1365 collected；1342 passed、4 skipped、19 slow deselected ✅ |
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |
-| 技术债务开放 | 31 条 |
+| 技术债务开放 | 32 条 |
 | 紧急指数 | 5.6/10 |
 
 ## 跨部门协作现状
@@ -43,7 +43,7 @@ last_updated: 2026-07-29 (东方财富 + 新浪新闻双源聚合完成)
 | 记忆↔辩论接口 | ✅ | MemoryManager 语义化 |
 | 回测↔交易接口 | ✅ | TradeRecord 协议 |
 | LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
-| 多源证据（data→debate/backend） | 🟡 | CNINFO 三态、新闻双源与统一聚合 API 完成；正式失败关闭待接入 |
+| 多源证据（data→debate/backend） | 🟡 | CNINFO、新闻、实时行情与 L1 分时已统一；K 线/行业待迁移 |
 
 ## 当前未完成事项（跨部门）
 

@@ -59,7 +59,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
 | **最新功能提交** | `517212c` — `feat: aggregate independent news channels` |
-| **全量测试** | 1307 collected；1284 passed、4 skipped、19 slow deselected ✅ |
+| **全量测试** | 1365 collected；1342 passed、4 skipped、19 slow deselected ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | ⚠️ 远端最近两次已推送运行失败；本地全量闸门已通过，当前提交尚未推送 |
@@ -70,7 +70,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 | 部门 | 代码 | 状态 | 开放债务 | → 看这里 |
 |:-----|:-----|:----:|:--------:|:---------|
-| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 🟡 | 3 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
+| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 🟡 | 4 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
 | 🎯 辩论引擎部 | `src/debate/` | 🟡 | 3 | [HANDOVER](../06-departments/02-debate-engine/HANDOVER.md) |
 | 🤖 AI Agent 架构部 | `src/agents/` + `src/core/` | ✅ | 3 | [HANDOVER](../06-departments/03-ai-agents/HANDOVER.md) |
 | 🧠 记忆系统部 | `src/memory/` | 🟡 | 2 | [HANDOVER](../06-departments/04-memory-systems/HANDOVER.md) |
@@ -82,7 +82,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | ⚙️ 基础设施部 | `src/utils/` | 🟡 | 7 | [HANDOVER](../06-departments/10-infrastructure/HANDOVER.md) |
 | 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🟢 | 2 | [HANDOVER](../06-departments/11-quality-assurance/HANDOVER.md) |
 
-**全代码库开放债务**: 31 条（紧急指数 5.6/10）→ [债务路由](debt/ROUTER.md)
+**全代码库开放债务**: 32 条（紧急指数 5.6/10）→ [债务路由](debt/ROUTER.md)
 
 ---
 
@@ -145,7 +145,10 @@ docs/06-departments/02-debate-engine/DEBT.md
 4. 实时行情已迁移到东方财富 + 新浪双源门禁：10 秒新鲜度、3 秒配对、0.01 元
    容差；午休/收盘只展示，缺源或冲突即 HTTP 503；
 5. 门禁测试确认分析师与大师 LLM 调用数均为零；
-6. 下一步把 K 线和行业证据迁移到同一门禁，继续推进 TD-069。
+6. L1 分时战况已接入东方财富 + 腾讯分钟对账；分钟成交量统一为股，当前动态条
+   标为 `PROVISIONAL`，不做主力/量化身份归因；
+7. 下一步积累 20 日同分钟量能基线（TD-072），随后把 K 线和行业证据迁移到
+   同一门禁，继续推进 TD-069。
 
 ---
 

@@ -24,6 +24,8 @@
 | `src/data/evidence_service.py` | 多通道并发采集、异常显式化、同上游去重与统一信封 |
 | `src/data/news_store.py` | SQLite WAL 新闻元数据滚动存储、去重、保留期与连续覆盖 |
 | `src/data/news_runtime.py` | 东方财富实时源 + 新浪滚动源的共享聚合运行时 |
+| `src/data/intraday.py` | L1 分时模型、战况快照与确定性计算引擎 |
+| `src/data/intraday_runtime.py` | 东方财富 + 腾讯分钟序列对账与失败关闭 |
 | `src/data/models.py` | Pydantic 数据模型（StockInfo / KLine / NewsItem / StockQuote） |
 | `src/data/cache.py` | 缓存层（带 TTL） |
 | `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（公开端点直连 + AKShare 可替换实现） |
@@ -87,6 +89,11 @@ DataEvidenceService
     号段均使用新浪 `bj` 前缀。新浪响应变量中的真实证券代码必须与请求一致。
 15. `DebateOrchestrator` 默认构造即启用行情门禁，只有测试或合成测量脚本可以
     显式传入 `quote_evidence_service=None`；聚合 API 默认每 IP 6 次/分钟。
+16. L1 分时证据使用东方财富分钟 OHLC + 腾讯分钟收盘/累计量；成交量统一为股，
+    已结束分钟集合、收盘价与累计量必须对账，当前动态分钟标为 `PROVISIONAL`。
+17. 分时战况只输出 VWAP、开盘30分钟区间、同期相对量能等可观察事实；
+    `attribution_supported=false`。没有 20 个交易日同分钟基线时 Relative Volume
+    必须为不可用，禁止用上一分钟冒充历史基线。
 
 ## 数据契约（关键模型）
 
@@ -119,6 +126,7 @@ DataEvidenceService
 | **统一新闻聚合 API** | **完成 ✅** | 4 |
 | **东方财富 + 新浪实时行情门禁** | **完成 ✅** | 21 |
 | **统一实时行情聚合 API + 辩论失败关闭** | **完成 ✅** | 3+ |
+| **东方财富 + 腾讯 L1 分时战况 API** | **一期完成 ✅** | 16 |
 | **旧 Provider 六态适配** | **待接入 ⟳** | — |
 | **基本面指标采集（FD-001）** | **待实现** ⟳ | — |
 | **产业链定位（FD-001）** | **待实现** ⟳ | — |

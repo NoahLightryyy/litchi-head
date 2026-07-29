@@ -78,6 +78,10 @@ async def aggregate_news(payload: NewsAggregateRequest):
 @router.post("/quotes/aggregate")
 async def aggregate_quotes(payload: QuoteAggregateRequest):
     """并发采集并校验东方财富与新浪实时行情。"""
+
+@router.post("/intraday/battlefield")
+async def intraday_battlefield(payload: IntradayBattlefieldRequest):
+    """返回双源核验分钟曲线、L1 战况快照与精简逐源诊断。"""
 ```
 
 请求时间必须带时区。单源失败或时间窗覆盖不足仍返回完整逐源诊断；只有两个独立
@@ -85,6 +89,10 @@ async def aggregate_quotes(payload: QuoteAggregateRequest):
 
 实时行情聚合接口默认使用 `LITCHI_RATE_LIMIT_QUOTE_AGGREGATE=6/minute`，避免
 重复请求耗尽线程和触发两家免费上游封禁。
+
+分时战况接口复用同一限流档位。响应中的 `bars` 只保留一份东方财富规范 OHLC，
+腾讯完整序列仅用于对账，跨节点只传 `source_diagnostics`；当前分钟可能为
+`PROVISIONAL`。L1 结果固定 `attribution_supported=false`。
 
 `POST /api/debate/run` 固定请求最近 3 天新闻，并在连续竞价时请求双源实时行情。
 新闻、行情任一必需上游不完整，或行情陈旧/错时/冲突时返回 HTTP 503。默认构造

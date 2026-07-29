@@ -5,18 +5,18 @@
 ## 📊 当前状态
 
 ```
-阶段: Phase 1 MVP + Phase R 实盘加固     Python 测试: 1284 passed / 1307 collected ✅
-债务: 31 条开放（紧急指数 5.6/10）
+阶段: Phase 1 MVP + Phase R 实盘加固     Python 测试: 1342 passed / 1365 collected ✅
+债务: 32 条开放（紧急指数 5.6/10）
 代码库: 11 部门体系（docs/06-departments/）
 数据源: 零造假数据 ✅ | 四源架构（akshare/adata/zzshare/fallback）
-数据链路: CNINFO 三态 ✅ | 新闻 3 天双源滚动聚合 ✅ | 新闻不完整 503/零 LLM ✅
+数据链路: CNINFO/新闻/报价 ✅ | L1 分时双源战况 ✅ | 新闻/报价不完整 503/零 LLM ✅
 ```
 
 ## 🏢 部门一览
 
 | 部门 | 代码 | 债务 | 状态 |
 |:-----|:-----|:----:|:----:|
-| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 3 | 🟡 |
+| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 4 | 🟡 |
 | 🎯 辩论引擎部 | `src/debate/`+`src/risk/` | 3 | 🟡 |
 | 🤖 AI Agent 架构部 | `src/agents/`+`src/core/` | 3 | ✅ |
 | 🧠 记忆系统部 | `src/memory/` | 2 | 🟡 |

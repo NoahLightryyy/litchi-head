@@ -54,6 +54,7 @@ Content-Type: application/json
 |:----|:-----|:-----|
 | POST | `/api/v1/evidence/news/aggregate` | 东方财富 + 新浪新闻证据信封 |
 | POST | `/api/v1/evidence/quotes/aggregate` | 东方财富 + 新浪实时行情证据信封；含逐源状态与完整性 |
+| POST | `/api/v1/evidence/intraday/battlefield` | 双源核验分钟曲线 + L1 战况；当前条含 `PROVISIONAL` 状态 |
 
 > `/api/stocks/{code}/quote` 是页面展示兼容接口；业务节点和 AI 辩论使用统一证据
 > 接口。行情缺源、超过 10 秒、时间差超过 3 秒、价格差超过 0.01 元或不在连续

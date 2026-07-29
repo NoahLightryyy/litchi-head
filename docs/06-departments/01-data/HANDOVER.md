@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-29 (实时行情双源门禁完成)
+last_updated: 2026-07-29 (L1 分时战况双源一期完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -18,6 +18,7 @@ last_updated: 2026-07-29 (实时行情双源门禁完成)
 | DataEvidenceService | ✅ | 多通道并发采集、异常显式化、同 upstream 条目去重、统一 EvidenceEnvelope |
 | 新闻双源证据 | ✅ | 东方财富个股搜索 + 新浪财经快讯；完整时间窗不足显式 STALE |
 | 实时行情双源证据 | ✅ | 东方财富 + 新浪直连；时间、价格与交易阶段一致性门禁 |
+| L1 分时战况 | ✅ 一期 | 东方财富 + 腾讯分钟对账；VWAP/开盘区间；当前条 `PROVISIONAL`；不做身份归因 |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
 | 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
@@ -52,6 +53,7 @@ last_updated: 2026-07-29 (实时行情双源门禁完成)
 | TD-034 | zzshare.py 死条件逻辑（两边值一样） | 🟢 | 5min |
 | TD-057 | Provider 层测试（zzshare 46% 待补） | 🟡 | 30min |
 | TD-064 | 财务指标覆盖率不足 | 🟢 | 1h |
+| TD-072 | 20 日同分钟量能基线尚未积累 | 🟡 | 4h + 自然积累 |
 
 ---
 
@@ -65,7 +67,9 @@ last_updated: 2026-07-29 (实时行情双源门禁完成)
 | 2 ✅ | 新闻完整性策略 + `/api/v1/evidence/news/aggregate` | 已完成 |
 | 3 ✅ | 新闻信封在 LLM 前执行失败关闭 | 3 天双源门禁 + 零 LLM 已完成 |
 | 4 ✅ | 实时行情迁移到统一门禁 | 双源直连 + 时效/配对/价差 + 零 LLM |
-| 5 🔥 | K 线、行业证据迁移到统一门禁 | TD-069 |
+| 5 ✅ | L1 分时战况一期 | 东方财富 + 腾讯 + 统一业务信封 |
+| 6 🔥 | 20 日同分钟量能基线 | TD-072 |
+| 7 🔥 | K 线、行业证据迁移到统一门禁 | TD-069 |
 | 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
 | 5 🟡 | 财联社版权和跨节点传输许可评估 | 用户确认后 |
 
