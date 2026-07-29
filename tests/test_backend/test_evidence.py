@@ -12,13 +12,13 @@ from src.data.evidence import (
     SourceResult,
     SourceStatus,
 )
-from src.data.models import NewsItem, StockQuote
 from src.data.intraday import (
     IntradayBar,
     IntradayBarState,
     IntradayCheckpoint,
     IntradaySourceSeries,
 )
+from src.data.models import NewsItem, StockQuote
 
 
 def _envelope() -> EvidenceEnvelope:

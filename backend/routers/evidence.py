@@ -17,6 +17,17 @@ from src.data.evidence import (
     EvidenceEnvelope,
     EvidenceRequest,
 )
+from src.data.intraday import (
+    IntradayBar,
+    IntradayBattlefieldEngine,
+    IntradayBattlefieldEnvelope,
+    IntradaySourceDiagnostic,
+    IntradaySourceSeries,
+)
+from src.data.intraday_runtime import (
+    INTRADAY_EVIDENCE_POLICY,
+    get_intraday_evidence_runtime,
+)
 from src.data.news_runtime import NEWS_EVIDENCE_POLICY, get_news_evidence_runtime
 from src.data.quote_runtime import (
     REALTIME_QUOTE_EVIDENCE_POLICY,
@@ -29,6 +40,8 @@ collector = DataCollector()
 
 news_evidence_service = get_news_evidence_runtime().service
 quote_evidence_service = get_realtime_quote_evidence_runtime().service
+intraday_evidence_service = get_intraday_evidence_runtime().service
+intraday_battlefield_engine = IntradayBattlefieldEngine()
 
 
 class NewsAggregateRequest(BaseModel):
@@ -49,6 +62,12 @@ class NewsAggregateRequest(BaseModel):
 
 class QuoteAggregateRequest(BaseModel):
     """单只股票实时行情聚合请求。"""
+
+    symbol: str = Field(pattern=r"^\d{6}$")
+
+
+class IntradayBattlefieldRequest(BaseModel):
+    """单只股票 L1 分时战况请求。"""
 
     symbol: str = Field(pattern=r"^\d{6}$")
 
@@ -99,6 +118,65 @@ async def aggregate_quotes(
         quote_evidence_service.collect,
         evidence_request,
         REALTIME_QUOTE_EVIDENCE_POLICY,
+    )
+
+
+@router.post(
+    "/intraday/battlefield",
+    response_model=IntradayBattlefieldEnvelope,
+)
+@limiter.limit(RATE_LIMIT_QUOTE_AGGREGATE)
+async def intraday_battlefield(
+    request: Request,
+    payload: IntradayBattlefieldRequest,
+) -> IntradayBattlefieldEnvelope:
+    """返回双源核验后的分钟曲线、L1 战况和精简逐源诊断。"""
+    evidence_request = EvidenceRequest(
+        capability=EvidenceCapability.INTRADAY,
+        stock_code=payload.symbol,
+    )
+    envelope = await run_sync(
+        intraday_evidence_service.collect,
+        evidence_request,
+        INTRADAY_EVIDENCE_POLICY,
+    )
+    bars = [IntradayBar.model_validate(item) for item in envelope.items]
+    snapshot = (
+        intraday_battlefield_engine.analyze(bars)
+        if envelope.complete and bars
+        else None
+    )
+    diagnostics: list[IntradaySourceDiagnostic] = []
+    for result in envelope.source_results:
+        series = (
+            IntradaySourceSeries.model_validate(result.items[0])
+            if result.items
+            else None
+        )
+        diagnostics.append(
+            IntradaySourceDiagnostic(
+                source_id=result.source_id,
+                upstream_id=result.upstream_id,
+                status=result.status,
+                fetched_at=result.fetched_at,
+                error_code=result.error_code,
+                error_message=result.error_message,
+                checkpoint_count=len(series.checkpoints) if series else 0,
+                latest_timestamp=(
+                    series.checkpoints[-1].timestamp
+                    if series and series.checkpoints
+                    else None
+                ),
+            )
+        )
+    return IntradayBattlefieldEnvelope(
+        symbol=payload.symbol,
+        complete=envelope.complete,
+        collected_at=envelope.collected_at,
+        assessment=envelope.assessment,
+        source_diagnostics=diagnostics,
+        bars=bars,
+        snapshot=snapshot,
     )
 
 

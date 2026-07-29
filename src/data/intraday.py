@@ -12,6 +12,8 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, model_validator
 
+from src.data.evidence import EvidenceAssessment, SourceStatus
+
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 
 
@@ -114,6 +116,31 @@ class IntradayBattlefieldSnapshot(BaseModel):
     relative_volume_sample_days: int | None
     attribution_supported: Literal[False] = False
     limitations: list[str] = Field(default_factory=list)
+
+
+class IntradaySourceDiagnostic(BaseModel):
+    """业务节点可见的逐源诊断，不重复传输完整原始序列。"""
+
+    source_id: str
+    upstream_id: str
+    status: SourceStatus
+    fetched_at: datetime
+    error_code: str | None = None
+    error_message: str | None = None
+    checkpoint_count: int = Field(ge=0)
+    latest_timestamp: datetime | None = None
+
+
+class IntradayBattlefieldEnvelope(BaseModel):
+    """分钟曲线、战况快照与逐源诊断的稳定业务信封。"""
+
+    symbol: str = Field(pattern=r"^\d{6}$")
+    complete: bool
+    collected_at: datetime
+    assessment: EvidenceAssessment
+    source_diagnostics: list[IntradaySourceDiagnostic]
+    bars: list[IntradayBar]
+    snapshot: IntradayBattlefieldSnapshot | None
 
 
 class IntradayBattlefieldEngine:
@@ -235,8 +262,10 @@ __all__ = [
     "IntradayBar",
     "IntradayBarState",
     "IntradayBattlefieldEngine",
+    "IntradayBattlefieldEnvelope",
     "IntradayBattlefieldSnapshot",
     "IntradayCheckpoint",
+    "IntradaySourceDiagnostic",
     "IntradaySourceSeries",
     "TimeOfDayVolumeBaseline",
 ]
