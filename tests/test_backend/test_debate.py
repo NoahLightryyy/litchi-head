@@ -86,6 +86,18 @@ class TestRunDebate:
         assert resp.status_code == 200
         assert getattr(mock_orch.last_input, "stock_name") == "平安银行"
 
+    def test_missing_stock_identity_fails_before_orchestrator(self, client):
+        mock_orch = _MockOrchestrator()
+        with (
+            patch("backend.routers.debate._get_orchestrator", return_value=mock_orch),
+            patch("backend.routers.debate.resolve_stock_name", return_value=""),
+        ):
+            resp = client.post("/api/debate/run", json={"stock_code": "000001"})
+
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == "EVIDENCE_INCOMPLETE"
+        assert mock_orch.last_input is None
+
     def test_run_debate_returns_session_id(self, client):
         """返回的 session_id 可用于后续查询"""
         mock_orch = _MockOrchestrator()

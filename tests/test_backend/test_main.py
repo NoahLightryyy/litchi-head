@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 class TestHealth:
@@ -26,6 +26,21 @@ class TestHealth:
     def test_timestamp_is_float(self, client):
         resp = client.get("/api/health")
         assert isinstance(resp.json()["timestamp"], (int, float))
+
+    def test_degrades_when_news_ingestion_task_has_died(self, client):
+        task = MagicMock()
+        task.done.return_value = True
+        with patch.object(
+            client.app.state,
+            "news_ingestion_task",
+            task,
+            create=True,
+        ):
+            resp = client.get("/api/health")
+
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "degraded"
+        assert resp.json()["news_ingestion"] == "failed"
 
 
 class TestDataSourceHealth:
