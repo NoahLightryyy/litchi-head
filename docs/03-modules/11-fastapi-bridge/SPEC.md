@@ -56,7 +56,10 @@ async def get_kline(code: str, period: str = "daily", start: str = "", end: str 
 # 惰性导入避免 torch crash
 def _get_orchestrator():
     from src.debate.orchestrator import DebateOrchestrator
-    return DebateOrchestrator(news_evidence_service=get_news_evidence_runtime().service)
+    return DebateOrchestrator(
+        news_evidence_service=get_news_evidence_runtime().service,
+        quote_evidence_service=get_realtime_quote_evidence_runtime().service,
+    )
 
 @router.post("/run")
 async def run_debate(req: DebateRequest):
@@ -71,19 +74,27 @@ async def run_debate(req: DebateRequest):
 @router.post("/news/aggregate")
 async def aggregate_news(payload: NewsAggregateRequest):
     """并发采集东方财富与新浪，返回统一 EvidenceEnvelope。"""
+
+@router.post("/quotes/aggregate")
+async def aggregate_quotes(payload: QuoteAggregateRequest):
+    """并发采集并校验东方财富与新浪实时行情。"""
 ```
 
 请求时间必须带时区。单源失败或时间窗覆盖不足仍返回完整逐源诊断；只有两个独立
 上游都处于成功状态时，信封的 `complete` 才为 `true`。
 
-`POST /api/debate/run` 固定请求最近 3 天新闻。东方财富实时查询与新浪 SQLite
-滚动缓存并发汇总；任一必需上游不完整时返回 HTTP 503：
+实时行情聚合接口默认使用 `LITCHI_RATE_LIMIT_QUOTE_AGGREGATE=6/minute`，避免
+重复请求耗尽线程和触发两家免费上游封禁。
+
+`POST /api/debate/run` 固定请求最近 3 天新闻，并在连续竞价时请求双源实时行情。
+新闻、行情任一必需上游不完整，或行情陈旧/错时/冲突时返回 HTTP 503。默认构造
+`DebateOrchestrator()` 同样启用门禁，非 FastAPI 调用不能绕过：
 
 ```json
 {
   "error": {
     "code": "EVIDENCE_INCOMPLETE",
-    "message": "新闻证据尚未完整覆盖最近 3 天，AI 分析未启动",
+    "message": "必要市场数据不完整或不一致，AI 分析未启动",
     "detail": {
       "missing_upstream_ids": ["sina"],
       "retry_after_seconds": 300

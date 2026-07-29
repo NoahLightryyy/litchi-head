@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-07-29 (统一新闻证据聚合 API 完成)
+last_updated: 2026-07-29 (统一新闻与实时行情证据 API 完成)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -20,22 +20,22 @@ last_updated: 2026-07-29 (统一新闻证据聚合 API 完成)
 | 技术指标（indicators.py） | ✅ | MA/RSI/MACD/布林带纯 Python |
 | 异步超时控制（async_utils.py） | ✅ | `run_sync()` 15s 超时封装 |
 | 健康监控（/api/health） | ✅ | 实时数据源健康暴露 |
-| evidence 路由（1 endpoint） | ✅ | 东方财富 + 新浪并发新闻信封，逐源状态与完整性评估 |
+| evidence 路由（2 endpoint） | ✅ | 新闻与实时行情双源信封，逐源状态与完整性评估 |
 
 ### 测试
 
 | 测试集 | 测试数 |
 |:-------|:------:|
-| test_market.py（6 端点 + 5 辅助函数 + hot-news） | 52 + 5 |
+| test_market.py（6 端点 + 辅助函数 + hot-news） | 45 |
 | test_stocks.py（8 端点 + financials/valuation/indicators） | 28 |
-| test_debate.py（3 端点 + session 生命周期 + 限流） | 10 |
-| test_trust.py（2 端点 + 映射逻辑） | 11 |
+| test_debate.py（3 端点 + session 生命周期 + 限流） | 13 |
+| test_trust.py（2 端点 + 映射逻辑） | 10 |
 | test_retro.py（6 端点：records/summary/action/outcome/refresh/delete） | 26 |
-| test_indicators.py（技术指标 100% 覆盖） | 47 |
-| test_main.py（health + 异常处理） | 7 |
+| test_indicators.py（技术指标 100% 覆盖） | 43 |
+| test_main.py + lifespan（health + 异常处理） | 9 |
 | test_utils_backend.py（config 环境变量 + async_utils 超时） | 7 |
-| test_evidence.py（部分成功、股票代码和时间范围校验） | 4 |
-| **backend 合计** | **180** |
+| test_evidence.py（新闻/行情聚合、股票代码和时间范围校验） | 7 |
+| **backend 合计（含 indicators）** | **188** |
 
 ### 关键架构决策
 
@@ -74,7 +74,8 @@ last_updated: 2026-07-29 (统一新闻证据聚合 API 完成)
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
 | 1 ✅ | 新闻 `EvidenceEnvelope` 缺失返回 503；禁止不完整输入启动 LLM | 已完成 |
-| 2 🔥 | 将同一错误契约扩展到实时行情、K 线和行业证据 | TD-069 |
+| 2 ✅ | 实时行情 `EvidenceEnvelope` 缺失/陈旧/冲突返回 503 | 已完成 |
+| 3 🔥 | 将同一错误契约扩展到 K 线和行业证据 | TD-069 |
 | 2 🟡 | TD-068 正式辩论图 checkpoint + 路由 durable session 集成 | TD-069 |
 | 3 🟡 | TD-068 1/3/5 并发、durable queue 与全局背压门禁 | 正式图恢复 |
 | 4 🟢 | TD-054 CORS 改环境变量 | 无 |

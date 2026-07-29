@@ -12,6 +12,7 @@
 | K 线数据 | `src/data/collector.py` | 日/周/月 K 线 |
 | 个股新闻 | `src/data/collector.py` | 新闻列表 |
 | 多源新闻证据 | `src/data/evidence_service.py` | 东方财富 + 新浪并发聚合、逐源状态和完整性评估 |
+| 多源行情证据 | `src/data/quote_runtime.py` | 东方财富 + 新浪直连、时间/价格一致性门禁 |
 | AI 辩论 | `src/debate/orchestrator.py` | 触发辩论并获取结果 |
 | 信任度 | `src/debate/trust.py` | TrustTracker 查询 |
 

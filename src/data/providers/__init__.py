@@ -9,7 +9,9 @@
         ├── ZzshareSource    — zzshare Tushare 兼容零 Token
         ├── FallbackSource   — 主源故障自动切换
         ├── CninfoDirectAnnouncementSource — 巨潮公开端点直连公告适配器
-        └── CninfoAnnouncementSource — AKShare 包装的巨潮公告适配器
+        ├── CninfoAnnouncementSource — AKShare 包装的巨潮公告适配器
+        ├── EastmoneyQuoteSource — 东方财富实时行情直连适配器
+        └── SinaQuoteSource — 新浪实时行情直连适配器
 """
 
 from src.data.providers.adata_source import ADataSource

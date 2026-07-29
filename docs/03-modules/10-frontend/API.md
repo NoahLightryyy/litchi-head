@@ -48,6 +48,18 @@ Content-Type: application/json
 | GET | `/api/debate/result/{session_id}` | 辩论结果 |
 | GET | `/api/debate/status/{session_id}` | 辩论进度 |
 
+### 统一证据
+
+| 方法 | 路径 | 说明 |
+|:----|:-----|:-----|
+| POST | `/api/v1/evidence/news/aggregate` | 东方财富 + 新浪新闻证据信封 |
+| POST | `/api/v1/evidence/quotes/aggregate` | 东方财富 + 新浪实时行情证据信封；含逐源状态与完整性 |
+
+> `/api/stocks/{code}/quote` 是页面展示兼容接口；业务节点和 AI 辩论使用统一证据
+> 接口。行情缺源、超过 10 秒、时间差超过 3 秒、价格差超过 0.01 元或不在连续
+> 竞价时段（9:30–11:30、13:00–14:57）时，不启动 AI。行情聚合接口默认按 IP
+> 限制为 6 次/分钟。
+
 ### 信任度
 
 | 方法 | 路径 | 说明 |

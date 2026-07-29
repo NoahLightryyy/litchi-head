@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-29 (东方财富 + 新浪新闻双源聚合完成)
+last_updated: 2026-07-29 (实时行情双源门禁完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -17,6 +17,7 @@ last_updated: 2026-07-29 (东方财富 + 新浪新闻双源聚合完成)
 | CNINFO 公告证据源 | ✅ | 直连公开端点有数据、真实空、失败三态门禁通过；AKShare 保留为可替换适配器 |
 | DataEvidenceService | ✅ | 多通道并发采集、异常显式化、同 upstream 条目去重、统一 EvidenceEnvelope |
 | 新闻双源证据 | ✅ | 东方财富个股搜索 + 新浪财经快讯；完整时间窗不足显式 STALE |
+| 实时行情双源证据 | ✅ | 东方财富 + 新浪直连；时间、价格与交易阶段一致性门禁 |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
 | 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
@@ -31,7 +32,7 @@ last_updated: 2026-07-29 (东方财富 + 新浪新闻双源聚合完成)
 | 数据模型测试 | 31 | 100%（含 ValuationMetrics 9 测试） |
 | 契约测试 data→debate | 4 | JSON roundtrip + format_market_brief |
 | DataCollector 测试 | 81 | 含 get_valuation 8 测试 |
-| 多源证据与汇总服务 | 26 | 来源契约 11 + 汇总信封 8 + 新闻适配器 7 |
+| 多源证据与汇总服务 | 47+ | 来源契约 + 汇总信封 + 新闻 + 实时行情 |
 
 ### 关键架构决策
 
@@ -63,7 +64,8 @@ last_updated: 2026-07-29 (东方财富 + 新浪新闻双源聚合完成)
 | 1 ✅ | 东方财富 + 新浪免费新闻适配器 | 已完成 |
 | 2 ✅ | 新闻完整性策略 + `/api/v1/evidence/news/aggregate` | 已完成 |
 | 3 ✅ | 新闻信封在 LLM 前执行失败关闭 | 3 天双源门禁 + 零 LLM 已完成 |
-| 4 🔥 | 实时行情、K 线、行业证据迁移到统一门禁 | TD-069 |
+| 4 ✅ | 实时行情迁移到统一门禁 | 双源直连 + 时效/配对/价差 + 零 LLM |
+| 5 🔥 | K 线、行业证据迁移到统一门禁 | TD-069 |
 | 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
 | 5 🟡 | 财联社版权和跨节点传输许可评估 | 用户确认后 |
 
