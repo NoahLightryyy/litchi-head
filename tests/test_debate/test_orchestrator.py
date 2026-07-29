@@ -8,8 +8,8 @@ Mock 策略：
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -487,6 +487,7 @@ class TestDebateOrchestratorRun:
         orch = DebateOrchestrator(
             data_collector=mock_collector,
             news_evidence_service=evidence_service,
+            quote_evidence_service=None,
         )
 
         with (
@@ -578,6 +579,7 @@ class TestDebateOrchestratorRun:
         orch = DebateOrchestrator(
             data_collector=mock_collector,
             skill_ids=["buffett", "munger"],
+            quote_evidence_service=None,
         )
 
         mock_analysis = AgentAnalysis(
@@ -616,7 +618,10 @@ class TestDebateOrchestratorRun:
     @pytest.mark.asyncio
     async def test_run_with_default_masters(self, mock_collector, mock_analyst_report):
         """使用默认 5 位大师运行"""
-        orch = DebateOrchestrator(data_collector=mock_collector)
+        orch = DebateOrchestrator(
+            data_collector=mock_collector,
+            quote_evidence_service=None,
+        )
 
         mock_analysis = AgentAnalysis(
             agent_name="master.test",
@@ -650,6 +655,7 @@ class TestDebateOrchestratorRun:
         orch = DebateOrchestrator(
             data_collector=mock_collector,
             skill_ids=["buffett"],
+            quote_evidence_service=None,
         )
 
         mock_analysis = AgentAnalysis(
@@ -687,6 +693,7 @@ class TestDebateOrchestratorRun:
         orch = DebateOrchestrator(
             data_collector=mock_collector,
             skill_ids=["buffett"],
+            quote_evidence_service=None,
         )
 
         mock_analysis = AgentAnalysis(

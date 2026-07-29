@@ -22,6 +22,17 @@ from src.debate.models import AgentAnalysis, DebateInput, DebateResult
 from src.debate.orchestrator import DebateOrchestrator
 
 
+@pytest.fixture(autouse=True)
+def disable_default_quote_evidence_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The synthetic pipeline test explicitly bypasses external quote evidence."""
+    monkeypatch.setattr(
+        "src.debate.orchestrator.get_realtime_quote_evidence_runtime",
+        lambda: type("TestRuntime", (), {"service": None})(),
+    )
+
+
 @pytest.fixture
 def mock_collector():
     """Mock DataCollector 返回空数据（避免网络调用）"""

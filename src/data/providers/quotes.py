@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Protocol
@@ -46,6 +47,8 @@ class _UpstreamRequestError(RuntimeError):
 
 
 def _market_prefix(code: str) -> str:
+    if code.startswith(("4", "8", "92")):
+        return "bj"
     return "sh" if code.startswith(("5", "6", "9")) else "sz"
 
 
@@ -206,14 +209,18 @@ class EastmoneyQuoteSource:
         )
 
 
-def _sina_fields(raw: str) -> list[str]:
-    text = raw.strip()
-    if '="' in text:
-        text = text.split('="', 1)[1].rsplit('"', 1)[0]
-    fields = text.split(",")
+def _sina_row(raw: str) -> tuple[str, list[str]]:
+    match = re.fullmatch(
+        r'\s*var\s+hq_str_([a-z]{2}\d{6})="(.*)";?\s*',
+        raw,
+        flags=re.DOTALL,
+    )
+    if match is None:
+        raise ValueError("Sina quote response wrapper is invalid")
+    fields = match.group(2).split(",")
     if len(fields) < 33:
         raise ValueError("Sina quote row has fewer than 33 fields")
-    return fields
+    return match.group(1), fields
 
 
 class SinaQuoteSource:
@@ -249,7 +256,10 @@ class SinaQuoteSource:
                 raise _UpstreamRequestError(
                     str(exc).strip() or exc.__class__.__name__
                 ) from exc
-            fields = _sina_fields(raw)
+            response_symbol, fields = _sina_row(raw)
+            expected_symbol = f"{_market_prefix(request.stock_code)}{request.stock_code}"
+            if response_symbol != expected_symbol:
+                raise ValueError("Sina quote identity does not match request")
             name = fields[0].strip()
             if not name:
                 raise ValueError("Sina quote identity is empty")

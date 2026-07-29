@@ -25,6 +25,18 @@ from src.debate.models import (
 )
 from src.risk.models import RiskAssessment, RiskRoundResult, TradeRecommendation
 
+
+@pytest.fixture(autouse=True)
+def disable_default_quote_evidence_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Risk unit tests use isolated collector fixtures, never live quote sources."""
+    monkeypatch.setattr(
+        "src.debate.orchestrator.get_realtime_quote_evidence_runtime",
+        lambda: type("TestRuntime", (), {"service": None})(),
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════
 # Phase 1: 模型验证
 # ═══════════════════════════════════════════════════════════════════

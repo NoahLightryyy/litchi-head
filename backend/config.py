@@ -101,3 +101,9 @@ RATE_LIMIT_DEBATE_STATUS = os.environ.get("LITCHI_RATE_LIMIT_DEBATE_STATUS", "30
 
 RATE_LIMIT_DEBATE_RESULT = os.environ.get("LITCHI_RATE_LIMIT_DEBATE_RESULT", "30/minute")
 """debate/result 限流"""
+
+RATE_LIMIT_QUOTE_AGGREGATE = os.environ.get(
+    "LITCHI_RATE_LIMIT_QUOTE_AGGREGATE",
+    "6/minute",
+)
+"""双源实时行情聚合限流（每次触发两个外部请求）"""

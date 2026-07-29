@@ -154,6 +154,7 @@ async def measure():
 
     orch = DebateOrchestrator(
         data_collector=make_mock_collector(),
+        quote_evidence_service=None,
         skill_ids=["buffett", "munger", "graham", "dalio", "lynch"],
         enable_risk=False,
         enable_trader=False,
@@ -210,6 +211,7 @@ async def measure():
 
     orch2 = DebateOrchestrator(
         data_collector=make_mock_collector(),
+        quote_evidence_service=None,
         skill_ids=["buffett", "munger", "graham", "dalio", "lynch"],
         enable_risk=True,
         enable_trader=True,

@@ -70,6 +70,7 @@ from src.data.news_runtime import NEWS_EVIDENCE_POLICY, NEWS_WINDOW  # noqa: E40
 from src.data.quote_runtime import (  # noqa: E402
     REALTIME_QUOTE_EVIDENCE_POLICY,
     RealtimeQuoteEvidenceService,
+    get_realtime_quote_evidence_runtime,
 )
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
 from src.debate.evidence_gate import EvidenceIncompleteError  # noqa: E402
@@ -101,6 +102,7 @@ from src.utils.llm import llm_service  # noqa: E402
 # ── 模块级常量 ─────────────────────────────────────────────
 
 _MAX_HISTORY_FETCH = 20  # 查询历史决策的最大条数
+_DEFAULT_QUOTE_EVIDENCE_SERVICE = object()
 
 
 def _trim_market_data(market_data: dict) -> dict:
@@ -159,7 +161,7 @@ class DebateState(TypedDict):
     trust_weight_factors: dict  # M4: agent_name → compute_weight_factor()
     calibration_map: dict  # R4: agent_name → calibration_curve list
     mirror_report: dict  # DP-006: 序列化的 MirrorReport
-    evidence_envelope: dict  # 新闻证据信封；不完整时用于显式终止
+    evidence_envelope: dict  # 当前失败或最终证据信封；不完整时用于显式终止
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
@@ -1482,7 +1484,9 @@ class DebateOrchestrator:
         min_trust_factor: float = 0.7,
         enable_mirror: bool = False,
         news_evidence_service: DataEvidenceService | None = None,
-        quote_evidence_service: RealtimeQuoteEvidenceService | None = None,
+        quote_evidence_service: RealtimeQuoteEvidenceService | None | object = (
+            _DEFAULT_QUOTE_EVIDENCE_SERVICE
+        ),
     ):
         """初始化辩论编排器
 
@@ -1525,7 +1529,14 @@ class DebateOrchestrator:
         self.enable_trust = enable_trust
         self.enable_mirror = enable_mirror
         self.news_evidence_service = news_evidence_service
-        self.quote_evidence_service = quote_evidence_service
+        self.quote_evidence_service = (
+            get_realtime_quote_evidence_runtime().service
+            if quote_evidence_service is _DEFAULT_QUOTE_EVIDENCE_SERVICE
+            else cast(
+                RealtimeQuoteEvidenceService | None,
+                quote_evidence_service,
+            )
+        )
         self.callback_engine = callback_engine
         self.min_trust_factor = min_trust_factor
         if self.callback_engine is None and enable_trust:

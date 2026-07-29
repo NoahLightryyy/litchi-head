@@ -15,6 +15,17 @@ import pytest
 from src.debate.models import AgentAnalysis, DebateInput
 
 
+@pytest.fixture(autouse=True)
+def disable_default_quote_evidence_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Debate unit tests must opt out explicitly instead of calling live sources."""
+    monkeypatch.setattr(
+        "src.debate.orchestrator.get_realtime_quote_evidence_runtime",
+        lambda: type("TestRuntime", (), {"service": None})(),
+    )
+
+
 @pytest.fixture
 def sample_analyses() -> dict[str, AgentAnalysis]:
     """3 位大师的模拟分析结果"""

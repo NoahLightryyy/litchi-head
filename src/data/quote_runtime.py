@@ -43,7 +43,7 @@ def _is_continuous_auction(now: datetime) -> bool:
     clock = local.time().replace(tzinfo=None)
     return (
         time(9, 30) <= clock < time(11, 30)
-        or time(13, 0) <= clock < time(15, 0)
+        or time(13, 0) <= clock < time(14, 57)
     )
 
 

@@ -5,10 +5,12 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field, model_validator
 
 from backend.async_utils import run_sync
+from backend.config import RATE_LIMIT_QUOTE_AGGREGATE
+from backend.limiter import limiter
 from src.data.collector import DataCollector
 from src.data.evidence import (
     EvidenceCapability,
@@ -83,15 +85,19 @@ async def aggregate_news(payload: NewsAggregateRequest) -> EvidenceEnvelope:
 
 
 @router.post("/quotes/aggregate", response_model=EvidenceEnvelope)
-async def aggregate_quotes(payload: QuoteAggregateRequest) -> EvidenceEnvelope:
+@limiter.limit(RATE_LIMIT_QUOTE_AGGREGATE)
+async def aggregate_quotes(
+    request: Request,
+    payload: QuoteAggregateRequest,
+) -> EvidenceEnvelope:
     """并发采集并校验东方财富、新浪两条实时行情。"""
-    request = EvidenceRequest(
+    evidence_request = EvidenceRequest(
         capability=EvidenceCapability.REALTIME_QUOTE,
         stock_code=payload.symbol,
     )
     return await run_sync(
         quote_evidence_service.collect,
-        request,
+        evidence_request,
         REALTIME_QUOTE_EVIDENCE_POLICY,
     )
 
