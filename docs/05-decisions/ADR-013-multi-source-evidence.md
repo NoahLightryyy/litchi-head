@@ -74,16 +74,22 @@
 - `src/data/evidence.py`：来源身份、能力、六态结果、注册与完整性评估；
 - `tests/test_data/test_evidence_sources.py`：11 项契约测试；
 - `src/data/providers/cninfo.py`：首个 CNINFO 公告适配器基础；
-- `tests/test_data/test_cninfo_provider.py`：10 项适配器测试；
+- `tests/test_data/test_cninfo_provider.py`：10 项 AKShare 适配器测试；
+- `tests/test_data/test_cninfo_direct_provider.py`：8 项公开端点直连三态测试；
 - 真实烟测：平安银行 2026-06-01～2026-07-28 成功取得 3 条公告；
-- 已知限制：AKShare 在零公告窗口抛错，TD-071 等待“直连巨潮”或“锁定 AKShare
-  修复版本”的路线决策。
+- 真实空门禁：平安银行 2026-07-27～2026-07-28 读取
+  `totalAnnouncement=0` 并返回 `SUCCESS_EMPTY`；
+- 直连适配器使用 `source_id="cninfo-direct"`，AKShare 适配器继续使用
+  `source_id="akshare-cninfo"`，两者均声明 `upstream_id="cninfo"`，不会被误算为
+  两个独立来源；
+- TD-071 已关闭。
 
 ## 后续门禁
 
-1. 解决 TD-071，真实验证 CNINFO `SUCCESS_DATA`、`SUCCESS_EMPTY` 和故障三态；
+1. 定义 `DataEvidenceService` 的统一汇总信封，把多个通道的标准化结果、时间范围、
+   来源状态和完整性评估打包传给业务节点；
 2. 接入至少两个独立新闻上游；
-3. 实现 `DataEvidenceService` 和每类证据策略；
+3. 实现每类证据策略和并发汇总；
 4. PostgreSQL 完成外部编号、规范链接、内容哈希和修订幂等；
 5. 正式辩论图验证证据不足时 LLM 调用数为零；
 6. 后端和前端展示缺失来源、时间范围、失败原因和重试建议。
@@ -97,4 +103,3 @@
 - 实时行情、K 线、新闻和行业证据均不能自动降级；
 - PostgreSQL 可以替代 SQLite；
 - 当前不在付费接口投入过多，但接口必须保留多样性和可替换性。
-

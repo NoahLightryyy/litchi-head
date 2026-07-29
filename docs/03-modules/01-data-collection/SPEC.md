@@ -23,7 +23,7 @@
 | `src/data/evidence.py` | 多源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/models.py` | Pydantic 数据模型（StockInfo / KLine / NewsItem / StockQuote） |
 | `src/data/cache.py` | 缓存层（带 TTL） |
-| `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（当前经 AKShare） |
+| `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（公开端点直连 + AKShare 可替换实现） |
 
 ## 架构（当前状态）
 
@@ -34,6 +34,8 @@ DataCollector → DataSource → AKShare/AData/ZzShare/Fallback
 
 新契约（基础完成，待逐源接入）：
 DataEvidenceService（下一批）
+  → 并发调用多个 EvidenceSource
+  → 按 capability 汇总并统一打包为业务节点输入
   → EvidenceSourceRegistry
       → SourceDescriptor（适配器身份 + 真实 upstream_id + capabilities）
       → SourceResult（SUCCESS_DATA / SUCCESS_EMPTY / FAILED /
@@ -50,7 +52,9 @@ DataEvidenceService（下一批）
 3. 网络、解析和权限错误必须返回 `FAILED`，不能伪装成空数据；
 4. RSSHub 等发现型来源标记为 `discovery_only`，不参与证据门槛；
 5. 强制上游和独立来源数任一不足，评估结果均为 `complete=False`；
-6. 当前契约尚未接管旧 Provider 或正式辩论图，因此 TD-069 仍未关闭。
+6. 汇总层只能传递统一证据模型、来源状态、时间范围和完整性结果，业务节点不依赖
+   CNINFO、AKShare 等具体通道名称；
+7. 当前契约尚未接管旧 Provider 或正式辩论图，因此 TD-069 仍未关闭。
 
 ## 数据契约（关键模型）
 
@@ -77,7 +81,7 @@ DataEvidenceService（下一批）
 | Provider 抽象层（4 源架构） | 已完成 ✅ | 84 |
 | 多数据源接入（akshare/adata/zzshare/fallback） | 已完成 ✅ | — |
 | **统一证据来源契约与注册中心** | **基础完成 ✅** | 11 |
-| **CNINFO 权威公告适配器** | **基础完成 🟡（TD-071）** | 10 |
+| **CNINFO 权威公告适配器** | **直连三态门禁完成 ✅** | 18 |
 | **旧 Provider 六态适配 + DataEvidenceService** | **待接入 ⟳** | — |
 | **基本面指标采集（FD-001）** | **待实现** ⟳ | — |
 | **产业链定位（FD-001）** | **待实现** ⟳ | — |

@@ -5,25 +5,25 @@
 ## 📊 当前状态
 
 ```
-阶段: Phase 1 MVP + Phase R 实盘加固     Python 测试: 1076 ✅
-债务: 25 条开放（紧急指数 4.0/10）
+阶段: Phase 1 MVP + Phase R 实盘加固     Python 测试: 1265 passed / 1288 collected ✅
+债务: 31 条开放（紧急指数 5.6/10）
 代码库: 11 部门体系（docs/06-departments/）
 数据源: 零造假数据 ✅ | 四源架构（akshare/adata/zzshare/fallback）
-数据链路: FD-001 全链路完成 ✅ | PD-001/002/003 动态指标体系基建完成 ✅ | PD-004 前端行业感知完成 ✅
+数据链路: CNINFO 直连三态门禁 ✅ | 多通道统一汇总信封待接入 ⟳
 ```
 
 ## 🏢 部门一览
 
 | 部门 | 代码 | 债务 | 状态 |
 |:-----|:-----|:----:|:----:|
-| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 4 | 🟡 |
-| 🎯 辩论引擎部 | `src/debate/`+`src/risk/` | 2 | ✅ |
+| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 3 | 🟡 |
+| 🎯 辩论引擎部 | `src/debate/`+`src/risk/` | 3 | 🟡 |
 | 🤖 AI Agent 架构部 | `src/agents/`+`src/core/` | 3 | ✅ |
-| 🧠 记忆系统部 | `src/memory/` | 1 | ✅ |
+| 🧠 记忆系统部 | `src/memory/` | 2 | 🟡 |
 | 🛡️ 风控管理部 | `src/risk/` | 0 | ✅ |
 | 💹 交易执行部 | `src/trader/` | 0 | ✅ |
 | 🔬 回测研究部 | `src/backtest/` | 0 | ✅ |
-| 🌐 后端 API 部 | `backend/` | 1 | ✅ |
+| 🌐 后端 API 部 | `backend/` | 3 | 🟡 |
 | 🎨 前端部 | `frontend/` | 1 | ✅ |
 | ⚙️ 基础设施部 | `src/utils/` | 7 | ✅ |
 
@@ -35,7 +35,7 @@
 | 优先级 | 事项 | 牵头部门 |
 |:------:|:-----|:---------|
 | 1 ✅ | **PD 动态指标体系基建** — IndicatorRegistry+产业链位置+选择器，31行业✅ | **数据管道部 ✅** |
-| 2 🔥 | **美股数据源+YahooFinanceSource+美股前端Tab** | 数据管道部+前端部 |
+| 2 🔥 | **多通道统一汇总信封 + DataEvidenceService** | 数据管道部+辩论引擎部+后端 API 部 |
 | 3 ✅ | **前端财务Tab** — 财务指标+估值比率用户可见 ⏱️ 已交付 | 后端 API 部+前端部 |
 | 4 🔥 | **PD-005/006 辩论适配** — 三维分析上下文注入+大师按行业选指标 | 辩论引擎部 |
 | 4 🟡 | R4 置信度量化 | 辩论引擎部 |

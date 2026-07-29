@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-28 (统一多源证据契约基础完成)
+last_updated: 2026-07-29 (CNINFO 直连三态门禁完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -14,7 +14,7 @@ last_updated: 2026-07-28 (统一多源证据契约基础完成)
 |:-------|:----:|:------|
 | 旧 Provider 抽象层（4 实现） | ✅ | AKShareSource / AData / ZzShareSource / FallbackSource |
 | 多源证据契约 | ⟳ | 身份、真实上游、能力、六态结果、注册与完整性评估已完成；旧 Provider 待迁移 |
-| CNINFO 公告证据源 | 🟡 | 有数据链路真实烟测成功；AKShare 零公告窗口抛错，见 TD-071 |
+| CNINFO 公告证据源 | ✅ | 直连公开端点有数据、真实空、失败三态门禁通过；AKShare 保留为可替换适配器 |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
 | 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
@@ -48,7 +48,6 @@ last_updated: 2026-07-28 (统一多源证据契约基础完成)
 | TD-034 | zzshare.py 死条件逻辑（两边值一样） | 🟢 | 5min |
 | TD-057 | Provider 层测试（zzshare 46% 待补） | 🟡 | 30min |
 | TD-064 | 财务指标覆盖率不足 | 🟢 | 1h |
-| TD-071 | AKShare CNINFO 零公告窗口抛错 | 🟡 | 2–4h |
 
 ---
 
@@ -58,9 +57,9 @@ last_updated: 2026-07-28 (统一多源证据契约基础完成)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🔥 | TD-071 决定 CNINFO 直连或等待 AKShare 正式修复 | 用户确认接入路线 |
-| 2 🔥 | 接入东方财富、新浪/财联社免费新闻适配器 | `src/data/evidence.py` |
-| 3 🔥 | 实现 `DataEvidenceService` 并在 LLM 前执行失败关闭 | 首批适配器 + TD-069 |
+| 1 🔥 | 定义 `DataEvidenceService` 统一汇总信封：多通道结果、来源状态、时间范围、完整性评估统一打包给业务节点 | 用户确认的汇总方向 + `src/data/evidence.py` |
+| 2 🔥 | 接入东方财富、新浪/财联社免费新闻适配器 | 统一汇总信封 |
+| 3 🔥 | 实现并发汇总并在 LLM 前执行失败关闭 | 首批适配器 + TD-069 |
 | 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
 | 5 🟡 | Trafilatura + Newspaper4k 中文财经正文提取试验 | 50–100 篇样本 |
 
@@ -68,10 +67,9 @@ last_updated: 2026-07-28 (统一多源证据契约基础完成)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟡 | TD-071 修复 CNINFO 零公告窗口语义 | 接入路线决策 |
-| 2 🟢 | TD-034 修 zzshare 死条件 | 无 |
-| 3 🟢 | TD-057 补 zzshare 测试到 ≥80% | 无 |
-| 4 🟢 | TD-064 审计遗漏财务指标 | 无 |
+| 1 🟢 | TD-034 修 zzshare 死条件 | 无 |
+| 2 🟢 | TD-057 补 zzshare 测试到 ≥80% | 无 |
+| 3 🟢 | TD-064 审计遗漏财务指标 | 无 |
 
 ### 基本面深度 — 下放任务（⬜ 待办）
 
@@ -184,14 +182,9 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 
 ## 下次精确启动步骤
 
-1. 确认 TD-071 路线，不先写代码：
-   - **推荐**：新增直连巨潮公开查询端点的适配器或调用器；
-   - **备选**：等待 AKShare 修复空 DataFrame 选列问题并锁定版本。
-2. 保留既有 `source_id="akshare-cninfo"` 和 `upstream_id="cninfo"` 语义；
-   若新增直连适配器，使用新的 `source_id`，但 `upstream_id` 仍为 `cninfo`。
-3. RED 测试必须覆盖真实零公告响应，不能通过匹配 `KeyError` 文本判断为空。
-4. 跑：
-   - `python -m pytest tests/test_data/test_cninfo_provider.py -q`
-   - `python -m pytest tests/test_data -q`
-   - `python scripts/check.py --full`
-5. CNINFO 三态门禁通过后，再接东方财富与新浪/财联社新闻双源。
+1. 先给用户审阅 `DataEvidenceService` 的统一汇总信封字段，至少包含：
+   查询范围、按 capability 分组的标准化条目、各通道状态、独立上游完整性评估；
+2. 业务节点只读取统一信封，不依赖 `cninfo-direct`、`akshare-cninfo` 等具体通道名；
+3. RED 测试覆盖多通道并发汇总、同 upstream 去重、部分失败、明确空结果和完整性不足；
+4. 汇总契约通过后，接东方财富与新浪/财联社新闻双源；
+5. 最后接入正式辩论图并验证证据不足时 LLM 调用数为零。

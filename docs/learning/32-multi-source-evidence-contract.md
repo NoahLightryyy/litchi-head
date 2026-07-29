@@ -68,22 +68,49 @@ if result.status in successful_statuses:
 `SUCCESS_EMPTY` 的含义非常严格：上游确实响应并明确返回零条。连接超时、解析失败
 或权限不足必须是 `FAILED`，并携带用户和日志都能看到的错误信息。
 
-### 第一个真实适配器
+### 同一上游的两个真实适配器
 
 打开 `src/data/providers/cninfo.py`：
 
 ```python
 descriptor = SourceDescriptor(
-    source_id="akshare-cninfo",
+    source_id="cninfo-direct",
     upstream_id="cninfo",
-    display_name="巨潮资讯公告（AKShare）",
+    display_name="巨潮资讯公告（直连）",
     capabilities={EvidenceCapability.ANNOUNCEMENT},
 )
 ```
 
-这里的两个身份故意不同：项目通过 AKShare 接口接入，但公告事实来自巨潮资讯，
-所以交叉验证必须按 `cninfo` 计数。适配器要求调用方显式给出日期窗口，严格检查
-公告编号、时间和链接；网络错误与上游格式变化都会返回 `FAILED`，不会变成空列表。
+项目同时保留 `cninfo-direct` 和 `akshare-cninfo`。两个 `source_id` 表示两种接入
+实现，但公告事实都来自巨潮资讯，所以 `upstream_id` 都是 `cninfo`，交叉验证只能
+算一个来源。
+
+直连适配器直接读取公开响应中的 `totalAnnouncement`：
+
+- `totalAnnouncement > 0` 且完整取回同数量公告 → `SUCCESS_DATA`；
+- `totalAnnouncement == 0` 且公告列表为空 → `SUCCESS_EMPTY`；
+- 数量矛盾、字段损坏或网络失败 → `FAILED`。
+
+2026-07-29 的真实门禁中，平安银行长窗口取得 3 条公告，短窗口明确读取到 0 条，
+解决了 AKShare 在空表上选列抛错的问题。
+
+### 汇总层如何传给业务节点
+
+适配器不会直接把各自格式传给辩论引擎。下一层 `DataEvidenceService` 应把多个通道
+统一汇总：
+
+```text
+CNINFO / 东方财富 / 新浪等通道
+        ↓ 各自标准化为 SourceResult
+DataEvidenceService
+        ↓ 按 capability 分组 + upstream_id 去重 + EvidencePolicy 评估
+统一证据信封（条目 + 查询范围 + 通道状态 + 完整性结果）
+        ↓
+辩论 / 后端 / 其他业务节点
+```
+
+这样业务节点只认识统一证据信封，不认识具体网站或 Python 库。更换通道只影响
+适配器和配置，不会把来源细节扩散到业务代码。
 
 ---
 
@@ -116,8 +143,11 @@ descriptor = SourceDescriptor(
 1. 打开 `tests/test_data/test_evidence_sources.py`。
 2. 找到两个 `upstream_id="eastmoney"` 的来源，运行对应测试。
 3. 把第二个上游改成 `sina`，观察完整性判断为什么改变。
-4. 再打开 `tests/test_data/test_cninfo_provider.py`，观察网络失败与明确空结果的区别。
-5. 思考题：如果一个聚合接口同时返回十家媒体，独立性应该按聚合商还是原始媒体算？
+4. 再打开 `tests/test_data/test_cninfo_direct_provider.py`，观察
+   `totalAnnouncement=0` 如何成为明确空结果。
+5. 对比 `cninfo-direct` 和 `akshare-cninfo` 的 `upstream_id`，确认它们为何只能算
+   一个来源。
+6. 思考题：如果一个聚合接口同时返回十家媒体，独立性应该按聚合商还是原始媒体算？
 
 ---
 
