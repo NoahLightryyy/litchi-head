@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-29 (DataEvidenceService 统一汇总信封完成)
+last_updated: 2026-07-29 (东方财富 + 新浪新闻双源聚合完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -16,6 +16,7 @@ last_updated: 2026-07-29 (DataEvidenceService 统一汇总信封完成)
 | 多源证据契约 | ⟳ | 身份、真实上游、能力、六态结果、注册与完整性评估已完成；旧 Provider 待迁移 |
 | CNINFO 公告证据源 | ✅ | 直连公开端点有数据、真实空、失败三态门禁通过；AKShare 保留为可替换适配器 |
 | DataEvidenceService | ✅ | 多通道并发采集、异常显式化、同 upstream 条目去重、统一 EvidenceEnvelope |
+| 新闻双源证据 | ✅ | 东方财富个股搜索 + 新浪财经快讯；完整时间窗不足显式 STALE |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
 | 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
@@ -30,7 +31,7 @@ last_updated: 2026-07-29 (DataEvidenceService 统一汇总信封完成)
 | 数据模型测试 | 31 | 100%（含 ValuationMetrics 9 测试） |
 | 契约测试 data→debate | 4 | JSON roundtrip + format_market_brief |
 | DataCollector 测试 | 81 | 含 get_valuation 8 测试 |
-| 多源证据与汇总服务 | 18 | 来源契约 11 + 汇总信封 7 |
+| 多源证据与汇总服务 | 26 | 来源契约 11 + 汇总信封 8 + 新闻适配器 7 |
 
 ### 关键架构决策
 
@@ -59,11 +60,11 @@ last_updated: 2026-07-29 (DataEvidenceService 统一汇总信封完成)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🔥 | 接入东方财富、新浪/财联社免费新闻适配器 | `DataEvidenceService` ✅ |
-| 2 🔥 | 配置新闻完整性策略并通过统一信封交给业务节点 | 新闻双源 |
-| 3 🔥 | 在 LLM 前执行失败关闭 | 首批适配器 + TD-069 |
+| 1 ✅ | 东方财富 + 新浪免费新闻适配器 | 已完成 |
+| 2 ✅ | 新闻完整性策略 + `/api/v1/evidence/news/aggregate` | 已完成 |
+| 3 🔥 | 在 LLM 前执行失败关闭 | 新闻信封 + TD-069 |
 | 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
-| 5 🟡 | Trafilatura + Newspaper4k 中文财经正文提取试验 | 50–100 篇样本 |
+| 5 🟡 | 财联社版权和跨节点传输许可评估 | 用户确认后 |
 
 ### 现有债务
 
@@ -168,6 +169,7 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 | `src/data/collector.py` | 统一数据采集入口（469 行） |
 | `src/data/evidence.py` | 统一来源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/providers/cninfo.py` | CNINFO 权威公告统一证据适配器 |
+| `src/data/providers/news.py` | 东方财富 + 新浪独立新闻证据适配器 |
 | `src/data/models.py` | 7 个 Pydantic 数据契约（140 行） |
 | `src/data/cache.py` | 内存 TTL 缓存 |
 | `src/data/providers/base.py` | DataSourceProtocol 抽象基类 |
@@ -184,8 +186,8 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 
 ## 下次精确启动步骤
 
-1. 选择首个独立免费新闻上游（东方财富或新浪/财联社）并先确认字段与时间窗口；
-2. 新适配器只产出统一 `SourceResult[NewsItem]`，不把来源细节泄漏给业务节点；
-3. 通过 `DataEvidenceService` 验证有数据、明确空、失败和异常四类路径；
-4. 接入第二个独立新闻上游后配置 `EvidencePolicy`；
-5. 最后接入正式辩论图并验证证据不足时 LLM 调用数为零。
+1. 将新闻 `EvidenceEnvelope` 接入正式辩论数据节点；
+2. 证据不完整时在任何 LLM 调用前失败关闭；
+3. 测试必须证明失败关闭时 LLM 调用数为零；
+4. 后端和前端展示缺失来源、时间范围与重试建议；
+5. 财联社在版权和跨节点传输边界确认后再接入。

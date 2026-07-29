@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-07-28 (真实结果与最小节点续跑门禁完成，尚未接管路由)
+last_updated: 2026-07-29 (统一新闻证据聚合 API 完成)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -20,6 +20,7 @@ last_updated: 2026-07-28 (真实结果与最小节点续跑门禁完成，尚未
 | 技术指标（indicators.py） | ✅ | MA/RSI/MACD/布林带纯 Python |
 | 异步超时控制（async_utils.py） | ✅ | `run_sync()` 15s 超时封装 |
 | 健康监控（/api/health） | ✅ | 实时数据源健康暴露 |
+| evidence 路由（1 endpoint） | ✅ | 东方财富 + 新浪并发新闻信封，逐源状态与完整性评估 |
 
 ### 测试
 
@@ -33,7 +34,8 @@ last_updated: 2026-07-28 (真实结果与最小节点续跑门禁完成，尚未
 | test_indicators.py（技术指标 100% 覆盖） | 47 |
 | test_main.py（health + 异常处理） | 7 |
 | test_utils_backend.py（config 环境变量 + async_utils 超时） | 7 |
-| **backend 合计** | **176** |
+| test_evidence.py（部分成功、股票代码和时间范围校验） | 4 |
+| **backend 合计** | **180** |
 
 ### 关键架构决策
 

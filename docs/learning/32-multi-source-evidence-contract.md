@@ -129,6 +129,25 @@ class EvidenceEnvelope(BaseModel):
 `upstream_id` 即使有多个适配器，诊断结果都会保留，但 `items` 只输出第一份成功
 数据，避免同一上游被重复包装后重复进入业务链。
 
+### “没搜到”之前，先证明时间窗真的扫完了
+
+新浪财经快讯是滚动全局信息流，不是按股票和日期查询的数据库。即使最近一页没有
+“平安银行”，也不能据此断言过去三天没有相关新闻。适配器必须继续分页，直到最老
+一条记录早于请求的 `start_at`：
+
+```text
+最老记录 <= start_at  → 时间窗已覆盖，可以判断 SUCCESS_DATA / SUCCESS_EMPTY
+最老记录 > start_at   → 时间窗未覆盖，只能返回 STALE
+```
+
+项目在真实联调中发现新浪当前公开窗口约 900 条。平安银行三天窗口里，东方财富取得
+4 条，但新浪可访问历史没有覆盖三天起点，因此结果为
+`STALE / time_window_not_fully_covered`，整个信封保持 `complete=False`。这避免了
+“请求成功”被误当成“证据完整”。
+
+新闻聚合入口为 `POST /api/v1/evidence/news/aggregate`。东方财富与新浪在线程池中
+并发执行；单源失败或过期不会抹掉另一个来源的诊断和数据。
+
 ---
 
 ## 和传统 Fallback 有什么不同？
@@ -165,6 +184,8 @@ class EvidenceEnvelope(BaseModel):
 5. 对比 `cninfo-direct` 和 `akshare-cninfo` 的 `upstream_id`，确认它们为何只能算
    一个来源。
 6. 思考题：如果一个聚合接口同时返回十家媒体，独立性应该按聚合商还是原始媒体算？
+7. 打开 `tests/test_data/test_news_evidence_sources.py`，观察时间窗未覆盖为什么必须
+   返回 `STALE`。
 
 ---
 

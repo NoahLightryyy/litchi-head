@@ -90,14 +90,25 @@
 - 来源抛出的未处理异常转换为可见 `FAILED / source_unhandled_exception`；
 - 真实 CNINFO 空窗口已通过服务打包为
   `complete=True / SUCCESS_EMPTY / upstreams=["cninfo"]`。
+- `src/data/providers/news.py`：东方财富个股搜索与新浪财经快讯两个独立新闻上游；
+- `POST /api/v1/evidence/news/aggregate`：按股票和带时区时间窗并发采集，返回统一
+  `EvidenceEnvelope`；
+- 新闻条目跨节点只传标题、时间、发布媒体、链接、股票关联依据和内容哈希，默认不传
+  原始正文；
+- 业务条目按股票代码与规范化标题跨上游去重，两个来源的原始结果仍完整保留在
+  `source_results`；
+- 新浪公开快讯历史不足以覆盖请求起始时间时返回
+  `STALE / time_window_not_fully_covered`，不会伪装成 `SUCCESS_EMPTY`；
+- 2026-07-29 真实三天窗口门禁：东方财富取得 4 条；新浪因可访问历史不足标为
+  `STALE`；最终 `complete=False`，证明完整性策略能够拒绝假双源。
 
 ## 后续门禁
 
-1. 接入至少两个独立新闻上游；
-2. 配置每类证据策略并通过统一信封交给业务节点；
-4. PostgreSQL 完成外部编号、规范链接、内容哈希和修订幂等；
-5. 正式辩论图验证证据不足时 LLM 调用数为零；
-6. 后端和前端展示缺失来源、时间范围、失败原因和重试建议。
+1. 将新闻 `EvidenceEnvelope` 接入正式辩论图；
+2. PostgreSQL 完成外部编号、规范链接、内容哈希和修订幂等；
+3. 正式辩论图验证证据不足时 LLM 调用数为零；
+4. 后端和前端展示缺失来源、时间范围、失败原因和重试建议；
+5. 财联社在版权与跨节点传输边界确认后再启用。
 
 ## 决策确认
 

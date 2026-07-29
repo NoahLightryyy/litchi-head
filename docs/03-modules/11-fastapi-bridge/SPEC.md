@@ -65,6 +65,17 @@ async def run_debate(req: DebateRequest):
     return {"data": {"session_id": result.session_id, "status": "completed", "result": result.model_dump()}}
 ```
 
+### evidence.py — `/api/v1/evidence`
+
+```python
+@router.post("/news/aggregate")
+async def aggregate_news(payload: NewsAggregateRequest):
+    """并发采集东方财富与新浪，返回统一 EvidenceEnvelope。"""
+```
+
+请求时间必须带时区。单源失败或时间窗覆盖不足仍返回完整逐源诊断；只有两个独立
+上游都处于成功状态时，信封的 `complete` 才为 `true`。
+
 ## 3. CORS 配置
 
 ```python

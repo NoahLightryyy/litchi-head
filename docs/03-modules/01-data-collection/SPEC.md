@@ -25,6 +25,7 @@
 | `src/data/models.py` | Pydantic 数据模型（StockInfo / KLine / NewsItem / StockQuote） |
 | `src/data/cache.py` | 缓存层（带 TTL） |
 | `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（公开端点直连 + AKShare 可替换实现） |
+| `src/data/providers/news.py` | 东方财富个股搜索 + 新浪财经快讯独立新闻适配器 |
 
 ## 架构（当前状态）
 
@@ -33,7 +34,7 @@
 DataCollector → DataSource → AKShare/AData/ZzShare/Fallback
                            └─ 失败仍可能被压成 [] / None
 
-新契约（汇总层完成，待逐源接入）：
+新契约（新闻双源已接入）：
 DataEvidenceService
   → 并发调用多个 EvidenceSource
   → 按 capability 汇总并统一打包为业务节点输入
@@ -56,6 +57,9 @@ DataEvidenceService
 6. 汇总层只能传递统一证据模型、来源状态、时间范围和完整性结果，业务节点不依赖
    CNINFO、AKShare 等具体通道名称；
 7. 当前契约尚未接管旧 Provider 或正式辩论图，因此 TD-069 仍未关闭。
+8. 全局快讯没有覆盖完整请求时间窗时返回 `STALE`，不得用“当前页未命中”推断
+   `SUCCESS_EMPTY`；
+9. 跨源业务条目按股票与规范化标题去重，完整来源诊断仍保留在 `source_results`。
 
 ## 数据契约（关键模型）
 
@@ -84,6 +88,8 @@ DataEvidenceService
 | **统一证据来源契约与注册中心** | **基础完成 ✅** | 11 |
 | **CNINFO 权威公告适配器** | **直连三态门禁完成 ✅** | 18 |
 | **DataEvidenceService 多通道统一汇总信封** | **完成 ✅** | 7 |
+| **东方财富 + 新浪独立新闻证据源** | **完成 ✅** | 7 |
+| **统一新闻聚合 API** | **完成 ✅** | 4 |
 | **旧 Provider 六态适配** | **待接入 ⟳** | — |
 | **基本面指标采集（FD-001）** | **待实现** ⟳ | — |
 | **产业链定位（FD-001）** | **待实现** ⟳ | — |

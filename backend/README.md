@@ -41,6 +41,7 @@ backend/
     ├── __init__.py
     ├── market.py        # /api/market/* — 指数 / 板块 / 板块详情 / AI 简报（TD-020 ✅）
     ├── stocks.py        # /api/stocks/* — 搜索 / 行情 / K 线 / 新闻 / 资金流向 / 技术指标
+    ├── evidence.py      # /api/v1/evidence/* — 多源证据并发聚合
     ├── debate.py        # /api/debate/* — 辩论触发 / 状态轮询 / 结果获取
     └── trust.py         # /api/trust/* — 信任度报告 / 排行榜（TrustTracker 完整接入）
 ```
@@ -61,6 +62,7 @@ backend/
 | GET | `/api/stocks/{code}/news` | 个股新闻 | ✅ |
 | GET | `/api/stocks/{code}/capital-flow` | 资金流向（主力/散户/机构） | ✅ |
 | GET | `/api/stocks/{code}/technical-indicators` | 技术指标（MA/RSI/MACD/布林带） | ✅ |
+| POST | `/api/v1/evidence/news/aggregate` | 东方财富 + 新浪并发新闻证据信封 | ✅ |
 | POST | `/api/debate/run` | 触发 AI 辩论 | ✅ |
 | GET | `/api/debate/status/{id}` | 辩论状态查询 | ✅ |
 | GET | `/api/debate/result/{id}` | 辩论结果获取 | ✅ |
