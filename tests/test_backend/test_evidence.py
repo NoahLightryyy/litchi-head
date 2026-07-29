@@ -143,10 +143,10 @@ def test_quote_aggregate_returns_reconciled_envelope(client) -> None:
     payload = response.json()
     assert payload["complete"] is True
     assert payload["items"][0]["price"] == 11.28
-    assert payload["assessment"]["successful_upstream_ids"] == [
+    assert set(payload["assessment"]["successful_upstream_ids"]) == {
         "eastmoney",
         "sina",
-    ]
+    }
     request, policy = service.collect.call_args.args
     assert request.capability is EvidenceCapability.REALTIME_QUOTE
     assert request.stock_code == "000001"
@@ -160,6 +160,27 @@ def test_quote_aggregate_rejects_invalid_symbol(client) -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_quote_aggregate_is_rate_limited(client) -> None:
+    service = Mock()
+    service.collect.return_value = _quote_envelope()
+    client.app.state.limiter.enabled = True
+
+    with patch("backend.routers.evidence.quote_evidence_service", service):
+        for _ in range(6):
+            response = client.post(
+                "/api/v1/evidence/quotes/aggregate",
+                json={"symbol": "000001"},
+            )
+            assert response.status_code == 200
+        response = client.post(
+            "/api/v1/evidence/quotes/aggregate",
+            json={"symbol": "000001"},
+        )
+
+    assert response.status_code == 429
+    assert response.json()["error"]["code"] == "RATE_LIMITED"
 
 
 def test_news_aggregate_returns_partial_success_envelope(client) -> None:

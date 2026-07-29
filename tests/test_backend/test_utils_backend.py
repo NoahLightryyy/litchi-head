@@ -36,6 +36,7 @@ class TestConfigRateLimits:
             assert cfg.RATE_LIMIT_DEBATE_RUN == "6/minute"
             assert cfg.RATE_LIMIT_DEBATE_STATUS == "30/minute"
             assert cfg.RATE_LIMIT_DEBATE_RESULT == "30/minute"
+            assert cfg.RATE_LIMIT_QUOTE_AGGREGATE == "6/minute"
 
     def test_disabled_via_env(self):
         """LITCHI_RATE_LIMIT_ENABLED=0 时关闭限流"""
@@ -55,6 +56,7 @@ class TestConfigRateLimits:
             {
                 "LITCHI_RATE_LIMIT_DEBATE_RUN": "3/minute",
                 "LITCHI_RATE_LIMIT_DEBATE_STATUS": "60/minute",
+                "LITCHI_RATE_LIMIT_QUOTE_AGGREGATE": "9/minute",
             },
             clear=True,
         ):
@@ -66,6 +68,7 @@ class TestConfigRateLimits:
 
             assert cfg.RATE_LIMIT_DEBATE_RUN == "3/minute"
             assert cfg.RATE_LIMIT_DEBATE_STATUS == "60/minute"
+            assert cfg.RATE_LIMIT_QUOTE_AGGREGATE == "9/minute"
 
 
 class TestConfigDataSource:

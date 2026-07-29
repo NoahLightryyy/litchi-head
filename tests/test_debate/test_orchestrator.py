@@ -9,6 +9,7 @@ Mock 策略：
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
+from types import SimpleNamespace
 
 import pytest
 
@@ -63,6 +64,17 @@ class TestGraphConstruction:
         orch = DebateOrchestrator(data_collector=mock_collector)
         assert orch is not None
         assert orch.data_collector is mock_collector
+
+    def test_default_constructor_enables_realtime_quote_gate(self, mock_collector):
+        quote_service = MagicMock()
+        runtime = SimpleNamespace(service=quote_service)
+        with patch(
+            "src.debate.orchestrator.get_realtime_quote_evidence_runtime",
+            return_value=runtime,
+        ):
+            orch = DebateOrchestrator(data_collector=mock_collector)
+
+        assert orch.quote_evidence_service is quote_service
 
     def test_build_graph_has_nodes(self, mock_collector):
         """验证图包含所有必需节点"""

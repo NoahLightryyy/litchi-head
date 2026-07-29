@@ -18,7 +18,12 @@ from src.data.evidence import (
     SourceStatus,
 )
 from src.data.models import StockQuote
-from src.data.providers.quotes import EastmoneyQuoteSource, SinaQuoteSource
+from src.data.providers.quotes import (
+    EastmoneyQuoteSource,
+    SinaQuoteSource,
+    _eastmoney_secid,
+    _market_prefix,
+)
 from src.data.quote_runtime import RealtimeQuoteEvidenceService
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -148,7 +153,9 @@ def test_sina_source_parses_shares_and_exchange_time() -> None:
         "10:30:00",
         "00",
     ]
-    source = SinaQuoteSource(fetcher=lambda code: ",".join(fields))
+    source = SinaQuoteSource(
+        fetcher=lambda code: f'var hq_str_sz{code}="{",".join(fields)}";'
+    )
 
     result = source.fetch(REQUEST)
 
@@ -156,6 +163,53 @@ def test_sina_source_parses_shares_and_exchange_time() -> None:
     assert result.items[0].price == 11.28
     assert result.items[0].volume == 100_458_174
     assert result.items[0].fetched_at == NOW
+
+
+def test_sina_source_rejects_response_for_a_different_symbol() -> None:
+    fields = [
+        "浦发银行",
+        "9.00",
+        "9.00",
+        "9.00",
+        "9.00",
+        "9.00",
+        "9.00",
+        "9.00",
+        "100",
+        "900",
+        *("" for _ in range(20)),
+        "2026-07-29",
+        "10:30:00",
+        "00",
+    ]
+    source = SinaQuoteSource(
+        fetcher=lambda code: f'var hq_str_sh600000="{",".join(fields)}";'
+    )
+
+    result = source.fetch(REQUEST)
+
+    assert result.status is SourceStatus.FAILED
+    assert result.error_code == "invalid_upstream_payload"
+    assert "identity" in (result.error_message or "").lower()
+
+
+@pytest.mark.parametrize(
+    ("code", "prefix", "secid"),
+    [
+        ("600000", "sh", "1.600000"),
+        ("000001", "sz", "0.000001"),
+        ("430017", "bj", "0.430017"),
+        ("830000", "bj", "0.830000"),
+        ("920002", "bj", "0.920002"),
+    ],
+)
+def test_quote_market_routing_covers_all_a_share_exchanges(
+    code: str,
+    prefix: str,
+    secid: str,
+) -> None:
+    assert _market_prefix(code) == prefix
+    assert _eastmoney_secid(code) == secid
 
 
 @pytest.mark.parametrize(
@@ -290,6 +344,35 @@ def test_outside_continuous_auction_is_display_only_and_blocks_debate_evidence()
     assert {
         result.error_code for result in envelope.source_results
     } == {"market_not_in_continuous_auction"}
+
+
+@pytest.mark.parametrize(
+    ("now", "complete"),
+    [
+        (datetime(2026, 7, 29, 14, 56, 59, tzinfo=SHANGHAI), True),
+        (datetime(2026, 7, 29, 14, 57, 0, tzinfo=SHANGHAI), False),
+        (datetime(2026, 7, 29, 15, 0, 0, tzinfo=SHANGHAI), False),
+    ],
+)
+def test_closing_call_auction_boundary_is_not_continuous(
+    now: datetime,
+    complete: bool,
+) -> None:
+    envelope = _service(
+        _result(
+            "direct-eastmoney-quote",
+            "eastmoney",
+            quote=_quote(quote_at=now),
+        ),
+        _result(
+            "direct-sina-quote",
+            "sina",
+            quote=_quote(quote_at=now),
+        ),
+        now=now,
+    ).collect(REQUEST, POLICY)
+
+    assert envelope.complete is complete
 
 
 def test_one_failed_upstream_keeps_explicit_failure_and_is_incomplete() -> None:
