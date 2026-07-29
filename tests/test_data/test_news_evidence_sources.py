@@ -11,6 +11,7 @@ from src.data.evidence import (
 )
 from src.data.providers.news import (
     EastmoneyNewsSource,
+    SinaRollingFeedCollector,
     SinaNewsSource,
 )
 
@@ -234,3 +235,34 @@ def test_news_sources_reject_non_news_capability_without_calling_upstream() -> N
 
     assert result.status is SourceStatus.UNSUPPORTED
     assert calls == 0
+
+
+def test_sina_rolling_collector_keeps_metadata_without_full_body() -> None:
+    def fetcher(*, page: int, page_size: int) -> dict[str, Any]:
+        assert page_size == 100
+        return {
+            "result": {
+                "status": {"code": 0},
+                "data": {
+                    "feed": {
+                        "list": [
+                            {
+                                "id": "roll-1",
+                                "rich_text": "<b>平安银行</b> 发布重要公告",
+                                "create_time": "2026-07-29T09:30:00+08:00",
+                                "docurl": "https://example.test/roll-1",
+                            }
+                        ],
+                        "page_info": {"totalNum": 1},
+                    }
+                },
+            }
+        }
+
+    items = SinaRollingFeedCollector(fetcher=fetcher).collect()
+
+    assert len(items) == 1
+    assert items[0].external_id == "roll-1"
+    assert items[0].title == "平安银行 发布重要公告"
+    assert items[0].content == ""
+    assert items[0].association_reason == "rolling_feed"

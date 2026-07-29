@@ -3,7 +3,9 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from src.data.evidence import EvidenceCapability, EvidenceRequest, SourceStatus
 from src.data.models import NewsItem
+from src.data.news_runtime import RollingNewsSource
 from src.data.news_store import SqliteRollingNewsStore
 
 
@@ -117,3 +119,60 @@ def test_store_prunes_items_older_than_three_days(tmp_path: Path) -> None:
         end_at=now,
     )
     assert [item.external_id for item in items] == ["kept"]
+
+
+def test_rolling_source_is_stale_until_full_window_is_observed(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 7, 29, 9, 30, tzinfo=UTC)
+    store = SqliteRollingNewsStore(tmp_path / "news.db")
+    store.record_success(
+        source_id="sina-finance-feed",
+        items=[_item("1", now - timedelta(minutes=1), "平安银行发布公告")],
+        collected_at=now,
+    )
+
+    result = RollingNewsSource(store).fetch(
+        EvidenceRequest(
+            capability=EvidenceCapability.NEWS,
+            stock_code="000001",
+            stock_name="平安银行",
+            start_at=now - timedelta(days=3),
+            end_at=now,
+        )
+    )
+
+    assert result.status is SourceStatus.STALE
+    assert result.error_code == "rolling_window_not_fully_covered"
+
+
+def test_rolling_source_returns_locally_associated_metadata(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 7, 29, 9, 30, tzinfo=UTC)
+    store = SqliteRollingNewsStore(
+        tmp_path / "news.db",
+        max_collection_gap=timedelta(days=4),
+    )
+    store.record_success(
+        source_id="sina-finance-feed",
+        items=[
+            _item("match", now - timedelta(days=3), "平安银行发布公告"),
+            _item("other", now - timedelta(days=2), "其他公司新闻"),
+        ],
+        collected_at=now,
+    )
+
+    result = RollingNewsSource(store).fetch(
+        EvidenceRequest(
+            capability=EvidenceCapability.NEWS,
+            stock_code="000001",
+            stock_name="平安银行",
+            start_at=now - timedelta(days=3),
+            end_at=now,
+        )
+    )
+
+    assert result.status is SourceStatus.SUCCESS_DATA
+    assert [item.external_id for item in result.items] == ["match"]
+    assert result.items[0].content == ""
