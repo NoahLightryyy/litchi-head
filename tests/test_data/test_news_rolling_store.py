@@ -176,3 +176,28 @@ def test_rolling_source_returns_locally_associated_metadata(
     assert result.status is SourceStatus.SUCCESS_DATA
     assert [item.external_id for item in result.items] == ["match"]
     assert result.items[0].content == ""
+
+
+def test_out_of_order_poll_does_not_regress_coverage(tmp_path: Path) -> None:
+    store = SqliteRollingNewsStore(
+        tmp_path / "news.db",
+        max_collection_gap=timedelta(minutes=10),
+    )
+    start = datetime(2026, 7, 29, 9, 0, tzinfo=UTC)
+    latest = start + timedelta(minutes=10)
+    store.record_success(
+        source_id="sina-finance-feed",
+        items=[_item("latest", latest, "平安银行最新消息")],
+        collected_at=latest,
+    )
+    store.record_success(
+        source_id="sina-finance-feed",
+        items=[_item("late-writer", start, "平安银行较早消息")],
+        collected_at=start,
+    )
+
+    assert store.covers(
+        source_id="sina-finance-feed",
+        start_at=latest,
+        end_at=latest,
+    )

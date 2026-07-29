@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from src.data.evidence import (
     EvidenceCapability,
     EvidenceRequest,
@@ -13,6 +15,7 @@ from src.data.providers.news import (
     EastmoneyNewsSource,
     SinaNewsSource,
     SinaRollingFeedCollector,
+    SinaFeedTruncatedError,
 )
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -266,3 +269,30 @@ def test_sina_rolling_collector_keeps_metadata_without_full_body() -> None:
     assert items[0].title == "平安银行 发布重要公告"
     assert items[0].content == ""
     assert items[0].association_reason == "rolling_feed"
+
+
+def test_sina_rolling_collector_rejects_truncated_feed() -> None:
+    rows = [
+        {
+            "id": f"roll-{index}",
+            "rich_text": f"快讯 {index}",
+            "create_time": "2026-07-29T09:30:00+08:00",
+        }
+        for index in range(100)
+    ]
+
+    def fetcher(*, page: int, page_size: int) -> dict[str, Any]:
+        return {
+            "result": {
+                "status": {"code": 0},
+                "data": {
+                    "feed": {
+                        "list": rows,
+                        "page_info": {"totalNum": 200},
+                    }
+                },
+            }
+        }
+
+    with pytest.raises(SinaFeedTruncatedError):
+        SinaRollingFeedCollector(fetcher=fetcher, max_pages=1).collect()

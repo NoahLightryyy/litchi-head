@@ -72,6 +72,20 @@ class TestRunDebate:
         assert resp.status_code == 200
         assert resp.json()["data"]["status"] == "completed"
 
+    def test_run_debate_resolves_stock_name_for_evidence_matching(self, client):
+        mock_orch = _MockOrchestrator()
+        with (
+            patch("backend.routers.debate._get_orchestrator", return_value=mock_orch),
+            patch(
+                "backend.routers.debate.resolve_stock_name",
+                return_value="平安银行",
+            ),
+        ):
+            resp = client.post("/api/debate/run", json={"stock_code": "000001"})
+
+        assert resp.status_code == 200
+        assert getattr(mock_orch.last_input, "stock_name") == "平安银行"
+
     def test_run_debate_returns_session_id(self, client):
         """返回的 session_id 可用于后续查询"""
         mock_orch = _MockOrchestrator()
