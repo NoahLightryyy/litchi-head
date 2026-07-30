@@ -217,10 +217,21 @@ def test_delisted_bse_security_uses_mapping_and_official_termination_event(
                         "typename": "退市/摘牌",
                         "xxfcbj": "2",
                         "xxzqjb": "T",
+                    },
+                    {
+                        "comments": "",
+                        "companycode": "821021",
+                        "companyname": "S26首钢1",
+                        "productType": "20",
+                        "publishdate": "2026-04-27",
+                        "typecode": "1101",
+                        "typename": "退市/摘牌",
+                        "xxfcbj": "2",
+                        "xxzqjb": "T",
                     }
                 ]
             )],
-            [{"typecode": "1101", "num": 1, "typename": "退市/摘牌"}],
+            [{"typecode": "1101", "num": 2, "typename": "退市/摘牌"}],
             "2021-11-15",
             "2026-07-30",
         ]
