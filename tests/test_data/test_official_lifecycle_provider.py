@@ -2,6 +2,7 @@
 
 import io
 import json
+from collections.abc import Mapping
 from datetime import date
 from typing import Any
 
@@ -118,14 +119,24 @@ def test_delisted_szse_security_falls_back_to_official_delisting_snapshot() -> N
 
 
 def test_missing_or_duplicate_official_identity_fails_closed() -> None:
-    source = OfficialSecurityLifecycleSource(fetcher=lambda *_: ())
+    def missing(
+        market: MarketCode,
+        delisted: bool,
+    ) -> tuple[OfficialLifecycleSnapshot, ...]:
+        return ()
+
+    source = OfficialSecurityLifecycleSource(fetcher=missing)
 
     with pytest.raises(SecurityLifecycleSourceError, match="not found"):
         source.fetch(code="600000", market=MarketCode.SSE)
 
-    duplicate = OfficialSecurityLifecycleSource(
-        fetcher=lambda *_: (_snapshot(), _snapshot(suffix="another"))
-    )
+    def duplicated(
+        market: MarketCode,
+        delisted: bool,
+    ) -> tuple[OfficialLifecycleSnapshot, ...]:
+        return (_snapshot(), _snapshot(suffix="another"))
+
+    duplicate = OfficialSecurityLifecycleSource(fetcher=duplicated)
     with pytest.raises(SecurityLifecycleSourceError, match="duplicate"):
         duplicate.fetch(code="600000", market=MarketCode.SSE)
 
@@ -135,7 +146,7 @@ def _jsonp(payload: object) -> bytes:
 
 
 def _bse_page(
-    rows: list[dict[str, object]],
+    rows: list[Mapping[str, object]],
     *,
     number: int = 0,
     total_pages: int = 1,
@@ -205,43 +216,45 @@ def test_delisted_bse_security_uses_mapping_and_official_termination_event(
     active = _jsonp([_bse_page([], total_pages=0)])
     delisted = _jsonp(
         [
-            [_bse_page(
-                [
-                    {
-                        "comments": "",
-                        "companycode": "920305",
-                        "companyname": "云创退",
-                        "productType": "10",
-                        "publishdate": "2026-07-30",
-                        "typecode": "1101",
-                        "typename": "退市/摘牌",
-                        "xxfcbj": "2",
-                        "xxzqjb": "T",
-                    },
-                    {
-                        "comments": "",
-                        "companycode": "821021",
-                        "companyname": "S26首钢1",
-                        "productType": "20",
-                        "publishdate": "2026-04-27",
-                        "typecode": "1101",
-                        "typename": "退市/摘牌",
-                        "xxfcbj": "2",
-                        "xxzqjb": "T",
-                    },
-                    {
-                        "comments": "",
-                        "companycode": "832317",
-                        "companyname": "观典防务",
-                        "productType": "10",
-                        "publishdate": "2022-04-26",
-                        "typecode": "1101",
-                        "typename": "退市/摘牌",
-                        "xxfcbj": "2",
-                        "xxzqjb": "T",
-                    }
-                ]
-            )],
+            [
+                _bse_page(
+                    [
+                        {
+                            "comments": "",
+                            "companycode": "920305",
+                            "companyname": "云创退",
+                            "productType": "10",
+                            "publishdate": "2026-07-30",
+                            "typecode": "1101",
+                            "typename": "退市/摘牌",
+                            "xxfcbj": "2",
+                            "xxzqjb": "T",
+                        },
+                        {
+                            "comments": "",
+                            "companycode": "821021",
+                            "companyname": "S26首钢1",
+                            "productType": "20",
+                            "publishdate": "2026-04-27",
+                            "typecode": "1101",
+                            "typename": "退市/摘牌",
+                            "xxfcbj": "2",
+                            "xxzqjb": "T",
+                        },
+                        {
+                            "comments": "",
+                            "companycode": "832317",
+                            "companyname": "观典防务",
+                            "productType": "10",
+                            "publishdate": "2022-04-26",
+                            "typecode": "1101",
+                            "typename": "退市/摘牌",
+                            "xxfcbj": "2",
+                            "xxzqjb": "T",
+                        },
+                    ]
+                )
+            ],
             [{"typecode": "1101", "num": 3, "typename": "退市/摘牌"}],
             "2021-11-15",
             "2026-07-30",
@@ -272,21 +285,21 @@ def test_bse_lifecycle_rejects_incomplete_advertised_pagination(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     first = _jsonp(
-        [_bse_page(
-            [
-                {
-                    "xxzqdm": "920176",
-                    "fxssrq": "20260727",
-                    "xxfcbj": "2",
-                }
-            ],
-            total_pages=2,
-            total_elements=2,
-        )]
+        [
+            _bse_page(
+                [
+                    {
+                        "xxzqdm": "920176",
+                        "fxssrq": "20260727",
+                        "xxfcbj": "2",
+                    }
+                ],
+                total_pages=2,
+                total_elements=2,
+            )
+        ]
     )
-    broken_second = _jsonp(
-        [_bse_page([], number=1, total_pages=2, total_elements=2)]
-    )
+    broken_second = _jsonp([_bse_page([], number=1, total_pages=2, total_elements=2)])
 
     def fake_get(url: str, *_: object, **kwargs: Any) -> _Response:
         if url == lifecycle_provider.BSE_CODE_MAPPING_URL:

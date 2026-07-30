@@ -12,19 +12,32 @@ from pydantic import BaseModel, Field
 
 from src.data.kline import MarketCode
 from src.data.kline_status import OfficialSecurityLifecycleEvidence
+from src.data.providers.bse_status import (
+    BSE_CODE_MAPPING_URL as BSE_CODE_MAPPING_URL,
+)
+from src.data.providers.bse_status import (
+    BSE_LIST_QUERY_URL as BSE_LIST_QUERY_URL,
+)
+from src.data.providers.bse_status import (
+    BSE_LISTED_COMPANY_PAGE_URL as BSE_LISTED_COMPANY_PAGE_URL,
+)
+from src.data.providers.bse_status import (
+    BSE_MARKET_CALENDAR_PAGE_URL as BSE_MARKET_CALENDAR_PAGE_URL,
+)
+from src.data.providers.bse_status import (
+    BSE_TRADING_TIPS_QUERY_URL as BSE_TRADING_TIPS_QUERY_URL,
+)
+from src.data.providers.bse_status import (
+    BSE_TRANSFERRED_WITHOUT_STRUCTURED_LISTING_DATE,
+    fetch_bse_lifecycle_records,
+)
 
 SSE_QUERY_URL = "https://query.sse.com.cn/sseQuery/commonQuery.do"
 SSE_ACTIVE_PAGE_URL = "https://www.sse.com.cn/assortment/stock/list/share/"
-SSE_DELISTED_PAGE_URL = (
-    "https://www.sse.com.cn/assortment/stock/list/delisting/"
-)
+SSE_DELISTED_PAGE_URL = "https://www.sse.com.cn/assortment/stock/list/delisting/"
 SZSE_REPORT_URL = "https://www.szse.cn/api/report/ShowReport"
-SZSE_ACTIVE_PAGE_URL = (
-    "https://www.szse.cn/market/product/stock/list/index.html"
-)
-SZSE_DELISTED_PAGE_URL = (
-    "https://www.szse.cn/market/stock/suspend/index.html"
-)
+SZSE_ACTIVE_PAGE_URL = "https://www.szse.cn/market/product/stock/list/index.html"
+SZSE_DELISTED_PAGE_URL = "https://www.szse.cn/market/stock/suspend/index.html"
 LIFECYCLE_TIMEOUT_SECONDS = 30.0
 
 
@@ -166,9 +179,7 @@ def _fetch_szse(delisted: bool) -> tuple[OfficialLifecycleSnapshot, ...]:
                 code=raw_code.zfill(6),
                 listed_on=_parse_date(row[listed_column], "listing date"),
                 delisted_on=(
-                    _parse_date(row["终止上市日期"], "delisting date")
-                    if delisted
-                    else None
+                    _parse_date(row["终止上市日期"], "delisting date") if delisted else None
                 ),
                 source_url=page_url,
                 content_hash=digest,
@@ -185,8 +196,15 @@ def _default_fetcher(
         return _fetch_sse(delisted)
     if market is MarketCode.SZSE:
         return _fetch_szse(delisted)
-    raise SecurityLifecycleSourceError(
-        "BSE official lifecycle coverage is not verified"
+    return tuple(
+        OfficialLifecycleSnapshot(
+            code=record.code,
+            listed_on=record.listed_on,
+            delisted_on=record.delisted_on,
+            source_url=record.source_url,
+            content_hash=record.content_hash,
+        )
+        for record in fetch_bse_lifecycle_records(delisted)
     )
 
 
@@ -195,6 +213,7 @@ class OfficialSecurityLifecycleSource:
 
     def __init__(self, fetcher: OfficialLifecycleFetcher | None = None) -> None:
         self._fetcher = fetcher or _default_fetcher
+        self._uses_default_fetcher = fetcher is None
 
     def fetch(
         self,
@@ -202,9 +221,13 @@ class OfficialSecurityLifecycleSource:
         code: str,
         market: MarketCode,
     ) -> OfficialSecurityLifecycleEvidence:
-        if market is MarketCode.BSE:
+        if (
+            self._uses_default_fetcher
+            and market is MarketCode.BSE
+            and code in BSE_TRANSFERRED_WITHOUT_STRUCTURED_LISTING_DATE
+        ):
             raise SecurityLifecycleSourceError(
-                "BSE official lifecycle coverage is not verified"
+                "BSE transferred security requires composite evidence"
             )
         try:
             for delisted in (False, True):
@@ -232,9 +255,7 @@ class OfficialSecurityLifecycleSource:
         except Exception as exc:
             message = str(exc).strip() or exc.__class__.__name__
             raise SecurityLifecycleSourceError(message) from exc
-        raise SecurityLifecycleSourceError(
-            f"official lifecycle identity not found for {code}"
-        )
+        raise SecurityLifecycleSourceError(f"official lifecycle identity not found for {code}")
 
 
 __all__ = [

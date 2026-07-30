@@ -350,13 +350,21 @@ def test_mapping_parser_ignores_unrelated_html_tables() -> None:
 
 
 def test_mapping_parser_accepts_official_td_header_row() -> None:
-    mapping = _mapping_html().replace(b"</table>", (
-        "<tr><td colspan=\"5\">注：由全国股转系统原精选层平移进入北交所的"
-        "上市公司，上表中上市日期字段为其在原精选层的挂牌日期。</td></tr>"
-        "</table>"
-    ).encode()).replace(b"<th>", b"<td>").replace(
-        b"</th>",
-        b"</td>",
+    mapping = (
+        _mapping_html()
+        .replace(
+            b"</table>",
+            (
+                '<tr><td colspan="5">注：由全国股转系统原精选层平移进入北交所的'
+                "上市公司，上表中上市日期字段为其在原精选层的挂牌日期。</td></tr>"
+                "</table>"
+            ).encode(),
+        )
+        .replace(b"<th>", b"<td>")
+        .replace(
+            b"</th>",
+            b"</td>",
+        )
     )
     source = BseSuspensionEventSource(
         page_fetcher=lambda **_: _payload(_page([], total_pages=0)),

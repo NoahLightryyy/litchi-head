@@ -19,6 +19,10 @@
 from src.data.providers.adata_source import ADataSource
 from src.data.providers.akshare import AKShareSource
 from src.data.providers.base import DataSource
+from src.data.providers.bse_status import (
+    BseSuspensionEventSource,
+    BseSuspensionEventSourceError,
+)
 from src.data.providers.cninfo import (
     CninfoAnnouncementSource,
     CninfoDirectAnnouncementSource,
@@ -47,6 +51,8 @@ from src.data.providers.zzshare import ZzshareSource
 __all__ = [
     "ADataSource",
     "AKShareSource",
+    "BseSuspensionEventSource",
+    "BseSuspensionEventSourceError",
     "CninfoAnnouncementSource",
     "CninfoDirectAnnouncementSource",
     "CninfoSuspensionEventSource",
