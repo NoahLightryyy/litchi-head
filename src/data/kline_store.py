@@ -517,6 +517,12 @@ class KlineAuditStore:
     def persist(self, snapshot: KlineEvidenceSnapshot) -> str:
         """Write immutable members first and publish the SQL manifest last."""
         try:
+            snapshot = KlineEvidenceSnapshot.model_validate(
+                snapshot.model_dump(
+                    mode="python",
+                    exclude={"snapshot_id"},
+                )
+            )
             members: list[_Member] = []
             for source in sorted(
                 snapshot.source_audits,
@@ -591,9 +597,15 @@ class KlineAuditStore:
 
     def _read_member(self, member: _Member) -> tuple[RawDailyBar, ...]:
         path = self._root / member.relative_path
-        if not path.is_file():
-            raise KlineAuditStoreError("K-line audit member is missing")
-        if _sha256(path.read_bytes()) != member.content_hash:
+        try:
+            if not path.is_file():
+                raise KlineAuditStoreError("K-line audit member is missing")
+            raw = path.read_bytes()
+        except KlineAuditStoreError:
+            raise
+        except OSError as exc:
+            raise KlineAuditStoreError("K-line audit member is unavailable") from exc
+        if _sha256(raw) != member.content_hash:
             raise KlineAuditStoreError("K-line audit member hash mismatch")
         try:
             frame = pd.read_parquet(path, engine="pyarrow")
