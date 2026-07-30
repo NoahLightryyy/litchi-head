@@ -132,3 +132,4 @@ CNINFO 上的上市公司法定披露 PDF，只有正文出现明确的“某日
 - 上一张：[35｜分时证据分级](35-intraday-evidence-levels.md)
 - 相关：[32｜多源证据契约](32-multi-source-evidence-contract.md)
 - 相关：[34｜实时行情对账](34-realtime-quote-reconciliation.md)
+- 下一张：[37｜不可变 K 线证据](37-immutable-kline-audit-replay.md)

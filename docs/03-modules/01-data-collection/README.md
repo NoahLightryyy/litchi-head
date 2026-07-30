@@ -17,10 +17,13 @@
   确定性检查点不读取目标日之后结束的批次
 - ✅ 北交所官方生命周期与停复牌状态：完整上市清单、新旧代码映射、市场日历
   分页/分类计数/窗口校验；0600/0700 进入既有账本，9001 只作盘中事件
+- ✅ KR-1B-3A 审计存储：SQLite 不可变清单 + 内容寻址 Parquet 保存逐源 RAW、
+  诊断与权威版本引用；篡改失败关闭并支持确定性 `as_of` 回放
 - ✅ `DataEvidenceService` 并发汇总多个通道，输出统一证据信封
 - ✅ 新闻与实时行情已接入正式辩论零 LLM 失败关闭
 - ✅ L1 分时一期完成，动态分钟显式标记 `PROVISIONAL`
-- ⟳ 下一步完成 KR-1B-3 长窗覆盖与 RAW/诊断/状态证据持久化，再实现双时间尺度信封
+- ⟳ 下一步只做 KR-1B-3B 真实新浪/腾讯长窗覆盖证明和运行时接入；不得重建
+  3A 存储或擅自更换数据源
 - ⟳ 旧 Provider 继续逐个迁移到显式六态结果
 
 ## 文档
@@ -43,3 +46,4 @@
 - `src/data/providers/cninfo_status.py`
 - `src/data/providers/bse_status.py`
 - `src/data/kline_status.py`
+- `src/data/kline_store.py`
