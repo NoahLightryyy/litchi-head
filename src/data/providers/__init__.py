@@ -11,7 +11,9 @@
         ├── CninfoDirectAnnouncementSource — 巨潮公开端点直连公告适配器
         ├── CninfoAnnouncementSource — AKShare 包装的巨潮公告适配器
         ├── EastmoneyQuoteSource — 东方财富实时行情直连适配器
-        └── SinaQuoteSource — 新浪实时行情直连适配器
+        ├── SinaQuoteSource — 新浪实时行情直连适配器
+        ├── SinaRawDailyKlineSource — 新浪 RAW 完成日线
+        └── TencentRawDailyKlineSource — 腾讯 RAW 完成日线
 """
 
 from src.data.providers.adata_source import ADataSource
@@ -22,6 +24,10 @@ from src.data.providers.cninfo import (
     CninfoDirectAnnouncementSource,
 )
 from src.data.providers.fallback import FallbackSource
+from src.data.providers.kline import (
+    SinaRawDailyKlineSource,
+    TencentRawDailyKlineSource,
+)
 from src.data.providers.news import EastmoneyNewsSource, SinaNewsSource
 from src.data.providers.quotes import EastmoneyQuoteSource, SinaQuoteSource
 from src.data.providers.zzshare import ZzshareSource
@@ -37,5 +43,7 @@ __all__ = [
     "FallbackSource",
     "SinaNewsSource",
     "SinaQuoteSource",
+    "SinaRawDailyKlineSource",
+    "TencentRawDailyKlineSource",
     "ZzshareSource",
 ]

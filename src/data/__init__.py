@@ -29,6 +29,7 @@ from src.data.indicators import (
     SelectorResult,
     normalize_industry,
 )
+from src.data.kline import MarketCode, RawDailyBar
 from src.data.models import (
     AnnouncementItem,
     BoardInfo,
@@ -53,8 +54,10 @@ __all__ = [
     "IndicatorDef",
     "IndustryChainPosition",
     "KLine",
+    "MarketCode",
     "NewsItem",
     "REGISTRY",
+    "RawDailyBar",
     "SelectorResult",
     "StockInfo",
     "StockQuote",
