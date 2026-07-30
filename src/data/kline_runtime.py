@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -37,6 +38,7 @@ from src.data.providers.kline import (
     SinaRawDailyKlineSource,
     TencentRawDailyKlineSource,
 )
+from src.utils.config import settings
 
 KLINE_RAW_EVIDENCE_POLICY = EvidencePolicy(
     capability=EvidenceCapability.KLINE,
@@ -44,12 +46,23 @@ KLINE_RAW_EVIDENCE_POLICY = EvidencePolicy(
     required_upstream_ids={"sina", "tencent"},
 )
 SHANGHAI = ZoneInfo("Asia/Shanghai")
-DEFAULT_KLINE_AUDIT_ROOT = Path("data/evidence/kline-audit")
+DEFAULT_KLINE_AUDIT_ROOT = Path(settings.data_dir).resolve() / "evidence" / "kline-audit"
 DEFAULT_KLINE_CALENDAR = official_a_share_calendar_2026()
+logger = logging.getLogger(__name__)
 
 
 def _now_shanghai() -> datetime:
     return datetime.now(SHANGHAI)
+
+
+def _kline_audit_root() -> Path:
+    configured = os.getenv("LITCHI_KLINE_AUDIT_ROOT")
+    if configured is None:
+        return DEFAULT_KLINE_AUDIT_ROOT
+    path = Path(configured).expanduser()
+    if not path.is_absolute():
+        raise ValueError("LITCHI_KLINE_AUDIT_ROOT must be an absolute path")
+    return path.resolve()
 
 
 def _unusable(
@@ -116,10 +129,15 @@ class RawDailyKlineEvidenceService:
         source_results: list[SourceResult[RawDailyBar]],
         *,
         collected_at: datetime,
+        require_authority: bool = False,
     ) -> EvidenceEnvelope:
         results = [self._validate_source(result, request=request) for result in source_results]
         results = self._validate_pair(results)
-        results = self._validate_expected_dates(results, request=request)
+        results = self._validate_expected_dates(
+            results,
+            request=request,
+            require_authority=require_authority,
+        )
         assessment = self._registry.assess(policy, results)
         canonical: list[RawDailyBar] = []
         if assessment.complete:
@@ -179,6 +197,31 @@ class RawDailyKlineEvidenceService:
                 hashes.append(f"status-window:{window.content_hash}")
         return tuple(sorted(set(hashes)))
 
+    def _fetch_audit_safely(
+        self,
+        source: SinaRawDailyKlineSource | TencentRawDailyKlineSource,
+        request: EvidenceRequest,
+    ) -> KlineSourceAudit:
+        try:
+            return source.fetch_audited(request)
+        except Exception as exc:
+            logger.exception(
+                "Unexpected audited K-line adapter failure: source=%s",
+                source.descriptor.source_id,
+            )
+            failed_at = self._now_provider()
+            if failed_at.tzinfo is None:
+                failed_at = datetime.now(UTC)
+            return KlineSourceAudit(
+                source_id=source.descriptor.source_id,
+                upstream_id=source.descriptor.upstream_id,
+                adapter_version=source.adapter_version,
+                status=SourceStatus.FAILED,
+                fetched_at=failed_at.astimezone(UTC),
+                error_code="unexpected_adapter_failure",
+                error_message=str(exc).strip() or exc.__class__.__name__,
+            )
+
     def collect_and_persist(
         self,
         request: EvidenceRequest,
@@ -196,7 +239,10 @@ class RawDailyKlineEvidenceService:
         ) as executor:
             audits = tuple(
                 executor.map(
-                    lambda source: source.fetch_audited(request),
+                    lambda source: self._fetch_audit_safely(
+                        source,
+                        request,
+                    ),
                     self._audited_sources,
                 )
             )
@@ -209,6 +255,7 @@ class RawDailyKlineEvidenceService:
             policy,
             [self._audit_result(audit) for audit in audits],
             collected_at=collected_at,
+            require_authority=True,
         )
         final_results = {result.source_id: result for result in envelope.source_results}
         final_audits = tuple(
@@ -366,9 +413,25 @@ class RawDailyKlineEvidenceService:
         results: list[SourceResult[RawDailyBar]],
         *,
         request: EvidenceRequest,
+        require_authority: bool = False,
     ) -> list[SourceResult[RawDailyBar]]:
         if self._calendar is None:
-            return results
+            if not require_authority:
+                return results
+            successful = [
+                result
+                for result in results
+                if result.status is SourceStatus.SUCCESS_DATA and result.items
+            ]
+            return self._conflict(
+                results,
+                successful,
+                status=SourceStatus.STALE,
+                error_code="calendar_coverage_missing",
+                error_message=(
+                    "authoritative calendar is required for persisted K-line completeness"
+                ),
+            )
         successful = [
             result
             for result in results
@@ -520,14 +583,7 @@ class RawDailyKlineEvidenceRuntime:
         security_status_catalog: StaticSecurityStatusCatalog | None = None,
         now_provider: Callable[[], datetime] = _now_shanghai,
     ) -> None:
-        self.store = store or KlineAuditStore(
-            Path(
-                os.getenv(
-                    "LITCHI_KLINE_AUDIT_ROOT",
-                    str(DEFAULT_KLINE_AUDIT_ROOT),
-                )
-            )
-        )
+        self.store = store or KlineAuditStore(_kline_audit_root())
         sina = sina_source or SinaRawDailyKlineSource()
         tencent = tencent_source or TencentRawDailyKlineSource()
         registry = EvidenceSourceRegistry()

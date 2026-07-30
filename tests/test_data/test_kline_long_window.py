@@ -322,7 +322,10 @@ def test_runtime_without_authoritative_calendar_fails_closed(
     assert replayed.snapshot_id == snapshot_id
     assert replayed.canonical_bars == ()
     assert replayed.authority_hashes == ()
-    assert {audit.error_code for audit in replayed.source_audits} == {"calendar_coverage_missing"}
+    assert {audit.error_code for audit in replayed.source_audits} == {
+        "calendar_coverage_missing",
+        "kline_source_window_not_covered",
+    }
 
 
 def test_runtime_isolates_unexpected_source_failure_and_persists_diagnostic(

@@ -10,7 +10,7 @@ import sqlite3
 import tempfile
 from collections.abc import Mapping
 from contextlib import closing
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
@@ -180,6 +180,30 @@ class KlineEvidenceSnapshot(BaseModel):
             raise ValueError("K-line snapshot has duplicate source_id")
         start = self.request.start_at.date()
         end = self.request.end_at.date()
+        for audit in self.source_audits:
+            chunks = audit.query_chunks
+            if any(chunk.query_start < start or chunk.query_end > end for chunk in chunks):
+                raise ValueError("K-line chunk coverage exceeds the request window")
+            if audit.raw_bars and (
+                not chunks
+                or any(
+                    not any(
+                        chunk.query_start <= bar.trade_date <= chunk.query_end for chunk in chunks
+                    )
+                    for bar in audit.raw_bars
+                )
+            ):
+                raise ValueError("K-line RAW bar is outside chunk coverage")
+            if audit.status is SourceStatus.SUCCESS_DATA and (
+                not chunks
+                or chunks[0].query_start != start
+                or chunks[-1].query_end != end
+                or any(
+                    current.query_end + timedelta(days=1) != following.query_start
+                    for current, following in zip(chunks, chunks[1:])
+                )
+            ):
+                raise ValueError("successful K-line source has incomplete chunk coverage")
         expected_market = market_code_for(self.request.stock_code)
         bars = [
             *self.canonical_bars,

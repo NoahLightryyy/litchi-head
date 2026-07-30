@@ -38,7 +38,12 @@ TENCENT_QUERY_CALENDAR_DAYS = 1000
 
 
 class SinaDailyFetcher(Protocol):
-    def __call__(self, code: str, start: date, end: date) -> str:
+    def __call__(
+        self,
+        code: str,
+        start: date,
+        end: date,
+    ) -> str | bytes:
         """Return one Sina unadjusted daily response."""
         ...
 
@@ -49,7 +54,7 @@ class TencentDailyFetcher(Protocol):
         code: str,
         start: date,
         end: date,
-    ) -> Mapping[str, Any]:
+    ) -> Mapping[str, Any] | bytes:
         """Return one Tencent unadjusted daily response."""
         ...
 
@@ -110,7 +115,11 @@ def _completed_in_window(
     return start <= trade_date <= end and trade_date < now.date()
 
 
-def _default_sina_fetcher(code: str, start: date, end: date) -> str:
+def _default_sina_fetcher(
+    code: str,
+    start: date,
+    end: date,
+) -> bytes:
     import httpx
 
     symbol = f"{_market_prefix(code)}{code}"
@@ -131,14 +140,14 @@ def _default_sina_fetcher(code: str, start: date, end: date) -> str:
         follow_redirects=True,
     )
     response.raise_for_status()
-    return response.text
+    return response.content
 
 
 def _default_tencent_fetcher(
     code: str,
     start: date,
     end: date,
-) -> Mapping[str, Any]:
+) -> bytes:
     import httpx
 
     symbol = f"{_market_prefix(code)}{code}"
@@ -157,10 +166,7 @@ def _default_tencent_fetcher(
         follow_redirects=True,
     )
     response.raise_for_status()
-    payload = response.json()
-    if not isinstance(payload, Mapping):
-        raise ValueError("Tencent RAW daily response must be an object")
-    return payload
+    return response.content
 
 
 def _sina_datalen(start: date, end: date) -> int:
@@ -175,6 +181,23 @@ def _canonical_response(payload: Mapping[str, Any]) -> bytes:
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
+
+
+def _sina_response(response: str | bytes) -> tuple[str, bytes]:
+    if isinstance(response, bytes):
+        return response.decode("utf-8"), response
+    return response, response.encode("utf-8")
+
+
+def _tencent_response(
+    response: Mapping[str, Any] | bytes,
+) -> tuple[Mapping[str, Any], bytes]:
+    if isinstance(response, bytes):
+        payload = json.loads(response)
+        if not isinstance(payload, Mapping):
+            raise ValueError("Tencent RAW daily response must be an object")
+        return payload, response
+    return response, _canonical_response(response)
 
 
 def _response_proof(
@@ -341,6 +364,7 @@ def _tencent_bar(
 class SinaRawDailyKlineSource:
     """Direct Sina RAW daily bars with share-granular volume."""
 
+    adapter_version = SINA_ADAPTER_VERSION
     descriptor = SourceDescriptor(
         source_id="direct-sina-raw-daily",
         upstream_id="sina",
@@ -380,14 +404,17 @@ class SinaRawDailyKlineSource:
         rows: list[Mapping[str, Any]] = []
         fetched_at = datetime.now(UTC)
         try:
-            fetched_at = _aware_local_now(self._now_provider)
             start, end = _request_dates(request)
             try:
-                raw = self._fetcher(request.stock_code, start, end)
+                response = self._fetcher(request.stock_code, start, end)
             except Exception as exc:
+                fetched_at = _aware_local_now(self._now_provider)
                 raise _UpstreamRequestError(str(exc).strip() or exc.__class__.__name__) from exc
+            fetched_at = _aware_local_now(self._now_provider)
+            if isinstance(response, bytes):
+                raw_bytes = response
+            raw, raw_bytes = _sina_response(response)
             symbol = f"{_market_prefix(request.stock_code)}{request.stock_code}"
-            raw_bytes = raw.encode("utf-8")
             rows = _sina_payload(raw, expected_symbol=symbol)
             bars, raw_dates = _sina_bars(
                 rows,
@@ -396,9 +423,7 @@ class SinaRawDailyKlineSource:
                 end=end,
                 now=fetched_at,
             )
-            complete = len(rows) < _sina_datalen(start, end) or (
-                bool(raw_dates) and min(raw_dates) <= start
-            )
+            complete = bool(raw_dates) and min(raw_dates) <= start
             chunks.append(
                 _response_proof(
                     start=start,
@@ -468,6 +493,7 @@ class SinaRawDailyKlineSource:
 class TencentRawDailyKlineSource:
     """Direct Tencent RAW daily bars with whole-lot volume precision."""
 
+    adapter_version = TENCENT_ADAPTER_VERSION
     descriptor = SourceDescriptor(
         source_id="direct-tencent-raw-daily",
         upstream_id="tencent",
@@ -522,13 +548,12 @@ class TencentRawDailyKlineSource:
             )
         chunks: list[KlineQueryChunkProof] = []
         bars_by_date: dict[date, RawDailyBar] = {}
-        response_bytes: bytes | None = None
         chunk_start: date | None = None
         chunk_end: date | None = None
-        raw_rows: list[list[Any]] = []
         fetched_at = datetime.now(UTC)
+        current_response_bytes: bytes | None = None
+        current_raw_rows: list[list[Any]] = []
         try:
-            fetched_at = _aware_local_now(self._now_provider)
             start, end = _request_dates(request)
             symbol = f"{_market_prefix(request.stock_code)}{request.stock_code}"
             chunk_start = start
@@ -537,18 +562,27 @@ class TencentRawDailyKlineSource:
                     chunk_start + timedelta(days=TENCENT_QUERY_CALENDAR_DAYS - 1),
                     end,
                 )
+                current_response_bytes = None
+                current_raw_rows = []
                 try:
-                    payload = self._fetcher(
+                    response = self._fetcher(
                         request.stock_code,
                         chunk_start,
                         chunk_end,
                     )
                 except Exception as exc:
+                    fetched_at = _aware_local_now(self._now_provider)
                     raise _UpstreamRequestError(str(exc).strip() or exc.__class__.__name__) from exc
-                response_bytes = _canonical_response(payload)
-                raw_rows = _tencent_rows(payload, expected_symbol=symbol)
+                fetched_at = _aware_local_now(self._now_provider)
+                if isinstance(response, bytes):
+                    current_response_bytes = response
+                payload, current_response_bytes = _tencent_response(response)
+                current_raw_rows = _tencent_rows(
+                    payload,
+                    expected_symbol=symbol,
+                )
                 seen_in_chunk: set[date] = set()
-                for row in raw_rows:
+                for row in current_raw_rows:
                     trade_date = date.fromisoformat(str(row[0]).strip())
                     if not chunk_start <= trade_date <= chunk_end:
                         raise ValueError("Tencent RAW daily row is outside its query chunk")
@@ -572,8 +606,8 @@ class TencentRawDailyKlineSource:
                         start=chunk_start,
                         end=chunk_end,
                         fetched_at=fetched_at,
-                        response=response_bytes,
-                        row_count=len(raw_rows),
+                        response=current_response_bytes,
+                        row_count=len(current_raw_rows),
                         complete=True,
                     )
                 )
@@ -585,20 +619,25 @@ class TencentRawDailyKlineSource:
                 adapter_version=TENCENT_ADAPTER_VERSION,
                 status=SourceStatus.FAILED,
                 fetched_at=fetched_at,
+                bars=[bars_by_date[trade_date] for trade_date in sorted(bars_by_date)],
                 chunks=chunks,
                 error_code="upstream_request_failed",
                 error_message=str(exc).strip() or exc.__class__.__name__,
             )
         except Exception as exc:
             logger.exception("Tencent RAW daily payload is invalid")
-            if response_bytes is not None and chunk_start is not None and chunk_end is not None:
+            if (
+                current_response_bytes is not None
+                and chunk_start is not None
+                and chunk_end is not None
+            ):
                 chunks.append(
                     _response_proof(
                         start=chunk_start,
                         end=chunk_end,
                         fetched_at=fetched_at,
-                        response=response_bytes,
-                        row_count=len(raw_rows),
+                        response=current_response_bytes,
+                        row_count=len(current_raw_rows),
                         complete=False,
                     )
                 )
@@ -607,6 +646,7 @@ class TencentRawDailyKlineSource:
                 adapter_version=TENCENT_ADAPTER_VERSION,
                 status=SourceStatus.FAILED,
                 fetched_at=fetched_at,
+                bars=[bars_by_date[trade_date] for trade_date in sorted(bars_by_date)],
                 chunks=chunks,
                 error_code="invalid_upstream_payload",
                 error_message=str(exc).strip() or exc.__class__.__name__,
