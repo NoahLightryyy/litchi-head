@@ -21,6 +21,8 @@ from src.data.kline import RawDailyBar, market_code_for
 from src.data.kline_calendar import (
     CalendarCoverageError,
     OfficialTradingCalendar,
+    SecurityStatusCoverageError,
+    StaticSecurityStatusCatalog,
     official_a_share_calendar_2026,
 )
 from src.data.providers.kline import (
@@ -65,11 +67,13 @@ class RawDailyKlineEvidenceService:
         *,
         max_workers: int = 2,
         calendar: OfficialTradingCalendar | None = None,
+        security_status_catalog: StaticSecurityStatusCatalog | None = None,
         now_provider: Callable[[], datetime] = _now_shanghai,
     ) -> None:
         self._registry = registry
         self._collector = DataEvidenceService(registry, max_workers=max_workers)
         self._calendar = calendar
+        self._security_status_catalog = security_status_catalog
         self._now_provider = now_provider
 
     def collect(
@@ -286,6 +290,26 @@ class RawDailyKlineEvidenceService:
                 status=SourceStatus.STALE,
                 error_code="calendar_coverage_missing",
                 error_message=str(exc),
+            )
+
+        if self._security_status_catalog is not None:
+            try:
+                status_window = self._security_status_catalog.resolve(
+                    request.stock_code,
+                    market_code_for(request.stock_code),
+                    start,
+                    completed_end,
+                )
+            except SecurityStatusCoverageError as exc:
+                return self._conflict(
+                    results,
+                    successful,
+                    status=SourceStatus.STALE,
+                    error_code="security_status_coverage_missing",
+                    error_message=str(exc),
+                )
+            expected = set(
+                status_window.expected_dates(tuple(sorted(expected)))
             )
 
         actual = {bar.trade_date for bar in successful[0].items}
