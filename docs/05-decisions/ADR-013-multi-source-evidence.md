@@ -223,6 +223,10 @@ K 线证据分为三个不可混淆的层：
   `RawDailyKlineEvidenceService` 对两源共同漏开市日返回
   `expected_trading_date_missing`，对未版本化年份返回
   `calendar_coverage_missing`。该能力仍不自行推断全天停牌、上市前或退市后日期。
+- 同文件已实现 KR-1B-2A `OfficialSecurityStatusWindow`：官方覆盖窗口、上市日、
+  退市日、全天停牌、盘中临停、来源链接与内容哈希分字段保存；只有全天停牌会排除
+  预期日，盘中临停仍要求日线。当前只是契约和静态目录，官方在线采集/运行时串联
+  仍属 KR-1B-2B，不能写成已接入。
 
 ## 后续门禁
 
