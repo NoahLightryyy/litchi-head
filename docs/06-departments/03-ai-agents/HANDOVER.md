@@ -56,7 +56,7 @@ last_updated: 2026-07-30 (K 线口径与 Agent 语义约束批准)
 | 1 🟡 | TD-003 MessageRouter 持久化（`save_snapshot/load_snapshot`） | 无 |
 | 2 🟡 | TD-050 XiaoZhiAgent 补 LLM 超时/异常/非法返回测试 | 无 |
 | 3 🟢 | TD-006 EvidenceItem 添加 `validate_chain()` 方法 | 无 |
-| 4 🔥 | KR-4 提示词与结构化输出约束：区分 RAW 成交事实、点时前复权技术结构、实时事实与动态估算 | KR-1A 旁路已完成；依赖数据部 KR-1B～3 |
+| 4 🔥 | KR-4 提示词与结构化输出约束：区分 RAW 成交事实、点时前复权技术结构、实时事实与动态估算 | KR-1A/B-1 旁路已完成；依赖数据部 KR-1B-2～3 |
 
 ### 盘中分析约束（2026-07-30 确认）
 

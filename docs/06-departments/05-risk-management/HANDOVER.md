@@ -42,7 +42,7 @@ last_updated: 2026-07-30 (K 线完整性风控职责确认)
 | 1 🥈 | **RC-004 RP-TUNE 风险参数自适应** — 回测结果到达时，根据 max_drawdown / win_rate / sharpe 自动调整 stop_loss 和 position_size 覆盖值。通过 `CallbackStorage.load_risk_override()` 在风控辩论阶段消费 | 记忆系统部 RC-001（核心引擎）|
 | 2 🥈 | **UI-2b 用户经验反馈闭环·风控参与** — 用户操作偏差检测（连续逆 AI 操作 → 标记风险行为模式 → 风控辩论参考） | UI-1 用户行为数据积累 | ~1h |
 | 2 🟢 | 增加更多 RiskProfile 场景测试（保守/激进/平衡） | 无 |
-| 🔥 | **TD-069/KR-4 数据完整性硬门禁** — RAW/复权冲突或独立源不足直接 `passed=false` | KR-1A 旁路已完成；等待数据部 KR-1B～3 + 辩论门禁 |
+| 🔥 | **TD-069/KR-4 数据完整性硬门禁** — RAW/复权冲突或独立源不足直接 `passed=false` | KR-1A/B-1 已完成；等待数据部 KR-1B-2～3 + 辩论门禁 |
 
 **RC-004 调优规则概要**：
 

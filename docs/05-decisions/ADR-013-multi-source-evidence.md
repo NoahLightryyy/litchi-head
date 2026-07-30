@@ -218,6 +218,11 @@ K 线证据分为三个不可混淆的层：
   版本化；个股缺日仅在交易所或上市公司官方公告证明全天停牌时排除。新浪日历和
   东方财富停复牌只允许发现/差异告警，不能覆盖权威事实。该方案等待用户确认，
   尚未成为已实施默认值。
+- 用户随后确认免费官方方案。`src/data/kline_calendar.py` 已实现 KR-1B-1：
+  SSE/SZSE/BSE 分别保存 2026 官方来源、发布时间、规范化闭市日和内容哈希；
+  `RawDailyKlineEvidenceService` 对两源共同漏开市日返回
+  `expected_trading_date_missing`，对未版本化年份返回
+  `calendar_coverage_missing`。该能力仍不自行推断全天停牌、上市前或退市后日期。
 
 ## 后续门禁
 

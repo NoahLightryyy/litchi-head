@@ -45,7 +45,7 @@ last_updated: 2026-07-30 (盘中 AI 双时间尺度方向确认)
 | LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
 | 多源证据（data→debate/backend） | 🟡 | CNINFO、新闻、实时行情与 L1 分时已统一；K 线 KR-1A 旁路完成，KR-1B/下游与行业待迁移 |
 | 盘中双时间尺度（data→debate→agents→backend→frontend） | 🟡 | 已确认目标：完整历史日 K 与实时/分时/`PROVISIONAL` 今日状态分层进入 AI；待实现 |
-| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | KR-1A 已完成；KR-1B 推荐交易所公告版本化为权威源，聚合站仅发现，等待用户确认后实施 |
+| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | KR-1A、KR-1B-1 已完成；下一步仅做官方全天停牌/证券生命周期和持久化，不重复日历门禁 |
 
 ## 当前未完成事项（跨部门）
 
