@@ -20,14 +20,13 @@ import pytest
 
 from src.data.evidence import (
     EvidenceCapability,
-    EvidencePolicy,
     EvidenceRequest,
     EvidenceSourceRegistry,
     SourceDescriptor,
     SourceResult,
     SourceStatus,
 )
-from src.data.kline import MarketCode, RawDailyBar
+from src.data.kline import MarketCode, RawDailyBar, market_code_for
 from src.data.kline_runtime import (
     KLINE_RAW_EVIDENCE_POLICY,
     RawDailyKlineEvidenceService,
@@ -186,6 +185,21 @@ def test_raw_bar_rejects_prices_that_are_not_aligned_to_price_tick() -> None:
         _bar(date(2026, 7, 28), close="11.205")
 
 
+@pytest.mark.parametrize(
+    ("code", "market"),
+    [
+        ("600000", MarketCode.SSE),
+        ("000001", MarketCode.SZSE),
+        ("920002", MarketCode.BSE),
+    ],
+)
+def test_market_routing_covers_all_a_share_exchanges(
+    code: str,
+    market: MarketCode,
+) -> None:
+    assert market_code_for(code) is market
+
+
 def test_sina_source_parses_share_precision_and_excludes_current_day() -> None:
     result = SinaRawDailyKlineSource(
         fetcher=lambda code, start, end: _sina_payload(),
@@ -262,6 +276,55 @@ def test_transport_failure_is_failed_not_empty(
     assert result.status is SourceStatus.FAILED
     assert result.error_code == "upstream_request_failed"
     assert result.error_message == "timeout"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        SinaRawDailyKlineSource(
+            fetcher=lambda code, start, end: "broken",
+            now_provider=lambda: NOW,
+        ),
+        TencentRawDailyKlineSource(
+            fetcher=lambda code, start, end: {"code": 0, "data": {}},
+            now_provider=lambda: NOW,
+        ),
+    ],
+)
+def test_malformed_payload_is_failed_not_empty(
+    source: SinaRawDailyKlineSource | TencentRawDailyKlineSource,
+) -> None:
+    result = source.fetch(REQUEST)
+
+    assert result.status is SourceStatus.FAILED
+    assert result.error_code == "invalid_upstream_payload"
+    assert result.error_message
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        SinaRawDailyKlineSource(
+            fetcher=lambda code, start, end: _sina_payload(),
+            now_provider=lambda: NOW,
+        ),
+        TencentRawDailyKlineSource(
+            fetcher=lambda code, start, end: _tencent_payload(),
+            now_provider=lambda: NOW,
+        ),
+    ],
+)
+def test_non_kline_capability_is_explicitly_unsupported(
+    source: SinaRawDailyKlineSource | TencentRawDailyKlineSource,
+) -> None:
+    request = EvidenceRequest(
+        capability=EvidenceCapability.NEWS,
+        stock_code="000001",
+    )
+
+    result = source.fetch(request)
+
+    assert result.status is SourceStatus.UNSUPPORTED
 
 
 def test_aligned_raw_sources_publish_precise_canonical_bars() -> None:
@@ -369,6 +432,76 @@ def test_completed_trade_date_set_mismatch_is_conflicted() -> None:
     } == {"trading_date_conflict"}
 
 
+def test_duplicate_trade_date_from_one_source_is_conflicted() -> None:
+    duplicate = _bar(date(2026, 7, 28))
+    envelope = _service(
+        _result("direct-sina-raw-daily", "sina", [duplicate, duplicate]),
+        _result(
+            "direct-tencent-raw-daily",
+            "tencent",
+            [
+                _bar(
+                    date(2026, 7, 28),
+                    volume=106_101_100,
+                    volume_precision=100,
+                )
+            ],
+        ),
+    ).collect(REQUEST, KLINE_RAW_EVIDENCE_POLICY)
+
+    assert envelope.complete is False
+    assert envelope.source_results[0].error_code == "duplicate_trading_date"
+
+
+def test_price_tick_mismatch_is_conflicted_before_price_comparison() -> None:
+    sina = [_bar(date(2026, 7, 28))]
+    tencent = [
+        _bar(
+            date(2026, 7, 28),
+            volume=106_101_100,
+            volume_precision=100,
+        ).model_copy(update={"price_tick": Decimal("0.001")})
+    ]
+
+    envelope = _service(
+        _result("direct-sina-raw-daily", "sina", sina),
+        _result("direct-tencent-raw-daily", "tencent", tencent),
+    ).collect(REQUEST, KLINE_RAW_EVIDENCE_POLICY)
+
+    assert envelope.complete is False
+    assert {
+        result.error_code for result in envelope.source_results
+    } == {"price_tick_conflict"}
+
+
+def test_amount_difference_uses_declared_precision_when_both_sources_supply_it() -> None:
+    base = _bar(date(2026, 7, 28))
+    sina = base.model_copy(
+        update={
+            "amount": Decimal("1000.00"),
+            "amount_precision": Decimal("0.01"),
+        }
+    )
+    tencent = base.model_copy(
+        update={
+            "volume": 106_101_100,
+            "volume_precision": 100,
+            "amount": Decimal("1000.01"),
+            "amount_precision": Decimal("0.01"),
+        }
+    )
+
+    envelope = _service(
+        _result("direct-sina-raw-daily", "sina", [sina]),
+        _result("direct-tencent-raw-daily", "tencent", [tencent]),
+    ).collect(REQUEST, KLINE_RAW_EVIDENCE_POLICY)
+
+    assert envelope.complete is False
+    assert {
+        result.error_code for result in envelope.source_results
+    } == {"raw_amount_conflict"}
+
+
 def test_two_empty_windows_do_not_count_as_complete_kline_evidence() -> None:
     envelope = _service(
         _result(
@@ -389,6 +522,64 @@ def test_two_empty_windows_do_not_count_as_complete_kline_evidence() -> None:
     assert {
         result.error_code for result in envelope.source_results
     } == {"kline_window_empty"}
+
+
+def test_kline_service_requires_an_explicit_time_window() -> None:
+    request = EvidenceRequest(
+        capability=EvidenceCapability.KLINE,
+        stock_code="000001",
+    )
+    service = _service(
+        _result(
+            "direct-sina-raw-daily",
+            "sina",
+            [_bar(date(2026, 7, 28))],
+        ),
+        _result(
+            "direct-tencent-raw-daily",
+            "tencent",
+            [
+                _bar(
+                    date(2026, 7, 28),
+                    volume=106_101_100,
+                    volume_precision=100,
+                )
+            ],
+        ),
+    )
+
+    with pytest.raises(ValueError, match="start_at and end_at"):
+        service.collect(request, KLINE_RAW_EVIDENCE_POLICY)
+
+
+def test_kline_service_requires_timezone_aware_time_bounds() -> None:
+    request = REQUEST.model_copy(
+        update={
+            "start_at": datetime(2026, 7, 28),
+            "end_at": datetime(2026, 7, 30, 23, 59),
+        }
+    )
+    service = _service(
+        _result(
+            "direct-sina-raw-daily",
+            "sina",
+            [_bar(date(2026, 7, 28))],
+        ),
+        _result(
+            "direct-tencent-raw-daily",
+            "tencent",
+            [
+                _bar(
+                    date(2026, 7, 28),
+                    volume=106_101_100,
+                    volume_precision=100,
+                )
+            ],
+        ),
+    )
+
+    with pytest.raises(ValueError, match="timezone-aware"):
+        service.collect(request, KLINE_RAW_EVIDENCE_POLICY)
 
 
 def test_bse_single_source_never_gets_dual_source_green_light() -> None:
