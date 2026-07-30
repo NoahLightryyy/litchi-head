@@ -120,8 +120,8 @@ def _snapshot(
         ),
         failed_source_ids=set() if complete else {"direct-sina-raw-daily"},
         unusable_source_ids=set() if complete else {"direct-sina-raw-daily"},
-        missing_required_upstream_ids=set() if complete else {"sina"},
-        missing_independent_upstreams=0 if complete else 1,
+        missing_required_upstream_ids=(set() if complete else {"sina", "tencent"}),
+        missing_independent_upstreams=0 if complete else 2,
     )
     return KlineEvidenceSnapshot(
         schema_version=1,

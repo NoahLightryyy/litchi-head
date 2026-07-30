@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import json
 import os
@@ -122,6 +123,8 @@ class KlineSourceAudit(BaseModel):
     @model_validator(mode="after")
     def validate_source_audit(self) -> "KlineSourceAudit":
         self.fetched_at = _aware(self.fetched_at, "source fetched_at")
+        if any(chunk.fetched_at > self.fetched_at for chunk in self.query_chunks):
+            raise ValueError("query chunk fetched_at must not exceed source fetched_at")
         if self.status is SourceStatus.SUCCESS_DATA:
             if not self.raw_bars:
                 raise ValueError("successful K-line source requires RAW bars")
@@ -131,6 +134,17 @@ class KlineSourceAudit(BaseModel):
             raise ValueError("unusable K-line source cannot contain RAW bars")
         if self.status is SourceStatus.FAILED and not self.error_message:
             raise ValueError("failed K-line source requires error_message")
+        self.raw_bars = tuple(sorted(self.raw_bars, key=lambda bar: bar.trade_date))
+        self.query_chunks = tuple(
+            sorted(
+                self.query_chunks,
+                key=lambda chunk: (
+                    chunk.query_start,
+                    chunk.query_end,
+                    chunk.response_hash,
+                ),
+            )
+        )
         return self
 
 
@@ -159,9 +173,9 @@ class KlineEvidenceSnapshot(BaseModel):
             raise ValueError("K-line snapshot requires a bounded request")
         if any(audit.fetched_at > self.collected_at for audit in self.source_audits):
             raise ValueError("source fetched_at must not exceed collected_at")
-        identities = {(audit.source_id, audit.upstream_id) for audit in self.source_audits}
-        if len(identities) != len(self.source_audits):
-            raise ValueError("K-line snapshot has duplicate source identity")
+        source_ids = {audit.source_id for audit in self.source_audits}
+        if len(source_ids) != len(self.source_audits):
+            raise ValueError("K-line snapshot has duplicate source_id")
         start = self.request.start_at.date()
         end = self.request.end_at.date()
         expected_market = market_code_for(self.request.stock_code)
@@ -183,6 +197,49 @@ class KlineEvidenceSnapshot(BaseModel):
             raise ValueError("incomplete K-line snapshot cannot expose canonical bars")
         if len(set(self.authority_hashes)) != len(self.authority_hashes):
             raise ValueError("authority hashes must not contain duplicates")
+        successful = {
+            audit.source_id
+            for audit in self.source_audits
+            if audit.status is SourceStatus.SUCCESS_DATA
+        }
+        successful_upstreams = {
+            audit.upstream_id
+            for audit in self.source_audits
+            if audit.status is SourceStatus.SUCCESS_DATA
+        }
+        failed = {
+            audit.source_id for audit in self.source_audits if audit.status is SourceStatus.FAILED
+        }
+        unusable = {
+            audit.source_id
+            for audit in self.source_audits
+            if audit.status is not SourceStatus.SUCCESS_DATA
+        }
+        missing_required = self.policy.required_upstream_ids - successful_upstreams
+        missing_independent = max(
+            0,
+            self.policy.min_independent_upstreams - len(successful_upstreams),
+        )
+        assessment = self.assessment
+        if (
+            assessment.successful_source_ids != successful
+            or assessment.successful_upstream_ids != successful_upstreams
+            or assessment.failed_source_ids != failed
+            or assessment.unusable_source_ids != unusable
+            or assessment.discovery_only_source_ids
+            or assessment.missing_required_upstream_ids != missing_required
+            or assessment.missing_independent_upstreams != missing_independent
+            or assessment.complete is not (not missing_required and missing_independent == 0)
+        ):
+            raise ValueError("K-line assessment contradicts source audits or policy")
+        self.source_audits = tuple(
+            sorted(
+                self.source_audits,
+                key=lambda audit: (audit.source_id, audit.upstream_id),
+            )
+        )
+        self.canonical_bars = tuple(sorted(self.canonical_bars, key=lambda bar: bar.trade_date))
+        self.authority_hashes = tuple(sorted(self.authority_hashes))
         return self
 
     @computed_field
@@ -291,6 +348,28 @@ class KlineAuditStore:
         ]
         return pd.DataFrame(rows)
 
+    @staticmethod
+    def _publish_member(temporary: Path, target: Path) -> None:
+        """Publish a member durably before its SQL manifest can be committed."""
+        if os.name == "nt":
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            move_file = kernel32.MoveFileExW
+            move_file.argtypes = [
+                ctypes.c_wchar_p,
+                ctypes.c_wchar_p,
+                ctypes.c_uint32,
+            ]
+            move_file.restype = ctypes.c_int
+            if not move_file(str(temporary), str(target), 0x1 | 0x8):
+                raise ctypes.WinError(ctypes.get_last_error())
+            return
+        os.replace(temporary, target)
+        directory_fd = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+
     def _write_member(
         self,
         member_key: str,
@@ -321,7 +400,7 @@ class KlineAuditStore:
                     raise KlineAuditStoreError("existing K-line member hash is invalid")
                 temporary.unlink()
             else:
-                os.replace(temporary, target)
+                self._publish_member(temporary, target)
             return _Member(
                 member_key=member_key,
                 relative_path=target.relative_to(self._root).as_posix(),
@@ -362,21 +441,26 @@ class KlineAuditStore:
         members: tuple[_Member, ...],
     ) -> None:
         request = snapshot.request
-        assert request.start_at is not None
-        assert request.end_at is not None
+        if request.start_at is None or request.end_at is None:
+            raise KlineAuditStoreError("bounded K-line request invariant was lost")
         with closing(self._connect()) as connection:
             with connection:
                 connection.execute("BEGIN IMMEDIATE")
                 existing = connection.execute(
                     """
-                    SELECT manifest_hash
+                    SELECT manifest_json, manifest_hash
                     FROM kline_snapshots
                     WHERE snapshot_id = ?
                     """,
                     (snapshot.snapshot_id,),
                 ).fetchone()
                 if existing is not None:
-                    if str(existing["manifest_hash"]) != manifest_hash:
+                    existing_json = str(existing["manifest_json"])
+                    existing_hash = str(existing["manifest_hash"])
+                    if (
+                        _sha256(existing_json.encode("utf-8")) != existing_hash
+                        or existing_hash != manifest_hash
+                    ):
                         raise KlineAuditStoreError("existing K-line snapshot manifest is corrupted")
                     return
                 connection.execute(
@@ -477,27 +561,30 @@ class KlineAuditStore:
         end: date,
         as_of: datetime,
     ) -> sqlite3.Row:
-        with closing(self._connect()) as connection:
-            row = connection.execute(
-                """
-                SELECT *
-                FROM kline_snapshots
-                WHERE code = ?
-                  AND market = ?
-                  AND requested_start = ?
-                  AND requested_end = ?
-                  AND collected_at <= ?
-                ORDER BY collected_at DESC, snapshot_id DESC
-                LIMIT 1
-                """,
-                (
-                    code,
-                    market.value,
-                    start.isoformat(),
-                    end.isoformat(),
-                    as_of.isoformat(),
-                ),
-            ).fetchone()
+        try:
+            with closing(self._connect()) as connection:
+                row = connection.execute(
+                    """
+                    SELECT *
+                    FROM kline_snapshots
+                    WHERE code = ?
+                      AND market = ?
+                      AND requested_start = ?
+                      AND requested_end = ?
+                      AND collected_at <= ?
+                    ORDER BY collected_at DESC, snapshot_id DESC
+                    LIMIT 1
+                    """,
+                    (
+                        code,
+                        market.value,
+                        start.isoformat(),
+                        end.isoformat(),
+                        as_of.isoformat(),
+                    ),
+                ).fetchone()
+        except (OSError, sqlite3.Error) as exc:
+            raise KlineAuditStoreError("K-line audit manifest index is unavailable") from exc
         if row is None:
             raise KlineAuditStoreError("no K-line audit snapshot is available for as_of")
         return row
@@ -565,6 +652,21 @@ class KlineAuditStore:
             or manifest.get("snapshot_id") != snapshot.snapshot_id
         ):
             raise KlineAuditStoreError("K-line audit manifest identity mismatch")
+        request = snapshot.request
+        if request.start_at is None or request.end_at is None:
+            raise KlineAuditStoreError("K-line audit request bounds are missing")
+        selector_matches = (
+            str(row["code"]) == code == request.stock_code
+            and str(row["market"]) == market.value
+            and self._market(snapshot) is market
+            and str(row["requested_start"])
+            == start.isoformat()
+            == request.start_at.date().isoformat()
+            and str(row["requested_end"]) == end.isoformat() == request.end_at.date().isoformat()
+            and str(row["collected_at"]) == snapshot.collected_at.isoformat()
+        )
+        if not selector_matches or snapshot.collected_at > as_of_utc:
+            raise KlineAuditStoreError("K-line audit selector or as_of integrity mismatch")
         return snapshot
 
     def member_paths(self, snapshot_id: str) -> tuple[Path, ...]:
