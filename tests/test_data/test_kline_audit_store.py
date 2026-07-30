@@ -45,6 +45,9 @@ def _bar(
     *,
     close: str = "11.20",
     volume: int = 100_000,
+    volume_precision: int = 1,
+    amount: str | None = None,
+    amount_precision: str | None = None,
 ) -> RawDailyBar:
     return RawDailyBar(
         code="000001",
@@ -55,7 +58,11 @@ def _bar(
         low=Decimal("11.00"),
         close=Decimal(close),
         volume=volume,
-        volume_precision=1,
+        volume_precision=volume_precision,
+        amount=(Decimal(amount) if amount is not None else None),
+        amount_precision=(
+            Decimal(amount_precision) if amount_precision is not None else None
+        ),
     )
 
 
@@ -378,6 +385,57 @@ def test_complete_snapshot_rejects_conflict_between_successful_sources() -> None
             {
                 **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
                 "source_audits": (snapshot.source_audits[0], conflicting),
+            }
+        )
+
+
+def test_complete_snapshot_rejects_lower_volume_precision_canonical() -> None:
+    snapshot = _snapshot()
+    precise = _bar(END, close="11.28", volume=100_050, volume_precision=1)
+    coarse = _bar(END, close="11.28", volume=100_000, volume_precision=100)
+    sources = (
+        snapshot.source_audits[0].model_copy(
+            update={"raw_bars": (snapshot.source_audits[0].raw_bars[0], precise)}
+        ),
+        snapshot.source_audits[1].model_copy(
+            update={"raw_bars": (snapshot.source_audits[1].raw_bars[0], coarse)}
+        ),
+    )
+
+    with pytest.raises(ValueError, match="canonical"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "source_audits": sources,
+                "canonical_bars": (snapshot.canonical_bars[0], coarse),
+            }
+        )
+
+
+def test_complete_snapshot_rejects_canonical_that_drops_available_amount() -> None:
+    snapshot = _snapshot()
+    with_amount = _bar(
+        END,
+        close="11.28",
+        amount="1128000.00",
+        amount_precision="0.01",
+    )
+    without_amount = _bar(END, close="11.28")
+    sources = (
+        snapshot.source_audits[0].model_copy(
+            update={"raw_bars": (snapshot.source_audits[0].raw_bars[0], with_amount)}
+        ),
+        snapshot.source_audits[1].model_copy(
+            update={"raw_bars": (snapshot.source_audits[1].raw_bars[0], without_amount)}
+        ),
+    )
+
+    with pytest.raises(ValueError, match="canonical"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "source_audits": sources,
+                "canonical_bars": (snapshot.canonical_bars[0], without_amount),
             }
         )
 
