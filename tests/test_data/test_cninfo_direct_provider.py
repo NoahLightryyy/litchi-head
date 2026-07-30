@@ -42,6 +42,7 @@ def test_direct_fetch_maps_public_response_to_announcement_items() -> None:
                     "announcementTime": 1785234600000,
                     "announcementId": "1212345678",
                     "orgId": "gssz0000001",
+                    "adjunctUrl": "finalpage/2026-07-28/1212345678.PDF",
                 }
             ],
         }
@@ -69,6 +70,10 @@ def test_direct_fetch_maps_public_response_to_announcement_items() -> None:
     assert item.url == (
         "https://www.cninfo.com.cn/new/disclosure/detail?"
         "stockCode=000001&announcementId=1212345678&orgId=gssz0000001"
+    )
+    assert item.attachment_url == (
+        "https://static.cninfo.com.cn/"
+        "finalpage/2026-07-28/1212345678.PDF"
     )
 
 
