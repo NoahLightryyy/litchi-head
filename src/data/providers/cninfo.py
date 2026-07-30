@@ -29,6 +29,7 @@ SHANGHAI_TIMEZONE = ZoneInfo("Asia/Shanghai")
 CNINFO_STOCK_LIST_URL = "https://www.cninfo.com.cn/new/data/szse_stock.json"
 CNINFO_QUERY_URL = "https://www.cninfo.com.cn/new/hisAnnouncement/query"
 CNINFO_DETAIL_URL = "https://www.cninfo.com.cn/new/disclosure/detail"
+CNINFO_STATIC_URL = "https://static.cninfo.com.cn/"
 CNINFO_PAGE_SIZE = 30
 CNINFO_TIMEOUT_SECONDS = 15.0
 CNINFO_HEADERS = {
@@ -270,6 +271,13 @@ def _required_direct_text(item: Mapping[str, Any], field_name: str) -> str:
     return value
 
 
+def _optional_attachment_url(item: Mapping[str, Any]) -> str | None:
+    path = str(item.get("adjunctUrl", "")).strip().lstrip("/")
+    if not path:
+        return None
+    return f"{CNINFO_STATIC_URL}{path}"
+
+
 def _parse_direct_published_at(value: object) -> datetime:
     milliseconds = _parse_nonnegative_int(value, "announcementTime")
     parsed = pd.to_datetime(milliseconds, unit="ms", utc=True, errors="raise")
@@ -319,6 +327,7 @@ def _direct_payload_to_items(payload: object) -> list[AnnouncementItem]:
                 ),
                 source_name="巨潮资讯",
                 url=url,
+                attachment_url=_optional_attachment_url(item),
             )
         )
     return items

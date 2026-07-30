@@ -23,6 +23,13 @@ from src.data.providers.cninfo import (
     CninfoAnnouncementSource,
     CninfoDirectAnnouncementSource,
 )
+from src.data.providers.cninfo_status import (
+    CninfoSuspensionEventSource,
+    OfficialDocument,
+    OfficialSuspensionEvent,
+    SuspensionEventKind,
+    SuspensionEventSourceError,
+)
 from src.data.providers.fallback import FallbackSource
 from src.data.providers.kline import (
     SinaRawDailyKlineSource,
@@ -37,13 +44,18 @@ __all__ = [
     "AKShareSource",
     "CninfoAnnouncementSource",
     "CninfoDirectAnnouncementSource",
+    "CninfoSuspensionEventSource",
     "DataSource",
     "EastmoneyNewsSource",
     "EastmoneyQuoteSource",
     "FallbackSource",
+    "OfficialDocument",
+    "OfficialSuspensionEvent",
     "SinaNewsSource",
     "SinaQuoteSource",
     "SinaRawDailyKlineSource",
+    "SuspensionEventKind",
+    "SuspensionEventSourceError",
     "TencentRawDailyKlineSource",
     "ZzshareSource",
 ]

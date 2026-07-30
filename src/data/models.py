@@ -94,6 +94,7 @@ class AnnouncementItem(BaseModel):
     published_at: datetime
     source_name: str = Field(min_length=1)
     url: str = Field(min_length=1)
+    attachment_url: str | None = None
 
 
 class CapitalFlowItem(BaseModel):
