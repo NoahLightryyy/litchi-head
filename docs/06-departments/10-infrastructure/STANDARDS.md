@@ -152,6 +152,21 @@ def test_llm_timeout(mocker):
 6. 各部门回归验证
 ```
 
+## K 线来源配置与可观测性
+
+基础设施部不定义业务阈值，只承载 ADR-013 已批准的配置和运行指标：
+
+- 来源配置按 `source_id/upstream_id/market/capability` 管理，禁止只配一个模糊
+  “provider 优先级”；
+- 健康检查按市场和能力展示最近成功时间、延迟、缺日率、RAW 冲突率、复权冲突率；
+- 新浪/腾讯限流、超时和熔断独立统计，同一上游包装器不得形成虚假冗余；
+- 阈值配置名必须包含时态，例如 `quote_*`、`intraday_*`、`final_daily_*`，禁止
+  用一个 `price_tolerance` 同时服务实时和完成日线；
+- 告警不得记录密钥或完整原始响应；保留响应哈希、来源时间和错误码用于审计。
+
+完整字段和实施顺序见
+[K 线实施计划 KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)。
+
 ---
 
 ## 多 Provider 支持
@@ -180,3 +195,5 @@ SUPPORTED_PROVIDERS = {
 - [ ] 性能兜底（封装开销 ≤ 10ms）？
 - [ ] 🔴 等级变更通知了所有部门？
 - [ ] 向后兼容（非必要不做 breaking change）？
+- [ ] 行情健康指标是否按市场、上游和能力拆分？
+- [ ] 实时/分钟/完成日线阈值配置是否明确隔离？

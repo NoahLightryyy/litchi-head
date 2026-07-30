@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-07-30 (盘中 K 线双时间尺度 API 方向确认)
+last_updated: 2026-07-30 (K 线证据 KR-5 API 迁移计划批准)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -75,7 +75,7 @@ last_updated: 2026-07-30 (盘中 K 线双时间尺度 API 方向确认)
 |:------:|:-----|:----:|
 | 1 ✅ | 新闻 `EvidenceEnvelope` 缺失返回 503；禁止不完整输入启动 LLM | 已完成 |
 | 2 ✅ | 实时行情 `EvidenceEnvelope` 缺失/陈旧/冲突返回 503 | 已完成 |
-| 3 🔥 | 扩展 K 线双时间尺度 API 与错误契约 | TD-069；历史与盘中状态分栏 |
+| 3 🔥 | KR-5 扩展 K 线证据 API 与错误契约 | TD-069；四层状态 + RAW/复权血缘 + 稳定错误码 |
 | 4 🔥 | 将同一错误契约扩展到行业证据 | K 线完成后 |
 | 2 🟡 | TD-068 正式辩论图 checkpoint + 路由 durable session 集成 | TD-069 |
 | 3 🟡 | TD-068 1/3/5 并发、durable queue 与全局背压门禁 | 正式图恢复 |
@@ -87,8 +87,11 @@ last_updated: 2026-07-30 (盘中 K 线双时间尺度 API 方向确认)
   `provisional_session_bar`，不得把动态今日 OHLC 追加到完整日 K 数组；
 - 每层携带 `as_of`、交易阶段、证据状态和逐源诊断；
 - 正式日线指标与“含盘中估算”指标使用不同字段，禁止覆盖；
+- 返回 `price_basis/adjustment_mode/reference_date/factor_version/upstream_ids`；
+- RAW 冲突、复权冲突、独立上游不足使用不同稳定错误码；
 - `POST /api/debate/run` 在开盘后使用上述分层输入，不等待收盘；
 - 历史日 K 或盘中必需证据不完整时返回 HTTP 503，并给出缺失层、来源和重试建议。
+- 旧 K 线展示接口先保持兼容，前端完成 KR-5 切换后再评估废弃。
 
 ### 结果回调（RC 系列，2026-06-23 新增）
 

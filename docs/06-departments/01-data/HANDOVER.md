@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-30 (盘中 K 线双时间尺度方向确认)
+last_updated: 2026-07-30 (K 线双源、复权与冲突实施计划批准)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -69,8 +69,10 @@ last_updated: 2026-07-30 (盘中 K 线双时间尺度方向确认)
 | 4 ✅ | 实时行情迁移到统一门禁 | 双源直连 + 时效/配对/价差 + 零 LLM |
 | 5 ✅ | L1 分时战况一期 | 东方财富 + 腾讯 + 统一业务信封 |
 | 6 🔥 | 20 日同分钟量能基线 | TD-072 |
-| 7 🔥 | K 线双时间尺度证据迁移 | TD-069；`FINAL_DAILY` 与今日 `PROVISIONAL` 严格分层 |
-| 8 🔥 | 行业证据迁移到统一门禁 | K 线门禁完成后 |
+| 7 🔥 | K 线 KR-1 RAW 双源事实底座 | TD-069；新浪+腾讯沪深 RAW；北交所缺第二源失败关闭 |
+| 8 🔥 | K 线 KR-2 统一复权 | RAW/公司行动/派生序列分层；点时因子 |
+| 9 🔥 | K 线 KR-3 四层证据信封 | `FINAL_DAILY` 与今日 `PROVISIONAL` 严格分层 |
+| 10 🔥 | 行业证据迁移到统一门禁 | K 线门禁完成后 |
 | 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
 | 5 🟡 | 财联社版权和跨节点传输许可评估 | 用户确认后 |
 
@@ -195,14 +197,13 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 
 ## 下次精确启动步骤
 
-1. 为 K 线业务信封定义明确状态：历史完整日 K 为 `FINAL_DAILY`，已结束分钟为
-   `FINAL_MINUTE`，实时快照为 `LIVE_QUOTE`，今日动态 OHLC 为 `PROVISIONAL`；
-2. 只把已收盘且通过多源核验的交易日放入历史日 K 序列；今日动态状态单独输出，
-   带采集时间、交易阶段和可变标识；
-3. 盘中 AI 输入同时包含历史完整日 K、实时行情、已结束分钟与今日动态状态，
-   不得因为日 K 未收盘而等待；
-4. 正式日线指标只基于 `FINAL_DAILY`。若提供“含盘中估算”指标，必须使用独立字段
-   和标签，不得覆盖正式值；
-5. 测试覆盖开盘后可立即启动 AI、动态状态不混入完整日 K、收盘确认后晋升、
-   任一必需证据不完整时 LLM 调用数为零；
-6. K 线原子功能完成并通过闸门后，再迁移行业证据。
+1. 先读 [ADR-013](../../05-decisions/ADR-013-multi-source-evidence.md) 与
+   [实施计划 KR-1](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)；
+2. RED：冻结 `source_id/upstream_id`、RAW 单位/精度、交易日集合、停牌、北交所
+   缺第二源、OHLC 一价位冲突和成交量精度契约；
+3. GREEN：实现新浪+腾讯沪深 RAW 日线适配器和 `KlineEvidenceEnvelope`，保留旧
+   `DataCollector.get_klines()` 兼容入口；
+4. 真实烟测和故障注入通过后才进入 KR-2 公司行动与统一复权；不得同时提前改前端；
+5. KR-2 通过后按 KR-3 输出 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE /
+   PROVISIONAL`，再交给辩论、后端等下游；
+6. 每个 KR 独立完成五同步和强制闸门，K 线全链路完成后再迁移行业证据。

@@ -149,9 +149,15 @@ docs/06-departments/02-debate-engine/DEBT.md
    标为 `PROVISIONAL`，不做主力/量化身份归因；
 7. 用户已确认盘中 AI 不等待日 K 收盘：上一交易日及以前的完整日 K、实时行情、
    已结束分钟和今日 `PROVISIONAL` 动态状态必须同时进入上下文，但状态严格分离；
-8. 下一原子功能是 TD-069 K 线门禁：正式日线指标只用 `FINAL_DAILY`，今日动态
-   OHLC 可供盘中判断但不得冒充收盘形态；随后再迁移行业证据；
-9. TD-072 的 20 日同分钟量能基线继续自然积累，不阻塞 K 线门禁。
+8. 用户已批准 K 线双源、复权和冲突口径，唯一决策源为
+   [ADR-013](../05-decisions/ADR-013-multi-source-evidence.md)，实施顺序见
+   [K 线证据完整性实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)；
+9. 下一原子功能是 TD-069/KR-1 RAW 双源事实底座：沪深使用新浪+腾讯独立上游，
+   完成日线 OHLC 按 `price_tick` 严格一致；北交所缺第二源时明确 `INCOMPLETE`；
+10. 实时行情 `0.01 元` 容差、分钟累计量 `500 股` 经验容差和完成日线 RAW 严格
+    对账是三套不同规则，禁止跨场景复用；
+11. 随后按 KR-2～KR-6 依次推进统一复权、四层信封、AI/风控/交易、API/前端和
+    全链路验收；TD-072 继续自然积累，不阻塞 K 线门禁。
 
 ---
 

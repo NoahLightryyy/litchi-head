@@ -64,6 +64,10 @@ Content-Type: application/json
 >
 > 当日日 K 尚未收盘不是错误。盘中 AI 使用完整历史日 K、实时行情、已结束分钟和
 > `PROVISIONAL` 今日动态状态；动态状态不得混入正式日 K 数组。
+>
+> K 线证据目标响应还必须包含 `price_basis`、`adjustment_mode`、`reference_date`、
+> `factor_version`、`upstream_ids` 和字段精度，并区分 RAW 冲突、复权冲突与独立
+> 上游不足。旧 K 线接口在 KR-5 迁移完成前保持兼容。
 
 ### 信任度
 

@@ -112,6 +112,11 @@ class BuffettAgent:
 - 只有 `FINAL_DAILY` 可以支撑“已确认日线形态、正式收盘、正式日线指标”；
 - 引用 `PROVISIONAL` 必须使用“盘中、正在形成、截至当前”等限定词；
 - 不得自行去掉状态标签、猜测收盘值或把盘中估算写成事实。
+- 必须保留 `adjustment_mode/reference_date/as_of/factor_version`，不得把复权数值
+  描述成可成交价格；
+- 当前买卖参考价只引用 `LIVE_QUOTE/RAW`；前复权只支撑技术结构，后复权只支撑
+  长期研究；
+- RAW/复权冲突或独立来源不足时，不得靠降低置信度继续输出，应由编排层在调用前阻断。
 
 ---
 

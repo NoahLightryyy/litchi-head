@@ -147,6 +147,13 @@ class MinimalQuote(BaseModel):
 状态。开盘后不等待日 K 收盘；正式日线形态只引用 `FINAL_DAILY`，引用动态状态时
 必须明确“盘中、正在形成、尚未确认”。必需层不完整时首个 LLM 调用前短路。
 
+K 线字段还必须保留 `raw/adjustment_mode/reference_date/as_of/factor_version`。
+辩论引擎不负责选择供应商、不重新复权，也不自行放宽冲突阈值。数据层返回
+`INCOMPLETE/STALE/CONFLICTED` 或缺少必需复权血缘时，必须在第一个 LLM 前短路。
+正式日线指标只读取统一点时前复权序列；订单价格相关推理只引用 `LIVE_QUOTE/RAW`。
+完整分工见
+[K 线实施计划 KR-4](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)。
+
 ### 数据输出契约（提供给后端 API 部）
 
 ```python
@@ -172,3 +179,5 @@ class DebateOutput(BaseModel):
 - [ ] 测试覆盖了失败路径？
 - [ ] 跨模块数据契约未改字段名？
 - [ ] 新加了节点 → 图定义同步更新？
+- [ ] K 线证据状态、复权口径、`as_of` 和因子版本完整保留？
+- [ ] K 线失败路径证明分析师/大师 LLM 调用数为零？

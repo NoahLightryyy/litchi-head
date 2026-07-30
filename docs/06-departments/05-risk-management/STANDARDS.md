@@ -118,6 +118,20 @@ class RiskAssessment(BaseModel):
     assessed_at: datetime        # 评估时间
 ```
 
+### 市场证据完整性硬门禁
+
+数据完整性不是普通风险分数，不能通过降低 `confidence` 代替：
+
+- RAW 独立双源不足、完成日线 OHLC 冲突、复权因子冲突或必需盘中层缺失时，
+  `passed=false`；
+- 北交所缺第二日线上游时明确报告 `independent_upstream_missing`；
+- `PROVISIONAL` 可用于盘中风险观察，但不能支撑“已确认收盘风险”；
+- 订单参考价必须来自 `LIVE_QUOTE/RAW`，前复权和后复权价格不得进入价格有效性检查；
+- 风控结果保留 `evidence_envelope_id`、`as_of` 和 `factor_version`。
+
+门禁来源于 [ADR-013](../../05-decisions/ADR-013-multi-source-evidence.md)，阈值不得在
+`RiskProfile` 中另建第二套。
+
 ---
 
 ## 审查清单
@@ -128,3 +142,5 @@ class RiskAssessment(BaseModel):
 - [ ] LLM 调用经过 `llm.py`？
 - [ ] 测试覆盖所有风险维度？
 - [ ] 高风险有日志警告？
+- [ ] 数据完整性失败是否直接 `passed=false`，而不是只降低置信度？
+- [ ] 订单价格检查是否只消费 `LIVE_QUOTE/RAW`？

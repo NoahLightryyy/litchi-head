@@ -1,7 +1,7 @@
 ---
 department: 质量保障部
 codebase: .github/workflows/ + tests/ + docs/01-guides/ci/ + docs/01-guides/workflow/
-last_updated: 2026-06-22
+last_updated: 2026-07-30 (K 线跨部门验收职责确认)
 ---
 
 # 🔄 质量保障部工作交接
@@ -66,6 +66,7 @@ last_updated: 2026-06-22
 | 2 🟡 | **CI-002 跟进** — Python 3.13 Pyright 超时，观察后续是否自愈 | 无 |
 | 3 🟢 | **TROUBLESHOOTING.md 补充** — 记录本次 CI 连红的完整根因 | CI-001 修复后 |
 | 4 🟢 | **定期审视** — 每周检查 CI 状态趋势 | 无 |
+| 🔥 | **TD-069/KR-6 K 线全链路验收** — 来源独立性、RAW、复权、点时、四层状态、零 LLM、交易价格、API/UI 和故障注入 | KR-1～5 完成 |
 
 ### 设计哲学回归验证（DP 系列）
 

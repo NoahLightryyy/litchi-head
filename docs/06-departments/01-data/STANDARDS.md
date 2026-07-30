@@ -68,6 +68,27 @@ StockQuote(price=float(row["最新价"]), volume=int(row["成交量"]))
 - 动态状态必须携带 `as_of`、交易阶段和来源诊断；
 - 收盘且多源确认后才允许从 `PROVISIONAL` 晋升为 `FINAL_DAILY`。
 
+### 完成日线 RAW、双源与复权
+
+本部门执行 [ADR-013](../../05-decisions/ADR-013-multi-source-evidence.md) 和
+[K 线实施计划](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)，不得
+在适配器中自行放宽：
+
+- 沪深 Phase R 使用新浪直连 + 腾讯直连 RAW 日线；按不同 `upstream_id` 计数；
+- 北交所缺可靠第二上游时返回
+  `INCOMPLETE / independent_upstream_missing`，不自动退化为单源成功；
+- RAW、公司行动/因子和派生复权序列分开建模、保存和版本化；
+- 完成日线 RAW OHLC 按证券 `price_tick` 规范化后必须相等；一个最小价位差异也
+  返回 `CONFLICTED`；
+- 成交量统一为股，并记录来源精度；只有已声明的“手”级精度才允许小于一个精度
+  单位的差异；
+- 不直接比较不同供应商前复权成品价。统一复权由 RAW + 版本化公司行动生成；
+- 盘中技术分析使用指定 `as_of` 的前复权序列；回测读取点时因子；成交和订单核对
+  永远使用 RAW/实时真实价格。
+
+实时快照的 0.01 元容差、L1 分时的 500 股经验容差和完成日线规则相互独立。任何
+实现都必须在错误码、配置名和测试文件中体现所属数据时态，禁止共用一个模糊阈值。
+
 ---
 
 ## 测试规范

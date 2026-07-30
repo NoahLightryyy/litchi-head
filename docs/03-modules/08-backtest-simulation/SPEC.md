@@ -62,6 +62,11 @@ TradeRecord[] + KLine[]
 
 ## 数据契约（关键模型）
 
+K 线回放采用双价格坐标：交易成交、滑点和费用使用 RAW；技术指标使用指定历史
+`as_of` 的点时前复权。报告必须保存 RAW 版本、`factor_version`、`reference_date`
+和 `as_of`，禁止用今天锚定的复权序列回放过去决策。实施见
+[K 线计划 KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)。
+
 | 模型 | 字段 | 说明 |
 |:-----|:-----|:-----|
 | `BacktestConfig` | initial_capital, commission_rate, slippage, max_single_position | 回测运行参数 |
@@ -140,5 +145,6 @@ DebateResult
 | ~~🟡 P1~~ | ~~**回测→辩论桥接**~~ — ✅ **已完成（2026-06-16）** | — | 中 |
 | 🟡 P1 | **虚拟投资功能基础版** — 记录每次决策与后续走势，生成简单绩效报表 | 桥接完成 | 中 |
 | ⬇️ P2 | **时光机压力测试** — 预设历史事件切片，Agent "穿越"回当时做决策 | P1 完成 | 大 |
+| 🔥 P0 | **TD-069/KR-6 点时复权回放** — RAW 成交 + 当时可得因子 + 数据版本报告 | 数据部 KR-2～3 | 中 |
 
 > **关联文档**：[RESEARCH.md](RESEARCH.md) — 调研背景

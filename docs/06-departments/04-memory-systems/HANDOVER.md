@@ -1,7 +1,7 @@
 ---
 department: 记忆系统部
 codebase: src/memory/
-last_updated: 2026-07-28 (真实 session 与最小 LangGraph 节点续跑门禁通过)
+last_updated: 2026-07-30 (K 线证据版本记忆职责确认)
 ---
 
 # 🧠 记忆系统部工作交接
@@ -59,6 +59,7 @@ last_updated: 2026-07-28 (真实 session 与最小 LangGraph 节点续跑门禁�
 | 1 🟡 | 将 AsyncSqlite/Postgres checkpointer 接入正式辩论图并验证副作用幂等 | TD-069 决策 |
 | 2 🟡 | TD-051 补 MemoryManager 存储失败测试（IOError/损坏 JSON/只读） | 无 |
 | 3 🟡 | TD-066 SQL 迁移与备份恢复门禁 | 正式图恢复证据 |
+| 4 🔥 | KR-6 保存辩论所用 RAW/因子/状态版本，历史召回不得跨版本冒充当前事实 | TD-069 KR-4 完成 |
 
 ### 设计哲学新任务（DP 系列）
 

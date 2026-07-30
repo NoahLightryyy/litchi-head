@@ -62,7 +62,15 @@ department: 辩论引擎部
 - 2026-07-30 已确认 K 线双时间尺度产品方向：开盘后不等待日 K 收盘；历史
   `FINAL_DAILY`、实时 `LIVE_QUOTE`、已结束 `FINAL_MINUTE` 和今日
   `PROVISIONAL` 动态状态分层进入 AI，动态状态不得冒充收盘形态；
+- 2026-07-30 已批准 [ADR-013](../../05-decisions/ADR-013-multi-source-evidence.md)
+  的 RAW 双源、版本化公司行动、统一点时复权和完成日线严格对账；
+- 分批顺序固定为
+  [KR-1～KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)，辩论部
+  在数据部 KR-1～3 后承接 KR-4；
 - TD-069 暂不关闭：上述 K 线分层门禁和行业证据仍需迁移到正式失败关闭契约。
+
+关闭前必须证明缺独立上游、RAW 冲突、复权冲突和必需层缺失时首个 LLM 前终止；
+不能因为旧链路已经返回 `KLine[]` 就关闭。
 
 ## 已关闭债务
 

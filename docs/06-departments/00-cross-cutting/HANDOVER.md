@@ -45,6 +45,7 @@ last_updated: 2026-07-30 (盘中 AI 双时间尺度方向确认)
 | LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
 | 多源证据（data→debate/backend） | 🟡 | CNINFO、新闻、实时行情与 L1 分时已统一；K 线/行业待迁移 |
 | 盘中双时间尺度（data→debate→agents→backend→frontend） | 🟡 | 已确认目标：完整历史日 K 与实时/分时/`PROVISIONAL` 今日状态分层进入 AI；待实现 |
+| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | 已批准：RAW 严格对账、公司行动版本化、项目统一复权；待按 KR-1～KR-6 实现 |
 
 ## 当前未完成事项（跨部门）
 
@@ -53,7 +54,7 @@ last_updated: 2026-07-30 (盘中 AI 双时间尺度方向确认)
 | 🥇 | **PD 动态指标体系** — 新增 PD 系列任务：行业→动态选 5-10 指标，产业链位置判断，三维分析（财务+位置+供应链）。详见下方 PD 段落 | 数据管道部 + 辩论引擎部 + 后端 API 部 + 前端部 |
 | 🥇 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ |
 | 🥇 | **FD-002 估值比率模型** — ✅ PE/PB/PS 模型 + DataCollector.get_valuation()（纯计算，无需新 Provider） | 数据管道部 ✅ |
-| 🥇 | **ADR-013 多源证据完整性** — 新闻与实时行情失败关闭完成；下一步实现 K 线双时间尺度门禁，再迁移行业证据 | 数据管道部 + 辩论引擎部 + AI Agent 架构部 + 后端 API 部 + 前端部 |
+| 🥇 | **ADR-013 / TD-069 K 线完整性** — 按 [KR-1～KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) 分批实现 RAW 双源、统一复权、四层信封、AI/风控/交易、API/前端与全链路验收 | 数据、辩论、Agent、记忆、风控、交易、回测、后端、前端、基础设施、质量保障 |
 | 🥇 | **FD-003 产业链修复** — 真实行业分类替换伪产业链数据 | 后端 API 部 + 前端部 |
 | 🥇 | **RC-003 UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore + 操作理由记录 | 后端 API 部 + 前端部 + 数据管道部 |
 | 🥈 | **RC-004 RP-TUNE 风险参数自适应** — 回测结果 → 自动调止损/仓位 | 风控管理部 + 回测研究部 |

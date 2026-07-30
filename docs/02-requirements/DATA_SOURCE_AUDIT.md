@@ -157,6 +157,12 @@ df = adata.stock.market.get_market(
 )
 ```
 
+> **2026-07-30 实盘口径修正**：以上是库的能力宣传，不等于本项目已获得五个独立
+> 证据源。当前代码检查确认部分入口最终路由到东方财富，同一 `upstream_id` 只能
+> 计数一次。K 线正式门禁不依赖 AData 的“多源”标签，按新浪直连 + 腾讯直连分别
+> 核验沪深 RAW 日线；北交所缺第二来源时失败关闭。见
+> [K 线证据完整性实施计划](KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)。
+
 **zzshare**（Tushare 兼容备源）：
 - 接口规范与 Tushare Pro 一致，无需 Token、无需积分、完全免费
 - 40+ 接口（日线、资金流向、板块热度、龙虎榜、情绪指标）

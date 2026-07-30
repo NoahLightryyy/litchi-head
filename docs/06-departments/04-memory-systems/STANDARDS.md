@@ -143,6 +143,19 @@ await manager.save("debate", debate_id, data)
 asyncio.create_task(manager.save(...))  # 禁止：不确认落盘
 ```
 
+### K 线证据版本记忆
+
+辩论历史和反思记录若引用 K 线，必须保存证据引用而不是只保存一组裸价格：
+
+- `evidence_envelope_id`、RAW 数据版本和独立 `upstream_ids`；
+- `adjustment_mode`、`factor_version`、`reference_date`、`as_of`；
+- `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE / PROVISIONAL` 状态；
+- 当时的完整性结论和冲突原因。
+
+召回历史结论时不得把旧因子版本生成的结论伪装成当前数据结论，也不得用新修订因子
+静默改写旧结论。重算结果必须创建新版本并关联原记录。详见
+[K 线实施计划 KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)。
+
 ---
 
 ## 审查清单
@@ -153,3 +166,4 @@ asyncio.create_task(manager.save(...))  # 禁止：不确认落盘
 - [ ] 存储失败优雅降级（不影响主流程）？
 - [ ] 检索性能 ≤ 200ms？
 - [ ] 无上限记忆增长（有清理机制）？
+- [ ] K 线相关记忆可追溯到 RAW、因子版本和当时 `as_of`？

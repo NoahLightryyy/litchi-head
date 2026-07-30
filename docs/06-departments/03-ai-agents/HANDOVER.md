@@ -1,7 +1,7 @@
 ---
 department: AI Agent 架构部
 codebase: src/agents/ + src/core/
-last_updated: 2026-07-30 (盘中 AI 输入语义确认)
+last_updated: 2026-07-30 (K 线口径与 Agent 语义约束批准)
 ---
 
 # 🤖 AI Agent 架构部工作交接
@@ -56,7 +56,7 @@ last_updated: 2026-07-30 (盘中 AI 输入语义确认)
 | 1 🟡 | TD-003 MessageRouter 持久化（`save_snapshot/load_snapshot`） | 无 |
 | 2 🟡 | TD-050 XiaoZhiAgent 补 LLM 超时/异常/非法返回测试 | 无 |
 | 3 🟢 | TD-006 EvidenceItem 添加 `validate_chain()` 方法 | 无 |
-| 4 🔥 | 为分析师和大师提示词增加盘中证据状态约束：明确区分历史结构、实时事实与动态估算 | TD-069 K 线信封 |
+| 4 🔥 | KR-4 提示词与结构化输出约束：区分 RAW 成交事实、点时前复权技术结构、实时事实与动态估算 | TD-069；依赖数据部 KR-1～3 |
 
 ### 盘中分析约束（2026-07-30 确认）
 
@@ -66,6 +66,9 @@ last_updated: 2026-07-30 (盘中 AI 输入语义确认)
    `PROVISIONAL` 时必须使用“盘中、正在形成、尚未确认”等措辞；
 4. 不得把盘中最高/最低/动态收盘价描述为最终日线数据；
 5. 如果上游没有提供证据状态，Agent 不得自行猜测或补全。
+6. 前复权/后复权价格不能写成当前可买卖价格；下单价位只引用 `LIVE_QUOTE/RAW`；
+7. 每项日线结论保留 `adjustment_mode`、`as_of` 和因子版本，方便结果复盘；
+8. 原始或复权证据冲突由编排器在 Agent 启动前阻断，Agent 不承担“选一个源相信”的职责。
 
 ### 设计哲学新任务（DP 系列）
 

@@ -107,7 +107,8 @@
 - ✅ **HealthStats 健康监控** — `/api/health/data-source` 实时监控数据源状态
 - ✅ **DataSource Provider 抽象层** — `src/data/providers/` 7 文件，DataSource Protocol + 三源实现
 - ✅ **AKShareSource 抽离** — 从 collector.py 移出到独立文件
-- ✅ **ADataSource 接入** — adata 5 源融合自动切换（同花顺/东财/新浪/腾讯/百度），免费
+- ✅ **ADataSource 接入** — adata 免费自动切换能力已接入；只按实际
+  `upstream_id` 计数，不把库内“5 源”宣传当作五个已验证独立证据源
 - ✅ **ZzshareSource 接入** — Tushare 兼容零 Token 零积分数据源
 - ✅ **FallbackSource 故障切换** — 按 endpoint 独立连续失败 N 次自动降级
 - ✅ **DataCollector 重构** — 直调 akshare → 委托 DataSource，API 完全向后兼容
@@ -155,7 +156,10 @@
 
 | 优先级 | 事项 | 依赖 | 预估 |
 |:------:|:-----|:----|:----:|
-| 🔥 P0 | **TD-069 K 线双时间尺度门禁** — 完整历史日 K + 实时行情 + 已结束分钟 + `PROVISIONAL` 今日动态状态共同进入盘中 AI；正式与估算指标严格分栏 | ADR-013 + L1 一期 | ~1d |
+| 🔥 P0 | **TD-069 / KR-1 RAW 双源事实底座** — 沪深新浪+腾讯独立上游；完成日线 OHLC 按 `price_tick` 严格一致；北交所缺第二源时失败关闭 | [K 线实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-0 | ~1d |
+| 🔥 P0 | **TD-069 / KR-2 公司行动与统一复权** — RAW、因子和派生序列分层；盘中点时前复权；回测禁止未来因子 | KR-1 | ~1d |
+| 🔥 P0 | **TD-069 / KR-3～4 双时间尺度与 AI 串联** — `FINAL_DAILY + FINAL_MINUTE + LIVE_QUOTE + PROVISIONAL`；辩论/Agent/风控/交易门禁 | KR-2 | ~1.5d |
+| 🔥 P0 | **TD-069 / KR-5～6 API、前端与全链路验收** — 状态/口径/冲突可视化，兼容迁移，回放与故障注入 | KR-4 | ~1.5d |
 | 🔥 P0 | **TD-028 搜索防抖** — useDebounce(query, 300) | ✅ 已完成 | pnpm build ✅ |
 | 🔥 P0 | **TD-029 前端死代码清理** — 布局目录/store/ECharts | ✅ 已完成 | pnpm build ✅ |
 | 🔥 P0 | **TD-030 资金流向接入 Provider 层** | ✅ 已完成 | 75 tests ✅ |

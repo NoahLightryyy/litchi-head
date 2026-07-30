@@ -72,6 +72,12 @@ async def search_stock(q: str):
 - 实时快照和分钟序列必须保留状态、`as_of`、交易阶段及逐源诊断；
 - 当日日 K 未收盘不是 503；必需来源缺失、陈旧或冲突才是 503；
 - 正式指标和含盘中估算指标不得使用同一字段静默覆盖。
+- 日线响应必须暴露 `price_basis`、`adjustment_mode`、`reference_date`、
+  `factor_version`、`upstream_ids` 和字段精度；
+- `raw_ohlc_conflict`、`adjustment_conflict`、
+  `independent_upstream_missing` 使用稳定错误码，不向前端只返回笼统 503；
+- API 不负责选择供应商或重新复权，只序列化数据部统一证据信封；
+- 旧 `/api/stocks/{code}/kline` 在 KR-5 兼容迁移完成前保留，不能提前删除。
 
 ---
 
@@ -182,3 +188,5 @@ origins = ["http://localhost:3000"]  # 禁止
 - [ ] 路由函数 ≤ 50 行？
 - [ ] 每个异常路径有日志？
 - [ ] 前端 API 变更通知了？
+- [ ] K 线 RAW/复权口径与逐源诊断是否完整透传？
+- [ ] 旧 K 线接口迁移期间是否保持兼容？
