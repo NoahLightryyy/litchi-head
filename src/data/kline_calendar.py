@@ -15,6 +15,99 @@ class CalendarCoverageError(ValueError):
     """The requested market/year has no approved official calendar version."""
 
 
+class SecurityStatusCoverageError(ValueError):
+    """Official security status does not cover the requested window."""
+
+
+class OfficialSecurityStatusWindow(BaseModel):
+    """Auditable listing lifecycle and suspension facts for one window."""
+
+    code: str = Field(min_length=6, max_length=6)
+    market: MarketCode
+    coverage_start: date
+    coverage_end: date
+    listed_on: date
+    delisted_on: date | None = None
+    full_day_suspensions: tuple[date, ...]
+    intraday_suspensions: tuple[date, ...]
+    source_urls: tuple[str, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_window(self) -> "OfficialSecurityStatusWindow":
+        if self.coverage_start > self.coverage_end:
+            raise ValueError("security status coverage start must not exceed end")
+        if set(self.full_day_suspensions) & set(self.intraday_suspensions):
+            raise ValueError("full-day and intraday suspension dates must be disjoint")
+        for day in self.full_day_suspensions + self.intraday_suspensions:
+            if not self.coverage_start <= day <= self.coverage_end:
+                raise ValueError("suspension dates must be inside status coverage")
+        if self.delisted_on is not None and self.delisted_on <= self.listed_on:
+            raise ValueError("delisting date must be later than listing date")
+        return self
+
+    @computed_field
+    @property
+    def content_hash(self) -> str:
+        payload = {
+            "code": self.code,
+            "market": self.market.value,
+            "coverage_start": self.coverage_start.isoformat(),
+            "coverage_end": self.coverage_end.isoformat(),
+            "listed_on": self.listed_on.isoformat(),
+            "delisted_on": (
+                self.delisted_on.isoformat() if self.delisted_on else None
+            ),
+            "full_day_suspensions": [
+                day.isoformat() for day in self.full_day_suspensions
+            ],
+            "intraday_suspensions": [
+                day.isoformat() for day in self.intraday_suspensions
+            ],
+            "source_urls": list(self.source_urls),
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    def expected_dates(self, market_open_dates: tuple[date, ...]) -> tuple[date, ...]:
+        suspended = set(self.full_day_suspensions)
+        return tuple(
+            day
+            for day in market_open_dates
+            if day >= self.listed_on
+            and (self.delisted_on is None or day < self.delisted_on)
+            and day not in suspended
+        )
+
+
+class StaticSecurityStatusCatalog:
+    """Immutable official status windows; online ingestion is a later adapter."""
+
+    def __init__(self, windows: tuple[OfficialSecurityStatusWindow, ...]) -> None:
+        indexed = {(window.code, window.market): window for window in windows}
+        if len(indexed) != len(windows):
+            raise ValueError("duplicate official security status window")
+        self._windows = indexed
+
+    def resolve(
+        self,
+        code: str,
+        market: MarketCode,
+        start: date,
+        end: date,
+    ) -> OfficialSecurityStatusWindow:
+        window = self._windows.get((code, market))
+        if (
+            window is None
+            or window.coverage_start > start
+            or window.coverage_end < end
+        ):
+            raise SecurityStatusCoverageError(
+                f"official security status coverage missing for "
+                f"{code} {start.isoformat()}..{end.isoformat()}"
+            )
+        return window
+
+
 class MarketCalendarVersion(BaseModel):
     """One exchange-specific, normalized annual closure schedule."""
 
@@ -152,6 +245,9 @@ def official_a_share_calendar_2026() -> OfficialTradingCalendar:
 __all__ = [
     "CalendarCoverageError",
     "MarketCalendarVersion",
+    "OfficialSecurityStatusWindow",
     "OfficialTradingCalendar",
+    "SecurityStatusCoverageError",
+    "StaticSecurityStatusCatalog",
     "official_a_share_calendar_2026",
 ]

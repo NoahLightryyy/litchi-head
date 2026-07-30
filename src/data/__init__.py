@@ -33,7 +33,10 @@ from src.data.kline import MarketCode, RawDailyBar
 from src.data.kline_calendar import (
     CalendarCoverageError,
     MarketCalendarVersion,
+    OfficialSecurityStatusWindow,
     OfficialTradingCalendar,
+    SecurityStatusCoverageError,
+    StaticSecurityStatusCatalog,
     official_a_share_calendar_2026,
 )
 from src.data.models import (
@@ -64,10 +67,13 @@ __all__ = [
     "MarketCode",
     "MarketCalendarVersion",
     "NewsItem",
+    "OfficialSecurityStatusWindow",
     "OfficialTradingCalendar",
     "REGISTRY",
     "RawDailyBar",
     "SelectorResult",
+    "SecurityStatusCoverageError",
+    "StaticSecurityStatusCatalog",
     "StockInfo",
     "StockQuote",
     "ValuationMetrics",
