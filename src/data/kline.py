@@ -70,4 +70,43 @@ def market_code_for(stock_code: str) -> MarketCode:
     return MarketCode.SZSE
 
 
-__all__ = ["MarketCode", "RawDailyBar", "market_code_for"]
+def raw_daily_bar_conflict(
+    first: RawDailyBar,
+    second: RawDailyBar,
+) -> tuple[str, str] | None:
+    """Return the shared strict reconciliation error for two same-day RAW bars."""
+
+    if second.price_tick != first.price_tick:
+        return "price_tick_conflict", "RAW daily price ticks do not match"
+    if any(
+        getattr(second, field_name) != getattr(first, field_name)
+        for field_name in ("open", "high", "low", "close")
+    ):
+        return (
+            "raw_ohlc_conflict",
+            "Completed RAW daily OHLC differs by at least one tick",
+        )
+    volume_precision = max(first.volume_precision, second.volume_precision)
+    if abs(first.volume - second.volume) >= volume_precision:
+        return (
+            "raw_volume_conflict",
+            "RAW daily volumes differ beyond declared source precision",
+        )
+    if first.amount is not None and second.amount is not None:
+        first_precision = first.amount_precision or Decimal("0")
+        second_precision = second.amount_precision or Decimal("0")
+        precision = max(first_precision, second_precision)
+        if abs(first.amount - second.amount) >= precision:
+            return (
+                "raw_amount_conflict",
+                "RAW daily amounts differ beyond declared source precision",
+            )
+    return None
+
+
+__all__ = [
+    "MarketCode",
+    "RawDailyBar",
+    "market_code_for",
+    "raw_daily_bar_conflict",
+]

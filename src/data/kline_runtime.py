@@ -7,7 +7,6 @@ import os
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -21,7 +20,7 @@ from src.data.evidence import (
     SourceStatus,
 )
 from src.data.evidence_service import DataEvidenceService
-from src.data.kline import RawDailyBar, market_code_for
+from src.data.kline import RawDailyBar, market_code_for, raw_daily_bar_conflict
 from src.data.kline_calendar import (
     CalendarCoverageError,
     OfficialTradingCalendar,
@@ -209,17 +208,9 @@ class RawDailyKlineEvidenceService:
                 "Unexpected audited K-line adapter failure: source=%s",
                 source.descriptor.source_id,
             )
-            try:
-                failed_at = self._now_provider()
-                if failed_at.tzinfo is None or failed_at.utcoffset() is None:
-                    raise ValueError("recovery clock returned a naive datetime")
-                failed_at = failed_at.astimezone(UTC)
-            except Exception:
-                logger.exception(
-                    "K-line recovery clock failed; using system UTC: source=%s",
-                    source.descriptor.source_id,
-                )
-                failed_at = datetime.now(UTC)
+            failed_at = self._safe_now_utc(
+                f"adapter recovery for {source.descriptor.source_id}"
+            )
             return KlineSourceAudit(
                 source_id=source.descriptor.source_id,
                 upstream_id=source.descriptor.upstream_id,
@@ -229,6 +220,16 @@ class RawDailyKlineEvidenceService:
                 error_code="unexpected_adapter_failure",
                 error_message=str(exc).strip() or exc.__class__.__name__,
             )
+
+    def _safe_now_utc(self, purpose: str) -> datetime:
+        try:
+            current = self._now_provider()
+            if current.tzinfo is None or current.utcoffset() is None:
+                raise ValueError("clock returned a naive datetime")
+            return current.astimezone(UTC)
+        except Exception:
+            logger.exception("K-line %s clock failed; using system UTC", purpose)
+            return datetime.now(UTC)
 
     def collect_and_persist(
         self,
@@ -254,10 +255,7 @@ class RawDailyKlineEvidenceService:
                     self._audited_sources,
                 )
             )
-        collected_at = self._now_provider()
-        if collected_at.tzinfo is None:
-            raise ValueError("now_provider must return a timezone-aware datetime")
-        collected_at = collected_at.astimezone(UTC)
+        collected_at = self._safe_now_utc("collection")
         collected_at = max(collected_at, *(audit.fetched_at for audit in audits))
         envelope = self._reconcile(
             request,
@@ -374,46 +372,14 @@ class RawDailyKlineEvidenceService:
 
         for trade_date in sorted(reference_dates):
             bars = [series[trade_date] for series in by_source]
-            reference = bars[0]
             for candidate in bars[1:]:
-                if candidate.price_tick != reference.price_tick:
+                conflict = raw_daily_bar_conflict(bars[0], candidate)
+                if conflict is not None:
                     return RawDailyKlineEvidenceService._conflict(
                         results,
                         successful,
-                        error_code="price_tick_conflict",
-                        error_message="RAW daily price ticks do not match",
-                    )
-                if any(
-                    getattr(candidate, field_name) != getattr(reference, field_name)
-                    for field_name in ("open", "high", "low", "close")
-                ):
-                    return RawDailyKlineEvidenceService._conflict(
-                        results,
-                        successful,
-                        error_code="raw_ohlc_conflict",
-                        error_message=("Completed RAW daily OHLC differs by at least one tick"),
-                    )
-                volume_precision = max(
-                    reference.volume_precision,
-                    candidate.volume_precision,
-                )
-                if abs(reference.volume - candidate.volume) >= volume_precision:
-                    return RawDailyKlineEvidenceService._conflict(
-                        results,
-                        successful,
-                        error_code="raw_volume_conflict",
-                        error_message=("RAW daily volumes differ beyond declared source precision"),
-                    )
-                amount_error = RawDailyKlineEvidenceService._amount_error(
-                    reference,
-                    candidate,
-                )
-                if amount_error is not None:
-                    return RawDailyKlineEvidenceService._conflict(
-                        results,
-                        successful,
-                        error_code="raw_amount_conflict",
-                        error_message=amount_error,
+                        error_code=conflict[0],
+                        error_message=conflict[1],
                     )
         return results
 
@@ -449,9 +415,7 @@ class RawDailyKlineEvidenceService:
         if len(successful) < 2:
             return results
 
-        now = self._now_provider()
-        if now.tzinfo is None:
-            raise ValueError("now_provider must return a timezone-aware datetime")
+        now = self._safe_now_utc("expected-date validation")
         start = request.start_at.date() if request.start_at else date.min
         requested_end = request.end_at.date() if request.end_at else date.max
         completed_end = min(
@@ -516,20 +480,6 @@ class RawDailyKlineEvidenceService:
                 error_message=f"RAW daily sources contain closed dates: {dates}",
             )
         return results
-
-    @staticmethod
-    def _amount_error(
-        first: RawDailyBar,
-        second: RawDailyBar,
-    ) -> str | None:
-        if first.amount is None or second.amount is None:
-            return None
-        first_precision = first.amount_precision or Decimal("0")
-        second_precision = second.amount_precision or Decimal("0")
-        precision = max(first_precision, second_precision)
-        if abs(first.amount - second.amount) >= precision:
-            return "RAW daily amounts differ beyond declared source precision"
-        return None
 
     @staticmethod
     def _conflict(

@@ -26,7 +26,12 @@ from src.data.evidence import (
     EvidenceRequest,
     SourceStatus,
 )
-from src.data.kline import MarketCode, RawDailyBar, market_code_for
+from src.data.kline import (
+    MarketCode,
+    RawDailyBar,
+    market_code_for,
+    raw_daily_bar_conflict,
+)
 
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 _AUTHORITY_HASH_PATTERN = r"^[a-z][a-z0-9-]*:[0-9a-f]{64}$"
@@ -259,19 +264,37 @@ class KlineEvidenceSnapshot(BaseModel):
         ):
             raise ValueError("K-line assessment contradicts source audits or policy")
         if self.assessment.complete:
-            successful_raw = tuple(
-                bar
+            successful_audits = tuple(
+                audit
                 for audit in self.source_audits
                 if audit.status is SourceStatus.SUCCESS_DATA
-                for bar in audit.raw_bars
+            )
+            successful_raw = tuple(
+                bar for audit in successful_audits for bar in audit.raw_bars
             )
             canonical_dates = {bar.trade_date for bar in self.canonical_bars}
-            successful_dates = {bar.trade_date for bar in successful_raw}
-            if (
-                len(canonical_dates) != len(self.canonical_bars)
-                or canonical_dates != successful_dates
-                or any(bar not in successful_raw for bar in self.canonical_bars)
-            ):
+            if len(canonical_dates) != len(self.canonical_bars):
+                raise ValueError("complete K-line canonical dates must not contain duplicates")
+            source_series: list[dict[date, RawDailyBar]] = []
+            for audit in successful_audits:
+                source_dates = [bar.trade_date for bar in audit.raw_bars]
+                if (
+                    len(set(source_dates)) != len(source_dates)
+                    or set(source_dates) != canonical_dates
+                ):
+                    raise ValueError(
+                        "each successful K-line source must cover every canonical date once"
+                    )
+                source_series.append({bar.trade_date: bar for bar in audit.raw_bars})
+            for trade_date in sorted(canonical_dates):
+                reference = source_series[0][trade_date]
+                for candidate in (series[trade_date] for series in source_series[1:]):
+                    conflict = raw_daily_bar_conflict(reference, candidate)
+                    if conflict is not None:
+                        raise ValueError(
+                            f"successful K-line source conflict: {conflict[0]}"
+                        )
+            if any(bar not in successful_raw for bar in self.canonical_bars):
                 raise ValueError(
                     "complete K-line canonical bars must trace exactly to successful RAW dates"
                 )
