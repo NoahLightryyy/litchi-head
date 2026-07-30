@@ -29,6 +29,7 @@
 | `src/data/models.py` | Pydantic 数据模型（StockInfo / KLine / NewsItem / StockQuote） |
 | `src/data/cache.py` | 缓存层（带 TTL） |
 | `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（公开端点直连 + AKShare 可替换实现） |
+| `src/data/providers/cninfo_status.py` | 上市公司法定披露 PDF 的停牌/复牌事件证据；不负责宣称连续状态覆盖 |
 | `src/data/providers/news.py` | 东方财富个股搜索 + 新浪财经快讯独立新闻适配器 |
 
 ## 架构（当前状态）
@@ -102,6 +103,10 @@ DataEvidenceService
     “已确认日线形态”。收盘且多源确认后才能晋升为 `FINAL_DAILY`。
 20. 正式日线指标只基于 `FINAL_DAILY`。含盘中估算的指标若提供，必须使用独立
     字段、明确标签和 `as_of`，不能覆盖正式值。
+21. 停复牌公告候选必须下载官方附件并解析明确生效日，保存附件 URL 与原始文件
+    SHA-256；标题推断、正文无日期或附件失败均不得生成成功状态。
+22. `OfficialSuspensionEvent` 只是状态转换证据；在连续事件账本、生命周期边界和
+    查询覆盖证明完成前，不得直接生成生产 `OfficialSecurityStatusWindow`。
 
 ## 数据契约（关键模型）
 
@@ -120,7 +125,7 @@ DataEvidenceService
 | 特性 | 状态 | 测试数 |
 |:-----|:----:|:------:|
 | A股行情采集 | 已完成 | — |
-| K 线数据采集 | KR-1A 双源对账 + KR-1B-1 官方日历门禁完成；停牌/生命周期与持久化待实现 | 31 |
+| K 线数据采集 | KR-1A/B-1/B-2A/B/2C-1 完成；官方 PDF 事件已采集，连续状态账本/生命周期/持久化待实现 | 42 |
 | 新闻采集 | 已完成 | — |
 | 数据缓存（TTL） | 已完成 | — |
 | Pydantic 标准化转换 | 已完成 | — |
@@ -128,7 +133,7 @@ DataEvidenceService
 | Provider 抽象层（4 源架构） | 已完成 ✅ | 84 |
 | 多数据源接入（akshare/adata/zzshare/fallback） | 已完成 ✅ | — |
 | **统一证据来源契约与注册中心** | **基础完成 ✅** | 11 |
-| **CNINFO 权威公告适配器** | **直连三态门禁完成 ✅** | 18 |
+| **CNINFO 权威公告与停复牌事件适配器** | **直连三态 + PDF 事件门禁完成 ✅** | 23 |
 | **DataEvidenceService 多通道统一汇总信封** | **完成 ✅** | 7 |
 | **东方财富 + 新浪独立新闻证据源** | **完成 ✅** | 7 |
 | **统一新闻聚合 API** | **完成 ✅** | 4 |
@@ -149,7 +154,7 @@ DataEvidenceService
 1. ✅ KR-1A：沪深新浪+腾讯核验 RAW 完成日线；北交所缺第二上游时失败关闭；
 2. ✅ KR-1A：RAW OHLC 按 `price_tick` 严格一致，成交量按来源精度对账；
 3. ✅ KR-1B-1：三市场 2026 官方日历、预期日期集、共同漏日和覆盖缺口门禁；
-4. 🔥 KR-1B-2～3：官方全天停牌/证券生命周期、长窗覆盖和持久化；
+4. 🔥 KR-1B-2C-2～3：连续状态账本、官方生命周期/北交所适配、长窗覆盖和持久化；
 5. KR-2：RAW、公司行动/因子和派生复权序列分层并版本化；
 6. KR-3：汇总 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE / PROVISIONAL` 分层信封；
 7. 保持正式指标与盘中估算指标字段隔离，覆盖晋升、冲突、未来因子和失败关闭；

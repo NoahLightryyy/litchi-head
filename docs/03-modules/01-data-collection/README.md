@@ -9,6 +9,8 @@
 - ✅ 缓存层（TTL）就绪
 - ✅ 统一多源证据契约、来源注册中心与独立上游完整性评估
 - ✅ 首个权威来源：CNINFO 直连有数据、真实空、失败三态门禁通过；AKShare 保留为可替换适配器
+- ✅ CNINFO 上市公司法定披露 PDF 停复牌事件层：明确生效日、附件 URL、原文哈希；
+  不把单次公告查询冒充完整状态覆盖
 - ✅ `DataEvidenceService` 并发汇总多个通道，输出统一证据信封
 - ✅ 新闻与实时行情已接入正式辩论零 LLM 失败关闭
 - ✅ L1 分时一期完成，动态分钟显式标记 `PROVISIONAL`
@@ -32,3 +34,4 @@
 - `src/data/models.py`
 - `src/data/cache.py`
 - `src/data/providers/cninfo.py`
+- `src/data/providers/cninfo_status.py`
