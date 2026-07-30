@@ -12,6 +12,7 @@ from src.data.providers.cninfo_status import (
     SuspensionEventKind,
     SuspensionEventSourceError,
 )
+from src.data.providers.cninfo import CNINFO_QUERY_URL
 
 
 def _announcement(
@@ -102,6 +103,42 @@ def test_extracts_auditable_full_day_start_and_resume_events() -> None:
     assert events[0].content_hash == "a" * 64
     assert all(event.code == "300996" for event in events)
     assert all(event.market is MarketCode.SZSE for event in events)
+
+
+def test_complete_query_returns_a_hashed_natural_date_batch() -> None:
+    payload = {
+        "totalAnnouncement": 1,
+        "announcements": [
+            _announcement(
+                "1225441186",
+                "关于筹划公司控制权变更事项的停牌公告",
+                "finalpage/2026-07-25/1225441186.PDF",
+            )
+        ],
+    }
+    source = CninfoSuspensionEventSource(
+        announcement_fetcher=lambda **_: payload,
+        document_fetcher=lambda _: OfficialDocument(
+            text=(
+                "公司股票（证券代码：300996）自2026 年7 月27日"
+                "（星期一）开市起停牌。"
+            ),
+            content_hash="a" * 64,
+        ),
+    )
+
+    batch = source.fetch_batch(
+        code="300996",
+        market=MarketCode.SZSE,
+        start=date(2026, 7, 20),
+        end=date(2026, 7, 30),
+    )
+
+    assert batch.coverage_start == date(2026, 7, 20)
+    assert batch.coverage_end == date(2026, 7, 30)
+    assert batch.source_url == CNINFO_QUERY_URL
+    assert len(batch.content_hash) == 64
+    assert batch.events[0].effective_on == date(2026, 7, 27)
 
 
 def test_fails_closed_when_candidate_has_no_explicit_effective_date() -> None:

@@ -275,6 +275,63 @@ def test_checkpoint_preserves_announced_but_not_yet_effective_transition() -> No
     assert pending_start.content_hash in window.source_hashes
 
 
+def test_generates_deterministic_checkpoint_with_pending_transitions() -> None:
+    pending_start = _event(
+        SuspensionEventKind.FULL_DAY_START,
+        date(2026, 7, 27),
+        "7-pending",
+    )
+    ledger = SuspensionStatusLedger(
+        lifecycle=_lifecycle(),
+        checkpoint=_checkpoint(state_on=date(2026, 7, 20)),
+        batches=(
+            _batch(
+                date(2026, 7, 20),
+                date(2026, 7, 26),
+                pending_start,
+                digest="7",
+            ),
+        ),
+    )
+
+    checkpoint = ledger.create_checkpoint(date(2026, 7, 26))
+    repeated = ledger.create_checkpoint(date(2026, 7, 26))
+
+    assert checkpoint.state is SecurityTradingState.ACTIVE
+    assert checkpoint.pending_events == (pending_start,)
+    assert checkpoint.source_url == "ledger://SZSE/300996/2026-07-26"
+    assert len(checkpoint.content_hash) == 64
+    assert repeated == checkpoint
+
+
+def test_checkpoint_replays_effective_events_and_drops_consumed_pending() -> None:
+    ledger = SuspensionStatusLedger(
+        lifecycle=_lifecycle(),
+        checkpoint=_checkpoint(state_on=date(2026, 7, 20)),
+        batches=(
+            _batch(
+                date(2026, 7, 20),
+                date(2026, 7, 30),
+                _event(
+                    SuspensionEventKind.FULL_DAY_START,
+                    date(2026, 7, 27),
+                    "a-start",
+                ),
+                _event(
+                    SuspensionEventKind.FULL_DAY_RESUME,
+                    date(2026, 7, 30),
+                    "d-resume",
+                ),
+            ),
+        ),
+    )
+
+    checkpoint = ledger.create_checkpoint(date(2026, 7, 30))
+
+    assert checkpoint.state is SecurityTradingState.ACTIVE
+    assert checkpoint.pending_events == ()
+
+
 def test_rejects_a_gap_between_official_query_batches() -> None:
     ledger = SuspensionStatusLedger(
         lifecycle=_lifecycle(),
