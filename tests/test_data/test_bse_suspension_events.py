@@ -82,7 +82,9 @@ def _payload(
 ) -> bytes:
     if counts is None:
         grouped: dict[str, int] = {}
-        for row in page["content"]:
+        raw_content = page["content"]
+        assert isinstance(raw_content, list)
+        for row in raw_content:
             assert isinstance(row, Mapping)
             type_code = str(row["typecode"])
             grouped[type_code] = grouped.get(type_code, 0) + 1
@@ -90,10 +92,7 @@ def _payload(
     return _jsonp(
         [
             [page],
-            [
-                {"typecode": type_code, "num": count}
-                for type_code, count in counts
-            ],
+            [{"typecode": type_code, "num": count} for type_code, count in counts],
             start,
             end,
         ]
@@ -332,26 +331,49 @@ def test_bse_events_feed_the_existing_continuous_ledger() -> None:
 def test_mapping_parser_ignores_unrelated_html_tables() -> None:
     mapping = (
         b"<table><tr><th>date</th><th>code</th><th>other</th></tr>"
-        b"<tr><td>2026-01-01</td><td>123456</td><td>654321</td></tr></table>"
-        + _mapping_html()
+        b"<tr><td>2026-01-01</td><td>123456</td><td>654321</td></tr></table>" + _mapping_html()
     )
     source = BseSuspensionEventSource(
-        page_fetcher=lambda **_: _payload(_page([])),
+        page_fetcher=lambda **_: _payload(_page([], total_pages=0)),
         mapping_fetcher=lambda: mapping,
     )
 
-    assert source.fetch_events(
-        code="920685",
-        market=MarketCode.BSE,
-        start=date(2026, 7, 16),
-        end=date(2026, 7, 30),
-    ) == ()
+    assert (
+        source.fetch_events(
+            code="920685",
+            market=MarketCode.BSE,
+            start=date(2026, 7, 16),
+            end=date(2026, 7, 30),
+        )
+        == ()
+    )
+
+
+def test_mapping_parser_accepts_official_td_header_row() -> None:
+    mapping = _mapping_html().replace(b"<th>", b"<td>").replace(
+        b"</th>",
+        b"</td>",
+    )
+    source = BseSuspensionEventSource(
+        page_fetcher=lambda **_: _payload(_page([], total_pages=0)),
+        mapping_fetcher=lambda: mapping,
+    )
+
+    assert (
+        source.fetch_events(
+            code="920685",
+            market=MarketCode.BSE,
+            start=date(2026, 7, 16),
+            end=date(2026, 7, 30),
+        )
+        == ()
+    )
 
 
 def test_mapping_parser_rejects_official_header_drift() -> None:
     drifted = _mapping_html().replace("旧代码".encode(), "曾用代码".encode())
     source = BseSuspensionEventSource(
-        page_fetcher=lambda **_: _payload(_page([])),
+        page_fetcher=lambda **_: _payload(_page([], total_pages=0)),
         mapping_fetcher=lambda: drifted,
     )
 
