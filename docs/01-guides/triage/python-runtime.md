@@ -12,6 +12,7 @@
 | `UserWarning: pydantic v1 not compatible with 3.14` | langchain 依赖 pydantic v1 | 等上游升级，暂时忽略 |
 | `UserWarning: pkg_resources deprecated` | setuptools 版本问题 | 忽略，仅报警 |
 | `ImportError: No module named 'adata'` | 可选依赖未安装 | `pip install adata` |
+| coverage 下 `numpy`/`pandas` 导入失败，普通 pytest 正常 | Windows 原生扩展在追踪器启动后初始化失败 | 先导入 `akshare`，再用 Coverage API 启动追踪 |
 
 ---
 
@@ -74,6 +75,21 @@ UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14
 **影响**：无。代码正常运行，测试全部通过。
 
 **长期**：等 langchain 升级到完全兼容 pydantic v2。
+
+---
+
+## Coverage 追踪下 NumPy/Pandas 导入失败
+
+### 现象
+
+普通 `pytest` 正常，但 `pytest --cov` 或 `coverage run` 在
+`akshare → pandas → numpy` 导入链中失败。
+
+### 本项目验证过的规避方式
+
+先在未启动追踪时导入 `akshare`，再通过 Coverage API 启动追踪并运行测试。该方式
+只用于本地统计专项覆盖率；正式正确性仍由普通 pytest 和完整质量闸门判断。若普通
+pytest 也失败，不能套用此规避方式，必须继续排查运行时或二进制依赖。
 
 ---
 

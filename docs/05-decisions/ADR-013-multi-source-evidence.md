@@ -202,11 +202,23 @@ K 线证据分为三个不可混淆的层：
   `attribution_supported=false`，不得输出“主力/量化/机构身份”；
 - 分时端点采用上游的“分钟结束标签”：当前自然分钟为已结束条，下一分钟标签为
   正在形成的临时条。真实沪、深、北代表代码联调均通过。
+- `src/data/kline.py`、`src/data/providers/kline.py` 与
+  `src/data/kline_runtime.py` 已完成 KR-1A：新浪/腾讯沪深 RAW 日线按两个
+  `upstream_id` 采集，固定 `RAW / CNY / 1d`、最小价位和成交量精度；
+- 完成日线 RAW OHLC 严格一致；腾讯“手”转“股”后保留 100 股精度；当前交易日
+  永不进入完成日线；请求时间窗口必须带时区；
+- `tests/test_data/test_kline_evidence.py` 25 项契约覆盖来源独立性、路由、解析、
+  单位/精度、日期/价格/成交量/成交额冲突、空窗和北交所缺第二源；
+- 2026-07-30 真实窗口（7 月 20～29 日）：平安银行、浦发银行、宁德时代均取得
+  8 根双源一致 RAW 日线；北交所云里物里只取得新浪，明确
+  `INCOMPLETE / independent_upstream_missing`；
+- KR-1A 仍是旁路能力，不等于完整 KR-1。KR-1B 必须补经过批准的交易日历/个股
+  停牌状态、共同漏日与长窗截断防护、RAW/诊断持久化；完成前不得接入正式 AI。
 
 ## 后续门禁
 
 1. 积累至少 20 个交易日的同分钟累计量基线后再启用 Relative Volume；
-2. 将 K 线迁移到同一完整性门禁，并实现
+2. 完成 K 线 KR-1B 交易日完备性与审计持久化，再实现
    `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE / PROVISIONAL` 的分层业务信封；
 3. PostgreSQL 完成外部编号、规范链接、内容哈希和修订幂等；
 4. 前端展示缺失来源、时间范围、失败原因和重试建议；

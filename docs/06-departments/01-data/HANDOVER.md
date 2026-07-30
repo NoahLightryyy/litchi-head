@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-30 (K 线双源、复权与冲突实施计划批准)
+last_updated: 2026-07-30 (KR-1A RAW 双源严格对账完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -69,10 +69,11 @@ last_updated: 2026-07-30 (K 线双源、复权与冲突实施计划批准)
 | 4 ✅ | 实时行情迁移到统一门禁 | 双源直连 + 时效/配对/价差 + 零 LLM |
 | 5 ✅ | L1 分时战况一期 | 东方财富 + 腾讯 + 统一业务信封 |
 | 6 🔥 | 20 日同分钟量能基线 | TD-072 |
-| 7 🔥 | K 线 KR-1 RAW 双源事实底座 | TD-069；新浪+腾讯沪深 RAW；北交所缺第二源失败关闭 |
-| 8 🔥 | K 线 KR-2 统一复权 | RAW/公司行动/派生序列分层；点时因子 |
-| 9 🔥 | K 线 KR-3 四层证据信封 | `FINAL_DAILY` 与今日 `PROVISIONAL` 严格分层 |
-| 10 🔥 | 行业证据迁移到统一门禁 | K 线门禁完成后 |
+| 7 ✅ | K 线 KR-1A RAW 双源采集与严格对账 | 25 项契约 + 85% 专项覆盖 + 沪深北真实烟测 |
+| 8 🔥 | K 线 KR-1B 交易日完备性与持久化 | 先确认交易日历/个股停牌状态来源；不得用工作日猜测 |
+| 9 🔥 | K 线 KR-2 统一复权 | RAW/公司行动/派生序列分层；点时因子 |
+| 10 🔥 | K 线 KR-3 四层证据信封 | `FINAL_DAILY` 与今日 `PROVISIONAL` 严格分层 |
+| 11 🔥 | 行业证据迁移到统一门禁 | K 线门禁完成后 |
 | 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
 | 5 🟡 | 财联社版权和跨节点传输许可评估 | 用户确认后 |
 
@@ -198,12 +199,12 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 ## 下次精确启动步骤
 
 1. 先读 [ADR-013](../../05-decisions/ADR-013-multi-source-evidence.md) 与
-   [实施计划 KR-1](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)；
-2. RED：冻结 `source_id/upstream_id`、RAW 单位/精度、交易日集合、停牌、北交所
-   缺第二源、OHLC 一价位冲突和成交量精度契约；
-3. GREEN：实现新浪+腾讯沪深 RAW 日线适配器和 `KlineEvidenceEnvelope`，保留旧
-   `DataCollector.get_klines()` 兼容入口；
-4. 真实烟测和故障注入通过后才进入 KR-2 公司行动与统一复权；不得同时提前改前端；
-5. KR-2 通过后按 KR-3 输出 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE /
+   [实施计划 KR-1B](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)；
+2. KR-1A 已完成：`src/data/kline.py`、`providers/kline.py`、
+   `kline_runtime.py` 与 25 项契约；不得重复实现或提前接入正式 AI；
+3. 先取得用户对交易日历/个股停牌状态数据源的确认，再写 KR-1B RED 契约；
+4. KR-1B 必须证明预期日期集、共同漏日、长窗截断、RAW/诊断持久化和回放；
+5. KR-1B 真实烟测和故障注入通过后才进入 KR-2；不得同时提前改前端；
+6. KR-2 通过后按 KR-3 输出 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE /
    PROVISIONAL`，再交给辩论、后端等下游；
-6. 每个 KR 独立完成五同步和强制闸门，K 线全链路完成后再迁移行业证据。
+7. 每个 KR 独立完成五同步和强制闸门，K 线全链路完成后再迁移行业证据。

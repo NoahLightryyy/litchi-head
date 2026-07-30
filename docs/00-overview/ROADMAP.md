@@ -156,8 +156,9 @@
 
 | 优先级 | 事项 | 依赖 | 预估 |
 |:------:|:-----|:----|:----:|
-| 🔥 P0 | **TD-069 / KR-1 RAW 双源事实底座** — 沪深新浪+腾讯独立上游；完成日线 OHLC 按 `price_tick` 严格一致；北交所缺第二源时失败关闭 | [K 线实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-0 | ~1d |
-| 🔥 P0 | **TD-069 / KR-2 公司行动与统一复权** — RAW、因子和派生序列分层；盘中点时前复权；回测禁止未来因子 | KR-1 | ~1d |
+| ✅ P0 | **TD-069 / KR-1A RAW 双源采集与严格对账** — 新浪+腾讯沪深 RAW、精度驱动冲突、当日动态排除、北交所失败关闭；25 项契约和真实烟测通过 | [K 线实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-0 | 已完成 |
+| 🔥 P0 | **TD-069 / KR-1B 交易日完备性与审计持久化** — 官方交易日历/个股停牌状态、预期日期集、长窗覆盖、RAW 与逐源诊断持久化 | KR-1A；新增数据源需用户确认 | ~0.5–1d |
+| 🔥 P0 | **TD-069 / KR-2 公司行动与统一复权** — RAW、因子和派生序列分层；盘中点时前复权；回测禁止未来因子 | KR-1B | ~1d |
 | 🔥 P0 | **TD-069 / KR-3～4 双时间尺度与 AI 串联** — `FINAL_DAILY + FINAL_MINUTE + LIVE_QUOTE + PROVISIONAL`；辩论/Agent/风控/交易门禁 | KR-2 | ~1.5d |
 | 🔥 P0 | **TD-069 / KR-5～6 API、前端与全链路验收** — 状态/口径/冲突可视化，兼容迁移，回放与故障注入 | KR-4 | ~1.5d |
 | 🔥 P0 | **TD-028 搜索防抖** — useDebounce(query, 300) | ✅ 已完成 | pnpm build ✅ |

@@ -22,6 +22,7 @@
 `Windows fatal exception: access violation` | torch 导入 crash | [🐍 Python 运行时](python-runtime.md)
 `Access violation reading location` | Windows + torch | [🐍 Python 运行时](python-runtime.md)
 `Core Pydantic V1 functionality isn't compatible` | Python 3.14 兼容性 | [🐍 Python 运行时](python-runtime.md)
+`coverage` 下导入 `numpy` / `pandas` 失败，但普通 pytest 正常 | Windows 原生扩展与追踪初始化顺序 | [🐍 Python 运行时](python-runtime.md)
 `Cannot access attribute "xxx"` - Pyright | 属性不存在 | [🧪 类型检查](type-checking.md)
 `No parameter named "xxx"` - Pyright | 参数名不匹配 | [🧪 类型检查](type-checking.md)
 `row["col"]` Pyright type mismatch | pandas iterrows | [🧪 类型检查](type-checking.md)

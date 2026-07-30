@@ -50,12 +50,20 @@ RAW 日线没有这种理由，所以项目要求按证券 `price_tick` 规范�
 
 ## 项目里的落点
 
+- `src/data/kline.py`：`RawDailyBar` 把 RAW 身份、最小价位和来源精度写进类型；
+- `src/data/providers/kline.py`：新浪/腾讯直连适配与“手→股”规范化；
+- `src/data/kline_runtime.py`：两个真实上游、逐日严格对账和失败关闭；
+- `tests/test_data/test_kline_evidence.py`：边界、冲突与北交所缺源契约；
 - [ADR-013](../05-decisions/ADR-013-multi-source-evidence.md)：不可违反的统一决策；
 - [K 线实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)：KR-1～KR-6
   的平稳迁移顺序；
 - `docs/06-departments/01-data/STANDARDS.md`：RAW 对账与统一复权；
 - `docs/06-departments/07-backtesting/STANDARDS.md`：点时因子；
 - `docs/06-departments/06-trading/STANDARDS.md`：订单只能使用 RAW/实时价格。
+
+当前 KR-1A 只能证明“两源返回的已有日期彼此一致”，还不能证明“两源没有同时漏掉
+某个应有交易日”。完整性需要第三类证据：交易日历与个股停复牌状态。项目明确禁止
+用周一到周五或“缺一行”猜测停牌；该能力将在 KR-1B 经用户确认数据源后接入。
 
 ## 自己试试
 
