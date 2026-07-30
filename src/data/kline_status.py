@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import date, timedelta
 from enum import Enum
 
@@ -161,6 +163,118 @@ class SuspensionStatusLedger:
                 return
         raise SecurityStatusCoverageError(
             "official suspension batches do not provide continuous coverage"
+        )
+
+    def create_checkpoint(
+        self,
+        state_on: date,
+    ) -> OfficialSecurityStateCheckpoint:
+        """Materialize a deterministic point-in-time state without future batches."""
+        if state_on < self._checkpoint.state_on:
+            raise SecurityStatusCoverageError(
+                "checkpoint date precedes the current official anchor"
+            )
+        usable_batches = tuple(
+            batch
+            for batch in self._batches
+            if batch.coverage_end <= state_on
+        )
+        if not usable_batches:
+            raise SecurityStatusCoverageError(
+                "official suspension batches do not provide continuous coverage"
+            )
+        covered_through = self._checkpoint.state_on - timedelta(days=1)
+        for batch in usable_batches:
+            if batch.coverage_end < self._checkpoint.state_on:
+                continue
+            if batch.coverage_start > covered_through + timedelta(days=1):
+                raise SecurityStatusCoverageError(
+                    "official suspension batches do not provide continuous coverage"
+                )
+            covered_through = max(covered_through, batch.coverage_end)
+        if covered_through < state_on:
+            raise SecurityStatusCoverageError(
+                "official suspension batches do not provide continuous coverage"
+            )
+
+        events = [
+            *self._checkpoint.pending_events,
+            *(
+                event
+                for batch in usable_batches
+                for event in batch.events
+                if event.effective_on >= self._checkpoint.state_on
+            ),
+        ]
+        kinds_by_date: dict[date, set[SuspensionEventKind]] = {}
+        for event in events:
+            kinds_by_date.setdefault(event.effective_on, set()).add(event.kind)
+        if any(len(kinds) > 1 for kinds in kinds_by_date.values()):
+            raise SecurityStatusCoverageError(
+                "official suspension events have conflicting transitions"
+            )
+
+        state = self._checkpoint.state
+        for effective_on in sorted(
+            day for day in kinds_by_date if day <= state_on
+        ):
+            kinds = kinds_by_date[effective_on]
+            if SuspensionEventKind.FULL_DAY_START in kinds:
+                state = SecurityTradingState.SUSPENDED
+            elif SuspensionEventKind.FULL_DAY_RESUME in kinds:
+                state = SecurityTradingState.ACTIVE
+        pending_events = tuple(
+            sorted(
+                {
+                    (
+                        event.kind,
+                        event.effective_on,
+                        event.source_url,
+                        event.content_hash,
+                    ): event
+                    for event in events
+                    if event.effective_on > state_on
+                }.values(),
+                key=lambda event: (
+                    event.effective_on,
+                    event.kind.value,
+                    event.source_url,
+                ),
+            )
+        )
+        payload = {
+            "code": self._lifecycle.code,
+            "market": self._lifecycle.market.value,
+            "state_on": state_on.isoformat(),
+            "state": state.value,
+            "pending_events": [
+                event.model_dump(mode="json") for event in pending_events
+            ],
+            "lifecycle_hash": self._lifecycle.content_hash,
+            "previous_checkpoint_hash": self._checkpoint.content_hash,
+            "batch_hashes": [
+                batch.content_hash for batch in usable_batches
+            ],
+        }
+        canonical = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return OfficialSecurityStateCheckpoint(
+            code=self._lifecycle.code,
+            market=self._lifecycle.market,
+            state_on=state_on,
+            state=state,
+            pending_events=pending_events,
+            source_url=(
+                f"ledger://{self._lifecycle.market.value}/"
+                f"{self._lifecycle.code}/{state_on.isoformat()}"
+            ),
+            content_hash=hashlib.sha256(
+                canonical.encode("utf-8")
+            ).hexdigest(),
         )
 
     def build_window(

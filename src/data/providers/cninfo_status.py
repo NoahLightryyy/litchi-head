@@ -8,6 +8,7 @@ events may exclude dates from K-line completeness checks.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import Mapping
 from datetime import date
@@ -18,9 +19,11 @@ from pydantic import BaseModel, Field
 from src.data.kline import MarketCode
 from src.data.kline_status import (
     OfficialSuspensionEvent,
+    OfficialSuspensionEventBatch,
     SuspensionEventKind,
 )
 from src.data.providers.cninfo import (
+    CNINFO_QUERY_URL,
     CNINFO_STATIC_URL,
     CninfoDirectFetcher,
     _default_direct_fetcher,
@@ -142,15 +145,15 @@ class CninfoSuspensionEventSource:
         )
         self._document_fetcher = document_fetcher or _default_document_fetcher
 
-    def fetch_events(
+    def fetch_batch(
         self,
         *,
         code: str,
         market: MarketCode,
         start: date,
         end: date,
-    ) -> tuple[OfficialSuspensionEvent, ...]:
-        """Fetch explicit events; never infer a complete status window."""
+    ) -> OfficialSuspensionEventBatch:
+        """Fetch one complete natural-date query batch with response digest."""
         if market is MarketCode.BSE:
             raise SuspensionEventSourceError(
                 "CNINFO BSE security-status coverage is not verified"
@@ -229,7 +232,7 @@ class CninfoSuspensionEventSource:
             message = str(exc).strip() or exc.__class__.__name__
             raise SuspensionEventSourceError(message) from exc
 
-        return tuple(
+        normalized_events = tuple(
             sorted(
                 events,
                 key=lambda event: (
@@ -239,6 +242,40 @@ class CninfoSuspensionEventSource:
                 ),
             )
         )
+        canonical = json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        return OfficialSuspensionEventBatch(
+            code=code,
+            market=market,
+            coverage_start=start,
+            coverage_end=end,
+            events=normalized_events,
+            source_url=CNINFO_QUERY_URL,
+            content_hash=hashlib.sha256(
+                canonical.encode("utf-8")
+            ).hexdigest(),
+        )
+
+    def fetch_events(
+        self,
+        *,
+        code: str,
+        market: MarketCode,
+        start: date,
+        end: date,
+    ) -> tuple[OfficialSuspensionEvent, ...]:
+        """Compatibility view over the complete hashed query batch."""
+        return self.fetch_batch(
+            code=code,
+            market=market,
+            start=start,
+            end=end,
+        ).events
 
 
 __all__ = [

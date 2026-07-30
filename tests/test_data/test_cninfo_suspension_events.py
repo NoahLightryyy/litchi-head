@@ -6,13 +6,13 @@ from typing import Any
 import pytest
 
 from src.data.kline import MarketCode
+from src.data.providers.cninfo import CNINFO_QUERY_URL
 from src.data.providers.cninfo_status import (
     CninfoSuspensionEventSource,
     OfficialDocument,
     SuspensionEventKind,
     SuspensionEventSourceError,
 )
-from src.data.providers.cninfo import CNINFO_QUERY_URL
 
 
 def _announcement(

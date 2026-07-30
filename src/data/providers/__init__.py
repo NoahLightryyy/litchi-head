@@ -35,6 +35,11 @@ from src.data.providers.kline import (
     SinaRawDailyKlineSource,
     TencentRawDailyKlineSource,
 )
+from src.data.providers.lifecycle import (
+    OfficialLifecycleSnapshot,
+    OfficialSecurityLifecycleSource,
+    SecurityLifecycleSourceError,
+)
 from src.data.providers.news import EastmoneyNewsSource, SinaNewsSource
 from src.data.providers.quotes import EastmoneyQuoteSource, SinaQuoteSource
 from src.data.providers.zzshare import ZzshareSource
@@ -50,10 +55,13 @@ __all__ = [
     "EastmoneyQuoteSource",
     "FallbackSource",
     "OfficialDocument",
+    "OfficialLifecycleSnapshot",
+    "OfficialSecurityLifecycleSource",
     "OfficialSuspensionEvent",
     "SinaNewsSource",
     "SinaQuoteSource",
     "SinaRawDailyKlineSource",
+    "SecurityLifecycleSourceError",
     "SuspensionEventKind",
     "SuspensionEventSourceError",
     "TencentRawDailyKlineSource",
