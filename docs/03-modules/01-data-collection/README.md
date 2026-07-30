@@ -11,6 +11,8 @@
 - ✅ 首个权威来源：CNINFO 直连有数据、真实空、失败三态门禁通过；AKShare 保留为可替换适配器
 - ✅ CNINFO 上市公司法定披露 PDF 停复牌事件层：明确生效日、附件 URL、原文哈希；
   不把单次公告查询冒充完整状态覆盖
+- ✅ 连续证券状态账本：生命周期 + 检查点 + 连续批次；重复公告幂等，断档和冲突
+  失败关闭，保留未生效转换
 - ✅ `DataEvidenceService` 并发汇总多个通道，输出统一证据信封
 - ✅ 新闻与实时行情已接入正式辩论零 LLM 失败关闭
 - ✅ L1 分时一期完成，动态分钟显式标记 `PROVISIONAL`
@@ -35,3 +37,4 @@
 - `src/data/cache.py`
 - `src/data/providers/cninfo.py`
 - `src/data/providers/cninfo_status.py`
+- `src/data/kline_status.py`
