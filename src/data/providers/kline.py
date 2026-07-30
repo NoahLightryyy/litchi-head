@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
 from collections.abc import Callable, Mapping
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol
 from zoneinfo import ZoneInfo
@@ -19,6 +20,7 @@ from src.data.evidence import (
     SourceStatus,
 )
 from src.data.kline import MarketCode, RawDailyBar, market_code_for
+from src.data.kline_store import KlineQueryChunkProof, KlineSourceAudit
 from src.data.providers.quotes import USER_AGENT, _market_prefix
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,9 @@ SINA_RAW_DAILY_URL = (
     "var%20_{symbol}_240_{datalen}=/CN_MarketDataService.getKLineData"
 )
 TENCENT_RAW_DAILY_URL = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
+SINA_ADAPTER_VERSION = "sina-raw-daily-v2"
+TENCENT_ADAPTER_VERSION = "tencent-raw-daily-v2"
+TENCENT_QUERY_CALENDAR_DAYS = 1000
 
 
 class SinaDailyFetcher(Protocol):
@@ -109,8 +114,7 @@ def _default_sina_fetcher(code: str, start: date, end: date) -> str:
     import httpx
 
     symbol = f"{_market_prefix(code)}{code}"
-    calendar_days = (end - start).days + 1
-    datalen = min(max(calendar_days * 2 + 10, 20), 1023)
+    datalen = _sina_datalen(start, end)
     response = httpx.get(
         SINA_RAW_DAILY_URL.format(symbol=symbol, datalen=datalen),
         params={
@@ -143,9 +147,7 @@ def _default_tencent_fetcher(
         TENCENT_RAW_DAILY_URL,
         params={
             # The trailing empty adjustment field requests the raw ``day`` key.
-            "param": (
-                f"{symbol},day,{start.isoformat()},{end.isoformat()},{count},"
-            )
+            "param": (f"{symbol},day,{start.isoformat()},{end.isoformat()},{count},")
         },
         headers={
             "User-Agent": USER_AGENT,
@@ -161,34 +163,178 @@ def _default_tencent_fetcher(
     return payload
 
 
-def _failed(
-    descriptor: SourceDescriptor,
-    exc: Exception,
+def _sina_datalen(start: date, end: date) -> int:
+    calendar_days = (end - start).days + 1
+    return min(max(calendar_days * 2 + 10, 20), 1023)
+
+
+def _canonical_response(payload: Mapping[str, Any]) -> bytes:
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _response_proof(
     *,
-    error_code: str,
-) -> SourceResult[RawDailyBar]:
-    return SourceResult(
-        source_id=descriptor.source_id,
-        upstream_id=descriptor.upstream_id,
-        capability=EvidenceCapability.KLINE,
-        status=SourceStatus.FAILED,
-        error_code=error_code,
-        error_message=str(exc).strip() or exc.__class__.__name__,
+    start: date,
+    end: date,
+    fetched_at: datetime,
+    response: bytes,
+    row_count: int,
+    complete: bool,
+) -> KlineQueryChunkProof:
+    return KlineQueryChunkProof(
+        query_start=start,
+        query_end=end,
+        fetched_at=fetched_at,
+        response_hash=hashlib.sha256(response).hexdigest(),
+        response_bytes=len(response),
+        row_count=row_count,
+        complete=complete,
     )
 
 
-def _success(
+def _audit_result(
     descriptor: SourceDescriptor,
-    bars: list[RawDailyBar],
+    *,
+    adapter_version: str,
+    status: SourceStatus,
+    fetched_at: datetime,
+    bars: list[RawDailyBar] | None = None,
+    chunks: list[KlineQueryChunkProof] | None = None,
+    error_code: str | None = None,
+    error_message: str | None = None,
+) -> KlineSourceAudit:
+    return KlineSourceAudit(
+        source_id=descriptor.source_id,
+        upstream_id=descriptor.upstream_id,
+        adapter_version=adapter_version,
+        status=status,
+        fetched_at=fetched_at,
+        raw_bars=tuple(bars or ()),
+        query_chunks=tuple(chunks or ()),
+        error_code=error_code,
+        error_message=error_message,
+    )
+
+
+def _source_result_from_audit(
+    descriptor: SourceDescriptor,
+    audit: KlineSourceAudit,
 ) -> SourceResult[RawDailyBar]:
     return SourceResult(
         source_id=descriptor.source_id,
         upstream_id=descriptor.upstream_id,
         capability=EvidenceCapability.KLINE,
-        status=(
-            SourceStatus.SUCCESS_DATA if bars else SourceStatus.SUCCESS_EMPTY
-        ),
-        items=bars,
+        status=audit.status,
+        items=(list(audit.raw_bars) if audit.status is SourceStatus.SUCCESS_DATA else []),
+        fetched_at=audit.fetched_at,
+        error_code=audit.error_code,
+        error_message=audit.error_message,
+    )
+
+
+def _sina_payload(
+    raw: str,
+    *,
+    expected_symbol: str,
+) -> list[Mapping[str, Any]]:
+    match = re.search(
+        r"var\s+_([a-z]{2}\d{6})_\d+_\d+\s*=\s*\((\[.*?\])\);",
+        raw,
+        flags=re.DOTALL,
+    )
+    if match is None:
+        raise ValueError("Sina RAW daily response wrapper is invalid")
+    if match.group(1) != expected_symbol:
+        raise ValueError("Sina RAW daily identity does not match request")
+    payload = json.loads(match.group(2))
+    if not isinstance(payload, list):
+        raise ValueError("Sina RAW daily payload must be a list")
+    if any(not isinstance(row, Mapping) for row in payload):
+        raise ValueError("Sina RAW daily row must be an object")
+    return payload
+
+
+def _sina_bars(
+    rows: list[Mapping[str, Any]],
+    *,
+    code: str,
+    start: date,
+    end: date,
+    now: datetime,
+) -> tuple[list[RawDailyBar], list[date]]:
+    bars: list[RawDailyBar] = []
+    raw_dates: list[date] = []
+    for row in rows:
+        trade_date = date.fromisoformat(str(row.get("day", "")).strip())
+        raw_dates.append(trade_date)
+        if not _completed_in_window(
+            trade_date,
+            start=start,
+            end=end,
+            now=now,
+        ):
+            continue
+        bars.append(
+            RawDailyBar(
+                code=code,
+                market=market_code_for(code),
+                trade_date=trade_date,
+                open=_decimal(row.get("open"), "open"),
+                high=_decimal(row.get("high"), "high"),
+                low=_decimal(row.get("low"), "low"),
+                close=_decimal(row.get("close"), "close"),
+                volume=_integer(row.get("volume"), "volume"),
+                volume_precision=1,
+            )
+        )
+    return bars, raw_dates
+
+
+def _tencent_rows(
+    payload: Mapping[str, Any],
+    *,
+    expected_symbol: str,
+) -> list[list[Any]]:
+    if payload.get("code") != 0:
+        raise ValueError("Tencent RAW daily response code is not zero")
+    data = payload.get("data")
+    if not isinstance(data, Mapping):
+        raise ValueError("Tencent RAW daily response is missing data")
+    symbol_data = data.get(expected_symbol)
+    if not isinstance(symbol_data, Mapping):
+        raise ValueError("Tencent RAW daily identity does not match request")
+    raw_rows = symbol_data.get("day")
+    if not isinstance(raw_rows, list):
+        raise ValueError("Tencent RAW daily rows are missing")
+    if any(not isinstance(row, list) or len(row) < 6 for row in raw_rows):
+        raise ValueError("Tencent RAW daily row has fewer than 6 fields")
+    return raw_rows
+
+
+def _tencent_bar(
+    row: list[Any],
+    *,
+    code: str,
+    trade_date: date,
+) -> RawDailyBar:
+    volume = _decimal(row[5], "volume_lots") * 100
+    if volume != volume.to_integral_value() or volume < 0:
+        raise ValueError("Tencent RAW daily volume must normalize to whole shares")
+    return RawDailyBar(
+        code=code,
+        market=market_code_for(code),
+        trade_date=trade_date,
+        open=_decimal(row[1], "open"),
+        close=_decimal(row[2], "close"),
+        high=_decimal(row[3], "high"),
+        low=_decimal(row[4], "low"),
+        volume=int(volume),
+        volume_precision=100,
     )
 
 
@@ -219,69 +365,104 @@ class SinaRawDailyKlineSource:
                 capability=request.capability,
                 status=SourceStatus.UNSUPPORTED,
             )
+        return _source_result_from_audit(
+            self.descriptor,
+            self.fetch_audited(request),
+        )
+
+    def fetch_audited(self, request: EvidenceRequest) -> KlineSourceAudit:
+        """Fetch once and prove whether Sina covered the requested window."""
+
+        if request.capability is not EvidenceCapability.KLINE:
+            raise ValueError("audited Sina K-line fetch requires KLINE capability")
+        chunks: list[KlineQueryChunkProof] = []
+        raw_bytes: bytes | None = None
+        rows: list[Mapping[str, Any]] = []
+        fetched_at = datetime.now(UTC)
         try:
+            fetched_at = _aware_local_now(self._now_provider)
             start, end = _request_dates(request)
             try:
                 raw = self._fetcher(request.stock_code, start, end)
             except Exception as exc:
-                raise _UpstreamRequestError(
-                    str(exc).strip() or exc.__class__.__name__
-                ) from exc
+                raise _UpstreamRequestError(str(exc).strip() or exc.__class__.__name__) from exc
             symbol = f"{_market_prefix(request.stock_code)}{request.stock_code}"
-            match = re.search(
-                r"var\s+_([a-z]{2}\d{6})_\d+_\d+\s*=\s*\((\[.*?\])\);",
-                raw,
-                flags=re.DOTALL,
+            raw_bytes = raw.encode("utf-8")
+            rows = _sina_payload(raw, expected_symbol=symbol)
+            bars, raw_dates = _sina_bars(
+                rows,
+                code=request.stock_code,
+                start=start,
+                end=end,
+                now=fetched_at,
             )
-            if match is None:
-                raise ValueError("Sina RAW daily response wrapper is invalid")
-            if match.group(1) != symbol:
-                raise ValueError("Sina RAW daily identity does not match request")
-            payload = json.loads(match.group(2))
-            if not isinstance(payload, list):
-                raise ValueError("Sina RAW daily payload must be a list")
-
-            now = _aware_local_now(self._now_provider)
-            bars: list[RawDailyBar] = []
-            for row in payload:
-                if not isinstance(row, Mapping):
-                    raise ValueError("Sina RAW daily row must be an object")
-                trade_date = date.fromisoformat(str(row.get("day", "")).strip())
-                if not _completed_in_window(
-                    trade_date,
+            complete = len(rows) < _sina_datalen(start, end) or (
+                bool(raw_dates) and min(raw_dates) <= start
+            )
+            chunks.append(
+                _response_proof(
                     start=start,
                     end=end,
-                    now=now,
-                ):
-                    continue
-                bars.append(
-                    RawDailyBar(
-                        code=request.stock_code,
-                        market=market_code_for(request.stock_code),
-                        trade_date=trade_date,
-                        open=_decimal(row.get("open"), "open"),
-                        high=_decimal(row.get("high"), "high"),
-                        low=_decimal(row.get("low"), "low"),
-                        close=_decimal(row.get("close"), "close"),
-                        volume=_integer(row.get("volume"), "volume"),
-                        volume_precision=1,
-                    )
+                    fetched_at=fetched_at,
+                    response=raw_bytes,
+                    row_count=len(rows),
+                    complete=complete,
+                )
+            )
+            if not complete:
+                return _audit_result(
+                    self.descriptor,
+                    adapter_version=SINA_ADAPTER_VERSION,
+                    status=SourceStatus.STALE,
+                    fetched_at=fetched_at,
+                    bars=bars,
+                    chunks=chunks,
+                    error_code="kline_source_window_not_covered",
+                    error_message=(
+                        "Sina returned a capped recent tail that does not prove "
+                        "coverage of the requested start date"
+                    ),
                 )
         except _UpstreamRequestError as exc:
             logger.warning("Sina RAW daily request failed: %s", exc)
-            return _failed(
+            return _audit_result(
                 self.descriptor,
-                exc,
+                adapter_version=SINA_ADAPTER_VERSION,
+                status=SourceStatus.FAILED,
+                fetched_at=fetched_at,
                 error_code="upstream_request_failed",
+                error_message=str(exc).strip() or exc.__class__.__name__,
             )
         except Exception as exc:
             logger.exception("Sina RAW daily payload is invalid")
-            return _failed(
+            if raw_bytes is not None:
+                chunks.append(
+                    _response_proof(
+                        start=start,
+                        end=end,
+                        fetched_at=fetched_at,
+                        response=raw_bytes,
+                        row_count=len(rows),
+                        complete=False,
+                    )
+                )
+            return _audit_result(
                 self.descriptor,
-                exc,
+                adapter_version=SINA_ADAPTER_VERSION,
+                status=SourceStatus.FAILED,
+                fetched_at=fetched_at,
+                chunks=chunks,
                 error_code="invalid_upstream_payload",
+                error_message=str(exc).strip() or exc.__class__.__name__,
             )
-        return _success(self.descriptor, bars)
+        return _audit_result(
+            self.descriptor,
+            adapter_version=SINA_ADAPTER_VERSION,
+            status=(SourceStatus.SUCCESS_DATA if bars else SourceStatus.SUCCESS_EMPTY),
+            fetched_at=fetched_at,
+            bars=bars,
+            chunks=chunks,
+        )
 
 
 class TencentRawDailyKlineSource:
@@ -320,73 +501,125 @@ class TencentRawDailyKlineSource:
                 error_code="independent_upstream_missing",
                 error_message="Tencent RAW historical daily bars are unavailable for BSE",
             )
-        try:
-            start, end = _request_dates(request)
-            try:
-                payload = self._fetcher(request.stock_code, start, end)
-            except Exception as exc:
-                raise _UpstreamRequestError(
-                    str(exc).strip() or exc.__class__.__name__
-                ) from exc
-            if payload.get("code") != 0:
-                raise ValueError("Tencent RAW daily response code is not zero")
-            symbol = f"{_market_prefix(request.stock_code)}{request.stock_code}"
-            data = payload.get("data")
-            if not isinstance(data, Mapping):
-                raise ValueError("Tencent RAW daily response is missing data")
-            symbol_data = data.get(symbol)
-            if not isinstance(symbol_data, Mapping):
-                raise ValueError("Tencent RAW daily identity does not match request")
-            raw_rows = symbol_data.get("day")
-            if not isinstance(raw_rows, list):
-                raise ValueError("Tencent RAW daily rows are missing")
+        return _source_result_from_audit(
+            self.descriptor,
+            self.fetch_audited(request),
+        )
 
-            now = _aware_local_now(self._now_provider)
-            bars: list[RawDailyBar] = []
-            for row in raw_rows:
-                if not isinstance(row, list) or len(row) < 6:
-                    raise ValueError("Tencent RAW daily row has fewer than 6 fields")
-                trade_date = date.fromisoformat(str(row[0]).strip())
-                if not _completed_in_window(
-                    trade_date,
-                    start=start,
-                    end=end,
-                    now=now,
-                ):
-                    continue
-                volume = _decimal(row[5], "volume_lots") * 100
-                if volume != volume.to_integral_value() or volume < 0:
-                    raise ValueError(
-                        "Tencent RAW daily volume must normalize to whole shares"
+    def fetch_audited(self, request: EvidenceRequest) -> KlineSourceAudit:
+        """Fetch deterministic bounded chunks and prove each response."""
+
+        if request.capability is not EvidenceCapability.KLINE:
+            raise ValueError("audited Tencent K-line fetch requires KLINE capability")
+        if market_code_for(request.stock_code) is MarketCode.BSE:
+            return _audit_result(
+                self.descriptor,
+                adapter_version=TENCENT_ADAPTER_VERSION,
+                status=SourceStatus.UNSUPPORTED,
+                fetched_at=_aware_local_now(self._now_provider),
+                error_code="independent_upstream_missing",
+                error_message=("Tencent RAW historical daily bars are unavailable for BSE"),
+            )
+        chunks: list[KlineQueryChunkProof] = []
+        bars_by_date: dict[date, RawDailyBar] = {}
+        response_bytes: bytes | None = None
+        chunk_start: date | None = None
+        chunk_end: date | None = None
+        raw_rows: list[list[Any]] = []
+        fetched_at = datetime.now(UTC)
+        try:
+            fetched_at = _aware_local_now(self._now_provider)
+            start, end = _request_dates(request)
+            symbol = f"{_market_prefix(request.stock_code)}{request.stock_code}"
+            chunk_start = start
+            while chunk_start <= end:
+                chunk_end = min(
+                    chunk_start + timedelta(days=TENCENT_QUERY_CALENDAR_DAYS - 1),
+                    end,
+                )
+                try:
+                    payload = self._fetcher(
+                        request.stock_code,
+                        chunk_start,
+                        chunk_end,
                     )
-                bars.append(
-                    RawDailyBar(
+                except Exception as exc:
+                    raise _UpstreamRequestError(str(exc).strip() or exc.__class__.__name__) from exc
+                response_bytes = _canonical_response(payload)
+                raw_rows = _tencent_rows(payload, expected_symbol=symbol)
+                seen_in_chunk: set[date] = set()
+                for row in raw_rows:
+                    trade_date = date.fromisoformat(str(row[0]).strip())
+                    if not chunk_start <= trade_date <= chunk_end:
+                        raise ValueError("Tencent RAW daily row is outside its query chunk")
+                    if trade_date in seen_in_chunk or trade_date in bars_by_date:
+                        raise ValueError("Tencent RAW daily response has duplicate trade date")
+                    seen_in_chunk.add(trade_date)
+                    if not _completed_in_window(
+                        trade_date,
+                        start=start,
+                        end=end,
+                        now=fetched_at,
+                    ):
+                        continue
+                    bars_by_date[trade_date] = _tencent_bar(
+                        row,
                         code=request.stock_code,
-                        market=market_code_for(request.stock_code),
                         trade_date=trade_date,
-                        open=_decimal(row[1], "open"),
-                        close=_decimal(row[2], "close"),
-                        high=_decimal(row[3], "high"),
-                        low=_decimal(row[4], "low"),
-                        volume=int(volume),
-                        volume_precision=100,
+                    )
+                chunks.append(
+                    _response_proof(
+                        start=chunk_start,
+                        end=chunk_end,
+                        fetched_at=fetched_at,
+                        response=response_bytes,
+                        row_count=len(raw_rows),
+                        complete=True,
                     )
                 )
+                chunk_start = chunk_end + timedelta(days=1)
         except _UpstreamRequestError as exc:
             logger.warning("Tencent RAW daily request failed: %s", exc)
-            return _failed(
+            return _audit_result(
                 self.descriptor,
-                exc,
+                adapter_version=TENCENT_ADAPTER_VERSION,
+                status=SourceStatus.FAILED,
+                fetched_at=fetched_at,
+                chunks=chunks,
                 error_code="upstream_request_failed",
+                error_message=str(exc).strip() or exc.__class__.__name__,
             )
         except Exception as exc:
             logger.exception("Tencent RAW daily payload is invalid")
-            return _failed(
+            if response_bytes is not None and chunk_start is not None and chunk_end is not None:
+                chunks.append(
+                    _response_proof(
+                        start=chunk_start,
+                        end=chunk_end,
+                        fetched_at=fetched_at,
+                        response=response_bytes,
+                        row_count=len(raw_rows),
+                        complete=False,
+                    )
+                )
+            return _audit_result(
                 self.descriptor,
-                exc,
+                adapter_version=TENCENT_ADAPTER_VERSION,
+                status=SourceStatus.FAILED,
+                fetched_at=fetched_at,
+                chunks=chunks,
                 error_code="invalid_upstream_payload",
+                error_message=str(exc).strip() or exc.__class__.__name__,
             )
-        return _success(self.descriptor, bars)
+        bars = [bars_by_date[trade_date] for trade_date in sorted(bars_by_date)]
+        return _audit_result(
+            self.descriptor,
+            adapter_version=TENCENT_ADAPTER_VERSION,
+            status=(SourceStatus.SUCCESS_DATA if bars else SourceStatus.SUCCESS_EMPTY),
+            fetched_at=fetched_at,
+            bars=bars,
+            chunks=chunks,
+        )
 
 
 __all__ = [

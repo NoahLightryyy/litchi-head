@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
-from datetime import date, datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from src.data.evidence import (
@@ -25,6 +28,11 @@ from src.data.kline_calendar import (
     StaticSecurityStatusCatalog,
     official_a_share_calendar_2026,
 )
+from src.data.kline_store import (
+    KlineAuditStore,
+    KlineEvidenceSnapshot,
+    KlineSourceAudit,
+)
 from src.data.providers.kline import (
     SinaRawDailyKlineSource,
     TencentRawDailyKlineSource,
@@ -36,6 +44,8 @@ KLINE_RAW_EVIDENCE_POLICY = EvidencePolicy(
     required_upstream_ids={"sina", "tencent"},
 )
 SHANGHAI = ZoneInfo("Asia/Shanghai")
+DEFAULT_KLINE_AUDIT_ROOT = Path("data/evidence/kline-audit")
+DEFAULT_KLINE_CALENDAR = official_a_share_calendar_2026()
 
 
 def _now_shanghai() -> datetime:
@@ -69,12 +79,18 @@ class RawDailyKlineEvidenceService:
         calendar: OfficialTradingCalendar | None = None,
         security_status_catalog: StaticSecurityStatusCatalog | None = None,
         now_provider: Callable[[], datetime] = _now_shanghai,
+        audited_sources: tuple[
+            SinaRawDailyKlineSource | TencentRawDailyKlineSource,
+            ...,
+        ] = (),
     ) -> None:
         self._registry = registry
         self._collector = DataEvidenceService(registry, max_workers=max_workers)
+        self._max_workers = max_workers
         self._calendar = calendar
         self._security_status_catalog = security_status_catalog
         self._now_provider = now_provider
+        self._audited_sources = audited_sources
 
     def collect(
         self,
@@ -86,10 +102,22 @@ class RawDailyKlineEvidenceService:
             raise ValueError("RAW daily K-line policy must use KLINE capability")
 
         raw = self._collector.collect(request, policy)
-        results = [
-            self._validate_source(result, request=request)
-            for result in raw.source_results
-        ]
+        return self._reconcile(
+            request,
+            policy,
+            raw.source_results,
+            collected_at=raw.collected_at,
+        )
+
+    def _reconcile(
+        self,
+        request: EvidenceRequest,
+        policy: EvidencePolicy,
+        source_results: list[SourceResult[RawDailyBar]],
+        *,
+        collected_at: datetime,
+    ) -> EvidenceEnvelope:
+        results = [self._validate_source(result, request=request) for result in source_results]
         results = self._validate_pair(results)
         results = self._validate_expected_dates(results, request=request)
         assessment = self._registry.assess(policy, results)
@@ -103,23 +131,117 @@ class RawDailyKlineEvidenceService:
             items=canonical,
             assessment=assessment,
             complete=assessment.complete,
+            collected_at=collected_at,
         )
+
+    @staticmethod
+    def _audit_result(
+        audit: KlineSourceAudit,
+    ) -> SourceResult[RawDailyBar]:
+        return SourceResult(
+            source_id=audit.source_id,
+            upstream_id=audit.upstream_id,
+            capability=EvidenceCapability.KLINE,
+            status=audit.status,
+            items=(list(audit.raw_bars) if audit.status is SourceStatus.SUCCESS_DATA else []),
+            fetched_at=audit.fetched_at,
+            error_code=audit.error_code,
+            error_message=audit.error_message,
+        )
+
+    def _authority_hashes(
+        self,
+        request: EvidenceRequest,
+    ) -> tuple[str, ...]:
+        if request.start_at is None or request.end_at is None:
+            return ()
+        start = request.start_at.date()
+        end = request.end_at.date()
+        market = market_code_for(request.stock_code)
+        hashes: list[str] = []
+        if self._calendar is not None:
+            hashes.extend(
+                f"calendar:{version.content_hash}"
+                for version in self._calendar.versions
+                if version.market is market and start.year <= version.year <= end.year
+            )
+        if self._security_status_catalog is not None:
+            try:
+                window = self._security_status_catalog.resolve(
+                    request.stock_code,
+                    market,
+                    start,
+                    end,
+                )
+            except SecurityStatusCoverageError:
+                pass
+            else:
+                hashes.append(f"status-window:{window.content_hash}")
+        return tuple(sorted(set(hashes)))
+
+    def collect_and_persist(
+        self,
+        request: EvidenceRequest,
+        policy: EvidencePolicy,
+        store: KlineAuditStore,
+    ) -> tuple[EvidenceEnvelope, str]:
+        """Collect exact per-source proofs and persist one auditable outcome."""
+        self._validate_request(request)
+        if policy.capability is not EvidenceCapability.KLINE:
+            raise ValueError("RAW daily K-line policy must use KLINE capability")
+        if not self._audited_sources:
+            raise ValueError("audited K-line sources are required for persistence")
+        with ThreadPoolExecutor(
+            max_workers=min(self._max_workers, len(self._audited_sources))
+        ) as executor:
+            audits = tuple(
+                executor.map(
+                    lambda source: source.fetch_audited(request),
+                    self._audited_sources,
+                )
+            )
+        collected_at = self._now_provider()
+        if collected_at.tzinfo is None:
+            raise ValueError("now_provider must return a timezone-aware datetime")
+        collected_at = collected_at.astimezone(UTC)
+        envelope = self._reconcile(
+            request,
+            policy,
+            [self._audit_result(audit) for audit in audits],
+            collected_at=collected_at,
+        )
+        final_results = {result.source_id: result for result in envelope.source_results}
+        final_audits = tuple(
+            KlineSourceAudit.model_validate(
+                {
+                    **audit.model_dump(mode="python"),
+                    "status": final_results[audit.source_id].status,
+                    "error_code": final_results[audit.source_id].error_code,
+                    "error_message": final_results[audit.source_id].error_message,
+                }
+            )
+            for audit in audits
+        )
+        snapshot = KlineEvidenceSnapshot(
+            schema_version=1,
+            request=request,
+            policy=policy,
+            collected_at=collected_at,
+            source_audits=final_audits,
+            canonical_bars=(tuple(envelope.items) if envelope.complete else ()),
+            assessment=envelope.assessment,
+            authority_hashes=self._authority_hashes(request),
+        )
+        return envelope, store.persist(snapshot)
 
     @staticmethod
     def _validate_request(request: EvidenceRequest) -> None:
         if request.capability is not EvidenceCapability.KLINE:
-            raise ValueError(
-                "RawDailyKlineEvidenceService only supports KLINE evidence"
-            )
+            raise ValueError("RawDailyKlineEvidenceService only supports KLINE evidence")
         if request.start_at is None or request.end_at is None:
             raise ValueError("RAW daily K-line request requires start_at and end_at")
-        if (
-            request.start_at.utcoffset() is None
-            or request.end_at.utcoffset() is None
-        ):
-            raise ValueError(
-                "RAW daily K-line request bounds must be timezone-aware"
-            )
+        if request.start_at.utcoffset() is None or request.end_at.utcoffset() is None:
+            raise ValueError("RAW daily K-line request bounds must be timezone-aware")
 
     @staticmethod
     def _validate_source(
@@ -184,10 +306,7 @@ class RawDailyKlineEvidenceService:
         if len(successful) < 2:
             return results
 
-        by_source = [
-            {bar.trade_date: bar for bar in result.items}
-            for result in successful
-        ]
+        by_source = [{bar.trade_date: bar for bar in result.items} for result in successful]
         reference_dates = set(by_source[0])
         if any(set(series) != reference_dates for series in by_source[1:]):
             return RawDailyKlineEvidenceService._conflict(
@@ -209,17 +328,14 @@ class RawDailyKlineEvidenceService:
                         error_message="RAW daily price ticks do not match",
                     )
                 if any(
-                    getattr(candidate, field_name)
-                    != getattr(reference, field_name)
+                    getattr(candidate, field_name) != getattr(reference, field_name)
                     for field_name in ("open", "high", "low", "close")
                 ):
                     return RawDailyKlineEvidenceService._conflict(
                         results,
                         successful,
                         error_code="raw_ohlc_conflict",
-                        error_message=(
-                            "Completed RAW daily OHLC differs by at least one tick"
-                        ),
+                        error_message=("Completed RAW daily OHLC differs by at least one tick"),
                     )
                 volume_precision = max(
                     reference.volume_precision,
@@ -230,9 +346,7 @@ class RawDailyKlineEvidenceService:
                         results,
                         successful,
                         error_code="raw_volume_conflict",
-                        error_message=(
-                            "RAW daily volumes differ beyond declared source precision"
-                        ),
+                        error_message=("RAW daily volumes differ beyond declared source precision"),
                     )
                 amount_error = RawDailyKlineEvidenceService._amount_error(
                     reference,
@@ -308,9 +422,7 @@ class RawDailyKlineEvidenceService:
                     error_code="security_status_coverage_missing",
                     error_message=str(exc),
                 )
-            expected = set(
-                status_window.expected_dates(tuple(sorted(expected)))
-            )
+            expected = set(status_window.expected_dates(tuple(sorted(expected))))
 
         actual = {bar.trade_date for bar in successful[0].items}
         missing = sorted(expected - actual)
@@ -377,16 +489,11 @@ class RawDailyKlineEvidenceService:
             for result in results
             if result.status is SourceStatus.SUCCESS_DATA and result.items
         ]
-        trade_dates = sorted(
-            {bar.trade_date for result in successful for bar in result.items}
-        )
+        trade_dates = sorted({bar.trade_date for result in successful for bar in result.items})
         canonical: list[RawDailyBar] = []
         for trade_date in trade_dates:
             candidates = [
-                bar
-                for result in successful
-                for bar in result.items
-                if bar.trade_date == trade_date
+                bar for result in successful for bar in result.items if bar.trade_date == trade_date
             ]
             canonical.append(
                 min(
@@ -401,15 +508,49 @@ class RawDailyKlineEvidenceService:
 
 
 class RawDailyKlineEvidenceRuntime:
-    """Process-level RAW daily evidence sources."""
+    """Process-level RAW daily sources plus immutable audit storage."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        store: KlineAuditStore | None = None,
+        *,
+        sina_source: SinaRawDailyKlineSource | None = None,
+        tencent_source: TencentRawDailyKlineSource | None = None,
+        calendar: OfficialTradingCalendar | None = DEFAULT_KLINE_CALENDAR,
+        security_status_catalog: StaticSecurityStatusCatalog | None = None,
+        now_provider: Callable[[], datetime] = _now_shanghai,
+    ) -> None:
+        self.store = store or KlineAuditStore(
+            Path(
+                os.getenv(
+                    "LITCHI_KLINE_AUDIT_ROOT",
+                    str(DEFAULT_KLINE_AUDIT_ROOT),
+                )
+            )
+        )
+        sina = sina_source or SinaRawDailyKlineSource()
+        tencent = tencent_source or TencentRawDailyKlineSource()
         registry = EvidenceSourceRegistry()
-        registry.register(SinaRawDailyKlineSource())
-        registry.register(TencentRawDailyKlineSource())
+        registry.register(sina)
+        registry.register(tencent)
         self.service = RawDailyKlineEvidenceService(
             registry,
-            calendar=official_a_share_calendar_2026(),
+            calendar=calendar,
+            security_status_catalog=security_status_catalog,
+            now_provider=now_provider,
+            audited_sources=(sina, tencent),
+        )
+
+    def collect_and_persist(
+        self,
+        request: EvidenceRequest,
+        policy: EvidencePolicy = KLINE_RAW_EVIDENCE_POLICY,
+    ) -> tuple[EvidenceEnvelope, str]:
+        """Collect, reconcile and durably publish complete or failed evidence."""
+        return self.service.collect_and_persist(
+            request,
+            policy,
+            self.store,
         )
 
 
@@ -424,6 +565,7 @@ def get_raw_daily_kline_runtime() -> RawDailyKlineEvidenceRuntime:
 
 
 __all__ = [
+    "DEFAULT_KLINE_AUDIT_ROOT",
     "KLINE_RAW_EVIDENCE_POLICY",
     "RawDailyKlineEvidenceRuntime",
     "RawDailyKlineEvidenceService",

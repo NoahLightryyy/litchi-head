@@ -130,8 +130,10 @@ class KlineSourceAudit(BaseModel):
                 raise ValueError("successful K-line source requires RAW bars")
             if not self.query_chunks or any(not chunk.complete for chunk in self.query_chunks):
                 raise ValueError("successful K-line source requires complete query chunks")
-        elif self.raw_bars:
-            raise ValueError("unusable K-line source cannot contain RAW bars")
+        elif (
+            self.status in {SourceStatus.SUCCESS_EMPTY, SourceStatus.UNSUPPORTED} and self.raw_bars
+        ):
+            raise ValueError("empty or unsupported K-line source cannot contain RAW bars")
         if self.status is SourceStatus.FAILED and not self.error_message:
             raise ValueError("failed K-line source requires error_message")
         self.raw_bars = tuple(sorted(self.raw_bars, key=lambda bar: bar.trade_date))

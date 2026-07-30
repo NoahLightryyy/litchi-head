@@ -46,14 +46,11 @@ def _sina_rows(days: list[date]) -> str:
         (
             f'{{"day":"{day.isoformat()}","open":"11.10",'
             '"high":"11.30","low":"11.00","close":"11.20",'
-            '"volume":"100000"}}'
+            '"volume":"100000"}'
         )
         for day in days
     )
-    return (
-        "/*<script>location.href='//sina.com';</script>*/\n"
-        f"var _sz000001_240_1023=([{rows}]);"
-    )
+    return f"/*<script>location.href='//sina.com';</script>*/\nvar _sz000001_240_1023=([{rows}]);"
 
 
 def _tencent_payload(days: list[date]) -> dict[str, Any]:
@@ -146,10 +143,7 @@ def test_tencent_long_window_is_split_into_contiguous_bounded_queries() -> None:
     )
     assert all((end - start).days < 1023 for start, end in calls)
     assert all(chunk.complete for chunk in audit.query_chunks)
-    assert [
-        (chunk.query_start, chunk.query_end)
-        for chunk in audit.query_chunks
-    ] == calls
+    assert [(chunk.query_start, chunk.query_end) for chunk in audit.query_chunks] == calls
 
 
 def test_runtime_persists_complete_audit_for_restart_replay(
@@ -214,9 +208,7 @@ def test_runtime_persists_truncated_sina_raw_and_diagnostics(
         end=date(2026, 7, 29),
         as_of=NOW,
     )
-    sina = next(
-        audit for audit in replayed.source_audits if audit.upstream_id == "sina"
-    )
+    sina = next(audit for audit in replayed.source_audits if audit.upstream_id == "sina")
 
     assert envelope.complete is False
     assert replayed.snapshot_id == snapshot_id
