@@ -19,6 +19,9 @@ from src.data.evidence import (
 from src.data.kline import MarketCode, RawDailyBar
 from src.data.kline_calendar import (
     CalendarCoverageError,
+    OfficialSecurityStatusWindow,
+    SecurityStatusCoverageError,
+    StaticSecurityStatusCatalog,
     official_a_share_calendar_2026,
 )
 from src.data.kline_runtime import (
@@ -168,3 +171,83 @@ def test_calendar_coverage_gap_is_visible_and_fails_closed() -> None:
     assert {
         result.error_code for result in envelope.source_results
     } == {"calendar_coverage_missing"}
+
+
+def test_only_official_full_day_suspension_excludes_an_open_date() -> None:
+    status = OfficialSecurityStatusWindow(
+        code="300996",
+        market=MarketCode.SZSE,
+        coverage_start=date(2026, 7, 27),
+        coverage_end=date(2026, 7, 29),
+        listed_on=date(2021, 6, 3),
+        full_day_suspensions=(
+            date(2026, 7, 27),
+            date(2026, 7, 28),
+            date(2026, 7, 29),
+        ),
+        intraday_suspensions=(),
+        source_urls=("https://disc.static.szse.cn/official.pdf",),
+    )
+
+    assert status.expected_dates(
+        (date(2026, 7, 27), date(2026, 7, 28), date(2026, 7, 29))
+    ) == ()
+
+
+def test_intraday_suspension_does_not_remove_the_daily_bar() -> None:
+    status = OfficialSecurityStatusWindow(
+        code="920176",
+        market=MarketCode.BSE,
+        coverage_start=date(2026, 7, 27),
+        coverage_end=date(2026, 7, 27),
+        listed_on=date(2026, 7, 27),
+        full_day_suspensions=(),
+        intraday_suspensions=(date(2026, 7, 27),),
+        source_urls=(
+            "https://www.bse.cn/disclosure/select_stop/200028788.html",
+        ),
+    )
+
+    assert status.expected_dates((date(2026, 7, 27),)) == (
+        date(2026, 7, 27),
+    )
+
+
+def test_security_lifecycle_excludes_dates_before_listing_and_after_delisting() -> None:
+    status = OfficialSecurityStatusWindow(
+        code="301513",
+        market=MarketCode.SZSE,
+        coverage_start=date(2026, 4, 16),
+        coverage_end=date(2026, 4, 20),
+        listed_on=date(2026, 4, 17),
+        delisted_on=date(2026, 4, 20),
+        full_day_suspensions=(),
+        intraday_suspensions=(),
+        source_urls=("https://www.szse.cn/official-listing.html",),
+    )
+
+    assert status.expected_dates(
+        (date(2026, 4, 16), date(2026, 4, 17), date(2026, 4, 20))
+    ) == (date(2026, 4, 17),)
+
+
+def test_security_status_catalog_fails_when_window_is_not_covered() -> None:
+    status = OfficialSecurityStatusWindow(
+        code="000001",
+        market=MarketCode.SZSE,
+        coverage_start=date(2026, 7, 28),
+        coverage_end=date(2026, 7, 29),
+        listed_on=date(1991, 4, 3),
+        full_day_suspensions=(),
+        intraday_suspensions=(),
+        source_urls=("https://www.szse.cn/official-status.html",),
+    )
+    catalog = StaticSecurityStatusCatalog((status,))
+
+    with pytest.raises(SecurityStatusCoverageError, match="2026-07-27"):
+        catalog.resolve(
+            "000001",
+            MarketCode.SZSE,
+            date(2026, 7, 27),
+            date(2026, 7, 29),
+        )
