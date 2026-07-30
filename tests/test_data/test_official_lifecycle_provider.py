@@ -228,10 +228,21 @@ def test_delisted_bse_security_uses_mapping_and_official_termination_event(
                         "typename": "退市/摘牌",
                         "xxfcbj": "2",
                         "xxzqjb": "T",
+                    },
+                    {
+                        "comments": "",
+                        "companycode": "832317",
+                        "companyname": "观典防务",
+                        "productType": "10",
+                        "publishdate": "2022-04-26",
+                        "typecode": "1101",
+                        "typename": "退市/摘牌",
+                        "xxfcbj": "2",
+                        "xxzqjb": "T",
                     }
                 ]
             )],
-            [{"typecode": "1101", "num": 2, "typename": "退市/摘牌"}],
+            [{"typecode": "1101", "num": 3, "typename": "退市/摘牌"}],
             "2021-11-15",
             "2026-07-30",
         ]
