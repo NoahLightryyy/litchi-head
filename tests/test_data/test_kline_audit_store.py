@@ -238,6 +238,35 @@ def test_snapshot_rejects_query_proof_fetched_after_source() -> None:
         )
 
 
+def test_snapshot_rejects_successful_source_with_chunk_coverage_gap() -> None:
+    snapshot = _snapshot()
+    source = snapshot.source_audits[0]
+    incomplete_topology = KlineQueryChunkProof(
+        query_start=START,
+        query_end=START,
+        fetched_at=T1,
+        response_hash="a" * 64,
+        response_bytes=1024,
+        row_count=1,
+        complete=True,
+    )
+    invalid_source = source.model_copy(update={"query_chunks": (incomplete_topology,)})
+
+    with pytest.raises(ValueError, match="chunk coverage"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(
+                    mode="python",
+                    exclude={"snapshot_id"},
+                ),
+                "source_audits": (
+                    invalid_source,
+                    snapshot.source_audits[1],
+                ),
+            }
+        )
+
+
 def test_persist_revalidates_a_snapshot_mutated_after_construction(
     tmp_path: Path,
 ) -> None:
