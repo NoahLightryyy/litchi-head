@@ -258,6 +258,27 @@ class KlineEvidenceSnapshot(BaseModel):
             or assessment.complete is not (not missing_required and missing_independent == 0)
         ):
             raise ValueError("K-line assessment contradicts source audits or policy")
+        if self.assessment.complete:
+            successful_raw = tuple(
+                bar
+                for audit in self.source_audits
+                if audit.status is SourceStatus.SUCCESS_DATA
+                for bar in audit.raw_bars
+            )
+            canonical_dates = {bar.trade_date for bar in self.canonical_bars}
+            successful_dates = {bar.trade_date for bar in successful_raw}
+            if (
+                len(canonical_dates) != len(self.canonical_bars)
+                or canonical_dates != successful_dates
+                or any(bar not in successful_raw for bar in self.canonical_bars)
+            ):
+                raise ValueError(
+                    "complete K-line canonical bars must trace exactly to successful RAW dates"
+                )
+            if not any(
+                authority.startswith("calendar:") for authority in self.authority_hashes
+            ):
+                raise ValueError("complete K-line snapshot requires calendar authority")
         self.source_audits = tuple(
             sorted(
                 self.source_audits,

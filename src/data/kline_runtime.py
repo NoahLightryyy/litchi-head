@@ -209,15 +209,23 @@ class RawDailyKlineEvidenceService:
                 "Unexpected audited K-line adapter failure: source=%s",
                 source.descriptor.source_id,
             )
-            failed_at = self._now_provider()
-            if failed_at.tzinfo is None:
+            try:
+                failed_at = self._now_provider()
+                if failed_at.tzinfo is None or failed_at.utcoffset() is None:
+                    raise ValueError("recovery clock returned a naive datetime")
+                failed_at = failed_at.astimezone(UTC)
+            except Exception:
+                logger.exception(
+                    "K-line recovery clock failed; using system UTC: source=%s",
+                    source.descriptor.source_id,
+                )
                 failed_at = datetime.now(UTC)
             return KlineSourceAudit(
                 source_id=source.descriptor.source_id,
                 upstream_id=source.descriptor.upstream_id,
                 adapter_version=source.adapter_version,
                 status=SourceStatus.FAILED,
-                fetched_at=failed_at.astimezone(UTC),
+                fetched_at=failed_at,
                 error_code="unexpected_adapter_failure",
                 error_message=str(exc).strip() or exc.__class__.__name__,
             )
@@ -250,6 +258,7 @@ class RawDailyKlineEvidenceService:
         if collected_at.tzinfo is None:
             raise ValueError("now_provider must return a timezone-aware datetime")
         collected_at = collected_at.astimezone(UTC)
+        collected_at = max(collected_at, *(audit.fetched_at for audit in audits))
         envelope = self._reconcile(
             request,
             policy,

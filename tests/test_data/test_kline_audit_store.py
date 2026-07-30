@@ -102,11 +102,17 @@ def _snapshot(
     reverse_sources: bool = False,
 ) -> KlineEvidenceSnapshot:
     sources = (
-        _source("direct-sina-raw-daily", "sina", fetched_at=collected_at),
+        _source(
+            "direct-sina-raw-daily",
+            "sina",
+            fetched_at=collected_at,
+            bars=(_bar(START), _bar(END, close=final_close)),
+        ),
         _source(
             "direct-tencent-raw-daily",
             "tencent",
             fetched_at=collected_at,
+            bars=(_bar(START), _bar(END, close=final_close)),
         ),
     )
     if reverse_sources:

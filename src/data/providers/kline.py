@@ -289,9 +289,9 @@ def _sina_bars(
     start: date,
     end: date,
     now: datetime,
+    bars: list[RawDailyBar],
+    raw_dates: list[date],
 ) -> tuple[list[RawDailyBar], list[date]]:
-    bars: list[RawDailyBar] = []
-    raw_dates: list[date] = []
     for row in rows:
         trade_date = date.fromisoformat(str(row.get("day", "")).strip())
         raw_dates.append(trade_date)
@@ -402,6 +402,8 @@ class SinaRawDailyKlineSource:
         chunks: list[KlineQueryChunkProof] = []
         raw_bytes: bytes | None = None
         rows: list[Mapping[str, Any]] = []
+        bars: list[RawDailyBar] = []
+        raw_dates: list[date] = []
         fetched_at = datetime.now(UTC)
         try:
             start, end = _request_dates(request)
@@ -416,12 +418,14 @@ class SinaRawDailyKlineSource:
             raw, raw_bytes = _sina_response(response)
             symbol = f"{_market_prefix(request.stock_code)}{request.stock_code}"
             rows = _sina_payload(raw, expected_symbol=symbol)
-            bars, raw_dates = _sina_bars(
+            _sina_bars(
                 rows,
                 code=request.stock_code,
                 start=start,
                 end=end,
                 now=fetched_at,
+                bars=bars,
+                raw_dates=raw_dates,
             )
             complete = bool(raw_dates) and min(raw_dates) <= start
             chunks.append(
@@ -476,6 +480,7 @@ class SinaRawDailyKlineSource:
                 adapter_version=SINA_ADAPTER_VERSION,
                 status=SourceStatus.FAILED,
                 fetched_at=fetched_at,
+                bars=bars,
                 chunks=chunks,
                 error_code="invalid_upstream_payload",
                 error_message=str(exc).strip() or exc.__class__.__name__,
