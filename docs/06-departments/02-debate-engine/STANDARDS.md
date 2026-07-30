@@ -143,6 +143,10 @@ class MinimalQuote(BaseModel):
 
 如果数据管道部改了这些字段名，辩论引擎部直接崩。
 
+盘中上下文必须保留 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE / PROVISIONAL`
+状态。开盘后不等待日 K 收盘；正式日线形态只引用 `FINAL_DAILY`，引用动态状态时
+必须明确“盘中、正在形成、尚未确认”。必需层不完整时首个 LLM 调用前短路。
+
 ### 数据输出契约（提供给后端 API 部）
 
 ```python

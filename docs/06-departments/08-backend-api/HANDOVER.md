@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-07-29 (统一 L1 分时战况 API 完成)
+last_updated: 2026-07-30 (盘中 K 线双时间尺度 API 方向确认)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -75,10 +75,20 @@ last_updated: 2026-07-29 (统一 L1 分时战况 API 完成)
 |:------:|:-----|:----:|
 | 1 ✅ | 新闻 `EvidenceEnvelope` 缺失返回 503；禁止不完整输入启动 LLM | 已完成 |
 | 2 ✅ | 实时行情 `EvidenceEnvelope` 缺失/陈旧/冲突返回 503 | 已完成 |
-| 3 🔥 | 将同一错误契约扩展到 K 线和行业证据 | TD-069 |
+| 3 🔥 | 扩展 K 线双时间尺度 API 与错误契约 | TD-069；历史与盘中状态分栏 |
+| 4 🔥 | 将同一错误契约扩展到行业证据 | K 线完成后 |
 | 2 🟡 | TD-068 正式辩论图 checkpoint + 路由 durable session 集成 | TD-069 |
 | 3 🟡 | TD-068 1/3/5 并发、durable queue 与全局背压门禁 | 正式图恢复 |
 | 4 🟢 | TD-054 CORS 改环境变量 | 无 |
+
+### K 线证据 API 目标（2026-07-30 确认）
+
+- 响应分别暴露 `final_daily_bars`、`final_minute_bars`、`live_quote` 和
+  `provisional_session_bar`，不得把动态今日 OHLC 追加到完整日 K 数组；
+- 每层携带 `as_of`、交易阶段、证据状态和逐源诊断；
+- 正式日线指标与“含盘中估算”指标使用不同字段，禁止覆盖；
+- `POST /api/debate/run` 在开盘后使用上述分层输入，不等待收盘；
+- 历史日 K 或盘中必需证据不完整时返回 HTTP 503，并给出缺失层、来源和重试建议。
 
 ### 结果回调（RC 系列，2026-06-23 新增）
 

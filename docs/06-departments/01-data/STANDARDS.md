@@ -59,6 +59,15 @@ StockQuote(price=float(row["最新价"]), volume=int(row["成交量"]))
 | 板块排行 | 60s | 盘中经常变化 |
 | 新闻公告 | 300s | 分钟级更新 |
 
+### 盘中 K 线状态
+
+- 历史完整日 K 使用 `FINAL_DAILY`，不得包含未收盘交易日；
+- 已结束分钟、实时行情和今日动态 OHLC 分别使用
+  `FINAL_MINUTE`、`LIVE_QUOTE`、`PROVISIONAL`；
+- `PROVISIONAL` 可以供盘中 AI 使用，但不能混入完整日 K 或覆盖正式指标；
+- 动态状态必须携带 `as_of`、交易阶段和来源诊断；
+- 收盘且多源确认后才允许从 `PROVISIONAL` 晋升为 `FINAL_DAILY`。
+
 ---
 
 ## 测试规范

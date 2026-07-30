@@ -14,6 +14,8 @@
 | 历史决策注入 | ✅ M1 | 405 tests |
 | 强制输出方向 | ✅ D2 | 436 tests |
 | VoteSummary 扩展 | ✅ D4 | 451 tests |
+| 新闻与实时行情零 LLM 失败关闭 | ✅ TD-069 分支完成 | — |
+| K 线双时间尺度上下文 | ⟳ `FINAL_DAILY` + 实时/分时 + `PROVISIONAL` | — |
 | 反思闭环 | 📋 TD-017 已确认 | — |
 
 ## 文档

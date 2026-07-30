@@ -82,6 +82,10 @@ async def aggregate_quotes(payload: QuoteAggregateRequest):
 @router.post("/intraday/battlefield")
 async def intraday_battlefield(payload: IntradayBattlefieldRequest):
     """返回双源核验分钟曲线、L1 战况快照与精简逐源诊断。"""
+
+# 目标：K 线双时间尺度证据信封
+# final_daily_bars / final_minute_bars / live_quote /
+# provisional_session_bar 分字段返回
 ```
 
 请求时间必须带时区。单源失败或时间窗覆盖不足仍返回完整逐源诊断；只有两个独立
@@ -94,8 +98,14 @@ async def intraday_battlefield(payload: IntradayBattlefieldRequest):
 腾讯完整序列仅用于对账，跨节点只传 `source_diagnostics`；当前分钟可能为
 `PROVISIONAL`。L1 结果固定 `attribution_supported=false`。
 
+K 线证据接口不得把今日动态 OHLC 追加到 `final_daily_bars`。盘中请求必须同时
+返回历史完整日 K 与当前实时/分时状态；动态条携带 `PROVISIONAL`、`as_of` 和交易
+阶段。正式指标和含盘中估算指标使用不同字段。
+
 `POST /api/debate/run` 固定请求最近 3 天新闻，并在连续竞价时请求双源实时行情。
-新闻、行情任一必需上游不完整，或行情陈旧/错时/冲突时返回 HTTP 503。默认构造
+新闻、行情任一必需上游不完整，或行情陈旧/错时/冲突时返回 HTTP 503。K 线门禁
+完成后，历史完整日 K 或盘中必需层不完整也返回相同错误契约；当日尚未收盘本身
+不是错误，不得要求用户等待收盘。默认构造
 `DebateOrchestrator()` 同样启用门禁，非 FastAPI 调用不能绕过：
 
 ```json

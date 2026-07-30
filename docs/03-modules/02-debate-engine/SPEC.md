@@ -44,7 +44,8 @@ MemoryStore.search("episodic", "debate")
      ↓
 collect_data（采集数据 ── 含 FD-001 财务指标 🆕）
   ├── 行情数据（已有）
-  ├── K 线数据（已有）
+  ├── 历史完整日 K（目标：`FINAL_DAILY`）
+  ├── 盘中状态（目标：`LIVE_QUOTE` + `FINAL_MINUTE` + `PROVISIONAL`）
   ├── 新闻数据（已有）
   └── 财务数据 🆕（FinancialMetric，填充基本面占位符）
      ↓
@@ -93,6 +94,10 @@ END
 - 任一必需证据不完整即在 `collect_data` 后结束图，抛出
   `EvidenceIncompleteError`，LLM 调用数为零。K 线和行业证据仍待统一门禁，
   TD-069 暂不关闭。
+- 盘中 AI 不等待日 K 收盘：历史结构只使用 `FINAL_DAILY`，今日实时行情、
+  已结束分钟和 `PROVISIONAL` 动态 OHLC 作为独立区段进入上下文；
+- 正式均线、日线形态与收盘结论不得消费 `PROVISIONAL`。若生成含盘中估算的
+  技术指标，必须以独立字段和明确措辞传给 Agent。
 
 ## 当前实现状态
 

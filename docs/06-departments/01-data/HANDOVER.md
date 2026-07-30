@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-29 (L1 分时战况双源一期完成)
+last_updated: 2026-07-30 (盘中 K 线双时间尺度方向确认)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -69,7 +69,8 @@ last_updated: 2026-07-29 (L1 分时战况双源一期完成)
 | 4 ✅ | 实时行情迁移到统一门禁 | 双源直连 + 时效/配对/价差 + 零 LLM |
 | 5 ✅ | L1 分时战况一期 | 东方财富 + 腾讯 + 统一业务信封 |
 | 6 🔥 | 20 日同分钟量能基线 | TD-072 |
-| 7 🔥 | K 线、行业证据迁移到统一门禁 | TD-069 |
+| 7 🔥 | K 线双时间尺度证据迁移 | TD-069；`FINAL_DAILY` 与今日 `PROVISIONAL` 严格分层 |
+| 8 🔥 | 行业证据迁移到统一门禁 | K 线门禁完成后 |
 | 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
 | 5 🟡 | 财联社版权和跨节点传输许可评估 | 用户确认后 |
 
@@ -166,6 +167,7 @@ collect_data_node (辩论引擎部)                             ← ✅ FD-001f
 
 ADataSource.get_financials() (get_core_index) / ZzshareSource.get_financials() (fina_indicator)  ← ✅ FD-001h
 ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数据部 · 纯计算）
+```
 
 ---
 
@@ -193,8 +195,14 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 
 ## 下次精确启动步骤
 
-1. 将新闻 `EvidenceEnvelope` 接入正式辩论数据节点；
-2. 证据不完整时在任何 LLM 调用前失败关闭；
-3. 测试必须证明失败关闭时 LLM 调用数为零；
-4. 后端和前端展示缺失来源、时间范围与重试建议；
-5. 财联社在版权和跨节点传输边界确认后再接入。
+1. 为 K 线业务信封定义明确状态：历史完整日 K 为 `FINAL_DAILY`，已结束分钟为
+   `FINAL_MINUTE`，实时快照为 `LIVE_QUOTE`，今日动态 OHLC 为 `PROVISIONAL`；
+2. 只把已收盘且通过多源核验的交易日放入历史日 K 序列；今日动态状态单独输出，
+   带采集时间、交易阶段和可变标识；
+3. 盘中 AI 输入同时包含历史完整日 K、实时行情、已结束分钟与今日动态状态，
+   不得因为日 K 未收盘而等待；
+4. 正式日线指标只基于 `FINAL_DAILY`。若提供“含盘中估算”指标，必须使用独立字段
+   和标签，不得覆盖正式值；
+5. 测试覆盖开盘后可立即启动 AI、动态状态不混入完整日 K、收盘确认后晋升、
+   任一必需证据不完整时 LLM 调用数为零；
+6. K 线原子功能完成并通过闸门后，再迁移行业证据。

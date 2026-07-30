@@ -80,6 +80,8 @@ backend/
 - **生产数据源**：`lifespan` 启动时自动调用 `config.setup_production_source()`，支持 `LITCHI_DATASOURCE` 环境变量
 - **行情聚合限流**：`LITCHI_RATE_LIMIT_QUOTE_AGGREGATE`，默认每 IP 6 次/分钟
 - **默认失败关闭**：直接构造 `DebateOrchestrator()` 也自动启用实时行情门禁
+- **K 线目标契约**：完整历史日 K 与盘中实时/分时/`PROVISIONAL` 今日状态分栏；
+  当日日 K 未收盘本身不阻塞 AI（TD-069 待实现）
 - **新闻滚动采集**：启动后立即采集新浪元数据，默认每 300 秒轮询；SQLite 路径
   `data/evidence/news.db`，可用 `LITCHI_NEWS_DATABASE` 与
   `LITCHI_NEWS_POLL_SECONDS` 配置。首次启动需连续积累 3 天后才满足辩论门禁。

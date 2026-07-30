@@ -40,6 +40,29 @@
 因此项目保留当前条参与实时 VWAP，但把它标记为 `PROVISIONAL`，提醒下游成交量和
 高低价仍会变化。已完成分钟才参加跨源历史对账。
 
+## 日 K 没收盘，AI 为什么仍然可以工作
+
+“今日完整日 K 尚不存在”不等于“今天没有数据”。盘中 AI 同时看四个时间层：
+
+```text
+上一交易日及以前的 FINAL_DAILY   → 趋势、正式均线、已确认日线形态
+今日已结束的 FINAL_MINUTE         → VWAP、开盘区间、盘中量价事实
+当前 LIVE_QUOTE                   → 此刻价格、成交量和行情时间
+今日 PROVISIONAL 动态 OHLC        → 正在形成的盘中状态
+```
+
+所以开盘后不需要等到收盘。真正要避免的是把上午 10 点的动态最高、最低和当前价
+塞进历史日 K，随后声称“今日收盘突破”已经确认。
+
+项目采用两套语义：
+
+- **正式日线指标**只使用 `FINAL_DAILY`；
+- **含盘中估算指标**可以把今日动态状态纳入，但必须单独命名、显示 `as_of`，
+  并明确说明仍会变化。
+
+收盘后也不是简单到点就改标签。只有多源确认当日最终 OHLC 后，今日动态状态才能
+从 `PROVISIONAL` 晋升为 `FINAL_DAILY`。
+
 ## Relative Volume 为什么暂时为空
 
 “放量”应该比较过去多个交易日的同一时刻，而不是只和上一分钟比较。开盘天然比
@@ -60,6 +83,7 @@ limitations = ["relative_volume_baseline_insufficient"]
 2. 打开 `src/data/intraday_runtime.py`，找到 0.01 元与 500 股的对账门槛；
 3. 运行 `python -m pytest tests/test_data/test_intraday_evidence.py -q`；
 4. 把测试中的腾讯累计量改大 20,100 股，观察信封变成 `complete=False`。
+5. 想一想：如果把当前动态 OHLC 直接追加到历史日 K，哪些“已确认”指标会被误导？
 
 ## 前后链接
 

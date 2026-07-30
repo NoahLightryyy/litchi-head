@@ -106,6 +106,13 @@ class BuffettAgent:
 | AgentResult 序列化 | ≤ 5ms |
 | 旧版 `AgentResult(dict)` 兼容 | ✅ 全测试通过 |
 
+### 盘中证据措辞
+
+- Agent 可以使用 `PROVISIONAL` 今日动态状态，不需要等待日 K 收盘；
+- 只有 `FINAL_DAILY` 可以支撑“已确认日线形态、正式收盘、正式日线指标”；
+- 引用 `PROVISIONAL` 必须使用“盘中、正在形成、截至当前”等限定词；
+- 不得自行去掉状态标签、猜测收盘值或把盘中估算写成事实。
+
 ---
 
 ## 部门间契约

@@ -55,11 +55,15 @@ Content-Type: application/json
 | POST | `/api/v1/evidence/news/aggregate` | 东方财富 + 新浪新闻证据信封 |
 | POST | `/api/v1/evidence/quotes/aggregate` | 东方财富 + 新浪实时行情证据信封；含逐源状态与完整性 |
 | POST | `/api/v1/evidence/intraday/battlefield` | 双源核验分钟曲线 + L1 战况；当前条含 `PROVISIONAL` 状态 |
+| 目标 | K 线双时间尺度证据信封 | `final_daily_bars`、实时/分钟与 `provisional_session_bar` 分栏；尚未实现 |
 
 > `/api/stocks/{code}/quote` 是页面展示兼容接口；业务节点和 AI 辩论使用统一证据
 > 接口。行情缺源、超过 10 秒、时间差超过 3 秒、价格差超过 0.01 元或不在连续
 > 竞价时段（9:30–11:30、13:00–14:57）时，不启动 AI。行情聚合接口默认按 IP
 > 限制为 6 次/分钟。
+>
+> 当日日 K 尚未收盘不是错误。盘中 AI 使用完整历史日 K、实时行情、已结束分钟和
+> `PROVISIONAL` 今日动态状态；动态状态不得混入正式日 K 数组。
 
 ### 信任度
 

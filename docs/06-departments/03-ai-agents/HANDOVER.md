@@ -1,7 +1,7 @@
 ---
 department: AI Agent 架构部
 codebase: src/agents/ + src/core/
-last_updated: 2026-06-21
+last_updated: 2026-07-30 (盘中 AI 输入语义确认)
 ---
 
 # 🤖 AI Agent 架构部工作交接
@@ -32,6 +32,8 @@ last_updated: 2026-06-21
 - **AgentResult 泛型化**：`AgentResult[T]` 支持类型化输出，Pyright 可静态校验
 - **向后兼容**：旧版 `AgentResult(data=dict)` 仍可用，新代码推荐泛型
 - **MasterAgent 通用化**：同一个 Agent 骨架 + 不同人格定义 = 7 位投资大师
+- **盘中证据分层**：Agent 同时接收历史 `FINAL_DAILY`、实时 `LIVE_QUOTE`、
+  已结束 `FINAL_MINUTE` 和今日 `PROVISIONAL`；不得把动态状态写成收盘定论
 
 ---
 
@@ -54,6 +56,16 @@ last_updated: 2026-06-21
 | 1 🟡 | TD-003 MessageRouter 持久化（`save_snapshot/load_snapshot`） | 无 |
 | 2 🟡 | TD-050 XiaoZhiAgent 补 LLM 超时/异常/非法返回测试 | 无 |
 | 3 🟢 | TD-006 EvidenceItem 添加 `validate_chain()` 方法 | 无 |
+| 4 🔥 | 为分析师和大师提示词增加盘中证据状态约束：明确区分历史结构、实时事实与动态估算 | TD-069 K 线信封 |
+
+### 盘中分析约束（2026-07-30 确认）
+
+1. 开盘后立即分析，不等待当日日 K 收盘；
+2. 趋势、正式均线和日线形态只引用 `FINAL_DAILY`；
+3. 当前价格、已结束分钟和今日动态 OHLC 可参与判断，但引用
+   `PROVISIONAL` 时必须使用“盘中、正在形成、尚未确认”等措辞；
+4. 不得把盘中最高/最低/动态收盘价描述为最终日线数据；
+5. 如果上游没有提供证据状态，Agent 不得自行猜测或补全。
 
 ### 设计哲学新任务（DP 系列）
 

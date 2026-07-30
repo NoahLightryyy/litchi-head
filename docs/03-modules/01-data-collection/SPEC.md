@@ -94,6 +94,13 @@ DataEvidenceService
 17. 分时战况只输出 VWAP、开盘30分钟区间、同期相对量能等可观察事实；
     `attribution_supported=false`。没有 20 个交易日同分钟基线时 Relative Volume
     必须为不可用，禁止用上一分钟冒充历史基线。
+18. 盘中 AI 的 K 线输入采用双时间尺度：上一交易日及以前的完整日 K 标记为
+    `FINAL_DAILY`；已结束分钟标记为 `FINAL_MINUTE`；双源实时行情标记为
+    `LIVE_QUOTE`；正在形成的今日 OHLC 标记为 `PROVISIONAL`。
+19. `PROVISIONAL` 可以进入盘中 AI，但不得追加到完整日 K 数组，也不得用于生成
+    “已确认日线形态”。收盘且多源确认后才能晋升为 `FINAL_DAILY`。
+20. 正式日线指标只基于 `FINAL_DAILY`。含盘中估算的指标若提供，必须使用独立
+    字段、明确标签和 `as_of`，不能覆盖正式值。
 
 ## 数据契约（关键模型）
 
@@ -112,7 +119,7 @@ DataEvidenceService
 | 特性 | 状态 | 测试数 |
 |:-----|:----:|:------:|
 | A股行情采集 | 已完成 | — |
-| K 线数据采集 | 已完成 | — |
+| K 线数据采集 | 旧链路已完成；双时间尺度证据门禁待实现 | — |
 | 新闻采集 | 已完成 | — |
 | 数据缓存（TTL） | 已完成 | — |
 | Pydantic 标准化转换 | 已完成 | — |
@@ -134,12 +141,13 @@ DataEvidenceService
 
 ## 下一步
 
-### P0 基本面采集（FD-001）
+### P0 K 线双时间尺度门禁（TD-069）
 
-1. `src/data/models.py` 新增 `FinancialMetric` / `IndustryPosition` / `SupplyChainNode`
-2. `src/data/providers/base.py` DataSource Protocol 扩展
-3. `src/data/providers/akshare.py` 实现 `get_financial_metrics()` + `get_industry_position()`
-4. `src/data/collector.py` 新增采集方法 + `format_market_brief()` 填充基本面占位符
+1. 多源核验已收盘日 K，并排除正在形成的当日条；
+2. 汇总历史完整日 K、实时行情、已结束分钟和今日动态状态为分层信封；
+3. 保持正式指标与盘中估算指标字段隔离；
+4. 覆盖开盘可用、收盘晋升、来源冲突和零 LLM 失败关闭测试；
+5. 完成后继续迁移行业证据。
 
 ### 数据流
 
