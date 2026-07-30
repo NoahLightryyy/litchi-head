@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date
+from collections.abc import Callable
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from src.data.evidence import (
     EvidenceCapability,
@@ -16,6 +18,11 @@ from src.data.evidence import (
 )
 from src.data.evidence_service import DataEvidenceService
 from src.data.kline import RawDailyBar, market_code_for
+from src.data.kline_calendar import (
+    CalendarCoverageError,
+    OfficialTradingCalendar,
+    official_a_share_calendar_2026,
+)
 from src.data.providers.kline import (
     SinaRawDailyKlineSource,
     TencentRawDailyKlineSource,
@@ -26,6 +33,11 @@ KLINE_RAW_EVIDENCE_POLICY = EvidencePolicy(
     min_independent_upstreams=2,
     required_upstream_ids={"sina", "tencent"},
 )
+SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def _now_shanghai() -> datetime:
+    return datetime.now(SHANGHAI)
 
 
 def _unusable(
@@ -52,9 +64,13 @@ class RawDailyKlineEvidenceService:
         registry: EvidenceSourceRegistry,
         *,
         max_workers: int = 2,
+        calendar: OfficialTradingCalendar | None = None,
+        now_provider: Callable[[], datetime] = _now_shanghai,
     ) -> None:
         self._registry = registry
         self._collector = DataEvidenceService(registry, max_workers=max_workers)
+        self._calendar = calendar
+        self._now_provider = now_provider
 
     def collect(
         self,
@@ -71,6 +87,7 @@ class RawDailyKlineEvidenceService:
             for result in raw.source_results
         ]
         results = self._validate_pair(results)
+        results = self._validate_expected_dates(results, request=request)
         assessment = self._registry.assess(policy, results)
         canonical: list[RawDailyBar] = []
         if assessment.complete:
@@ -226,6 +243,72 @@ class RawDailyKlineEvidenceService:
                     )
         return results
 
+    def _validate_expected_dates(
+        self,
+        results: list[SourceResult[RawDailyBar]],
+        *,
+        request: EvidenceRequest,
+    ) -> list[SourceResult[RawDailyBar]]:
+        if self._calendar is None:
+            return results
+        successful = [
+            result
+            for result in results
+            if result.status is SourceStatus.SUCCESS_DATA and result.items
+        ]
+        if len(successful) < 2:
+            return results
+
+        now = self._now_provider()
+        if now.tzinfo is None:
+            raise ValueError("now_provider must return a timezone-aware datetime")
+        start = request.start_at.date() if request.start_at else date.min
+        requested_end = request.end_at.date() if request.end_at else date.max
+        completed_end = min(
+            requested_end,
+            now.astimezone(SHANGHAI).date() - timedelta(days=1),
+        )
+        if start > completed_end:
+            return results
+
+        try:
+            expected = set(
+                self._calendar.open_dates(
+                    market_code_for(request.stock_code),
+                    start,
+                    completed_end,
+                )
+            )
+        except CalendarCoverageError as exc:
+            return self._conflict(
+                results,
+                successful,
+                status=SourceStatus.STALE,
+                error_code="calendar_coverage_missing",
+                error_message=str(exc),
+            )
+
+        actual = {bar.trade_date for bar in successful[0].items}
+        missing = sorted(expected - actual)
+        if missing:
+            dates = ", ".join(day.isoformat() for day in missing)
+            return self._conflict(
+                results,
+                successful,
+                error_code="expected_trading_date_missing",
+                error_message=f"RAW daily sources jointly omit open dates: {dates}",
+            )
+        unexpected = sorted(actual - expected)
+        if unexpected:
+            dates = ", ".join(day.isoformat() for day in unexpected)
+            return self._conflict(
+                results,
+                successful,
+                error_code="unexpected_trading_date",
+                error_message=f"RAW daily sources contain closed dates: {dates}",
+            )
+        return results
+
     @staticmethod
     def _amount_error(
         first: RawDailyBar,
@@ -245,13 +328,14 @@ class RawDailyKlineEvidenceService:
         results: list[SourceResult[RawDailyBar]],
         successful: list[SourceResult[RawDailyBar]],
         *,
+        status: SourceStatus = SourceStatus.CONFLICTED,
         error_code: str,
         error_message: str,
     ) -> list[SourceResult[RawDailyBar]]:
         return [
             _unusable(
                 result,
-                status=SourceStatus.CONFLICTED,
+                status=status,
                 error_code=error_code,
                 error_message=error_message,
             )
@@ -299,7 +383,10 @@ class RawDailyKlineEvidenceRuntime:
         registry = EvidenceSourceRegistry()
         registry.register(SinaRawDailyKlineSource())
         registry.register(TencentRawDailyKlineSource())
-        self.service = RawDailyKlineEvidenceService(registry)
+        self.service = RawDailyKlineEvidenceService(
+            registry,
+            calendar=official_a_share_calendar_2026(),
+        )
 
 
 _runtime: RawDailyKlineEvidenceRuntime | None = None

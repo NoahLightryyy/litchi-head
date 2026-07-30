@@ -30,6 +30,12 @@ from src.data.indicators import (
     normalize_industry,
 )
 from src.data.kline import MarketCode, RawDailyBar
+from src.data.kline_calendar import (
+    CalendarCoverageError,
+    MarketCalendarVersion,
+    OfficialTradingCalendar,
+    official_a_share_calendar_2026,
+)
 from src.data.models import (
     AnnouncementItem,
     BoardInfo,
@@ -44,6 +50,7 @@ from src.data.models import (
 __all__ = [
     "AnnouncementItem",
     "BoardInfo",
+    "CalendarCoverageError",
     "DataCache",
     "DataCollector",
     "DynamicIndicatorSelector",
@@ -55,7 +62,9 @@ __all__ = [
     "IndustryChainPosition",
     "KLine",
     "MarketCode",
+    "MarketCalendarVersion",
     "NewsItem",
+    "OfficialTradingCalendar",
     "REGISTRY",
     "RawDailyBar",
     "SelectorResult",
@@ -63,4 +72,5 @@ __all__ = [
     "StockQuote",
     "ValuationMetrics",
     "normalize_industry",
+    "official_a_share_calendar_2026",
 ]
