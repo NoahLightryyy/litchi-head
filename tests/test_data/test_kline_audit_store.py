@@ -64,11 +64,12 @@ def _chunk(
     *,
     fetched_at: datetime = T1,
 ) -> KlineQueryChunkProof:
+    response_hash = "a" * 64 if source == "sina" else "b" * 64
     return KlineQueryChunkProof(
         query_start=START,
         query_end=END,
         fetched_at=fetched_at,
-        response_hash=(source[0] * 64),
+        response_hash=response_hash,
         response_bytes=1024,
         row_count=2,
         complete=True,
@@ -115,9 +116,7 @@ def _snapshot(
         complete=complete,
         successful_upstream_ids={"sina", "tencent"} if complete else set(),
         successful_source_ids=(
-            {"direct-sina-raw-daily", "direct-tencent-raw-daily"}
-            if complete
-            else set()
+            {"direct-sina-raw-daily", "direct-tencent-raw-daily"} if complete else set()
         ),
         unusable_source_ids=set() if complete else {"direct-sina-raw-daily"},
         missing_required_upstream_ids=set() if complete else {"sina"},
@@ -137,7 +136,9 @@ def _snapshot(
             required_upstream_ids={"sina", "tencent"},
         ),
         collected_at=collected_at,
-        source_audits=sources if complete else (
+        source_audits=sources
+        if complete
+        else (
             KlineSourceAudit(
                 source_id="direct-sina-raw-daily",
                 upstream_id="sina",
@@ -150,25 +151,19 @@ def _snapshot(
                 raw_bars=(),
             ),
         ),
-        canonical_bars=(
-            (_bar(START), _bar(END, close=final_close))
-            if complete
-            else ()
-        ),
+        canonical_bars=((_bar(START), _bar(END, close=final_close)) if complete else ()),
         assessment=assessment,
         authority_hashes=(
             "calendar:" + "c" * 64,
-            "lifecycle:" + "l" * 64,
-            "checkpoint:" + "p" * 64,
-            "status-window:" + "s" * 64,
+            "lifecycle:" + "d" * 64,
+            "checkpoint:" + "e" * 64,
+            "status-window:" + "f" * 64,
         ),
     )
 
 
 def test_snapshot_hash_is_canonical_across_source_order() -> None:
-    assert _snapshot().snapshot_id == _snapshot(
-        reverse_sources=True
-    ).snapshot_id
+    assert _snapshot().snapshot_id == _snapshot(reverse_sources=True).snapshot_id
 
 
 def test_store_survives_restart_and_round_trips_all_audit_fields(
@@ -330,13 +325,16 @@ def test_interrupted_write_never_publishes_a_partial_snapshot(
     with pytest.raises(KlineAuditStoreError, match="commit"):
         store.persist(latest)
 
-    assert store.replay(
-        code="000001",
-        market=MarketCode.SZSE,
-        start=START,
-        end=END,
-        as_of=T2,
-    ).snapshot_id == old.snapshot_id
+    assert (
+        store.replay(
+            code="000001",
+            market=MarketCode.SZSE,
+            start=START,
+            end=END,
+            as_of=T2,
+        ).snapshot_id
+        == old.snapshot_id
+    )
 
 
 def test_incomplete_diagnostic_snapshot_is_preserved_without_canonical_bars(
