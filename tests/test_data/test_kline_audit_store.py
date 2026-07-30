@@ -118,6 +118,7 @@ def _snapshot(
         successful_source_ids=(
             {"direct-sina-raw-daily", "direct-tencent-raw-daily"} if complete else set()
         ),
+        failed_source_ids=set() if complete else {"direct-sina-raw-daily"},
         unusable_source_ids=set() if complete else {"direct-sina-raw-daily"},
         missing_required_upstream_ids=set() if complete else {"sina"},
         missing_independent_upstreams=0 if complete else 1,
@@ -182,7 +183,7 @@ def test_store_survives_restart_and_round_trips_all_audit_fields(
     )
 
     assert snapshot_id == expected.snapshot_id
-    assert replayed.model_dump(mode="json") == expected.model_dump(mode="json")
+    assert replayed == expected
     assert {audit.upstream_id for audit in replayed.source_audits} == {
         "sina",
         "tencent",
@@ -201,6 +202,78 @@ def test_repeated_identical_snapshot_is_idempotent(tmp_path: Path) -> None:
         start=START,
         end=END,
     ) == (snapshot.snapshot_id,)
+
+
+def test_logically_identical_reordered_snapshot_is_idempotent(
+    tmp_path: Path,
+) -> None:
+    store = KlineAuditStore(tmp_path / "kline-audit")
+    first = _snapshot()
+    reordered = _snapshot(reverse_sources=True)
+
+    assert store.persist(first) == store.persist(reordered)
+    assert store.snapshot_ids(
+        code="000001",
+        market=MarketCode.SZSE,
+        start=START,
+        end=END,
+    ) == (first.snapshot_id,)
+
+
+def test_snapshot_rejects_query_proof_fetched_after_source() -> None:
+    snapshot = _snapshot()
+    invalid_source = snapshot.source_audits[0].model_copy(
+        update={"query_chunks": (_chunk("sina", fetched_at=T2),)}
+    )
+
+    with pytest.raises(ValueError, match="chunk fetched_at"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "source_audits": (
+                    invalid_source,
+                    snapshot.source_audits[1],
+                ),
+            }
+        )
+
+
+def test_snapshot_rejects_assessment_that_contradicts_sources() -> None:
+    snapshot = _snapshot()
+    failed = KlineSourceAudit(
+        source_id="direct-sina-raw-daily",
+        upstream_id="sina",
+        adapter_version="1",
+        status=SourceStatus.FAILED,
+        fetched_at=T1,
+        error_message="network unavailable",
+    )
+
+    with pytest.raises(ValueError, match="assessment"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "source_audits": (failed,),
+            }
+        )
+
+
+def test_snapshot_rejects_duplicate_source_id_across_upstreams() -> None:
+    snapshot = _snapshot()
+    colliding = snapshot.source_audits[1].model_copy(
+        update={"source_id": snapshot.source_audits[0].source_id}
+    )
+
+    with pytest.raises(ValueError, match="duplicate source"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "source_audits": (
+                    snapshot.source_audits[0],
+                    colliding,
+                ),
+            }
+        )
 
 
 def test_as_of_replay_never_leaks_a_future_snapshot(tmp_path: Path) -> None:
@@ -234,6 +307,34 @@ def test_as_of_replay_never_leaks_a_future_snapshot(tmp_path: Path) -> None:
             start=START,
             end=END,
             as_of=T1 - timedelta(seconds=1),
+        )
+
+
+def test_replay_rejects_tampered_selector_that_exposes_future_snapshot(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "kline-audit"
+    store = KlineAuditStore(root)
+    future = _snapshot(collected_at=T2, final_close="11.29")
+    store.persist(future)
+    with sqlite3.connect(root / "manifest.sqlite3") as connection:
+        connection.execute(
+            """
+            UPDATE kline_snapshots
+            SET collected_at = ?
+            WHERE snapshot_id = ?
+            """,
+            (T1.isoformat(), future.snapshot_id),
+        )
+        connection.commit()
+
+    with pytest.raises(KlineAuditStoreError, match="selector|as_of"):
+        store.replay(
+            code="000001",
+            market=MarketCode.SZSE,
+            start=START,
+            end=END,
+            as_of=T1,
         )
 
 
@@ -307,6 +408,28 @@ def test_tampered_manifest_fails_closed_without_fallback(
             end=END,
             as_of=T2,
         )
+
+
+def test_repeated_persist_rejects_an_already_tampered_manifest(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "kline-audit"
+    store = KlineAuditStore(root)
+    snapshot = _snapshot()
+    store.persist(snapshot)
+    with sqlite3.connect(root / "manifest.sqlite3") as connection:
+        connection.execute(
+            """
+            UPDATE kline_snapshots
+            SET manifest_json = manifest_json || ' '
+            WHERE snapshot_id = ?
+            """,
+            (snapshot.snapshot_id,),
+        )
+        connection.commit()
+
+    with pytest.raises(KlineAuditStoreError, match="manifest"):
+        store.persist(snapshot)
 
 
 def test_interrupted_write_never_publishes_a_partial_snapshot(
