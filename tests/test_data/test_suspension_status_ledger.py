@@ -36,12 +36,14 @@ def _checkpoint(
     *,
     state_on: date = date(2026, 7, 20),
     state: SecurityTradingState = SecurityTradingState.ACTIVE,
+    pending_events: tuple[OfficialSuspensionEvent, ...] = (),
 ) -> OfficialSecurityStateCheckpoint:
     return OfficialSecurityStateCheckpoint(
         code="300996",
         market=MarketCode.SZSE,
         state_on=state_on,
         state=state,
+        pending_events=pending_events,
         source_url="ledger://300996/2026-07-20",
         content_hash="2" * 64,
     )
@@ -229,6 +231,48 @@ def test_replays_transitions_before_requested_window_to_derive_opening_state() -
         date(2026, 7, 21),
         date(2026, 7, 22),
     )
+
+
+def test_checkpoint_preserves_announced_but_not_yet_effective_transition() -> None:
+    start = date(2026, 7, 26)
+    end = date(2026, 7, 30)
+    pending_start = _event(
+        SuspensionEventKind.FULL_DAY_START,
+        date(2026, 7, 27),
+        "7-pending",
+    )
+    ledger = SuspensionStatusLedger(
+        lifecycle=_lifecycle(),
+        checkpoint=_checkpoint(
+            state_on=start,
+            pending_events=(pending_start,),
+        ),
+        batches=(
+            _batch(
+                start,
+                end,
+                _event(
+                    SuspensionEventKind.FULL_DAY_RESUME,
+                    date(2026, 7, 30),
+                    "d-resume",
+                ),
+            ),
+        ),
+    )
+
+    window = ledger.build_window(
+        start=start,
+        end=end,
+        market_open_dates=_dates(start, end),
+    )
+
+    assert window.full_day_suspensions == (
+        date(2026, 7, 27),
+        date(2026, 7, 28),
+        date(2026, 7, 29),
+    )
+    assert pending_start.source_url in window.source_urls
+    assert pending_start.content_hash in window.source_hashes
 
 
 def test_rejects_a_gap_between_official_query_batches() -> None:
