@@ -92,6 +92,13 @@ class RawDailyKlineEvidenceService:
             )
         if request.start_at is None or request.end_at is None:
             raise ValueError("RAW daily K-line request requires start_at and end_at")
+        if (
+            request.start_at.utcoffset() is None
+            or request.end_at.utcoffset() is None
+        ):
+            raise ValueError(
+                "RAW daily K-line request bounds must be timezone-aware"
+            )
 
     @staticmethod
     def _validate_source(
