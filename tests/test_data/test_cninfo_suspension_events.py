@@ -104,7 +104,7 @@ def test_extracts_auditable_full_day_start_and_resume_events() -> None:
     assert all(event.market is MarketCode.SZSE for event in events)
 
 
-def test_does_not_infer_an_event_when_document_has_no_explicit_effective_date() -> None:
+def test_fails_closed_when_candidate_has_no_explicit_effective_date() -> None:
     payload = {
         "totalAnnouncement": 1,
         "announcements": [
@@ -123,12 +123,13 @@ def test_does_not_infer_an_event_when_document_has_no_explicit_effective_date() 
         ),
     )
 
-    assert source.fetch_events(
-        code="300996",
-        market=MarketCode.SZSE,
-        start=date(2026, 7, 20),
-        end=date(2026, 7, 30),
-    ) == ()
+    with pytest.raises(SuspensionEventSourceError, match="effective date"):
+        source.fetch_events(
+            code="300996",
+            market=MarketCode.SZSE,
+            start=date(2026, 7, 20),
+            end=date(2026, 7, 30),
+        )
 
 
 def test_rejects_unverified_bse_coverage_instead_of_guessing() -> None:
