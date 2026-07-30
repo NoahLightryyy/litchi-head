@@ -20,7 +20,12 @@ from src.data.evidence import (
     SourceStatus,
 )
 from src.data.evidence_service import DataEvidenceService
-from src.data.kline import RawDailyBar, market_code_for, raw_daily_bar_conflict
+from src.data.kline import (
+    RawDailyBar,
+    market_code_for,
+    raw_daily_bar_conflict,
+    select_canonical_raw_daily_bar,
+)
 from src.data.kline_calendar import (
     CalendarCoverageError,
     OfficialTradingCalendar,
@@ -515,17 +520,12 @@ class RawDailyKlineEvidenceService:
         canonical: list[RawDailyBar] = []
         for trade_date in trade_dates:
             candidates = [
-                bar for result in successful for bar in result.items if bar.trade_date == trade_date
+                (result.source_id, bar)
+                for result in successful
+                for bar in result.items
+                if bar.trade_date == trade_date
             ]
-            canonical.append(
-                min(
-                    candidates,
-                    key=lambda bar: (
-                        bar.volume_precision,
-                        bar.amount_precision is None,
-                    ),
-                )
-            )
+            canonical.append(select_canonical_raw_daily_bar(candidates))
         return canonical
 
 

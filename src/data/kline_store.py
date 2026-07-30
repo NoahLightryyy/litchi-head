@@ -31,6 +31,7 @@ from src.data.kline import (
     RawDailyBar,
     market_code_for,
     raw_daily_bar_conflict,
+    select_canonical_raw_daily_bar,
 )
 
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
@@ -269,9 +270,6 @@ class KlineEvidenceSnapshot(BaseModel):
                 for audit in self.source_audits
                 if audit.status is SourceStatus.SUCCESS_DATA
             )
-            successful_raw = tuple(
-                bar for audit in successful_audits for bar in audit.raw_bars
-            )
             canonical_dates = {bar.trade_date for bar in self.canonical_bars}
             if len(canonical_dates) != len(self.canonical_bars):
                 raise ValueError("complete K-line canonical dates must not contain duplicates")
@@ -294,9 +292,22 @@ class KlineEvidenceSnapshot(BaseModel):
                         raise ValueError(
                             f"successful K-line source conflict: {conflict[0]}"
                         )
-            if any(bar not in successful_raw for bar in self.canonical_bars):
+            canonical_by_date = {
+                bar.trade_date: bar for bar in self.canonical_bars
+            }
+            if any(
+                canonical_by_date[trade_date]
+                != select_canonical_raw_daily_bar(
+                    (
+                        audit.source_id,
+                        source_series[index][trade_date],
+                    )
+                    for index, audit in enumerate(successful_audits)
+                )
+                for trade_date in canonical_dates
+            ):
                 raise ValueError(
-                    "complete K-line canonical bars must trace exactly to successful RAW dates"
+                    "complete K-line canonical bars must follow deterministic RAW selection"
                 )
             if not any(
                 authority.startswith("calendar:") for authority in self.authority_hashes

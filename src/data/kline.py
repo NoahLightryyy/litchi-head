@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 from enum import Enum
@@ -104,9 +105,29 @@ def raw_daily_bar_conflict(
     return None
 
 
+def select_canonical_raw_daily_bar(
+    candidates: Iterable[tuple[str, RawDailyBar]],
+) -> RawDailyBar:
+    """Choose one RAW candidate by precision, then stable source-id tie-break."""
+
+    choices = tuple(candidates)
+    if not choices:
+        raise ValueError("canonical RAW daily selection requires candidates")
+    return min(
+        choices,
+        key=lambda choice: (
+            choice[1].volume_precision,
+            choice[1].amount is None,
+            choice[1].amount_precision or Decimal("Infinity"),
+            choice[0],
+        ),
+    )[1]
+
+
 __all__ = [
     "MarketCode",
     "RawDailyBar",
     "market_code_for",
     "raw_daily_bar_conflict",
+    "select_canonical_raw_daily_bar",
 ]
