@@ -31,6 +31,7 @@ class OfficialSecurityStatusWindow(BaseModel):
     full_day_suspensions: tuple[date, ...]
     intraday_suspensions: tuple[date, ...]
     source_urls: tuple[str, ...] = Field(min_length=1)
+    source_hashes: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def validate_window(self) -> "OfficialSecurityStatusWindow":
@@ -64,6 +65,7 @@ class OfficialSecurityStatusWindow(BaseModel):
                 day.isoformat() for day in self.intraday_suspensions
             ],
             "source_urls": list(self.source_urls),
+            "source_hashes": list(self.source_hashes),
         }
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

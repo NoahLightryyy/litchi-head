@@ -11,12 +11,15 @@ import hashlib
 import re
 from collections.abc import Mapping
 from datetime import date
-from enum import Enum
 from typing import Any, Protocol, cast
 
 from pydantic import BaseModel, Field
 
 from src.data.kline import MarketCode
+from src.data.kline_status import (
+    OfficialSuspensionEvent,
+    SuspensionEventKind,
+)
 from src.data.providers.cninfo import (
     CNINFO_STATIC_URL,
     CninfoDirectFetcher,
@@ -41,28 +44,10 @@ class SuspensionEventSourceError(RuntimeError):
     """Official event evidence is unsupported, incomplete, or unavailable."""
 
 
-class SuspensionEventKind(str, Enum):
-    """Daily K-line relevant full-day security-status transitions."""
-
-    FULL_DAY_START = "full_day_start"
-    FULL_DAY_RESUME = "full_day_resume"
-
-
 class OfficialDocument(BaseModel):
     """Normalized official attachment with an integrity digest."""
 
     text: str
-    content_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
-
-
-class OfficialSuspensionEvent(BaseModel):
-    """One explicit suspension transition extracted from an official document."""
-
-    code: str = Field(min_length=6, max_length=6)
-    market: MarketCode
-    kind: SuspensionEventKind
-    effective_on: date
-    source_url: str = Field(min_length=1)
     content_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
