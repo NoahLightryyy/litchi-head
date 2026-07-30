@@ -194,6 +194,43 @@ def test_suspended_checkpoint_excludes_dates_until_resume() -> None:
     )
 
 
+def test_replays_transitions_before_requested_window_to_derive_opening_state() -> None:
+    start = date(2026, 7, 20)
+    end = date(2026, 7, 24)
+    ledger = SuspensionStatusLedger(
+        lifecycle=_lifecycle(),
+        checkpoint=_checkpoint(state_on=date(2026, 7, 1)),
+        batches=(
+            _batch(
+                date(2026, 7, 1),
+                end,
+                _event(
+                    SuspensionEventKind.FULL_DAY_START,
+                    date(2026, 7, 17),
+                    "5-start",
+                ),
+                _event(
+                    SuspensionEventKind.FULL_DAY_RESUME,
+                    date(2026, 7, 23),
+                    "6-resume",
+                ),
+            ),
+        ),
+    )
+
+    window = ledger.build_window(
+        start=start,
+        end=end,
+        market_open_dates=_dates(start, end),
+    )
+
+    assert window.full_day_suspensions == (
+        date(2026, 7, 20),
+        date(2026, 7, 21),
+        date(2026, 7, 22),
+    )
+
+
 def test_rejects_a_gap_between_official_query_batches() -> None:
     ledger = SuspensionStatusLedger(
         lifecycle=_lifecycle(),
