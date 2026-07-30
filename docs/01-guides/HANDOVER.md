@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能提交** | `517212c` — `feat: aggregate independent news channels` |
-| **全量测试** | 1365 collected；1342 passed、4 skipped、19 slow deselected ✅ |
+| **最新功能提交** | `03b0ff4` — `fix: make K-line canonical selection deterministic` |
+| **全量测试** | 1482 collected；1459 passed、4 skipped、19 slow deselected ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | ⚠️ 远端最近两次已推送运行失败；本地全量闸门已通过，当前提交尚未推送 |
@@ -179,13 +179,16 @@ docs/06-departments/02-debate-engine/DEBT.md
 18. KR-1B-2C-2C 已完成：北交所上市清单/代码映射/市场日历独立适配，严格校验
     分页、分类计数和身份；`0600/0700` 进入既有账本，`9001` 不冒充全天停牌。
     三家历史转板股因缺结构化上市日明确失败，见 TD-073；
-19. KR-1B-3A 已完成：`KlineAuditStore` 使用 SQLite 不可变清单和内容寻址
-    Parquet 保存逐源 RAW、查询诊断、规范结果和权威状态版本哈希；重复写幂等，
-    篡改/缺失失败关闭，`as_of` 不得读取采集时间晚于目标点的证据；
-20. 下一原子是 KR-1B-3B：只做真实新浪/腾讯长窗逐源覆盖证明和运行时接入。
-    新浪现有端点不能证明任意历史分页，无法证明时必须失败关闭；未经用户确认不得
-    更换或新增数据源，也不得重复存储层、北交所/沪深适配、状态账本或检查点；
-21. KR-1B 通过后才按 KR-2～KR-6 推进统一复权、四层信封、AI/风控/交易、
+19. KR-1B-3A/3B 已完成：`KlineAuditStore` 保存不可变逐源 RAW/诊断/权威引用，
+    腾讯长窗按不超过 1000 日连续分段并记录准确响应证明；新浪只有最早原始日期
+    覆盖请求起点才算完整，否则保留部分 RAW 并
+    `STALE / kline_source_window_not_covered`；
+20. 正式 `collect_and_persist()` 已接入上述证明和存储，但仍是数据部旁路，尚未
+    切入 AI/API。完整快照必须有日历权威且 canonical 的日期/值可追溯到成功源
+    RAW；缺权威日历、状态覆盖、来源覆盖或任一异常均失败关闭；
+21. 下一原子固定为 KR-2 公司行动与统一复权；未经用户确认不得为解决新浪旧历史
+    能力边界更换或新增数据源，也不得重复存储层、状态账本或检查点；
+22. KR-2 后按 KR-3～KR-6 推进四层信封、AI/风控/交易、
     API/前端和全链路验收；TD-072 继续自然积累，不阻塞 K 线门禁。
 
 ---

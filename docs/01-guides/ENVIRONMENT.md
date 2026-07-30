@@ -48,6 +48,18 @@ Claude Code 的 `ANTHROPIC_BASE_URL` 是**会话级**配置，同一进程内主
 
 ## 故障排查
 
+## K 线审计目录
+
+`RawDailyKlineEvidenceRuntime` 默认把不可变审计快照写入
+`<DATA_DIR>/evidence/kline-audit` 的绝对路径。需要迁移到独立磁盘时可配置：
+
+```bash
+LITCHI_KLINE_AUDIT_ROOT=E:\litchi-head\data\evidence\kline-audit
+```
+
+该变量必须是绝对路径；相对路径会在启动时显式拒绝，避免因工作目录变化把实盘
+证据写到不同位置。目录内的 SQLite 清单和内容寻址 Parquet 必须作为同一整体备份。
+
 | 症状 | 根因 | 修复 |
 |------|------|------|
 | 主会话 401 | `ANTHROPIC_BASE_URL` 指向灵算 | 改回 `api.deepseek.com/anthropic` |

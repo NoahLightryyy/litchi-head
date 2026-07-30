@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-07-30 (KR-1B-3A 审计存储完成，3B 长窗覆盖待推进)
+last_updated: 2026-07-30 (KR-1B-3B 长窗证明与审计运行时完成，下一原子 KR-2)
 ---
 
 # 🔄 跨部门状态总览
@@ -24,7 +24,7 @@ last_updated: 2026-07-30 (KR-1B-3A 审计存储完成，3B 长窗覆盖待推进
 
 | 指标 | 当前值 |
 |:-----|:------:|
-| 全量测试 | 1365 collected；1342 passed、4 skipped、19 slow deselected ✅ |
+| 全量测试 | 1482 collected；1459 passed、4 skipped、19 slow deselected ✅ |
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |
@@ -45,7 +45,7 @@ last_updated: 2026-07-30 (KR-1B-3A 审计存储完成，3B 长窗覆盖待推进
 | LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
 | 多源证据（data→debate/backend） | 🟡 | CNINFO、新闻、实时行情与 L1 分时已统一；K 线 KR-1A 旁路完成，KR-1B/下游与行业待迁移 |
 | 盘中双时间尺度（data→debate→agents→backend→frontend） | 🟡 | 已确认目标：完整历史日 K 与实时/分时/`PROVISIONAL` 今日状态分层进入 AI；待实现 |
-| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | 已完成至 KR-1B-3A：三市场状态链 + SQLite/Parquet 不可变证据快照 + 无未来 `as_of` 回放可用。下一步只做 3B 真实双源长窗覆盖和运行时接入；各部门复用 `KlineAuditStore`，不得另建证据仓或把 3A 误作已接入 AI |
+| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | KR-1B-3B 已完成：逐源准确响应证明 + SQLite/Parquet 不可变快照 + 无未来 `as_of` 回放；腾讯连续分段，新浪/权威覆盖不足失败关闭。下一步 KR-2，公司行动/因子完成前仍不得进入 AI；各部门复用 `KlineAuditStore`，不得另建证据仓 |
 
 ## 当前未完成事项（跨部门）
 

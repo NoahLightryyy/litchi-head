@@ -80,3 +80,5 @@ if not selector_matches or snapshot.collected_at > as_of_utc:
 **上一篇：[36｜K 线事实与复权](36-raw-adjusted-kline-evidence.md)**
 
 **相关：[30｜可恢复 Session 信封](30-durable-session-envelope.md)**
+
+**下一篇：[38｜K 线覆盖证明](38-kline-coverage-proof.md)**

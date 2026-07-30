@@ -13,7 +13,7 @@
   <a href="https://github.com/NoahLightryyy/litchi-head/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/NoahLightryyy/litchi-head/ci.yml?branch=main&label=CI&logo=github" alt="CI Status">
   </a>
-  <img src="https://img.shields.io/badge/tests-1435%20passed-2ea44f?logo=pytest" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-1459%20passed-2ea44f?logo=pytest" alt="Tests">
   <img src="https://img.shields.io/badge/coverage-80%25%2B-brightgreen" alt="Coverage">
   <img src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/type_check-pyright-brightgreen" alt="Pyright">
@@ -138,7 +138,7 @@
 | **交易复盘看板** | RetroBoard 记录 AI推荐 → 用户操作 → 实际盈亏 → 准确率统计，全栈实现 | ✅ R4 极简版完成（27 tests） |
 | **AI 输出置信度量化** | 校准曲线映射 + aggregate_node 校准 + 前端置信度可视化 | ✅ R4 完成 |
 | **基本面深度（FD）** ✅ | 财报纵深 + 产业链定位 + 供应链调研 — 机构级基本面分析能力 | ✅ FD-001 全链路完成（数据层+辩论注入+API+前端Tab） |
-| **多源证据完整性** | 六态来源结果 + 独立上游计数 + 多通道统一信封 + LLM 前失败关闭 | 🟡 东方财富/新浪新闻双源与聚合 API 完成；正式失败关闭待接入 |
+| **多源证据完整性** | 六态来源结果 + 独立上游计数 + K 线逐源准确响应证明 + 不可变 `as_of` 回放 + LLM 前失败关闭 | 🟡 K 线 KR-1B 已完成数据部审计旁路；KR-2 复权、统一信封及 AI/API 切换待完成 |
 
 > FD 基本面深度轨道基于 2026-06-23 调研结论：散户 vs 机构的核心壁垒在于财报纵深和供应链数据，而非分析模型。
 > 完整调研报告见 [FUNDAMENTAL_RESEARCH.md](docs/02-requirements/FUNDAMENTAL_RESEARCH.md)。
@@ -167,7 +167,7 @@
 
 ### 🧪 工程质量
 
-- **1307 项测试已收集** — 本地非慢测 1284 通过、4 跳过、19 个慢测排除；含新闻双源聚合与 backend 180 项路由测试
+- **1482 项测试已收集** — 本地非慢测 1459 通过、4 跳过、19 个慢测排除；含 K 线逐源覆盖/审计回放、新闻双源聚合与 backend 路由测试
 - **CI/CD 全自动** — GitHub Actions 流水线（Ruff 风格检查 + Pyright 类型检查 + Pytest 测试）
 - **类型安全** — 全项目完整类型注解，Pyright basic mode 零错误
 - **结果回调审计** — `CallbackRecord` 记录每次结果事件响应，坏回调自动熔断不拖垮主流程
@@ -201,6 +201,7 @@ pip install -e ".[dev]"
 # 配置 API Key
 cp .env.example .env
 # 编辑 .env 填入 DEEPSEEK_API_KEY
+# 可选：将 LITCHI_KLINE_AUDIT_ROOT 设为绝对路径，迁移 K 线审计快照目录
 
 # 运行全部测试
 python scripts/check.py          # 智能检测变更范围，按需跑测试（推荐）
@@ -252,7 +253,7 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 ### 工程素养
 
 - 📐 **9 份架构决策记录** — 每步选型有理由有权衡，不是"跟着教程写"
-- 🧪 **1307 项测试已收集** — 1284 通过、4 跳过、19 个慢测按本地闸门排除；含真实 LLM、新闻双源证据契约和全链路测试
+- 🧪 **1482 项测试已收集** — 1459 通过、4 跳过、19 个慢测按本地闸门排除；含 K 线审计、真实 LLM、新闻双源证据契约和全链路测试
 - 📝 **完整的文档体系** — 设计文档/流程规范/工作日志，代码即文档
 - 🔄 **CI/CD 全自动流水线** — GitHub Actions 一键 lint + type + test
 - 🔁 **结果驱动闭环地基** — RC-001/002 让“实际走势出来了”可以统一触发大师信任度校准
