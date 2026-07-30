@@ -392,7 +392,7 @@ def test_runtime_isolates_unexpected_source_failure_and_persists_diagnostic(
     assert failed.error_code == "unexpected_adapter_failure"
 
 
-def test_runtime_adapter_recovery_survives_failing_clock(
+def test_runtime_adapter_recovery_survives_persistently_failing_clock(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -405,25 +405,20 @@ def test_runtime_adapter_recovery_survives_failing_clock(
         fetcher=lambda code, start, end: _short_tencent_payload(),
         now_provider=lambda: NOW,
     )
-    clock_calls = 0
 
     def crash(request: EvidenceRequest) -> Any:
         raise RuntimeError("unexpected adapter crash")
 
-    def flaky_clock() -> datetime:
-        nonlocal clock_calls
-        clock_calls += 1
-        if clock_calls == 1:
-            raise RuntimeError("clock unavailable")
-        return NOW
+    def failed_clock() -> datetime:
+        raise RuntimeError("clock unavailable")
 
     monkeypatch.setattr(sina, "fetch_audited", crash)
     runtime = RawDailyKlineEvidenceRuntime(
         store=store,
         sina_source=sina,
         tencent_source=tencent,
-        calendar=official_a_share_calendar_2026(),
-        now_provider=flaky_clock,
+        calendar=None,
+        now_provider=failed_clock,
     )
 
     envelope, snapshot_id = runtime.collect_and_persist(SHORT_REQUEST)

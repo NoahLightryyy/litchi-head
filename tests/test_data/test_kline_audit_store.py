@@ -330,6 +330,58 @@ def test_complete_snapshot_rejects_incomplete_canonical_date_set() -> None:
         )
 
 
+def test_complete_snapshot_rejects_split_source_date_coverage() -> None:
+    snapshot = _snapshot()
+    split_sources = (
+        snapshot.source_audits[0].model_copy(
+            update={"raw_bars": (snapshot.source_audits[0].raw_bars[0],)}
+        ),
+        snapshot.source_audits[1].model_copy(
+            update={"raw_bars": (snapshot.source_audits[1].raw_bars[1],)}
+        ),
+    )
+
+    with pytest.raises(ValueError, match="canonical|date"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "source_audits": split_sources,
+            }
+        )
+
+
+def test_complete_snapshot_rejects_duplicate_date_within_successful_source() -> None:
+    snapshot = _snapshot()
+    source = snapshot.source_audits[0]
+    duplicated = source.model_copy(
+        update={"raw_bars": (source.raw_bars[0], *source.raw_bars)}
+    )
+
+    with pytest.raises(ValueError, match="canonical|duplicate"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "source_audits": (duplicated, snapshot.source_audits[1]),
+            }
+        )
+
+
+def test_complete_snapshot_rejects_conflict_between_successful_sources() -> None:
+    snapshot = _snapshot()
+    source = snapshot.source_audits[1]
+    conflicting = source.model_copy(
+        update={"raw_bars": (source.raw_bars[0], _bar(END, close="11.22"))}
+    )
+
+    with pytest.raises(ValueError, match="conflict"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "source_audits": (snapshot.source_audits[0], conflicting),
+            }
+        )
+
+
 def test_persist_revalidates_a_snapshot_mutated_after_construction(
     tmp_path: Path,
 ) -> None:
