@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-07-30 (盘中 AI 双时间尺度方向确认)
+last_updated: 2026-07-30 (KR-1B-2C-2C 北交所官方状态适配完成)
 ---
 
 # 🔄 跨部门状态总览
@@ -45,7 +45,7 @@ last_updated: 2026-07-30 (盘中 AI 双时间尺度方向确认)
 | LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
 | 多源证据（data→debate/backend） | 🟡 | CNINFO、新闻、实时行情与 L1 分时已统一；K 线 KR-1A 旁路完成，KR-1B/下游与行业待迁移 |
 | 盘中双时间尺度（data→debate→agents→backend→frontend） | 🟡 | 已确认目标：完整历史日 K 与实时/分时/`PROVISIONAL` 今日状态分层进入 AI；待实现 |
-| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | KR-1A/B-1/B-2A/B/2C-1/2C-2A/2C-2B 已完成；官方 PDF、连续账本、沪深生命周期、批次哈希和检查点生成可用。下一步只做北交所适配与持久化，不重复日历、公告解析、状态归并、沪深生命周期或运行时门禁 |
+| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | KR-1A/B-1/B-2A/B/2C-1/2C-2A/2C-2B/2C-2C 已完成；三市场官方状态、连续账本、生命周期、批次哈希和检查点生成可用。下一步只做 KR-1B-3 长窗与持久化，不重复交易所适配、公告解析、状态归并或运行时门禁 |
 
 ## 当前未完成事项（跨部门）
 

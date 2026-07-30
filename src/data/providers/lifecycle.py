@@ -1,4 +1,4 @@
-"""Official SSE/SZSE listing and delisting lifecycle evidence."""
+"""Official exchange listing and delisting lifecycle evidence."""
 
 from __future__ import annotations
 

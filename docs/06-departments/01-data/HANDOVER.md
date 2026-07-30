@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-07-30 (KR-1B-2C-2B 沪深生命周期与检查点生成完成)
+last_updated: 2026-07-30 (KR-1B-2C-2C 北交所官方状态适配完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -76,7 +76,8 @@ last_updated: 2026-07-30 (KR-1B-2C-2B 沪深生命周期与检查点生成完成
 | 11 ✅ | K 线 KR-1B-2C-1 官方停复牌事件采集 | CNINFO 法定披露 PDF；明确日期、URL、SHA-256；300996 烟测 |
 | 12 ✅ | K 线 KR-1B-2C-2A 连续状态账本 | 检查点、连续批次、重复归并、冲突/断档失败关闭 |
 | 13 ✅ | K 线 KR-1B-2C-2B 沪深生命周期与检查点生成 | 交易所清单、CNINFO 批次哈希、确定性检查点、真实烟测 |
-| 14 🔥 | K 线 KR-1B-2C-2C～3 北交所与持久化 | 北交所官方适配、长窗与回放 |
+| 14 ✅ | K 线 KR-1B-2C-2C 北交所官方状态适配 | 上市清单/代码映射/市场日历；0600/0700、9001 分流；真实烟测 |
+| 15 🔥 | K 线 KR-1B-3 长窗与持久化 | RAW/诊断/状态版本、覆盖证明与回放 |
 | 15 🔥 | K 线 KR-2 统一复权 | RAW/公司行动/派生序列分层；点时因子 |
 | 16 🔥 | K 线 KR-3 四层证据信封 | `FINAL_DAILY` 与今日 `PROVISIONAL` 严格分层 |
 | 17 🔥 | 行业证据迁移到统一门禁 | K 线门禁完成后 |
@@ -187,6 +188,7 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 | `src/data/collector.py` | 统一数据采集入口（469 行） |
 | `src/data/evidence.py` | 统一来源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/providers/cninfo.py` | CNINFO 权威公告统一证据适配器 |
+| `src/data/providers/bse_status.py` | 北交所生命周期、代码映射与市场日历状态适配器 |
 | `src/data/providers/news.py` | 东方财富 + 新浪独立新闻证据适配器 |
 | `src/data/models.py` | 7 个 Pydantic 数据契约（140 行） |
 | `src/data/cache.py` | 内存 TTL 缓存 |
@@ -209,11 +211,11 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 2. KR-1A 已完成：`src/data/kline.py`、`providers/kline.py`、
    `kline_runtime.py` 与 25 项契约；不得重复实现或提前接入正式 AI；
 3. 用户已确认免费官方方案，KR-1B-1 已实现；不得重复建立交易日历或改用聚合源；
-4. KR-1B-2A/B/2C-1/2C-2A/2C-2B 已完成，不得重复状态契约、运行时门禁、
-   CNINFO PDF/完整批次解析、连续状态归并、沪深生命周期或检查点生成；
-5. 下一步只做 KR-1B-2C-2C：验证并实现北交所官方生命周期与停复牌状态适配，
-   不得借用沪深或 CNINFO 路径猜测覆盖；
-6. 再由 KR-1B-3 证明长窗截断、RAW/诊断持久化和回放；
+4. KR-1B-2A/B/2C-1/2C-2A/2C-2B/2C-2C 已完成，不得重复状态契约、运行时
+   门禁、沪深/CNINFO/北交所适配、连续状态归并、生命周期或检查点生成；
+5. 北交所 0600/0700/9001、代码映射和生命周期边界已冻结；三家历史转板股的
+   结构化上市日缺口登记 TD-073，不能用交易提示首日推断；
+6. 下一步只做 KR-1B-3：证明长窗截断、RAW/诊断/状态版本持久化和回放；
 7. KR-1B 真实烟测和故障注入通过后才进入 KR-2；不得同时提前改前端；
 8. KR-2 通过后按 KR-3 输出 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE /
    PROVISIONAL`，再交给辩论、后端等下游；

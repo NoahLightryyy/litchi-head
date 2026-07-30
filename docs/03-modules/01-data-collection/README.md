@@ -15,10 +15,12 @@
   失败关闭，保留未生效转换
 - ✅ 沪深官方生命周期与检查点生成：交易所原始清单哈希、CNINFO 完整批次哈希，
   确定性检查点不读取目标日之后结束的批次
+- ✅ 北交所官方生命周期与停复牌状态：完整上市清单、新旧代码映射、市场日历
+  分页/分类计数/窗口校验；0600/0700 进入既有账本，9001 只作盘中事件
 - ✅ `DataEvidenceService` 并发汇总多个通道，输出统一证据信封
 - ✅ 新闻与实时行情已接入正式辩论零 LLM 失败关闭
 - ✅ L1 分时一期完成，动态分钟显式标记 `PROVISIONAL`
-- ⟳ 下一步先完成北交所官方状态适配与持久化，再实现 K 线双时间尺度信封
+- ⟳ 下一步完成 KR-1B-3 长窗覆盖与 RAW/诊断/状态证据持久化，再实现双时间尺度信封
 - ⟳ 旧 Provider 继续逐个迁移到显式六态结果
 
 ## 文档
@@ -39,4 +41,5 @@
 - `src/data/cache.py`
 - `src/data/providers/cninfo.py`
 - `src/data/providers/cninfo_status.py`
+- `src/data/providers/bse_status.py`
 - `src/data/kline_status.py`
