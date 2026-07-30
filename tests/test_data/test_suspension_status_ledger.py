@@ -350,6 +350,29 @@ def test_rejects_checkpoint_that_does_not_anchor_requested_window() -> None:
         )
 
 
+def test_lifecycle_excludes_prelisting_dates_without_requiring_earlier_checkpoint() -> None:
+    listed_on = date(2026, 7, 23)
+    ledger = SuspensionStatusLedger(
+        lifecycle=_lifecycle(listed_on=listed_on),
+        checkpoint=_checkpoint(state_on=listed_on),
+        batches=(
+            _batch(listed_on, date(2026, 7, 24)),
+        ),
+    )
+    open_dates = _dates(date(2026, 7, 20), date(2026, 7, 24))
+
+    window = ledger.build_window(
+        start=date(2026, 7, 20),
+        end=date(2026, 7, 24),
+        market_open_dates=open_dates,
+    )
+
+    assert window.expected_dates(open_dates) == (
+        date(2026, 7, 23),
+        date(2026, 7, 24),
+    )
+
+
 def test_rejects_batch_or_event_for_another_security() -> None:
     foreign_event = _event(
         SuspensionEventKind.FULL_DAY_START,
