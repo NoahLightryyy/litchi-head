@@ -238,6 +238,26 @@ def test_snapshot_rejects_query_proof_fetched_after_source() -> None:
         )
 
 
+def test_persist_revalidates_a_snapshot_mutated_after_construction(
+    tmp_path: Path,
+) -> None:
+    store = KlineAuditStore(tmp_path / "kline-audit")
+    snapshot = _snapshot()
+    snapshot.source_audits[0].query_chunks = (_chunk("sina", fetched_at=T2),)
+
+    with pytest.raises(KlineAuditStoreError, match="commit"):
+        store.persist(snapshot)
+    assert (
+        store.snapshot_ids(
+            code="000001",
+            market=MarketCode.SZSE,
+            start=START,
+            end=END,
+        )
+        == ()
+    )
+
+
 def test_snapshot_rejects_assessment_that_contradicts_sources() -> None:
     snapshot = _snapshot()
     failed = KlineSourceAudit(
@@ -371,6 +391,32 @@ def test_tampered_or_missing_parquet_member_fails_closed(
 
     member.unlink()
     with pytest.raises(KlineAuditStoreError, match="missing"):
+        store.replay(
+            code="000001",
+            market=MarketCode.SZSE,
+            start=START,
+            end=END,
+            as_of=T1,
+        )
+
+
+def test_unreadable_parquet_member_uses_store_error_contract(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = KlineAuditStore(tmp_path / "kline-audit")
+    snapshot = _snapshot()
+    store.persist(snapshot)
+    member = store.member_paths(snapshot.snapshot_id)[0]
+    original_read_bytes = Path.read_bytes
+
+    def fail_member_read(path: Path) -> bytes:
+        if path == member:
+            raise PermissionError("simulated locked member")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", fail_member_read)
+    with pytest.raises(KlineAuditStoreError, match="unavailable"):
         store.replay(
             code="000001",
             market=MarketCode.SZSE,
