@@ -71,7 +71,11 @@ class _StaticKlineSource:
         )
 
 
-def _service(bars: list[RawDailyBar]) -> RawDailyKlineEvidenceService:
+def _service(
+    bars: list[RawDailyBar],
+    *,
+    status_catalog: StaticSecurityStatusCatalog | None = None,
+) -> RawDailyKlineEvidenceService:
     registry = EvidenceSourceRegistry()
     registry.register(_StaticKlineSource("sina", "sina", bars))
     registry.register(
@@ -87,6 +91,7 @@ def _service(bars: list[RawDailyBar]) -> RawDailyKlineEvidenceService:
     return RawDailyKlineEvidenceService(
         registry,
         calendar=official_a_share_calendar_2026(),
+        security_status_catalog=status_catalog,
         now_provider=lambda: datetime(2026, 7, 30, 16, 0, tzinfo=SHANGHAI),
     )
 
@@ -251,3 +256,55 @@ def test_security_status_catalog_fails_when_window_is_not_covered() -> None:
             date(2026, 7, 27),
             date(2026, 7, 29),
         )
+
+
+def test_runtime_accepts_jointly_missing_dates_with_full_official_status() -> None:
+    status = OfficialSecurityStatusWindow(
+        code="000001",
+        market=MarketCode.SZSE,
+        coverage_start=date(2026, 7, 24),
+        coverage_end=date(2026, 7, 29),
+        listed_on=date(1991, 4, 3),
+        full_day_suspensions=(
+            date(2026, 7, 27),
+            date(2026, 7, 28),
+            date(2026, 7, 29),
+        ),
+        intraday_suspensions=(),
+        source_urls=("https://disc.static.szse.cn/official.pdf",),
+    )
+    envelope = _service(
+        [_bar(date(2026, 7, 24))],
+        status_catalog=StaticSecurityStatusCatalog((status,)),
+    ).collect(
+        _request(date(2026, 7, 24), date(2026, 7, 29)),
+        KLINE_RAW_EVIDENCE_POLICY,
+    )
+
+    assert envelope.complete is True
+    assert [bar.trade_date for bar in envelope.items] == [date(2026, 7, 24)]
+
+
+def test_runtime_fails_closed_when_security_status_window_is_incomplete() -> None:
+    status = OfficialSecurityStatusWindow(
+        code="000001",
+        market=MarketCode.SZSE,
+        coverage_start=date(2026, 7, 28),
+        coverage_end=date(2026, 7, 29),
+        listed_on=date(1991, 4, 3),
+        full_day_suspensions=(),
+        intraday_suspensions=(),
+        source_urls=("https://www.szse.cn/official-status.html",),
+    )
+    envelope = _service(
+        [_bar(date(2026, 7, 28)), _bar(date(2026, 7, 29))],
+        status_catalog=StaticSecurityStatusCatalog((status,)),
+    ).collect(
+        _request(date(2026, 7, 27), date(2026, 7, 29)),
+        KLINE_RAW_EVIDENCE_POLICY,
+    )
+
+    assert envelope.complete is False
+    assert {
+        result.error_code for result in envelope.source_results
+    } == {"security_status_coverage_missing"}
