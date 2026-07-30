@@ -267,6 +267,63 @@ def test_snapshot_rejects_successful_source_with_chunk_coverage_gap() -> None:
         )
 
 
+def test_complete_snapshot_requires_calendar_authority() -> None:
+    snapshot = _snapshot()
+
+    with pytest.raises(ValueError, match="calendar authority"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "authority_hashes": (),
+            }
+        )
+
+
+def test_persist_rejects_complete_snapshot_without_calendar_authority(
+    tmp_path: Path,
+) -> None:
+    store = KlineAuditStore(tmp_path / "kline-audit")
+    snapshot = _snapshot()
+    snapshot.authority_hashes = ()
+
+    with pytest.raises(KlineAuditStoreError, match="commit"):
+        store.persist(snapshot)
+    assert (
+        store.snapshot_ids(
+            code="000001",
+            market=MarketCode.SZSE,
+            start=START,
+            end=END,
+        )
+        == ()
+    )
+
+
+def test_complete_snapshot_rejects_fabricated_canonical_bar() -> None:
+    snapshot = _snapshot()
+    fabricated = _bar(START, close="11.21")
+
+    with pytest.raises(ValueError, match="canonical"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "canonical_bars": (fabricated, snapshot.canonical_bars[1]),
+            }
+        )
+
+
+def test_complete_snapshot_rejects_incomplete_canonical_date_set() -> None:
+    snapshot = _snapshot()
+
+    with pytest.raises(ValueError, match="canonical"):
+        KlineEvidenceSnapshot.model_validate(
+            {
+                **snapshot.model_dump(mode="python", exclude={"snapshot_id"}),
+                "canonical_bars": (snapshot.canonical_bars[0],),
+            }
+        )
+
+
 def test_persist_revalidates_a_snapshot_mutated_after_construction(
     tmp_path: Path,
 ) -> None:

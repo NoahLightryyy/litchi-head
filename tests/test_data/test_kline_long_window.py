@@ -139,6 +139,28 @@ def test_sina_short_window_has_stable_response_summary() -> None:
     assert len(audit.query_chunks[0].response_hash) == 64
 
 
+def test_sina_invalid_later_row_preserves_earlier_valid_raw() -> None:
+    payload = (
+        "var _sz000001_240_1023=(["
+        '{"day":"2026-07-28","open":"11.10","high":"11.30",'
+        '"low":"11.00","close":"11.20","volume":"100000"},'
+        '{"day":"2026-07-29","open":"invalid","high":"11.30",'
+        '"low":"11.00","close":"11.20","volume":"100000"}'
+        "]);"
+    )
+
+    audit = SinaRawDailyKlineSource(
+        fetcher=lambda code, start, end: payload,
+        now_provider=lambda: NOW,
+    ).fetch_audited(SHORT_REQUEST)
+
+    assert audit.status is SourceStatus.FAILED
+    assert audit.error_code == "invalid_upstream_payload"
+    assert [bar.trade_date for bar in audit.raw_bars] == [date(2026, 7, 28)]
+    assert len(audit.query_chunks) == 1
+    assert audit.query_chunks[0].complete is False
+
+
 def test_tencent_long_window_is_split_into_contiguous_bounded_queries() -> None:
     calls: list[tuple[date, date]] = []
 
@@ -368,6 +390,56 @@ def test_runtime_isolates_unexpected_source_failure_and_persists_diagnostic(
     assert replayed.snapshot_id == snapshot_id
     assert failed.status is SourceStatus.FAILED
     assert failed.error_code == "unexpected_adapter_failure"
+
+
+def test_runtime_adapter_recovery_survives_failing_clock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = KlineAuditStore(tmp_path / "kline-audit")
+    sina = SinaRawDailyKlineSource(
+        fetcher=lambda code, start, end: _short_sina_payload(),
+        now_provider=lambda: NOW,
+    )
+    tencent = TencentRawDailyKlineSource(
+        fetcher=lambda code, start, end: _short_tencent_payload(),
+        now_provider=lambda: NOW,
+    )
+    clock_calls = 0
+
+    def crash(request: EvidenceRequest) -> Any:
+        raise RuntimeError("unexpected adapter crash")
+
+    def flaky_clock() -> datetime:
+        nonlocal clock_calls
+        clock_calls += 1
+        if clock_calls == 1:
+            raise RuntimeError("clock unavailable")
+        return NOW
+
+    monkeypatch.setattr(sina, "fetch_audited", crash)
+    runtime = RawDailyKlineEvidenceRuntime(
+        store=store,
+        sina_source=sina,
+        tencent_source=tencent,
+        calendar=official_a_share_calendar_2026(),
+        now_provider=flaky_clock,
+    )
+
+    envelope, snapshot_id = runtime.collect_and_persist(SHORT_REQUEST)
+    replayed = store.replay(
+        code="000001",
+        market=MarketCode.SZSE,
+        start=date(2026, 7, 28),
+        end=date(2026, 7, 29),
+        as_of=NOW,
+    )
+
+    assert envelope.complete is False
+    assert replayed.snapshot_id == snapshot_id
+    assert next(
+        audit for audit in replayed.source_audits if audit.upstream_id == "sina"
+    ).error_code == "unexpected_adapter_failure"
 
 
 def test_default_kline_audit_root_is_absolute() -> None:
