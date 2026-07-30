@@ -1,6 +1,7 @@
 """BSE official market-calendar suspension event evidence tests."""
 
 import json
+from collections.abc import Mapping
 from datetime import date
 from typing import Any
 
@@ -26,11 +27,12 @@ def _jsonp(payload: object) -> bytes:
 
 
 def _page(
-    rows: list[dict[str, object]],
+    rows: list[Mapping[str, object]],
     *,
     number: int = 0,
     total_pages: int = 1,
     total_elements: int | None = None,
+    size: int = 20,
 ) -> dict[str, object]:
     count = len(rows) if total_elements is None else total_elements
     return {
@@ -39,7 +41,7 @@ def _page(
         "lastPage": total_pages == 0 or number == total_pages - 1,
         "number": number,
         "numberOfElements": len(rows),
-        "size": 20,
+        "size": size,
         "sort": None,
         "totalElements": count,
         "totalPages": total_pages,
@@ -76,14 +78,21 @@ def _payload(
     *,
     start: str = "2026-07-16",
     end: str = "2026-07-30",
+    counts: tuple[tuple[str, int], ...] | None = None,
 ) -> bytes:
+    if counts is None:
+        grouped: dict[str, int] = {}
+        for row in page["content"]:
+            assert isinstance(row, Mapping)
+            type_code = str(row["typecode"])
+            grouped[type_code] = grouped.get(type_code, 0) + 1
+        counts = tuple(grouped.items())
     return _jsonp(
         [
             [page],
             [
-                {"typecode": "0600", "num": 1, "typename": "停牌"},
-                {"typecode": "0700", "num": 1, "typename": "复牌"},
-                {"typecode": "9001", "num": 1, "typename": "盘中临停"},
+                {"typecode": type_code, "num": count}
+                for type_code, count in counts
             ],
             start,
             end,
@@ -118,7 +127,9 @@ def test_complete_pages_emit_only_full_day_transitions_and_one_batch_hash() -> N
                 ],
                 total_pages=2,
                 total_elements=3,
-            )
+                size=2,
+            ),
+            counts=(("0600", 1), ("0700", 1), ("9001", 1)),
         ),
         1: _payload(
             _page(
@@ -126,7 +137,9 @@ def test_complete_pages_emit_only_full_day_transitions_and_one_batch_hash() -> N
                 number=1,
                 total_pages=2,
                 total_elements=3,
-            )
+                size=2,
+            ),
+            counts=(("0600", 1), ("0700", 1), ("9001", 1)),
         ),
     }
     requested_pages: list[int] = []
@@ -228,6 +241,20 @@ def test_empty_complete_official_window_is_a_hashed_empty_batch() -> None:
             ),
             "pagination",
         ),
+        (
+            _payload(
+                _page([], total_pages=1, total_elements=0),
+                counts=(),
+            ),
+            "pagination",
+        ),
+        (
+            _payload(
+                _page([], total_pages=0),
+                counts=(("0600", 1),),
+            ),
+            "count",
+        ),
     ],
 )
 def test_malformed_official_batch_fails_closed(
@@ -300,3 +327,38 @@ def test_bse_events_feed_the_existing_continuous_ledger() -> None:
         date(2026, 7, 17),
         date(2026, 7, 29),
     )
+
+
+def test_mapping_parser_ignores_unrelated_html_tables() -> None:
+    mapping = (
+        b"<table><tr><th>date</th><th>code</th><th>other</th></tr>"
+        b"<tr><td>2026-01-01</td><td>123456</td><td>654321</td></tr></table>"
+        + _mapping_html()
+    )
+    source = BseSuspensionEventSource(
+        page_fetcher=lambda **_: _payload(_page([])),
+        mapping_fetcher=lambda: mapping,
+    )
+
+    assert source.fetch_events(
+        code="920685",
+        market=MarketCode.BSE,
+        start=date(2026, 7, 16),
+        end=date(2026, 7, 30),
+    ) == ()
+
+
+def test_mapping_parser_rejects_official_header_drift() -> None:
+    drifted = _mapping_html().replace("旧代码".encode(), "曾用代码".encode())
+    source = BseSuspensionEventSource(
+        page_fetcher=lambda **_: _payload(_page([])),
+        mapping_fetcher=lambda: drifted,
+    )
+
+    with pytest.raises(BseSuspensionEventSourceError, match="mapping"):
+        source.fetch_events(
+            code="920685",
+            market=MarketCode.BSE,
+            start=date(2026, 7, 16),
+            end=date(2026, 7, 30),
+        )

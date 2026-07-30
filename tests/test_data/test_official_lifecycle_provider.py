@@ -303,6 +303,14 @@ def test_bse_lifecycle_rejects_incomplete_advertised_pagination(
         )
 
 
+def test_transferred_bse_security_exposes_composite_evidence_gap() -> None:
+    with pytest.raises(SecurityLifecycleSourceError, match="composite evidence"):
+        OfficialSecurityLifecycleSource().fetch(
+            code="832317",
+            market=MarketCode.BSE,
+        )
+
+
 def test_default_sse_parser_reads_official_json_and_hashes_raw_response(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
