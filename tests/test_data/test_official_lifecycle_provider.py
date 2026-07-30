@@ -1,6 +1,7 @@
 """Official SSE/SZSE security lifecycle adapter tests."""
 
 import io
+import json
 from datetime import date
 from typing import Any
 
@@ -31,6 +32,10 @@ class _Response:
 
     def json(self) -> object:
         return self._payload
+
+    @property
+    def text(self) -> str:
+        return self.content.decode("utf-8")
 
 
 def _xlsx(frame: pd.DataFrame) -> bytes:
@@ -125,11 +130,155 @@ def test_missing_or_duplicate_official_identity_fails_closed() -> None:
         duplicate.fetch(code="600000", market=MarketCode.SSE)
 
 
-def test_rejects_unverified_bse_lifecycle_path() -> None:
-    source = OfficialSecurityLifecycleSource(fetcher=lambda *_: ())
+def _jsonp(payload: object) -> bytes:
+    return f"lhcb({json.dumps(payload, ensure_ascii=False)})".encode()
 
-    with pytest.raises(SecurityLifecycleSourceError, match="BSE"):
-        source.fetch(code="920176", market=MarketCode.BSE)
+
+def _bse_page(
+    rows: list[dict[str, object]],
+    *,
+    number: int = 0,
+    total_pages: int = 1,
+    total_elements: int | None = None,
+) -> dict[str, object]:
+    count = len(rows) if total_elements is None else total_elements
+    return {
+        "content": rows,
+        "firstPage": number == 0,
+        "lastPage": total_pages == 0 or number == total_pages - 1,
+        "number": number,
+        "numberOfElements": len(rows),
+        "size": 20,
+        "sort": None,
+        "totalElements": count,
+        "totalPages": total_pages,
+    }
+
+
+def _bse_mapping_html(
+    *,
+    listed_on: str = "2021/8/26",
+    old_code: str = "835305",
+    new_code: str = "920305",
+) -> bytes:
+    return (
+        "<table><tr><th>序号</th><th>证券简称</th><th>上市日期</th>"
+        "<th>旧代码</th><th>新代码</th></tr>"
+        f"<tr><td>1</td><td>云创数据</td><td>{listed_on}</td>"
+        f"<td>{old_code}</td><td>{new_code}</td></tr></table>"
+    ).encode()
+
+
+def test_active_bse_security_uses_complete_official_listing_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    row = {
+        "xxzqdm": "920176",
+        "xxzqjc": "维琪科技",
+        "fxssrq": "20260727",
+        "xxfcbj": "2",
+    }
+
+    def fake_get(url: str, *_: object, **kwargs: Any) -> _Response:
+        if url == lifecycle_provider.BSE_CODE_MAPPING_URL:
+            return _Response(content=_bse_mapping_html())
+        assert url == lifecycle_provider.BSE_LIST_QUERY_URL
+        assert ("xxfcbj[]", "2") in kwargs["params"]
+        return _Response(content=_jsonp([_bse_page([row])]))
+
+    monkeypatch.setattr("httpx.get", fake_get)
+
+    lifecycle = OfficialSecurityLifecycleSource().fetch(
+        code="920176",
+        market=MarketCode.BSE,
+    )
+
+    assert lifecycle.listed_on == date(2026, 7, 27)
+    assert lifecycle.delisted_on is None
+    assert lifecycle.source_url == lifecycle_provider.BSE_LISTED_COMPANY_PAGE_URL
+    assert len(lifecycle.content_hash) == 64
+
+
+def test_delisted_bse_security_uses_mapping_and_official_termination_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    active = _jsonp([_bse_page([], total_pages=0)])
+    delisted = _jsonp(
+        [
+            [_bse_page(
+                [
+                    {
+                        "comments": "",
+                        "companycode": "920305",
+                        "companyname": "云创退",
+                        "productType": "10",
+                        "publishdate": "2026-07-30",
+                        "typecode": "1101",
+                        "typename": "退市/摘牌",
+                        "xxfcbj": "2",
+                        "xxzqjb": "T",
+                    }
+                ]
+            )],
+            [{"typecode": "1101", "num": 1, "typename": "退市/摘牌"}],
+            "2021-11-15",
+            "2026-07-30",
+        ]
+    )
+
+    def fake_get(url: str, *_: object, **__: Any) -> _Response:
+        if url == lifecycle_provider.BSE_LIST_QUERY_URL:
+            return _Response(content=active)
+        if url == lifecycle_provider.BSE_CODE_MAPPING_URL:
+            return _Response(content=_bse_mapping_html())
+        assert url == lifecycle_provider.BSE_TRADING_TIPS_QUERY_URL
+        return _Response(content=delisted)
+
+    monkeypatch.setattr("httpx.get", fake_get)
+
+    lifecycle = OfficialSecurityLifecycleSource().fetch(
+        code="920305",
+        market=MarketCode.BSE,
+    )
+
+    assert lifecycle.listed_on == date(2021, 8, 26)
+    assert lifecycle.delisted_on == date(2026, 7, 30)
+    assert lifecycle.source_url == lifecycle_provider.BSE_MARKET_CALENDAR_PAGE_URL
+
+
+def test_bse_lifecycle_rejects_incomplete_advertised_pagination(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = _jsonp(
+        [_bse_page(
+            [
+                {
+                    "xxzqdm": "920176",
+                    "fxssrq": "20260727",
+                    "xxfcbj": "2",
+                }
+            ],
+            total_pages=2,
+            total_elements=2,
+        )]
+    )
+    broken_second = _jsonp(
+        [_bse_page([], number=1, total_pages=2, total_elements=2)]
+    )
+
+    def fake_get(url: str, *_: object, **kwargs: Any) -> _Response:
+        if url == lifecycle_provider.BSE_CODE_MAPPING_URL:
+            return _Response(content=_bse_mapping_html())
+        page = int(dict(kwargs["params"])["page"])
+        return _Response(content=first if page == 0 else broken_second)
+
+    monkeypatch.setattr("httpx.get", fake_get)
+
+    with pytest.raises(SecurityLifecycleSourceError, match="pagination"):
+        OfficialSecurityLifecycleSource().fetch(
+            code="920176",
+            market=MarketCode.BSE,
+        )
 
 
 def test_default_sse_parser_reads_official_json_and_hashes_raw_response(
