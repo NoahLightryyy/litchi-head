@@ -1,7 +1,7 @@
 ---
 department: 质量保障部
 codebase: .github/workflows/ + tests/ + docs/01-guides/ci/ + docs/01-guides/workflow/
-last_updated: 2026-07-30 (K 线跨部门验收职责确认)
+last_updated: 2026-07-31 (CI #71 测试隔离修复)
 ---
 
 # 🔄 质量保障部工作交接
@@ -12,31 +12,32 @@ last_updated: 2026-07-30 (K 线跨部门验收职责确认)
 
 | 指标 | 值 |
 |:-----|:----|
-| GitHub Actions 最新状态 | 🟢 最近 4 次全绿（CI-001 根因分析未完成，管道已恢复） |
-| 最近一次绿色 | Run #36 — `chore: 上下文路由架构优化`（2026-06-17） |
-| 3.12 Pytest | 🔴 exit code 4（4 秒快速退出，具体报错待查） |
-| 3.13 Pyright | 🟡 超时被 cancelled（已知 CI-002） |
+| GitHub Actions 最新状态 | ✅ Run #72 全绿（frontend + Python 3.12/3.13） |
+| 最近一次绿色 | Run #72 — `test: isolate CI from network and clock drift`（2026-07-31） |
+| Python 3.12/3.13 | Run #71 均因辩论路由测试泄漏真实 AKShare 网络而失败；已修复 |
+| 本地全量闸门 | ✅ 4/4；1459 passed、4 skipped、19 slow deselected |
 | Ruff | ✅ 通过 |
 
 ### 当前 CI 问题
 
 | ID | 标题 | 严重度 | 状态 |
 |:--|:-----|:------:|:----:|
-| CI-001 | 11/12 连红——CI 长期未维护 | 🔴 P0 | 🔴 待处理 |
-| CI-002 | Python 3.13 Pyright 超时 | 🟡 P2 | 🟡 已知不阻塞 |
+| CI-001 | 历史 CI 连红治理 | 🔴 P0 | ✅ 已恢复并可读取远端日志 |
+| CI-002 | Python 3.13 Pyright 超时 | 🟡 P2 | ✅ 当前运行未复现 |
+| CI-003 | 测试泄漏真实行情网络与系统日期 | 🔴 P0 | ✅ `a352fb0` 已修复，Run #72 全绿 |
 
 ### 根因分析进展
 
-**CI-001 已知信息**（2026-06-21(2) 会话分析）：
-- 首次失败在 commit `14312ee6`（文档大重组）
-- 后续模式：3.12 Pytest exit code 4，3.13 Pyright 超时
-- 本地 (Win 3.14) ruff + pyright + 945 tests 全部通过，无法复现
-- **核心卡点**：GitHub API 403 无法获取日志，gh CLI 未安装
-
-**排查方案**（需选一个）：
-- **A**: `git push` 触发新 CI 运行实时观察
-- **B**: 用户手动在 GH Actions 页面查看日志
-- **C**: 安装 gh CLI + 认证后获取日志
+**Run #71 根因与处置**（2026-07-31）：
+- Python 3.12/3.13 的 Ruff、Pyright 均通过，前端任务通过；
+- 三个 `tests/test_backend/test_debate.py` 场景在 POST `/api/debate/run` 时未继承
+  类级股票名称 mock，因而访问真实 AKShare/上交所网络并失败；
+- 将 `resolve_stock_name` mock 提升为模块级 autouse fixture，同时保留成功解析与
+  空名称 fail-closed 的内层显式覆盖；
+- 跨日后另发现北交所生命周期样本将响应截止日固定为 2026-07-30、却使用系统当天
+  作为查询截止日；测试已把消费方时钟固定到样本日期；
+- 两项修复只隔离测试的网络与时钟，不改变生产数据规则。专项 23 passed，完整闸门
+  1459 passed、4 skipped、19 deselected。
 
 ---
 
@@ -62,10 +63,8 @@ last_updated: 2026-07-30 (K 线跨部门验收职责确认)
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:-----|
-| 1 🔴 | **CI-001 修复** — 获取 GH Actions 日志定位 Pytest exit code 4 根因 | 用户选排查方案 |
-| 2 🟡 | **CI-002 跟进** — Python 3.13 Pyright 超时，观察后续是否自愈 | 无 |
-| 3 🟢 | **TROUBLESHOOTING.md 补充** — 记录本次 CI 连红的完整根因 | CI-001 修复后 |
-| 4 🟢 | **定期审视** — 每周检查 CI 状态趋势 | 无 |
+| 1 🟢 | **测试隔离纪律** — 单元/路由测试不得访问真实行情网络；时间相关样本必须冻结时钟 | 持续执行 |
+| 2 🟢 | **定期审视** — 每周检查 CI 状态趋势 | 无 |
 | 🔥 | **TD-069/KR-6 K 线全链路验收** — 来源独立性、RAW、复权、点时、四层状态、零 LLM、交易价格、API/UI 和故障注入 | 3B 已补长窗分段、准确响应、部分 RAW、时钟/适配器故障、每源独立全覆盖与同日冲突契约；后续 KR-2～6 复用黑盒快照/回放接口，不重复白盒实现存储 |
 
 ### 设计哲学回归验证（DP 系列）
@@ -93,4 +92,4 @@ last_updated: 2026-07-30 (K 线跨部门验收职责确认)
 
 ---
 
-> **最后更新**: 2026-06-21 | 创建
+> **最后更新**: 2026-07-31 | Run #71 测试隔离修复，Run #72 全绿

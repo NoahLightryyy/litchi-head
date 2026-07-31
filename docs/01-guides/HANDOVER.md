@@ -58,11 +58,11 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能提交** | `03b0ff4` — `fix: make K-line canonical selection deterministic` |
+| **最新功能提交** | `03b0ff4` — `fix: make K-line canonical selection deterministic`；CI 隔离修复 `a352fb0` |
 | **全量测试** | 1482 collected；1459 passed、4 skipped、19 slow deselected ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
-| **CI 状态** | ⚠️ 远端最近两次已推送运行失败；本地全量闸门已通过，当前提交尚未推送 |
+| **CI 状态** | ✅ Run #72 全绿（frontend + Python 3.12/3.13）；本地全量闸门 4/4 通过 |
 
 ---
 

@@ -10,8 +10,8 @@
 
 | 指标 | 值 |
 |:-----|:----|
-| GitHub Actions 最新状态 | ⛔ 11/12 连红（#33~#44 仅 #36 绿） |
-| 最近一次绿色 | Run #36 — `chore: 上下文路由架构优化`（2026-06-17） |
+| GitHub Actions 最新状态 | ✅ Run #72 全绿（frontend + Python 3.12/3.13） |
+| 最近一次绿色 | Run #72 — `test: isolate CI from network and clock drift`（2026-07-31） |
 | CI 债务 | [CI 债务清单](ISSUES.md) |
 
 > **状态实时查看**：[GitHub Actions](https://github.com/NoahLightryyy/litchi-head/actions)
@@ -43,7 +43,7 @@
 ### 2. 本地拦截优先
 
 > 三层渐进式验证，每次推送拦截大部分问题，不阻塞开发流程。
-> 慢测试（23 个 `@pytest.mark.slow`，~600s）由 GitHub Actions CI 运行，pre-push 跳过。
+> 慢测试（当前 19 个 `@pytest.mark.slow`）由 GitHub Actions CI 运行，pre-push 跳过。
 > - 每次推送前：pre-push hook 自动捕获风格、类型和快测试失败
 > - 质量保障部负责维护 hook（参见 [HANDBOOK.md](HANDBOOK.md#pre-push-hook)）
 
@@ -73,4 +73,4 @@
 
 ---
 
-> **最后更新**: 2026-06-21 | CI 治理体系创建
+> **最后更新**: 2026-07-31 | Run #72 全绿，测试网络/时钟隔离完成
