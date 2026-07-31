@@ -11,6 +11,7 @@ from fractions import Fraction
 from hashlib import sha256
 from math import prod
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -96,7 +97,7 @@ class CorporateActionFactor(BaseModel):
     verification_source_ids: tuple[str, ...] = Field(min_length=1)
     verification_upstream_ids: tuple[str, ...] = Field(min_length=1)
     factor_version: str = Field(min_length=1)
-    revision: int = Field(ge=1)
+    revision: int = Field(ge=1, strict=True)
 
     @field_validator("action_id", "factor_version")
     @classmethod
@@ -170,6 +171,229 @@ class CorporateActionFactor(BaseModel):
                     raise ValueError(
                         "price factor conflicts with the exact share ratio"
                     )
+        return self
+
+
+class OfficialCorporateActionDocument(BaseModel):
+    """One content-addressed official document supporting an action event."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    external_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    published_at: datetime
+    source_url: str = Field(min_length=1)
+    attachment_url: str = Field(min_length=1)
+    content_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @field_validator("external_id", "title")
+    @classmethod
+    def validate_identity(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("official document identity must be non-blank")
+        return normalized
+
+    @field_validator("source_url", "attachment_url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        normalized = value.strip()
+        parsed = urlparse(normalized)
+        if parsed.scheme != "https" or not parsed.hostname:
+            raise ValueError("official document URLs must be valid HTTPS URLs")
+        return normalized
+
+    @field_validator("published_at")
+    @classmethod
+    def validate_published_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("published_at must be timezone-aware")
+        return value.astimezone(UTC)
+
+
+class OfficialCorporateActionEvent(BaseModel):
+    """Official terms that may verify, but do not themselves supply, a factor."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    action_id: str = Field(min_length=1)
+    revision: int = Field(ge=1, strict=True)
+    code: str = Field(min_length=6, max_length=6)
+    market: MarketCode
+    record_date: date
+    ex_date: date
+    action_kind: ActionKind
+    collected_at: datetime
+    source_id: str = Field(min_length=1)
+    upstream_id: str = Field(min_length=1)
+    parser_version: str = Field(min_length=1)
+    documents: tuple[OfficialCorporateActionDocument, ...] = Field(min_length=1)
+    cash_dividend_per_share: Decimal | None = Field(
+        default=None,
+        gt=0,
+        strict=True,
+    )
+    share_ratio_numerator: int | None = Field(
+        default=None,
+        gt=0,
+        strict=True,
+    )
+    share_ratio_denominator: int | None = Field(
+        default=None,
+        gt=0,
+        strict=True,
+    )
+    rights_ratio_numerator: int | None = Field(
+        default=None,
+        gt=0,
+        strict=True,
+    )
+    rights_ratio_denominator: int | None = Field(
+        default=None,
+        gt=0,
+        strict=True,
+    )
+    rights_subscription_price: Decimal | None = Field(
+        default=None,
+        gt=0,
+        strict=True,
+    )
+
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, value: str) -> str:
+        if not is_supported_a_share_code(value):
+            raise ValueError("code must be an explicitly supported A-share code")
+        return value
+
+    @field_validator("action_id", "source_id", "upstream_id", "parser_version")
+    @classmethod
+    def validate_identity(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("official action identity must be non-blank")
+        return normalized
+
+    @field_validator("collected_at")
+    @classmethod
+    def validate_collected_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("collected_at must be timezone-aware")
+        return value.astimezone(UTC)
+
+    @field_validator("documents")
+    @classmethod
+    def validate_documents(
+        cls,
+        values: tuple[OfficialCorporateActionDocument, ...],
+    ) -> tuple[OfficialCorporateActionDocument, ...]:
+        external_ids = tuple(document.external_id for document in values)
+        content_hashes = tuple(document.content_hash for document in values)
+        if len(set(external_ids)) != len(external_ids):
+            raise ValueError("official action documents contain duplicate external_id")
+        if len(set(content_hashes)) != len(content_hashes):
+            raise ValueError("official action documents contain duplicate content_hash")
+        return tuple(
+            sorted(
+                values,
+                key=lambda document: (
+                    document.published_at,
+                    document.external_id,
+                    document.content_hash,
+                ),
+            )
+        )
+
+    @model_validator(mode="after")
+    def validate_instrument(self) -> "OfficialCorporateActionEvent":
+        if self.market is not market_code_for(self.code):
+            raise ValueError("official action code and market do not match")
+        if self.record_date >= self.ex_date:
+            raise ValueError("record_date must be earlier than ex_date")
+        if any(
+            document.published_at > self.collected_at
+            for document in self.documents
+        ):
+            raise ValueError(
+                "document published_at must not be later than collected_at"
+            )
+        share_values = (
+            self.share_ratio_numerator,
+            self.share_ratio_denominator,
+        )
+        rights_values = (
+            self.rights_ratio_numerator,
+            self.rights_ratio_denominator,
+        )
+        has_share_values = any(value is not None for value in share_values)
+        has_share_ratio = all(value is not None for value in share_values)
+        has_rights_values = any(value is not None for value in rights_values)
+        has_rights_ratio = all(value is not None for value in rights_values)
+        has_rights_terms = has_rights_ratio and (
+            self.rights_subscription_price is not None
+        )
+        has_any_rights_term = (
+            has_rights_values or self.rights_subscription_price is not None
+        )
+        has_cash = self.cash_dividend_per_share is not None
+
+        share_increase = False
+        share_decrease = False
+        if has_share_ratio:
+            assert self.share_ratio_numerator is not None
+            assert self.share_ratio_denominator is not None
+            share_increase = (
+                self.share_ratio_numerator > self.share_ratio_denominator
+            )
+            share_decrease = (
+                self.share_ratio_numerator < self.share_ratio_denominator
+            )
+        terms_valid = False
+        if self.action_kind == "cash_dividend":
+            terms_valid = has_cash and not has_share_values and not has_any_rights_term
+        elif self.action_kind == "share_change":
+            terms_valid = (
+                share_increase and not has_cash and not has_any_rights_term
+            )
+        elif self.action_kind == "split":
+            terms_valid = (
+                share_increase and not has_cash and not has_any_rights_term
+            )
+        elif self.action_kind == "reverse_split":
+            terms_valid = (
+                share_decrease and not has_cash and not has_any_rights_term
+            )
+        elif self.action_kind == "rights_issue":
+            terms_valid = (
+                has_rights_terms and not has_cash and not has_share_values
+            )
+        elif self.action_kind == "composite":
+            component_count = sum(
+                (
+                    has_cash,
+                    share_increase or share_decrease,
+                    has_rights_terms,
+                )
+            )
+            terms_valid = component_count >= 2
+
+        if (
+            not terms_valid
+            or has_share_values != has_share_ratio
+            or has_rights_values != has_rights_ratio
+            or (
+                has_any_rights_term
+                and not has_rights_terms
+            )
+            or (
+                has_share_ratio
+                and not share_increase
+                and not share_decrease
+            )
+        ):
+            raise ValueError(
+                "official action terms are incompatible with action_kind"
+            )
         return self
 
 
@@ -486,6 +710,8 @@ __all__ = [
     "AdjustedKlineSeries",
     "CorporateActionFactor",
     "CumulativeQfqFactorPoint",
+    "OfficialCorporateActionDocument",
+    "OfficialCorporateActionEvent",
     "QfqFactorSnapshot",
     "adjust_qfq_as_of",
     "is_supported_a_share_code",

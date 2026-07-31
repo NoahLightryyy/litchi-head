@@ -108,7 +108,10 @@ def _parse_total(payload: Mapping[str, Any]) -> tuple[int, list[Any]]:
 
 
 def _required_text(item: Mapping[str, Any], field: str) -> str:
-    value = str(item.get(field, "")).strip()
+    raw_value = item.get(field)
+    if not isinstance(raw_value, str):
+        raise ValueError(f"official announcement {field} must be text")
+    value = raw_value.strip()
     if not value:
         raise ValueError(f"official announcement missing {field}")
     return value

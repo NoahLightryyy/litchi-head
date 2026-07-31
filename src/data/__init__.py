@@ -35,6 +35,8 @@ from src.data.kline_adjustment import (
     AdjustedKlineSeries,
     CorporateActionFactor,
     CumulativeQfqFactorPoint,
+    OfficialCorporateActionDocument,
+    OfficialCorporateActionEvent,
     QfqFactorSnapshot,
     adjust_qfq_as_of,
 )
@@ -80,6 +82,8 @@ __all__ = [
     "MarketCalendarVersion",
     "NewsItem",
     "OfficialSecurityStatusWindow",
+    "OfficialCorporateActionDocument",
+    "OfficialCorporateActionEvent",
     "OfficialTradingCalendar",
     "REGISTRY",
     "RawDailyBar",

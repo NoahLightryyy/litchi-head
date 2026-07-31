@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-07-31 (KR-2B-1 新浪累计因子快照完成，下一步官方事件核验)
+last_updated: 2026-07-31 (KR-2B-2B1 深市标准权益分派解析完成，下一步模板扩展)
 ---
 
 # 🔄 跨部门状态总览
@@ -45,7 +45,7 @@ last_updated: 2026-07-31 (KR-2B-1 新浪累计因子快照完成，下一步官�
 | LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
 | 多源证据（data→debate/backend） | 🟡 | CNINFO、新闻、实时行情与 L1 分时已统一；K 线 KR-1A 旁路完成，KR-1B/下游与行业待迁移 |
 | 盘中双时间尺度（data→debate→agents→backend→frontend） | 🟡 | 已确认目标：完整历史日 K 与实时/分时/`PROVISIONAL` 今日状态分层进入 AI；待实现 |
-| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | KR-2A 与 KR-2B-1 已完成；方案 A 固定沪深新浪累计因子 + CNINFO/交易所独立事件核验，BSE 暂停。下一原子 KR-2B-2，累计快照不得直接当事件因子。各部门复用同一快照/版本契约，不得另建证据仓 |
+| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | 2B1 深市标准权益分派解析已完成；SSE/配股/差异化/修订仍失败关闭。下一原子 2B2，当前事件和累计快照仍不得单独当因子 |
 
 ## 当前未完成事项（跨部门）
 
@@ -54,7 +54,7 @@ last_updated: 2026-07-31 (KR-2B-1 新浪累计因子快照完成，下一步官�
 | 🥇 | **PD 动态指标体系** — 新增 PD 系列任务：行业→动态选 5-10 指标，产业链位置判断，三维分析（财务+位置+供应链）。详见下方 PD 段落 | 数据管道部 + 辩论引擎部 + 后端 API 部 + 前端部 |
 | 🥇 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ |
 | 🥇 | **FD-002 估值比率模型** — ✅ PE/PB/PS 模型 + DataCollector.get_valuation()（纯计算，无需新 Provider） | 数据管道部 ✅ |
-| 🥇 | **ADR-013 / TD-069 K 线完整性** — KR-1、KR-2A、KR-2B-1 已完成；下一步 KR-2B-2 官方公司行动条款匹配与事件因子转换，之后按 [KR-3～KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) 推进四层信封、AI/风控/交易、API/前端与全链路验收 | 数据、辩论、Agent、记忆、风控、交易、回测、后端、前端、基础设施、质量保障 |
+| 🥇 | **ADR-013 / TD-069 K 线完整性** — 2B1 已完成；下一步 2B2 官方模板/修订扩展，再做 2C 因子转换，之后按 [KR-3～KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) 推进 | 数据、辩论、Agent、记忆、风控、交易、回测、后端、前端、基础设施、质量保障 |
 | 🥇 | **TD-074 决策 baseline 与影子验证** — 功能账和证据账分离；KR-6 后以冻结基线、不可变样本、成本后结果和安全拒答验证增量价值 | [跨部门协议](../../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)；全部 11 部门 |
 | 🥇 | **FD-003 产业链修复** — 真实行业分类替换伪产业链数据 | 后端 API 部 + 前端部 |
 | 🥇 | **RC-003 UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore + 操作理由记录 | 后端 API 部 + 前端部 + 数据管道部 |

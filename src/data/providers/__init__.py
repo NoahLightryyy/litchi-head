@@ -27,6 +27,10 @@ from src.data.providers.cninfo import (
     CninfoAnnouncementSource,
     CninfoDirectAnnouncementSource,
 )
+from src.data.providers.cninfo_actions import (
+    CninfoCorporateActionSource,
+    CorporateActionSourceError,
+)
 from src.data.providers.cninfo_status import (
     CninfoSuspensionEventSource,
     OfficialDocument,
@@ -54,9 +58,11 @@ __all__ = [
     "BseSuspensionEventSource",
     "BseSuspensionEventSourceError",
     "CninfoAnnouncementSource",
+    "CninfoCorporateActionSource",
     "CninfoDirectAnnouncementSource",
     "CninfoSuspensionEventSource",
     "DataSource",
+    "CorporateActionSourceError",
     "EastmoneyNewsSource",
     "EastmoneyQuoteSource",
     "FallbackSource",

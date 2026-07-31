@@ -25,10 +25,11 @@
 因此项目把两个阶段隔离：
 
 1. `QfqFactorSnapshot` 保存新浪原始响应和累计除数证据；
-2. 未来 KR-2B-2 用独立官方公告确认事件，再生成 `CorporateActionFactor`。
+2. KR-2B-2A 已冻结独立官方条款契约；2B 解析公告，2C 匹配后才生成
+   `CorporateActionFactor`。
 
 代码层也使用两个不同能力名：新浪快照只声明 `CUMULATIVE_QFQ_FACTOR`，可被
-KR-2B-2 标准证据链消费；只有未来完成官方事件核验的组合源才能声明
+KR-2B-2B/2C 标准证据链消费；只有完成官方事件核验的组合源才能声明
 `CORPORATE_ACTION_FACTOR`。
 
 北交所即使新浪端点有数据，只要官方事件核验链未完成，也在网络请求前返回
@@ -85,4 +86,4 @@ if self.factor_version != f"sha256:{self.response_hash}":
 ## 前后链接
 
 - 上一张：[40｜点时复权](40-point-in-time-adjustment.md)
-- 下一张：待新增
+- 下一张：[42｜官方公司行动条款契约](42-official-corporate-action-contract.md)

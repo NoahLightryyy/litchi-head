@@ -200,9 +200,15 @@ docs/06-departments/02-debate-engine/DEBT.md
 23. KR-2B-1 已完成：`src/data/providers/sina_adjustment.py` 保存原始响应哈希、
     Decimal 精度和累计除数快照，区分网络失败/脏响应/BSE 不支持；沪深真实冒烟
     通过。该快照不是 `CorporateActionFactor`，不得直接进入复权或 AI；
-24. 下一原子是 KR-2B-2：复用 CNINFO 公告分页/下载/哈希，解析公司行动条款，
-    用官方事件匹配相邻累计除数后再生成事件因子；不得重复实现 KR-2A/B-1；
-25. KR-2 后按 KR-3～KR-6 推进四层信封、AI/风控/交易、
+24. KR-2B-2A 已完成：`OfficialCorporateActionDocument/Event` 冻结公告原文
+    哈希、修订、登记/除权日、解析器版本、严格金额/比例和六类事件条款矩阵；
+    38 项契约通过。
+    这只是领域契约，没有联网解析或已核验因子；
+25. KR-2B-2B1 已完成：`CninfoCorporateActionSource` 解析深市标准权益分派实施
+    公告并按除权日聚合；真实 `000001` 样本得到每股 `0.36200`；
+26. 下一原子是 2B2：补 SSE、配股、差异化和修订生命周期；当前明确失败关闭。
+    其后 2C 才匹配相邻累计除数，不得重复 2B1；
+27. KR-2 后按 KR-3～KR-6 推进四层信封、AI/风控/交易、
     API/前端和全链路验收；TD-072 继续自然积累，不阻塞 K 线门禁。
 
 ---

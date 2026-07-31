@@ -119,6 +119,42 @@ def _response_mapping(value: object, context: str) -> Mapping[str, Any]:
     return value
 
 
+def _validated_direct_page_items(
+    page: Mapping[str, Any],
+    *,
+    expected_total: int,
+    page_number: int,
+    page_count: int,
+) -> list[Any]:
+    if "totalAnnouncement" not in page:
+        raise ValueError("公告查询响应缺少 totalAnnouncement")
+    page_total = _parse_nonnegative_int(
+        page["totalAnnouncement"],
+        "totalAnnouncement",
+    )
+    if page_total != expected_total:
+        raise ValueError(
+            "totalAnnouncement changed between pages: "
+            f"{expected_total} != {page_total}"
+        )
+    page_items = page.get("announcements")
+    if not isinstance(page_items, list):
+        raise ValueError("公告查询响应缺少 announcements")
+    if page_number < 1 or page_number > page_count:
+        raise ValueError("公告查询页码超出完整分页范围")
+    expected_count = (
+        CNINFO_PAGE_SIZE
+        if page_number < page_count
+        else expected_total - CNINFO_PAGE_SIZE * (page_count - 1)
+    )
+    if len(page_items) != expected_count:
+        raise ValueError(
+            f"announcement page {page_number} expected "
+            f"{expected_count} items, got {len(page_items)}"
+        )
+    return page_items
+
+
 def _lookup_org_id(stock_payload: object, symbol: str) -> str:
     payload = _response_mapping(stock_payload, "股票列表响应")
     stock_list = payload.get("stockList")
@@ -188,14 +224,17 @@ def _default_direct_fetcher(
             first_page["totalAnnouncement"],
             "totalAnnouncement",
         )
-        page_count = math.ceil(total / CNINFO_PAGE_SIZE)
+        page_count = max(1, math.ceil(total / CNINFO_PAGE_SIZE))
         announcements: list[Any] = []
 
         for page_number in range(1, page_count + 1):
             page = first_page if page_number == 1 else fetch_page(page_number)
-            page_items = page.get("announcements")
-            if not isinstance(page_items, list):
-                raise ValueError("公告查询响应缺少 announcements")
+            page_items = _validated_direct_page_items(
+                page,
+                expected_total=total,
+                page_number=page_number,
+                page_count=page_count,
+            )
             announcements.extend(page_items)
 
     return {
@@ -265,14 +304,22 @@ def _frame_to_items(frame: pd.DataFrame) -> list[AnnouncementItem]:
 
 
 def _required_direct_text(item: Mapping[str, Any], field_name: str) -> str:
-    value = str(item.get(field_name, "")).strip()
+    raw_value = item.get(field_name)
+    if not isinstance(raw_value, str):
+        raise ValueError(f"公告 {field_name} 必须是文本")
+    value = raw_value.strip()
     if not value:
         raise ValueError(f"公告缺少 {field_name}")
     return value
 
 
 def _optional_attachment_url(item: Mapping[str, Any]) -> str | None:
-    path = str(item.get("adjunctUrl", "")).strip().lstrip("/")
+    raw_path = item.get("adjunctUrl")
+    if raw_path is None:
+        return None
+    if not isinstance(raw_path, str):
+        raise ValueError("公告 adjunctUrl 必须是文本")
+    path = raw_path.strip().lstrip("/")
     if not path:
         return None
     return f"{CNINFO_STATIC_URL}{path}"

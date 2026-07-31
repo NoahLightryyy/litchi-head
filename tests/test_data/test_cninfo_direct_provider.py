@@ -3,8 +3,13 @@
 from datetime import UTC, datetime
 from typing import Any
 
+import pytest
+
 from src.data.evidence import EvidenceCapability, EvidenceRequest, SourceStatus
-from src.data.providers.cninfo import CninfoDirectAnnouncementSource
+from src.data.providers.cninfo import (
+    CninfoDirectAnnouncementSource,
+    _validated_direct_page_items,
+)
 
 
 def _request(
@@ -169,3 +174,55 @@ def test_direct_unsupported_capability_does_not_call_upstream() -> None:
 
     assert result.status is SourceStatus.UNSUPPORTED
     assert called is False
+
+
+def test_direct_page_rejects_total_drift_between_pages() -> None:
+    with pytest.raises(ValueError, match="totalAnnouncement.*changed"):
+        _validated_direct_page_items(
+            {
+                "totalAnnouncement": 32,
+                "announcements": [{"announcementId": "page-2"}],
+            },
+            expected_total=31,
+            page_number=2,
+            page_count=2,
+        )
+
+
+def test_direct_page_rejects_truncated_page_shape() -> None:
+    with pytest.raises(ValueError, match="page 1.*30"):
+        _validated_direct_page_items(
+            {
+                "totalAnnouncement": 31,
+                "announcements": [{"announcementId": "only-one"}],
+            },
+            expected_total=31,
+            page_number=1,
+            page_count=2,
+        )
+
+
+@pytest.mark.parametrize("invalid_id", [None, True, {}, []])
+def test_direct_fetch_rejects_non_text_announcement_identity(
+    invalid_id: object,
+) -> None:
+    result = CninfoDirectAnnouncementSource(
+        fetcher=lambda **_: {
+            "totalAnnouncement": 1,
+            "announcements": [
+                {
+                    "secCode": "000001",
+                    "secName": "平安银行",
+                    "announcementTitle": "2026年半年度报告",
+                    "announcementTime": 1785234600000,
+                    "announcementId": invalid_id,
+                    "orgId": "gssz0000001",
+                    "adjunctUrl": "finalpage/2026-07-28/report.PDF",
+                }
+            ],
+        }
+    ).fetch(_request())
+
+    assert result.status is SourceStatus.FAILED
+    assert result.error_code == "invalid_upstream_payload"
+    assert "announcementId" in (result.error_message or "")

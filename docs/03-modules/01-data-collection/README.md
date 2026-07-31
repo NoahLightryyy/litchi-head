@@ -25,9 +25,8 @@
 - ✅ `DataEvidenceService` 并发汇总多个通道，输出统一证据信封
 - ✅ 新闻与实时行情已接入正式辩论零 LLM 失败关闭
 - ✅ L1 分时一期完成，动态分钟显式标记 `PROVISIONAL`
-- ✅ KR-2A 来源无关因子核心与 KR-2B-1 新浪累计因子快照已完成；方案 A 已确认，
-  下一步只做 KR-2B-2 CNINFO/交易所事件条款匹配。当前审计运行时仍未切入 AI/API，不得
-  绕过证据门禁或为新浪旧历史窗口擅自更换数据源
+- ✅ KR-2B-2B1 深市标准权益分派解析/同日聚合已完成；SSE、配股、差异化和
+  修订模板失败关闭，下一原子 2B2。2C 才允许生成已核验因子，当前仍未切入 AI/API
 - ⟳ 旧 Provider 继续逐个迁移到显式六态结果
 
 ## 文档
@@ -51,3 +50,6 @@
 - `src/data/providers/bse_status.py`
 - `src/data/kline_status.py`
 - `src/data/kline_store.py`
+- `src/data/kline_adjustment.py`
+- `src/data/providers/sina_adjustment.py`
+- `src/data/providers/cninfo_actions.py`

@@ -159,7 +159,7 @@
 | ✅ P0 | **TD-069 / KR-1A RAW 双源采集与严格对账** — 新浪+腾讯沪深 RAW、精度驱动冲突、当日动态排除、北交所失败关闭；25 项契约和真实烟测通过 | [K 线实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-0 | 已完成 |
 | ✅ P0 | **TD-069 / KR-1B-1 官方市场日历与预期日期集** — 三市场 2026 官方版本；共同漏开市日与日历覆盖缺口均失败关闭 | 用户已确认免费官方方案 | 已完成 |
 | ✅ P0 | **TD-069 / KR-1B-3 长窗与审计持久化** — 3A+3B 完成：不可变 `as_of` 回放、逐源准确响应证明、腾讯连续分段；新浪或权威覆盖不可证明时保留诊断并失败关闭，完整 canonical 必须可追溯到成功源 RAW | KR-1B-3B ✅ | 完成 |
-| 🟡 P0 | **TD-069 / KR-2 公司行动与统一复权** — KR-2A 纯算法与 KR-2B-1 新浪累计因子快照已完成；方案 A 已确认，下一原子为 KR-2B-2 CNINFO/交易所公司行动条款匹配、事件因子转换和真实对账 | KR-1B ✅；[实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-2 | ~0.5d |
+| 🟡 P0 | **TD-069 / KR-2 公司行动与统一复权** — 2B1 深市标准权益分派解析/同日聚合已完成；下一原子 2B2 补 SSE、配股、差异化和修订模板，之后才做 2C 因子匹配 | KR-1B ✅；[实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-2 | ~0.5d |
 | 🔥 P0 | **TD-069 / KR-3～4 双时间尺度与 AI 串联** — `FINAL_DAILY + FINAL_MINUTE + LIVE_QUOTE + PROVISIONAL`；辩论/Agent/风控/交易门禁 | KR-2 | ~1.5d |
 | 🔥 P0 | **TD-069 / KR-5～6 API、前端与全链路验收** — 状态/口径/冲突可视化，兼容迁移，回放与故障注入 | KR-4 | ~1.5d |
 | 🔥 P0 | **TD-074 决策 baseline 与影子验证** — 先冻结比较线、样本、成本、标签和停止线；KR-6 后连续积累真实样本，禁止用功能完成度冒充效果证据 | [唯一协议](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)；依赖 KR-2～6 | 4～8 周自然积累 |

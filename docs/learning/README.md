@@ -71,6 +71,8 @@
 | 39 | 🆕 [决策 Baseline 与影子验证：没有比较线，就只有故事](39-decision-baseline-shadow-validation.md) | 预注册对照、不可变样本、成本后结果、置信度校准 |
 | 40 | 🆕 [点时复权：为什么“今天看到的因子”不能改写昨天的判断](40-point-in-time-adjustment.md) | RAW 完成证明、因子修订、精确股本比例、无未来信息 |
 | 41 | 🆕 [累计复权因子：为什么一串 QFQ 数字还不是公司行动](41-cumulative-factor-vs-corporate-action.md) | 新浪累计除数、内容寻址、官方事件核验、BSE 失败关闭 |
+| 42 | 🆕 [官方公司行动条款契约：公告不是因子，但必须能被机器严格核验](42-official-corporate-action-contract.md) | 官方文档哈希、严格条款矩阵、解析版本、点时边界 |
+| 43 | 🆕 [公告正文解析：正则能匹配，不等于证据可以相信](43-corporate-action-document-parsing.md) | 最终章节锚定、候选集合、分页完整性、失败关闭 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
