@@ -71,7 +71,7 @@ last_updated: 2026-07-30 (K 线完整性 KR-4 串联计划批准)
 | 1 🔴 | **拆分 orchestrator.py**（1622→800）— 按节点拆分到 `orchestrator/nodes/` 目录 | 无 |
 | 2 ✅ | TD-069 新闻证据缺失时在 LLM 前失败关闭 | 3 天双源 + 503 + 零 LLM |
 | 3 ✅ | TD-069 实时行情缺失/陈旧/冲突时在 LLM 前失败关闭 | 双源 + 503 + 零 LLM |
-| 4 🔥 | TD-069/KR-4 K 线失败关闭与上下文分区 | 数据部已完成 KR-1B-3B 审计运行时，但尚未切入辩论；等待 KR-2/3 后消费统一信封。复用 `snapshot_id/as_of`，禁止另存 RAW、直接查 Parquet 或把失败诊断送入 LLM |
+| 4 🔥 | TD-069/KR-4 K 线失败关闭与上下文分区 | KR-2A 与 KR-2B-1 已完成但尚未切入辩论；等待 KR-2B-2 官方事件核验及 KR-3 后消费统一信封。复用 `snapshot_id/as_of`，禁止另存 RAW、直接读取累计因子或直接查证据仓 |
 | 5 🔥 | TD-069 行业证据失败关闭 | K 线门禁完成后 |
 | 3 🟡 | TD-018 成本优化 — 短路优化、层合并、模型分层 | TD-069 |
 
@@ -134,7 +134,7 @@ master_round（所有大师看到更高质量的分析师报告）
 
 | RC | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **RC-002** ✅ | **M3-EXT 按板块信任度校准** — `AgentOutcome.sector` 新增字段 + TrustTracker 按板块胜率 + `m3_ext` 回调 + `reflect_on_decision()` 实际结果 dispatch 已完成 | 记忆系统部 RC-001 核心引擎 | 已完成 |
+| **RC-002** ✅ | **M3-EXT 按板块信任度校准机制** — `AgentOutcome.sector` + TrustTracker 按板块胜率 + 回调/dispatch 已完成；真实校准仍需 TD-074 连续样本 | 记忆系统部 RC-001 核心引擎 | 机制完成 |
 | **RC-005** 🥈 | **CALIBRATE 置信度校准** — Brier score 过高时自动注入校准提示或降低置信度贡献权重 | RC-002 | ~1h |
 | **RC-006** 🥉 | **STRAT-ROUTE 策略路由** — 追踪每位大师在不同市场条件下的胜率，持续不及格时自动降级 | RC-002 | ~2h |
 
@@ -267,6 +267,12 @@ class BiasReport:
 | `src/debate/orchestrator.py` | 1622 行 → state 裁剪（DP-007）
 
 ---
+
+## 决策 baseline / 影子验证责任（TD-074）
+
+完整口径见 [跨部门唯一协议](../../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)。
+辩论引擎负责冻结方向、周期、置信度、拒答原因及模型/Prompt/代码版本，并提供单 Agent、
+无辩论或无校准的消融对照。样本不足时，“置信度量化已实现”不得写成“成功概率已验证”。
 
 ## 关键文件索引
 

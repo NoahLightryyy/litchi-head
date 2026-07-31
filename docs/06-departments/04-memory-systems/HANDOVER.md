@@ -59,7 +59,7 @@ last_updated: 2026-07-30 (K 线证据版本记忆职责确认)
 | 1 🟡 | 将 AsyncSqlite/Postgres checkpointer 接入正式辩论图并验证副作用幂等 | TD-069 决策 |
 | 2 🟡 | TD-051 补 MemoryManager 存储失败测试（IOError/损坏 JSON/只读） | 无 |
 | 3 🟡 | TD-066 SQL 迁移与备份恢复门禁 | 正式图恢复证据 |
-| 4 🔥 | KR-6 保存辩论所用 RAW/因子/状态版本，历史召回不得跨版本冒充当前事实 | KR-1B-3B 已提供不可变 `snapshot_id/as_of` 和逐源证明；等待 KR-2～4 后只保存统一信封引用，不复制 Parquet、清单、状态账本或检查点 |
+| 4 🔥 | KR-6 保存辩论所用 RAW/因子/状态版本，历史召回不得跨版本冒充当前事实 | KR-2A 已定义点时字段，KR-2B-1 已定义累计快照哈希；等待 KR-2B-2～4 后只保存经官方事件核验的统一信封引用，不复制证据仓或把累计快照冒充事件因子 |
 
 ### 设计哲学新任务（DP 系列）
 
@@ -140,6 +140,12 @@ await memory.write(
 ```
 
 ---
+
+## 决策 baseline / 影子验证责任（TD-074）
+
+完整口径见 [跨部门唯一协议](../../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)。
+记忆系统负责不可变 `DecisionSnapshot`、实验版本和到期结果事件。学习回写只能追加新记录，
+不得覆盖原决策、原证据或原 baseline；进程重启和跨进程并发下仍须保持唯一性与可恢复性。
 
 ## 关键文件索引
 

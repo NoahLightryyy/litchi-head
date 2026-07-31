@@ -68,6 +68,9 @@
 | 36 | 🆕 [K 线事实与复权：同一根蜡烛为什么有多种价格](36-raw-adjusted-kline-evidence.md) | RAW 双源、公司行动、点时复权、交易/回测价格坐标 |
 | 37 | 🆕 [不可变 K 线证据：为什么“存过”不等于“可审计回放”](37-immutable-kline-audit-replay.md) | SQLite 清单、内容寻址 Parquet、篡改失败关闭、无未来 `as_of` |
 | 38 | 🆕 [K 线覆盖证明：返回了数据，不等于覆盖了请求](38-kline-coverage-proof.md) | 逐源覆盖、腾讯连续分段、新浪 recent-tail、canonical RAW 血缘 |
+| 39 | 🆕 [决策 Baseline 与影子验证：没有比较线，就只有故事](39-decision-baseline-shadow-validation.md) | 预注册对照、不可变样本、成本后结果、置信度校准 |
+| 40 | 🆕 [点时复权：为什么“今天看到的因子”不能改写昨天的判断](40-point-in-time-adjustment.md) | RAW 完成证明、因子修订、精确股本比例、无未来信息 |
+| 41 | 🆕 [累计复权因子：为什么一串 QFQ 数字还不是公司行动](41-cumulative-factor-vs-corporate-action.md) | 新浪累计除数、内容寻址、官方事件核验、BSE 失败关闭 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

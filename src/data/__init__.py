@@ -30,6 +30,14 @@ from src.data.indicators import (
     normalize_industry,
 )
 from src.data.kline import MarketCode, RawDailyBar
+from src.data.kline_adjustment import (
+    AdjustedDailyBar,
+    AdjustedKlineSeries,
+    CorporateActionFactor,
+    CumulativeQfqFactorPoint,
+    QfqFactorSnapshot,
+    adjust_qfq_as_of,
+)
 from src.data.kline_calendar import (
     CalendarCoverageError,
     MarketCalendarVersion,
@@ -52,10 +60,14 @@ from src.data.models import (
 
 __all__ = [
     "AnnouncementItem",
+    "AdjustedDailyBar",
+    "AdjustedKlineSeries",
     "BoardInfo",
     "CalendarCoverageError",
     "DataCache",
     "DataCollector",
+    "CorporateActionFactor",
+    "CumulativeQfqFactorPoint",
     "DynamicIndicatorSelector",
     "FinancialMetrics",
     "INDICATOR_DEFS",
@@ -71,12 +83,14 @@ __all__ = [
     "OfficialTradingCalendar",
     "REGISTRY",
     "RawDailyBar",
+    "QfqFactorSnapshot",
     "SelectorResult",
     "SecurityStatusCoverageError",
     "StaticSecurityStatusCatalog",
     "StockInfo",
     "StockQuote",
     "ValuationMetrics",
+    "adjust_qfq_as_of",
     "normalize_industry",
     "official_a_share_calendar_2026",
 ]

@@ -182,12 +182,33 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 
 ---
 
+## 决策 baseline / 影子验证责任（TD-074）
+
+完整口径见 [跨部门唯一协议](../../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)。
+数据部在 KR-2～6 后负责点时行情、公司行动、统一复权、基准数据和到期结果标签。
+AI 与 baseline 必须使用同一时点、价格坐标和成本口径；失败、停牌、拒答和缺口均保留。
+未经用户确认，不得为了补 baseline 擅自增加数据源。
+
+## KR-2 统一复权当前状态（2026-07-31）
+
+- ✅ KR-2A 已完成：RAW 与派生序列类型隔离；因子版本/修订/双路血缘；
+  `raw_snapshot_id + raw_completed_through + as_of` 点时证明；现金、送转、拆并股、
+  配股跨停牌和修订回放；26 项合成契约；
+- ✅ KR-2B-1 已完成：方案 A 的沪深新浪累计 QFQ 除数直连、原始字节哈希、
+  Decimal 精度/哨兵/锚点/顺序校验、网络与脏数据错误分流、沪深真实烟测；
+- ⛔ 北交所在独立官方公司行动核验源完成前于触网前返回不支持；
+- 🟡 KR-2B-2 未完成：CNINFO/交易所公司行动条款适配、同日事件聚合、相邻累计
+  除数到事件因子的转换、交易所公式与真实样本对账；
+- 当前代码仍不能从公告生成已核验因子，不能宣称整个 KR-2 完成或切入 AI。
+
 ## 关键文件索引
 
 | 文件 | 说明 |
 |:-----|:------|
 | `src/data/collector.py` | 统一数据采集入口（469 行） |
 | `src/data/evidence.py` | 统一来源身份、能力、六态结果、注册与完整性评估 |
+| `src/data/kline_adjustment.py` | KR-2A 版本化公司行动因子、KR-1 完成证明绑定与点时 QFQ 纯算法 |
+| `src/data/providers/sina_adjustment.py` | KR-2B-1 新浪累计 QFQ 除数证据快照；不生成公司行动事件因子 |
 | `src/data/providers/cninfo.py` | CNINFO 权威公告统一证据适配器 |
 | `src/data/providers/bse_status.py` | 北交所生命周期、代码映射与市场日历状态适配器 |
 | `src/data/providers/news.py` | 东方财富 + 新浪独立新闻证据适配器 |
@@ -222,7 +243,14 @@ ValuationMetrics (PE/PB/PS)  ← DataCollector.get_valuation()  ✅ FD-002（数
 7. 腾讯长窗必须按不超过 1000 日连续分段；新浪最早原始日期未覆盖请求起点时
    固定失败关闭并保留部分 RAW。完整快照必须带日历权威，且每个成功源独立覆盖
    全部 canonical 日期并通过同日对账；
-8. 下一步只做 KR-2 公司行动与统一复权；不得同时提前改前端或切入 AI/API；
-9. KR-2 通过后按 KR-3 输出 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE /
+8. KR-2A 已完成，不得重复实现：冻结因子契约、精确股本比例/因子精度校验、
+   完整血缘内容哈希、`raw_snapshot_id + raw_completed_through` 点时边界、
+   Decimal 确定性与 26 项合成契约均在 `src/data/kline_adjustment.py`；
+9. 方案 A 已确认且 KR-2B-1 已完成，不得重复实现：沪深新浪累计除数直连、
+   内容寻址快照、错误分类和 BSE 失败关闭均在 `sina_adjustment.py`；
+10. 下一原子只做 KR-2B-2：复用 CNINFO 完整分页/公告下载/哈希，匹配官方
+   公司行动条款后才生成 `CorporateActionFactor`。不得把累计除数直接当事件乘数，
+   也不得接入 BaoStock/Tushare/AKShare 包装层；
+11. KR-2 通过后按 KR-3 输出 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE /
    PROVISIONAL`，再交给辩论、后端等下游；
-9. 每个 KR 独立完成五同步和强制闸门，K 线全链路完成后再迁移行业证据。
+12. 每个 KR 独立完成五同步和强制闸门，K 线全链路完成后再迁移行业证据。

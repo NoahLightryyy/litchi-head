@@ -1,6 +1,6 @@
 # K 线证据完整性实施计划
 
-> 状态：产品方向与风险口径已批准，代码尚未实现
+> 状态：KR-1、KR-2A、KR-2B-1 已完成；KR-2B-2 官方事件核验待实现
 >
 > 决策源：[ADR-013 多源证据完整性](../05-decisions/ADR-013-multi-source-evidence.md)
 >
@@ -209,13 +209,74 @@ KR-1B-2C-2A 连续账本和 2C-2B 批次/检查点，再由 KR-1B-3 持久化覆
 
 ### KR-2：公司行动与统一复权
 
-- 建立版本化公司行动/因子模型；
-- 明确免费阶段的因子来源及独立事件核验来源；
-- 实现统一前复权算法、成交量调整规则和点时 `as_of`；
-- 验证除息、送转、配股、停牌跨日和因子修订；
-- 不把不同供应商的前复权成品价直接当作 RAW 冲突。
+#### KR-2A：来源无关的因子契约与纯算法（✅ 2026-07-31）
 
-**交付条件**：同一 RAW + 同一因子版本产生确定性结果；历史点时测试证明无未来信息。
+- 新增 `src/data/kline_adjustment.py`，把 `RAW`、公司行动因子和
+  `ADJUSTED_QFQ_ASOF` 派生序列保持为不同类型；
+- 因子保存 `known_at`、修订号、供应商版本、因子来源/上游和独立公告核验
+  来源/上游；来源身份非空、上游必须独立，同版冲突失败关闭；
+- 组合 `factor_version` 对实际因子内容和全部血缘做规范化 SHA-256，不能只相信
+  供应商自报版本号；
+- 现金分红只调整历史价格；送转、拆并股保存精确股本比例与来源声明精度，并以
+  有理数校验价量因子；配股和组合事件不误套拆股公式；成交额明确保留 `RAW` 口径；
+- `raw_snapshot_id`、`raw_snapshot_as_of`、KR-1 已验证的
+  `raw_completed_through` 与查询 `as_of` 同时进入契约；算法不靠 15:00 墙钟猜
+  当日日线是否稳定。因子修订只在 `known_at <= as_of` 时生效；
+- 算法在内部使用按输入有效位数计算的 Decimal 精度，不受调用方全局 Decimal
+  context 影响；模型冻结，避免构造后绕过不变量；
+- 26 项合成契约覆盖无事件、现金、送转、3:1 拆股、配股跨停牌、因子修订、
+  来源冲突、输入乱序、内容哈希、时区、盘中/收盘边界和 JSON 回放。
+
+KR-2A 只消费已经算好的版本化因子，不负责从公告推导交易所除权公式，也没有接入
+任何网络 Provider。交易所公式是 KR-2B 对账依据：
+[上交所交易规则](https://www.sse.com.cn/lawandrules/sselawsrules2025/fund/trading/c/c_20260424_10817739.shtml)、
+[深交所除权除息说明](https://investor.szse.cn/knowledge/stock/other/t20181017_555756.html)、
+[北交所交易规则](https://www.bse.cn/uploads/6/file/public/202109/20210909101516_y5wn2y3ft9.pdf)。
+
+#### KR-2B：因子 Provider 与独立事件核验（🟡 进行中）
+
+**来源决策（方案 A，用户于 2026-07-31 确认）**：
+
+- 沪深因子主源固定为新浪 `qfq.js` 直连累计前复权除数；
+- 独立事件核验固定为 CNINFO/交易所正式公司行动披露；
+- 北交所即使新浪端点有返回，也在独立官方事件源完成前固定失败关闭；
+- Tushare、BaoStock 和 AKShare 包装层不进入当前生产链，新增/换源仍需再次确认。
+
+**KR-2B-1（✅ 2026-07-31）— 累计因子证据快照**：
+
+- `src/data/providers/sina_adjustment.py` 直接解析新浪原始响应，不使用 `eval`；
+- 单独声明 `CUMULATIVE_QFQ_FACTOR`，绝不冒充已核验的
+  `CORPORATE_ACTION_FACTOR`；它可作为 KR-2B-2 的因子侧输入，但不能满足后者；
+- `QfqFactorSnapshot` 保存原始字节 SHA-256、字节数、适配器版本、采集时间、
+  Decimal 原始精度、基准除数和按日期排序的累计除数点；
+- 校验响应身份、总数、唯一且严格降序的日期、`1900-01-01` 尾哨兵、最新值为
+  1、基准值等于最旧事件值；模型本身再次校验合法 A 股号段、代码/市场、哈希和
+  顺序不变量；响应必须保留原始 bytes，日期/因子类型或重复 JSON key 漂移均关闭；
+- 网络失败使用 `upstream_request_failed`，脏响应使用
+  `invalid_upstream_payload`，北交所使用
+  `official_verification_unavailable`，三者不混淆；
+- 沪深真实冒烟成功，北交所在触网前返回不支持。
+
+**KR-2B-2（下一原子）— 官方事件条款与因子转换**：
+
+- 复用 CNINFO 完整分页、公告下载、原文哈希和修订能力，新增公司行动条款解析，
+  不复用停牌关键词规则；
+- 累计除数不是 `CorporateActionFactor`。只有同一除权日与独立官方公告匹配后，
+  才能把相邻累计值按 `newer_divisor / older_divisor` 转成 KR-2A 所需的事件价格
+  乘数；事件类型、精确股本比例和量因子必须来自官方条款；
+- 同代码、同除权日的多份公告必须聚合为稳定事件，避免现金+送转重复应用；
+- 按交易所公式核验现金、送转、配股和组合事件，冲突固定失败关闭，不静默选边。
+
+完成真实沪深公司行动样本、修订回放和来源故障烟测后，KR-2 才整体完成。
+
+候选资料：
+[AKShare 股票数据文档](https://akshare.akfamily.xyz/data/stock/stock.html)、
+[Tushare 复权因子](https://tushare.pro/document/2?doc_id=28)、
+[BaoStock 复权因子说明](https://www.baostock.com/helpdocs/pdf/BaoStock%E5%A4%8D%E6%9D%83%E5%9B%A0%E5%AD%90%E7%AE%80%E4%BB%8B.pdf)。
+
+**KR-2 完整交付条件**：同一 RAW + 同一因子版本产生确定性结果；历史点时测试证明
+无未来信息；方案 A 的新浪累计除数与 CNINFO/交易所事件通过真实样本对账。仅完成
+KR-2B-1 快照不能进入 AI。
 
 ### KR-3：双时间尺度业务信封
 

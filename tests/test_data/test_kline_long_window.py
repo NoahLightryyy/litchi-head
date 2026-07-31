@@ -427,7 +427,7 @@ def test_runtime_adapter_recovery_survives_persistently_failing_clock(
         market=MarketCode.SZSE,
         start=date(2026, 7, 28),
         end=date(2026, 7, 29),
-        as_of=NOW + timedelta(days=1),
+        as_of=envelope.collected_at,
     )
 
     assert envelope.complete is False

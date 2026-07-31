@@ -144,7 +144,7 @@
 | 组件 | 功能 | 状态 |
 |:-----|:-----|:----:|
 | RC-001 核心引擎 | 事件分发器 + 注册表 + 存储层 | ✅ 已完成 |
-| RC-002 M3-EXT | 按板块的大师信任度校准 + sector 字段 + 反思入口实际结果 dispatch | ✅ 已完成 |
+| RC-002 M3-EXT | 按板块信任度校准机制 + sector 字段 + 反思入口实际结果 dispatch；经验校准仍需连续真实样本 | ✅ 机制完成 |
 | RC-004 RP-TUNE | 风险参数根据回测结果自适应 | 🟦 规划通过 |
 | RC-005 CALIBRATE | 置信度 Brier score 过高时注入校准乘数 | 🟦 规划通过 |
 | RC-006 STRAT-ROUTE | 不同市场条件下的大师路由 | 🟦 规划通过 |
@@ -325,5 +325,5 @@ pytest tests/test_debate_orchestrator.py -v              # 辩论不受影响
 ---
 
 > **设计哲学**：这不是一个功能模块，是一个基础设施。第 9 层的存在意义是——让系统每一次和你交互后都变得更懂你。
-> **关联文档**：[DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) | [ROADMAP.md](../00-overview/ROADMAP.md) | [USER-BEHAVIOR-MIRROR.md](../../99-archive/USER-BEHAVIOR-MIRROR.md)（归档设计）
+> **关联文档**：[DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) | [ROADMAP.md](../00-overview/ROADMAP.md) | [USER-BEHAVIOR-MIRROR.md](../99-archive/USER-BEHAVIOR-MIRROR.md)（归档设计）
 > **最后更新**：2026-06-23

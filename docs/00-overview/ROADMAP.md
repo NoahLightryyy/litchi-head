@@ -159,9 +159,10 @@
 | ✅ P0 | **TD-069 / KR-1A RAW 双源采集与严格对账** — 新浪+腾讯沪深 RAW、精度驱动冲突、当日动态排除、北交所失败关闭；25 项契约和真实烟测通过 | [K 线实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-0 | 已完成 |
 | ✅ P0 | **TD-069 / KR-1B-1 官方市场日历与预期日期集** — 三市场 2026 官方版本；共同漏开市日与日历覆盖缺口均失败关闭 | 用户已确认免费官方方案 | 已完成 |
 | ✅ P0 | **TD-069 / KR-1B-3 长窗与审计持久化** — 3A+3B 完成：不可变 `as_of` 回放、逐源准确响应证明、腾讯连续分段；新浪或权威覆盖不可证明时保留诊断并失败关闭，完整 canonical 必须可追溯到成功源 RAW | KR-1B-3B ✅ | 完成 |
-| 🔥 P0 | **TD-069 / KR-2 公司行动与统一复权** — RAW、因子和派生序列分层；盘中点时前复权；回测禁止未来因子 | KR-1B ✅ | ~1d |
+| 🟡 P0 | **TD-069 / KR-2 公司行动与统一复权** — KR-2A 纯算法与 KR-2B-1 新浪累计因子快照已完成；方案 A 已确认，下一原子为 KR-2B-2 CNINFO/交易所公司行动条款匹配、事件因子转换和真实对账 | KR-1B ✅；[实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-2 | ~0.5d |
 | 🔥 P0 | **TD-069 / KR-3～4 双时间尺度与 AI 串联** — `FINAL_DAILY + FINAL_MINUTE + LIVE_QUOTE + PROVISIONAL`；辩论/Agent/风控/交易门禁 | KR-2 | ~1.5d |
 | 🔥 P0 | **TD-069 / KR-5～6 API、前端与全链路验收** — 状态/口径/冲突可视化，兼容迁移，回放与故障注入 | KR-4 | ~1.5d |
+| 🔥 P0 | **TD-074 决策 baseline 与影子验证** — 先冻结比较线、样本、成本、标签和停止线；KR-6 后连续积累真实样本，禁止用功能完成度冒充效果证据 | [唯一协议](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)；依赖 KR-2～6 | 4～8 周自然积累 |
 | 🔥 P0 | **TD-028 搜索防抖** — useDebounce(query, 300) | ✅ 已完成 | pnpm build ✅ |
 | 🔥 P0 | **TD-029 前端死代码清理** — 布局目录/store/ECharts | ✅ 已完成 | pnpm build ✅ |
 | 🔥 P0 | **TD-030 资金流向接入 Provider 层** | ✅ 已完成 | 75 tests ✅ |
@@ -188,7 +189,7 @@
 | **DP-001** 🥇 | **模型瘦身** — 只留 DeepSeek，删 OpenAI/Anthropic，保留接口 | 基础设施部 | ✅ 已完成 |
 | **DP-002** 🥇 | **D1 同侪审阅** — 从"反驳"改为"赞同+补充+异议"三段式 | 辩论引擎部 | ✅ 已完成 |
 | **DP-003** 🥇 | **偏斜公示** — 每次辩论产出偏斜度统计 + 前端展示 | 辩论引擎部 + 前端部 | ✅ 已完成 |
-| **DP-004** 🥇 | **TrustTracker 旋钮扩展** — 发言顺序/参与资格/置信度校准 | 辩论引擎部 | ✅ 已完成 |
+| **DP-004** 🥇 | **TrustTracker 旋钮扩展** — 发言顺序/参与资格/校准映射机制；真实概率校准待 TD-074 样本 | 辩论引擎部 | ✅ 机制完成 |
 | **DP-005** 🥇 | **灵感官 Agent** — 高随机性反共识分析师 | AI Agent 架构部 | ✅ 已完成 |
 | **DP-006** 🥈 | **镜子反思** — 历史对比展示，辅助用户决策 | 辩论引擎部 + 记忆系统部 + 前端部 | ✅ 已完成 |
 | **DP-007** 🥈 | **信息隔离** — StateGraph 只传结构化摘要，裁剪 state | 辩论引擎部 | ✅ 已完成 |
@@ -324,7 +325,7 @@
 | RC | 事项 | 牵头 | 依赖 | 预估 |
 |:--:|:-----|:----|:----|:----:|
 | **RC-001** ✅ | **回调核心引擎** — `src/callback/` 模块（engine/registry/storage/models），中央事件分发器，注册/冷却/自动禁用/审计记录 | 记忆系统部 | 无 | 已完成 |
-| **RC-002** ✅ | **M3-EXT 按板块信任度校准** — `AgentOutcome.sector` + 按板块胜率 + M3 回调 + `reflect_on_decision()` 实际结果 dispatch 已完成 | 辩论引擎部 | RC-001 | 已完成 |
+| **RC-002** ✅ | **M3-EXT 按板块信任度校准机制** — `AgentOutcome.sector` + 按板块胜率 + M3 回调 + `reflect_on_decision()` dispatch 已完成；真实校准强度取决于 TD-074 样本 | 辩论引擎部 | RC-001 | 机制完成 |
 | **RC-003** 🥇 | **UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore（JSONL）+ 操作理由分类 | 后端 API 部 + 前端部 | RC-001 | ~2h |
 | **RC-004** 🥈 | **RP-TUNE 风险参数自适应** — 回测结果 → 自动调止损/仓位覆盖（基于 max_drawdown/win_rate） | 风控管理部 | RC-001 | ~2h |
 | **RC-005** 🥈 | **CALIBRATE 置信度校准** — Brier score 过高时注入校准或降低置信度权重 | 辩论引擎部 | RC-002 | ~1h |

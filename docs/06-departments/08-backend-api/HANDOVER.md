@@ -75,7 +75,7 @@ last_updated: 2026-07-30 (K 线证据 KR-5 API 迁移计划批准)
 |:------:|:-----|:----:|
 | 1 ✅ | 新闻 `EvidenceEnvelope` 缺失返回 503；禁止不完整输入启动 LLM | 已完成 |
 | 2 ✅ | 实时行情 `EvidenceEnvelope` 缺失/陈旧/冲突返回 503 | 已完成 |
-| 3 🔥 | KR-5 扩展 K 线证据 API 与错误契约 | 3B 审计运行时已完成但仍是数据部内部旁路；等待 KR-2～4 后由服务层暴露统一信封。API 不直接暴露 Parquet/SQLite，不把部分 RAW 当成功，也不自行回退“最近可用”快照 |
+| 3 🔥 | KR-5 扩展 K 线证据 API 与错误契约 | KR-2A 与 KR-2B-1 快照契约已完成但仍属数据部旁路；等待 KR-2B-2～4 后由服务层暴露统一信封。API 不直接暴露累计因子内部项，不把部分 RAW 当成功 |
 | 4 🔥 | 将同一错误契约扩展到行业证据 | K 线完成后 |
 | 2 🟡 | TD-068 正式辩论图 checkpoint + 路由 durable session 集成 | TD-069 |
 | 3 🟡 | TD-068 1/3/5 并发、durable queue 与全局背压门禁 | 正式图恢复 |
@@ -178,6 +178,12 @@ async def get_dynamic_indicators(code: str):
 ```
 
 ---
+
+## 决策 baseline / 影子验证责任（TD-074）
+
+完整口径见 [跨部门唯一协议](../../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)。
+后端负责持久化实验任务、决策快照、结果回填和报告 API。当前请求内同步辩论与进程内
+session 不能作为正式影子验证运行时；服务重启后任务、状态和审计引用必须可恢复。
 
 ## 关键文件索引
 

@@ -17,6 +17,8 @@ class EvidenceCapability(str, Enum):
     REALTIME_QUOTE = "realtime_quote"
     INTRADAY = "intraday"
     KLINE = "kline"
+    CUMULATIVE_QFQ_FACTOR = "cumulative_qfq_factor"
+    CORPORATE_ACTION_FACTOR = "corporate_action_factor"
     NEWS = "news"
     INDUSTRY = "industry"
     ANNOUNCEMENT = "announcement"
