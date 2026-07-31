@@ -23,6 +23,16 @@ from src.data.evidence import (
 from src.debate.evidence_gate import EvidenceIncompleteError
 
 
+@pytest.fixture(autouse=True)
+def mock_stock_name_lookup():
+    """Keep backend route tests independent from the live AKShare network."""
+    with patch(
+        "backend.routers.debate.resolve_stock_name",
+        return_value="平安银行",
+    ):
+        yield
+
+
 class _MockDebateResult(BaseModel):
     """模拟 DebateOutput"""
     stock_code: str = "000001"
@@ -50,14 +60,6 @@ class _MockOrchestrator:
 
 class TestRunDebate:
     """触发辩论"""
-
-    @pytest.fixture(autouse=True)
-    def mock_stock_name_lookup(self):
-        with patch(
-            "backend.routers.debate.resolve_stock_name",
-            return_value="平安银行",
-        ):
-            yield
 
     def test_run_debate_success(self, client):
         mock_orch = _MockOrchestrator()

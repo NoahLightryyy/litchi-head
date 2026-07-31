@@ -213,6 +213,11 @@ def test_active_bse_security_uses_complete_official_listing_snapshot(
 def test_delisted_bse_security_uses_mapping_and_official_termination_event(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    class _SampleDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return cls(2026, 7, 30)
+
     active = _jsonp([_bse_page([], total_pages=0)])
     delisted = _jsonp(
         [
@@ -270,6 +275,7 @@ def test_delisted_bse_security_uses_mapping_and_official_termination_event(
         return _Response(content=delisted)
 
     monkeypatch.setattr("httpx.get", fake_get)
+    monkeypatch.setattr("src.data.providers.bse_status.date", _SampleDate)
 
     lifecycle = OfficialSecurityLifecycleSource().fetch(
         code="920305",
