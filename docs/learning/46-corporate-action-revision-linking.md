@@ -47,3 +47,5 @@ CNINFO 官方完整分页接口，最多向前回填 365 天；仍找不到唯�
 ---
 
 **上一篇：[45｜差异化分派](45-differential-distribution-basis.md)**
+
+**下一篇：[47｜已核验公司行动因子](47-verified-corporate-action-factor.md)**

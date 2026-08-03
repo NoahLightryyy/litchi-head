@@ -76,6 +76,7 @@
 | 44 | 🆕 [影子回填：有历史数据，不等于能直接生成实盘信号](44-shadow-backfill-and-trusted-baseline.md) | 单源影子层、双源正式层、20日同期中位数、Parquet完整性 |
 | 45 | 🆕 [差异化分派：股东收到的钱，不一定是除权公式里的钱](45-differential-distribution-basis.md) | 实际派发/虚拟分派双口径、SSE表格、配股最终日程、修订账本 |
 | 46 | 🆕 [公告修订归链：看见“更正”不等于知道该替换谁](46-corporate-action-revision-linking.md) | 唯一引用、完整修订正文、终态闭锁、365天同源回填 |
+| 47 | 🆕 [已核验公司行动因子：供应商尾数为什么不能直接当真](47-verified-corporate-action-factor.md) | 相邻累计除数、官方公式复算、12位门限、点时与双路血缘 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

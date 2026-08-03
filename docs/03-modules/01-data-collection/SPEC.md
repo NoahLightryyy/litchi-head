@@ -33,6 +33,7 @@
 | `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（公开端点直连 + AKShare 可替换实现） |
 | `src/data/providers/cninfo_status.py` | 上市公司法定披露 PDF 停复牌事件与完整自然日查询批次哈希；单批次不负责宣称连续状态覆盖 |
 | `src/data/providers/cninfo_actions.py` | 深市/SSE 公司行动模板、配股最终日程、差异化双现金口径；修订公告唯一归链与 365 天同源历史回填 |
+| `src/data/kline_adjustment.py` | 公司行动因子、点时 QFQ，以及新浪相邻累计除数 + 官方条款 + 登记日 RAW 的已核验因子转换 |
 | `src/data/providers/lifecycle.py` | 上交所 JSON、深交所 XLSX 官方上市/终止上市生命周期证据与原始响应哈希 |
 | `src/data/kline_status.py` | 官方生命周期、状态检查点和连续事件批次归并；输出可审计状态窗口 |
 | `src/data/providers/news.py` | 东方财富个股搜索 + 新浪财经快讯独立新闻适配器 |

@@ -45,7 +45,7 @@ last_updated: 2026-08-03 (TD-072 分时历史影子回填与正式量能基线�
 | LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
 | 多源证据（data→debate/backend） | 🟡 | CNINFO、新闻、实时行情与 L1 分时已统一；分时历史已分影子/正式层；K 线 KR-1A 旁路完成，KR-1B/下游与行业待迁移 |
 | 盘中双时间尺度（data→debate→agents→backend→frontend） | 🟡 | 实时/分时/`PROVISIONAL` 今日状态已分层；TD-072 正式20日量能基线底座完成，待双源日暖机与影子验证后启用 Relative Volume |
-| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | 2B2B 官方模板、双现金口径与修订归链已完成；下一原子 2C，当前事件和累计快照仍不得单独当因子 |
+| K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | 2C 转换核心与深市实网已完成；沪市验收待 TD-075，事件和累计快照仍不得单独进入下游 |
 
 ## 当前未完成事项（跨部门）
 
@@ -54,7 +54,7 @@ last_updated: 2026-08-03 (TD-072 分时历史影子回填与正式量能基线�
 | 🥇 | **PD 动态指标体系** — 新增 PD 系列任务：行业→动态选 5-10 指标，产业链位置判断，三维分析（财务+位置+供应链）。详见下方 PD 段落 | 数据管道部 + 辩论引擎部 + 后端 API 部 + 前端部 |
 | 🥇 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ |
 | 🥇 | **FD-002 估值比率模型** — ✅ PE/PB/PS 模型 + DataCollector.get_valuation()（纯计算，无需新 Provider） | 数据管道部 ✅ |
-| 🥇 | **ADR-013 / TD-069 K 线完整性** — 2B2B 官方模板与修订归链已完成；下一步 2C 因子转换，之后按 [KR-3～KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) 推进 | 数据、辩论、Agent、记忆、风控、交易、回测、后端、前端、基础设施、质量保障 |
+| 🥇 | **ADR-013 / TD-069 K 线完整性** — 2C 转换核心完成；先修 TD-075 并完成 KR-2 沪深验收，再按 [KR-3～KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) 推进 | 数据、辩论、Agent、记忆、风控、交易、回测、后端、前端、基础设施、质量保障 |
 | 🥇 | **TD-074 决策 baseline 与影子验证** — 功能账和证据账分离；KR-6 后以冻结基线、不可变样本、成本后结果和安全拒答验证增量价值 | [跨部门协议](../../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)；全部 11 部门 |
 | 🥇 | **FD-003 产业链修复** — 真实行业分类替换伪产业链数据 | 后端 API 部 + 前端部 |
 | 🥇 | **RC-003 UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore + 操作理由记录 | 后端 API 部 + 前端部 + 数据管道部 |

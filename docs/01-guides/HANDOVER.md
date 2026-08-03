@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能批次** | KR-2B-2B2A/2B2B 官方模板、双现金口径与修订公告联网归链；未进入 2C |
-| **全量测试** | 1623 collected；1600 passed、4 skipped、19 slow deselected ✅ |
+| **最新功能批次** | KR-2B-2C 已核验因子转换核心；深市三事件实网通过，沪市验收待 TD-075 |
+| **全量测试** | 1637 collected；1614 passed、4 skipped、19 slow deselected ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | ✅ Run #72 全绿（frontend + Python 3.12/3.13）；本地全量闸门 4/4 通过 |
@@ -70,7 +70,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 | 部门 | 代码 | 状态 | 开放债务 | → 看这里 |
 |:-----|:-----|:----:|:--------:|:---------|
-| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 🟡 | 4 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
+| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 🟡 | 6 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
 | 🎯 辩论引擎部 | `src/debate/` | 🟡 | 3 | [HANDOVER](../06-departments/02-debate-engine/HANDOVER.md) |
 | 🤖 AI Agent 架构部 | `src/agents/` + `src/core/` | ✅ | 3 | [HANDOVER](../06-departments/03-ai-agents/HANDOVER.md) |
 | 🧠 记忆系统部 | `src/memory/` | 🟡 | 2 | [HANDOVER](../06-departments/04-memory-systems/HANDOVER.md) |
@@ -82,7 +82,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | ⚙️ 基础设施部 | `src/utils/` | 🟡 | 7 | [HANDOVER](../06-departments/10-infrastructure/HANDOVER.md) |
 | 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🟢 | 2 | [HANDOVER](../06-departments/11-quality-assurance/HANDOVER.md) |
 
-**全代码库开放债务**: 32 条（紧急指数 5.6/10）→ [债务路由](debt/ROUTER.md)
+**全代码库开放债务**: 35 条（紧急指数待重算）→ [债务路由](debt/ROUTER.md)
 
 ---
 
@@ -208,11 +208,16 @@ docs/06-departments/02-debate-engine/DEBT.md
     公告并按除权日聚合；真实 `000001` 样本得到每股 `0.36200`；
 26. 2B2A/2B2B 已完成：SSE 普通/差异化模板、配股最终发行日程、实际派发/除权
     调整双现金口径，以及更正/延期/终止公告联网归链。缺原公告时同源回填 365 天；
-    引用缺失、歧义、倒序或缺更正后完整正文均失败关闭。下一原子 2C 匹配相邻累计除数；
-27. TD-072 代码已完成：腾讯五日历史只进入影子分区，双源完整日进入正式分区；
+    引用缺失、歧义、倒序或缺更正后完整正文均失败关闭；
+27. KR-2B-2C 转换核心已完成：相邻累计除数与官方现金/股本/配股条款、登记日 RAW
+    公式复算；16 位尾差按用户批准的 12 位 `ROUND_HALF_EVEN` 门限验证并降级输出
+    精度。`000001` 三次真实事件通过；沪市日期表格实网漂移登记 TD-075，继续失败
+    关闭，因此整个 KR-2 尚未完成；
+28. TD-072 代码已完成：腾讯五日历史只进入影子分区，双源完整日进入正式分区；
     内容寻址 Parquet + SQLite 清单支持篡改失败关闭，API 明示影子限制。继续积累
     20个双源日并做误报率验证，不阻塞 K 线门禁；
-28. KR-2 后按 KR-3～KR-6 推进四层信封、AI/风控/交易、API/前端和全链路验收。
+29. TD-075 修复并完成 KR-2 沪深/故障验收后，按 KR-3～KR-6 推进四层信封、
+    AI/风控/交易、API/前端和全链路验收。
 
 ---
 

@@ -6,7 +6,7 @@ import json
 import re
 from collections.abc import Iterable
 from datetime import UTC, date, datetime
-from decimal import Decimal, localcontext
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from fractions import Fraction
 from hashlib import sha256
 from math import prod
@@ -42,6 +42,8 @@ CorporateActionRevisionStatus = Literal[
     "changed",
     "adjusted",
 ]
+CORPORATE_ACTION_FACTOR_CONVERTER_VERSION = "corporate-action-factor-v1"
+_OFFICIAL_FORMULA_VERIFICATION_QUANTUM = Decimal("0.000000000001")
 
 A_SHARE_SECURITY_CODE_PATTERN = re.compile(
     r"(?:00[0-3]\d{3}|30[01]\d{3}|60[0135]\d{3}|68[89]\d{3}|[48]\d{5}|92\d{4})"
@@ -669,6 +671,136 @@ class AdjustedKlineSeries(BaseModel):
         return self
 
 
+def convert_verified_corporate_action_factors(
+    snapshot: QfqFactorSnapshot,
+    events: Iterable[OfficialCorporateActionEvent],
+    raw_bars: Iterable[RawDailyBar],
+) -> tuple[CorporateActionFactor, ...]:
+    """Convert exact cumulative-divisor transitions into versioned event factors."""
+
+    points = snapshot.points
+    event_items = tuple(events)
+    raw_items = tuple(raw_bars)
+    if any(
+        (event.code, event.market) != (snapshot.code, snapshot.market) for event in event_items
+    ) or any((bar.code, bar.market) != (snapshot.code, snapshot.market) for bar in raw_items):
+        raise ValueError("factor conversion instrument does not match snapshot code and market")
+    transition_dates = {point.effective_date for point in points[1:]}
+    event_dates = {event.ex_date for event in event_items}
+    if len(event_dates) != len(event_items) or not event_dates <= transition_dates:
+        raise ValueError("official events must uniquely match dated cumulative QFQ transitions")
+    raw_by_date = {bar.trade_date: bar for bar in raw_items}
+    if len(raw_by_date) != len(raw_items):
+        raise ValueError("factor conversion RAW bars contain duplicate trade dates")
+    missing_record_dates = {
+        event.record_date for event in event_items if event.record_date not in raw_by_date
+    }
+    if missing_record_dates:
+        raise ValueError("factor conversion requires the official record-date RAW close")
+    if any(raw_by_date[event.record_date].close <= 0 for event in event_items):
+        raise ValueError("factor conversion requires a positive record-date RAW close")
+    factors: list[CorporateActionFactor] = []
+    for event in event_items:
+        point_index = next(
+            index
+            for index, point in enumerate(points)
+            if point.effective_date == event.ex_date and index > 0
+        )
+        older = points[point_index - 1]
+        newer = points[point_index]
+        share_multiplier = (
+            Fraction(event.share_ratio_numerator, event.share_ratio_denominator)
+            if event.share_ratio_numerator is not None and event.share_ratio_denominator is not None
+            else Fraction(1)
+        )
+        rights_increment = (
+            Fraction(event.rights_ratio_numerator, event.rights_ratio_denominator)
+            if event.rights_ratio_numerator is not None
+            and event.rights_ratio_denominator is not None
+            else Fraction(0)
+        )
+        total_share_multiplier = share_multiplier + rights_increment
+        with localcontext() as context:
+            context.prec = 50
+            price_factor = newer.cumulative_divisor / older.cumulative_divisor
+            record_close = raw_by_date[event.record_date].close
+            cash = event.adjustment_cash_per_share or Decimal("0")
+            volume_factor = Decimal(total_share_multiplier.numerator) / Decimal(
+                total_share_multiplier.denominator
+            )
+            rights_ratio = Decimal(rights_increment.numerator) / Decimal(
+                rights_increment.denominator
+            )
+            rights_value = (event.rights_subscription_price or Decimal("0")) * rights_ratio
+            expected_price_factor = (record_close - cash + rights_value) / (
+                record_close * volume_factor
+            )
+            older_half_step = older.precision / 2
+            newer_half_step = newer.precision / 2
+            lower_price_factor = (newer.cumulative_divisor - newer_half_step) / (
+                older.cumulative_divisor + older_half_step
+            )
+            upper_price_factor = (newer.cumulative_divisor + newer_half_step) / (
+                older.cumulative_divisor - older_half_step
+            )
+            price_factor_precision = 2 * max(
+                price_factor - lower_price_factor,
+                upper_price_factor - price_factor,
+            )
+            formula_matches = lower_price_factor <= expected_price_factor <= upper_price_factor
+            if price_factor_precision < _OFFICIAL_FORMULA_VERIFICATION_QUANTUM:
+                formula_matches = price_factor.quantize(
+                    _OFFICIAL_FORMULA_VERIFICATION_QUANTUM,
+                    rounding=ROUND_HALF_EVEN,
+                ) == expected_price_factor.quantize(
+                    _OFFICIAL_FORMULA_VERIFICATION_QUANTUM,
+                    rounding=ROUND_HALF_EVEN,
+                )
+                price_factor_precision = _OFFICIAL_FORMULA_VERIFICATION_QUANTUM
+        if not formula_matches:
+            raise ValueError(
+                "cumulative QFQ transition conflicts with the official exchange formula"
+            )
+        factor_version_content = json.dumps(
+            {
+                "converter_version": CORPORATE_ACTION_FACTOR_CONVERTER_VERSION,
+                "event": event.model_dump(mode="json"),
+                "snapshot_factor_version": snapshot.factor_version,
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        factor_version = f"sha256:{sha256(factor_version_content.encode('utf-8')).hexdigest()}"
+        factors.append(
+            CorporateActionFactor(
+                action_id=event.action_id,
+                code=event.code,
+                market=event.market,
+                ex_date=event.ex_date,
+                action_kind=event.action_kind,
+                known_at=max(snapshot.collected_at, event.collected_at),
+                price_factor=price_factor,
+                volume_factor=volume_factor,
+                price_factor_precision=price_factor_precision,
+                volume_factor_precision=Decimal("1e-48"),
+                share_ratio_numerator=(
+                    total_share_multiplier.numerator if total_share_multiplier != 1 else None
+                ),
+                share_ratio_denominator=(
+                    total_share_multiplier.denominator if total_share_multiplier != 1 else None
+                ),
+                factor_source_ids=(snapshot.source_id,),
+                factor_upstream_ids=(snapshot.upstream_id,),
+                verification_source_ids=(event.source_id,),
+                verification_upstream_ids=(event.upstream_id,),
+                factor_version=factor_version,
+                revision=event.revision,
+            )
+        )
+    return tuple(factors)
+
+
 def _selected_factor_revisions(
     factors: tuple[CorporateActionFactor, ...],
     *,
@@ -819,7 +951,9 @@ __all__ = [
     "AdjustedDailyBar",
     "AdjustedKlineSeries",
     "CorporateActionFactor",
+    "CORPORATE_ACTION_FACTOR_CONVERTER_VERSION",
     "CorporateActionRevisionLedger",
+    "convert_verified_corporate_action_factors",
     "CorporateActionRevisionStatus",
     "CumulativeQfqFactorPoint",
     "OfficialCorporateActionDocument",
