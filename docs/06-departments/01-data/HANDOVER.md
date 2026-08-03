@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-08-03 (TD-072 分时历史影子回填与正式量能基线底座完成)
+last_updated: 2026-08-03 (KR-2B-2B2B 修订公告联网归链完成)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -201,7 +201,10 @@ AI 与 baseline 必须使用同一时点、价格坐标和成本口径；失败�
   解析器版本、六类条款矩阵及契约测试；
 - ✅ KR-2B-2B1 已完成：深市标准权益分派正文、含税现金/送转、最终日期章节、
   同日聚合、分页漂移与真实 `000001` 样本；
-- 🟡 下一原子 2B2：SSE、配股、差异化与修订生命周期；2C 再做累计除数匹配；
+- ✅ 2B2A：SSE 普通/差异化、配股最终日程、双现金口径与修订账本契约；
+- ✅ 2B2B：更正/延期/终止等公告唯一归链，缺原公告时同源回填 365 天；歧义、
+  倒序或缺更正后完整正文失败关闭；
+- 🟡 下一原子 2C：匹配相邻累计除数并生成已核验因子；
 - 当前代码仍不能从公告生成已核验因子，不能宣称整个 KR-2 完成或切入 AI。
 
 ## 关键文件索引
@@ -212,7 +215,7 @@ AI 与 baseline 必须使用同一时点、价格坐标和成本口径；失败�
 | `src/data/evidence.py` | 统一来源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/kline_adjustment.py` | KR-2A 版本化因子、点时 QFQ 纯算法，以及 KR-2B-2A 官方文档/事件契约与条款矩阵 |
 | `src/data/providers/sina_adjustment.py` | KR-2B-1 新浪累计 QFQ 除数证据快照；不生成公司行动事件因子 |
-| `src/data/providers/cninfo_actions.py` | KR-2B-2B1 深市标准权益分派解析/聚合；其他模板失败关闭 |
+| `src/data/providers/cninfo_actions.py` | KR-2B-2B1～2B2B 沪深模板、配股、差异化双口径、修订唯一归链与历史回填 |
 | `src/data/providers/cninfo.py` | CNINFO 权威公告统一证据适配器 |
 | `src/data/providers/bse_status.py` | 北交所生命周期、代码映射与市场日历状态适配器 |
 | `src/data/providers/news.py` | 东方财富 + 新浪独立新闻证据适配器 |
@@ -255,8 +258,8 @@ AI 与 baseline 必须使用同一时点、价格坐标和成本口径；失败�
 10. KR-2B-2A 已完成，不得重复模型：官方文档、事件、现金/股本/配股条款和点时
    采集边界均在 `kline_adjustment.py`；
 11. KR-2B-2B1 已完成，不得重复深市标准模板、分页/PDF/hash 或同日聚合；
-12. 下一原子只做 2B2：用真实 PDF 补 SSE、配股、差异化和修订生命周期；2C 后
-   才生成 `CorporateActionFactor`。不得把累计除数直接当事件乘数；
+12. 2B2A/2B2B 已完成，不得重复模板或修订归链；下一原子只做 2C，生成
+   `CorporateActionFactor`。不得把累计除数直接当事件乘数；
 12. KR-2 通过后按 KR-3 输出 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE /
    PROVISIONAL`，再交给辩论、后端等下游；
 13. 每个 KR 独立完成五同步和强制闸门，K 线全链路完成后再迁移行业证据。

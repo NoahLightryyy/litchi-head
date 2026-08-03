@@ -15,7 +15,7 @@ last_updated: 2026-08-03 (TD-072 全量闸门通过)
 | GitHub Actions 最新状态 | ✅ Run #72 全绿（frontend + Python 3.12/3.13） |
 | 最近一次绿色 | Run #72 — `test: isolate CI from network and clock drift`（2026-07-31） |
 | Python 3.12/3.13 | Run #71 均因辩论路由测试泄漏真实 AKShare 网络而失败；已修复 |
-| 本地全量闸门 | ✅ 4/4；1585 passed、4 skipped、19 slow deselected |
+| 本地全量闸门 | ✅ 4/4；1600 passed、4 skipped、19 slow deselected |
 | Ruff | ✅ 通过 |
 
 ### 当前 CI 问题
@@ -37,7 +37,7 @@ last_updated: 2026-08-03 (TD-072 全量闸门通过)
 - 跨日后另发现北交所生命周期样本将响应截止日固定为 2026-07-30、却使用系统当天
   作为查询截止日；测试已把消费方时钟固定到样本日期；
 - 两项修复只隔离测试的网络与时钟，不改变生产数据规则。专项 23 passed，完整闸门
-  1585 passed、4 skipped、19 deselected。
+  1592 passed、4 skipped、19 deselected。
 
 ---
 
@@ -65,7 +65,7 @@ last_updated: 2026-08-03 (TD-072 全量闸门通过)
 |:------:|:-----|:-----|
 | 1 🟢 | **测试隔离纪律** — 单元/路由测试不得访问真实行情网络；时间相关样本必须冻结时钟 | 持续执行 |
 | 2 🟢 | **定期审视** — 每周检查 CI 状态趋势 | 无 |
-| 🔥 | **TD-069/KR-6 K 线全链路验收** — 来源独立性、RAW、复权、点时、四层状态、零 LLM、交易价格、API/UI 和故障注入 | 2B1 深市标准模板已验收；下一步验收 2B2 SSE/配股/差异化/修订，再验收 2C |
+| 🔥 | **TD-069/KR-6 K 线全链路验收** — 来源独立性、RAW、复权、点时、四层状态、零 LLM、交易价格、API/UI 和故障注入 | 2B2B 模板/差异化/修订归链已验收；下一步验收 2C |
 
 ### 决策 baseline / 影子验证（TD-074）
 

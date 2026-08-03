@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能批次** | TD-072 分时历史影子回填与正式量能基线底座；本地提交、不推送 |
-| **全量测试** | 1608 collected；1585 passed、4 skipped、19 slow deselected ✅ |
+| **最新功能批次** | KR-2B-2B2A/2B2B 官方模板、双现金口径与修订公告联网归链；未进入 2C |
+| **全量测试** | 1623 collected；1600 passed、4 skipped、19 slow deselected ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | ✅ Run #72 全绿（frontend + Python 3.12/3.13）；本地全量闸门 4/4 通过 |
@@ -206,8 +206,9 @@ docs/06-departments/02-debate-engine/DEBT.md
     这只是领域契约，没有联网解析或已核验因子；
 25. KR-2B-2B1 已完成：`CninfoCorporateActionSource` 解析深市标准权益分派实施
     公告并按除权日聚合；真实 `000001` 样本得到每股 `0.36200`；
-26. 下一原子是 2B2：补 SSE、配股、差异化和修订生命周期；当前明确失败关闭。
-    其后 2C 才匹配相邻累计除数，不得重复 2B1；
+26. 2B2A/2B2B 已完成：SSE 普通/差异化模板、配股最终发行日程、实际派发/除权
+    调整双现金口径，以及更正/延期/终止公告联网归链。缺原公告时同源回填 365 天；
+    引用缺失、歧义、倒序或缺更正后完整正文均失败关闭。下一原子 2C 匹配相邻累计除数；
 27. TD-072 代码已完成：腾讯五日历史只进入影子分区，双源完整日进入正式分区；
     内容寻址 Parquet + SQLite 清单支持篡改失败关闭，API 明示影子限制。继续积累
     20个双源日并做误报率验证，不阻塞 K 线门禁；

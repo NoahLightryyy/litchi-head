@@ -9,8 +9,10 @@ from pydantic import ValidationError
 
 from src.data.kline import MarketCode
 from src.data.kline_adjustment import (
+    CorporateActionRevisionLedger,
     OfficialCorporateActionDocument,
     OfficialCorporateActionEvent,
+    OfficialCorporateActionRevision,
 )
 
 
@@ -23,10 +25,7 @@ def _document(**changes: Any) -> OfficialCorporateActionDocument:
             "https://www.cninfo.com.cn/new/disclosure/detail"
             "?stockCode=000001&announcementId=1225352449"
         ),
-        "attachment_url": (
-            "https://static.cninfo.com.cn/"
-            "finalpage/2026-06-05/1225352449.PDF"
-        ),
+        "attachment_url": ("https://static.cninfo.com.cn/finalpage/2026-06-05/1225352449.PDF"),
         "content_hash": "8" * 64,
     }
     values.update(changes)
@@ -53,6 +52,67 @@ def _event(**changes: Any) -> OfficialCorporateActionEvent:
     return OfficialCorporateActionEvent(**values)
 
 
+def test_revision_ledger_replaces_original_with_corrected_full_document() -> None:
+    original = _document()
+    corrected = _document(
+        external_id="1225352450",
+        title="2025年年度权益分派实施公告（更正后）",
+        published_at=datetime(2026, 6, 6, 0, 0, tzinfo=UTC),
+        content_hash="9" * 64,
+    )
+    ledger = CorporateActionRevisionLedger(
+        code="000001",
+        market=MarketCode.SZSE,
+        revisions=(
+            OfficialCorporateActionRevision(
+                revision=1,
+                status="active",
+                document=original,
+            ),
+            OfficialCorporateActionRevision(
+                revision=2,
+                status="corrected",
+                document=corrected,
+                supersedes_document_ids=(original.external_id,),
+            ),
+        ),
+    )
+
+    assert ledger.effective_documents == (corrected,)
+    assert ledger.can_generate_event is True
+
+
+@pytest.mark.parametrize("status", ["terminated", "cancelled"])
+def test_terminal_revision_cannot_generate_an_effective_event(status: str) -> None:
+    original = _document()
+    terminal = _document(
+        external_id="1225352451",
+        title="关于终止实施权益分派的公告",
+        published_at=datetime(2026, 6, 6, 0, 0, tzinfo=UTC),
+        content_hash="a" * 64,
+    )
+    ledger = CorporateActionRevisionLedger(
+        code="000001",
+        market=MarketCode.SZSE,
+        revisions=(
+            OfficialCorporateActionRevision(
+                revision=1,
+                status="active",
+                document=original,
+            ),
+            OfficialCorporateActionRevision(
+                revision=2,
+                status=status,
+                document=terminal,
+                supersedes_document_ids=(original.external_id,),
+            ),
+        ),
+    )
+
+    assert ledger.effective_documents == ()
+    assert ledger.can_generate_event is False
+
+
 def test_cash_dividend_event_preserves_official_document_and_terms() -> None:
     event = _event()
 
@@ -62,9 +122,33 @@ def test_cash_dividend_event_preserves_official_document_and_terms() -> None:
     assert event.rights_ratio_numerator is None
     assert event.documents[0].external_id == "1225352449"
     assert event.parser_version == "cninfo-corporate-action-v1"
-    assert OfficialCorporateActionEvent.model_validate_json(
-        event.model_dump_json()
-    ) == event
+    assert OfficialCorporateActionEvent.model_validate_json(event.model_dump_json()) == event
+
+
+def test_differential_cash_event_preserves_distribution_and_adjustment_basis() -> None:
+    event = _event(
+        cash_dividend_per_share=Decimal("0.20"),
+        distribution_cash_per_share=Decimal("0.20"),
+        adjustment_cash_per_share=Decimal("0.1981"),
+        total_shares=1_145_151_330,
+        participating_shares=1_134_280_330,
+    )
+
+    assert event.distribution_cash_per_share == Decimal("0.20")
+    assert event.adjustment_cash_per_share == Decimal("0.1981")
+    assert event.total_shares == 1_145_151_330
+    assert event.participating_shares == 1_134_280_330
+    # 兼容旧消费者；新代码不得再用这个名称表达除权口径。
+    assert event.cash_dividend_per_share == Decimal("0.20")
+
+
+def test_differential_adjustment_requires_explicit_share_basis() -> None:
+    with pytest.raises(ValidationError, match="total_shares|participating_shares"):
+        _event(
+            cash_dividend_per_share=Decimal("0.20"),
+            distribution_cash_per_share=Decimal("0.20"),
+            adjustment_cash_per_share=Decimal("0.1981"),
+        )
 
 
 @pytest.mark.parametrize(
@@ -87,13 +171,7 @@ def test_official_action_rejects_impossible_point_in_time_relationships() -> Non
         _event(record_date=date(2026, 6, 12))
 
     with pytest.raises(ValidationError, match="published_at"):
-        _event(
-            documents=(
-                _document(
-                    published_at=datetime(2026, 6, 13, 0, 0, tzinfo=UTC)
-                ),
-            )
-        )
+        _event(documents=(_document(published_at=datetime(2026, 6, 13, 0, 0, tzinfo=UTC)),))
 
 
 @pytest.mark.parametrize(

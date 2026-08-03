@@ -13,7 +13,14 @@ from math import prod
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from src.data.kline import MarketCode, RawDailyBar, market_code_for
 
@@ -24,6 +31,16 @@ ActionKind = Literal[
     "split",
     "reverse_split",
     "composite",
+]
+CorporateActionRevisionStatus = Literal[
+    "active",
+    "corrected",
+    "supplemented",
+    "delayed",
+    "terminated",
+    "cancelled",
+    "changed",
+    "adjusted",
 ]
 
 A_SHARE_SECURITY_CODE_PATTERN = re.compile(
@@ -135,12 +152,9 @@ class CorporateActionFactor(BaseModel):
         if self.action_kind == "cash_dividend" and self.volume_factor != Decimal("1"):
             raise ValueError("cash dividend must preserve RAW volume")
         has_share_ratio = (
-            self.share_ratio_numerator is not None
-            and self.share_ratio_denominator is not None
+            self.share_ratio_numerator is not None and self.share_ratio_denominator is not None
         )
-        if (self.share_ratio_numerator is None) != (
-            self.share_ratio_denominator is None
-        ):
+        if (self.share_ratio_numerator is None) != (self.share_ratio_denominator is None):
             raise ValueError("share ratio numerator and denominator must appear together")
         requires_share_ratio = self.action_kind in {
             "share_change",
@@ -161,16 +175,12 @@ class CorporateActionFactor(BaseModel):
             )
             volume_error = abs(Fraction(self.volume_factor) - expected_volume)
             if volume_error > Fraction(self.volume_factor_precision) / 2:
-                raise ValueError(
-                    "volume factor conflicts with the exact share ratio"
-                )
+                raise ValueError("volume factor conflicts with the exact share ratio")
             if self.action_kind in {"share_change", "split", "reverse_split"}:
                 expected_price = 1 / expected_volume
                 price_error = abs(Fraction(self.price_factor) - expected_price)
                 if price_error > Fraction(self.price_factor_precision) / 2:
-                    raise ValueError(
-                        "price factor conflicts with the exact share ratio"
-                    )
+                    raise ValueError("price factor conflicts with the exact share ratio")
         return self
 
 
@@ -211,6 +221,88 @@ class OfficialCorporateActionDocument(BaseModel):
         return value.astimezone(UTC)
 
 
+class OfficialCorporateActionRevision(BaseModel):
+    """One immutable transition in an official corporate-action document chain."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    revision: int = Field(ge=1, strict=True)
+    status: CorporateActionRevisionStatus
+    document: OfficialCorporateActionDocument
+    supersedes_document_ids: tuple[str, ...] = ()
+
+    @field_validator("supersedes_document_ids")
+    @classmethod
+    def validate_supersedes(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        normalized = tuple(value.strip() for value in values)
+        if any(not value for value in normalized) or len(set(normalized)) != len(normalized):
+            raise ValueError("superseded document identities must be unique and non-blank")
+        return tuple(sorted(normalized))
+
+    @model_validator(mode="after")
+    def validate_transition_shape(self) -> "OfficialCorporateActionRevision":
+        if self.revision == 1:
+            if self.status != "active" or self.supersedes_document_ids:
+                raise ValueError("first corporate-action revision must be active")
+        elif self.status == "active" or not self.supersedes_document_ids:
+            raise ValueError("later corporate-action revisions must supersede prior documents")
+        if self.document.external_id in self.supersedes_document_ids:
+            raise ValueError("corporate-action revision cannot supersede itself")
+        return self
+
+
+class CorporateActionRevisionLedger(BaseModel):
+    """Ordered official revisions whose effective set gates event generation."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    code: str = Field(min_length=6, max_length=6)
+    market: MarketCode
+    revisions: tuple[OfficialCorporateActionRevision, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_chain(self) -> "CorporateActionRevisionLedger":
+        if not is_supported_a_share_code(self.code) or self.market is not market_code_for(
+            self.code
+        ):
+            raise ValueError("revision ledger code and market do not match")
+        ordered = tuple(sorted(self.revisions, key=lambda item: item.revision))
+        if tuple(item.revision for item in ordered) != tuple(range(1, len(ordered) + 1)):
+            raise ValueError("corporate-action revisions must be contiguous and unique")
+        known: set[str] = set()
+        for revision in ordered:
+            if any(item not in known for item in revision.supersedes_document_ids):
+                raise ValueError("corporate-action revision supersedes an unknown document")
+            if revision.document.external_id in known:
+                raise ValueError("corporate-action revision document identity is duplicated")
+            known.add(revision.document.external_id)
+        object.__setattr__(self, "revisions", ordered)
+        return self
+
+    @property
+    def effective_documents(self) -> tuple[OfficialCorporateActionDocument, ...]:
+        effective: dict[str, OfficialCorporateActionDocument] = {}
+        for revision in self.revisions:
+            for external_id in revision.supersedes_document_ids:
+                effective.pop(external_id, None)
+            if revision.status in {"active", "corrected", "supplemented", "changed", "adjusted"}:
+                effective[revision.document.external_id] = revision.document
+        return tuple(
+            sorted(
+                effective.values(),
+                key=lambda document: (document.published_at, document.external_id),
+            )
+        )
+
+    @property
+    def can_generate_event(self) -> bool:
+        return bool(self.effective_documents) and self.revisions[-1].status not in {
+            "delayed",
+            "terminated",
+            "cancelled",
+        }
+
+
 class OfficialCorporateActionEvent(BaseModel):
     """Official terms that may verify, but do not themselves supply, a factor."""
 
@@ -233,6 +325,18 @@ class OfficialCorporateActionEvent(BaseModel):
         gt=0,
         strict=True,
     )
+    distribution_cash_per_share: Decimal | None = Field(
+        default=None,
+        gt=0,
+        strict=True,
+    )
+    adjustment_cash_per_share: Decimal | None = Field(
+        default=None,
+        gt=0,
+        strict=True,
+    )
+    total_shares: int | None = Field(default=None, gt=0, strict=True)
+    participating_shares: int | None = Field(default=None, gt=0, strict=True)
     share_ratio_numerator: int | None = Field(
         default=None,
         gt=0,
@@ -258,6 +362,34 @@ class OfficialCorporateActionEvent(BaseModel):
         gt=0,
         strict=True,
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_cash_basis(cls, value: object, info: ValidationInfo) -> object:
+        if not isinstance(value, dict):
+            return value
+        migrated = dict(value)
+        if info.mode == "json":
+            for field_name in (
+                "cash_dividend_per_share",
+                "distribution_cash_per_share",
+                "adjustment_cash_per_share",
+            ):
+                raw = migrated.get(field_name)
+                if isinstance(raw, str):
+                    migrated[field_name] = Decimal(raw)
+        legacy = migrated.get("cash_dividend_per_share")
+        distribution = migrated.get("distribution_cash_per_share")
+        if legacy is not None and distribution is not None and legacy != distribution:
+            raise ValueError("cash_dividend_per_share conflicts with distribution_cash_per_share")
+        if distribution is None and legacy is not None:
+            migrated["distribution_cash_per_share"] = legacy
+            distribution = legacy
+        if legacy is None and distribution is not None:
+            migrated["cash_dividend_per_share"] = distribution
+        if migrated.get("adjustment_cash_per_share") is None and distribution is not None:
+            migrated["adjustment_cash_per_share"] = distribution
+        return migrated
 
     @field_validator("code")
     @classmethod
@@ -310,13 +442,8 @@ class OfficialCorporateActionEvent(BaseModel):
             raise ValueError("official action code and market do not match")
         if self.record_date >= self.ex_date:
             raise ValueError("record_date must be earlier than ex_date")
-        if any(
-            document.published_at > self.collected_at
-            for document in self.documents
-        ):
-            raise ValueError(
-                "document published_at must not be later than collected_at"
-            )
+        if any(document.published_at > self.collected_at for document in self.documents):
+            raise ValueError("document published_at must not be later than collected_at")
         share_values = (
             self.share_ratio_numerator,
             self.share_ratio_denominator,
@@ -329,44 +456,58 @@ class OfficialCorporateActionEvent(BaseModel):
         has_share_ratio = all(value is not None for value in share_values)
         has_rights_values = any(value is not None for value in rights_values)
         has_rights_ratio = all(value is not None for value in rights_values)
-        has_rights_terms = has_rights_ratio and (
-            self.rights_subscription_price is not None
+        has_rights_terms = has_rights_ratio and (self.rights_subscription_price is not None)
+        has_any_rights_term = has_rights_values or self.rights_subscription_price is not None
+        has_cash = self.distribution_cash_per_share is not None
+        cash_values = (
+            self.cash_dividend_per_share,
+            self.distribution_cash_per_share,
+            self.adjustment_cash_per_share,
         )
-        has_any_rights_term = (
-            has_rights_values or self.rights_subscription_price is not None
-        )
-        has_cash = self.cash_dividend_per_share is not None
+        if any(value is None for value in cash_values) != all(
+            value is None for value in cash_values
+        ):
+            raise ValueError("cash distribution and adjustment basis must appear together")
+        if (
+            self.cash_dividend_per_share is not None
+            and self.cash_dividend_per_share != self.distribution_cash_per_share
+        ):
+            raise ValueError("legacy cash basis must equal distribution cash basis")
+        has_total_shares = self.total_shares is not None
+        has_participating_shares = self.participating_shares is not None
+        if has_total_shares != has_participating_shares:
+            raise ValueError("total_shares and participating_shares must appear together")
+        if has_total_shares:
+            assert self.total_shares is not None
+            assert self.participating_shares is not None
+            if self.participating_shares > self.total_shares:
+                raise ValueError("participating_shares must not exceed total_shares")
+        if (
+            self.distribution_cash_per_share != self.adjustment_cash_per_share
+            and not has_total_shares
+        ):
+            raise ValueError(
+                "differential cash adjustment requires total_shares and participating_shares"
+            )
 
         share_increase = False
         share_decrease = False
         if has_share_ratio:
             assert self.share_ratio_numerator is not None
             assert self.share_ratio_denominator is not None
-            share_increase = (
-                self.share_ratio_numerator > self.share_ratio_denominator
-            )
-            share_decrease = (
-                self.share_ratio_numerator < self.share_ratio_denominator
-            )
+            share_increase = self.share_ratio_numerator > self.share_ratio_denominator
+            share_decrease = self.share_ratio_numerator < self.share_ratio_denominator
         terms_valid = False
         if self.action_kind == "cash_dividend":
             terms_valid = has_cash and not has_share_values and not has_any_rights_term
         elif self.action_kind == "share_change":
-            terms_valid = (
-                share_increase and not has_cash and not has_any_rights_term
-            )
+            terms_valid = share_increase and not has_cash and not has_any_rights_term
         elif self.action_kind == "split":
-            terms_valid = (
-                share_increase and not has_cash and not has_any_rights_term
-            )
+            terms_valid = share_increase and not has_cash and not has_any_rights_term
         elif self.action_kind == "reverse_split":
-            terms_valid = (
-                share_decrease and not has_cash and not has_any_rights_term
-            )
+            terms_valid = share_decrease and not has_cash and not has_any_rights_term
         elif self.action_kind == "rights_issue":
-            terms_valid = (
-                has_rights_terms and not has_cash and not has_share_values
-            )
+            terms_valid = has_rights_terms and not has_cash and not has_share_values
         elif self.action_kind == "composite":
             component_count = sum(
                 (
@@ -381,19 +522,10 @@ class OfficialCorporateActionEvent(BaseModel):
             not terms_valid
             or has_share_values != has_share_ratio
             or has_rights_values != has_rights_ratio
-            or (
-                has_any_rights_term
-                and not has_rights_terms
-            )
-            or (
-                has_share_ratio
-                and not share_increase
-                and not share_decrease
-            )
+            or (has_any_rights_term and not has_rights_terms)
+            or (has_share_ratio and not share_increase and not share_decrease)
         ):
-            raise ValueError(
-                "official action terms are incompatible with action_kind"
-            )
+            raise ValueError("official action terms are incompatible with action_kind")
         return self
 
 
@@ -409,9 +541,7 @@ class CumulativeQfqFactorPoint(BaseModel):
     @model_validator(mode="after")
     def validate_precision(self) -> "CumulativeQfqFactorPoint":
         if self.precision != _decimal_precision(self.cumulative_divisor):
-            raise ValueError(
-                "precision must match the cumulative divisor decimal exponent"
-            )
+            raise ValueError("precision must match the cumulative divisor decimal exponent")
         return self
 
 
@@ -462,9 +592,7 @@ class QfqFactorSnapshot(BaseModel):
         if self.factor_version != f"sha256:{self.response_hash}":
             raise ValueError("factor_version must identify the response hash")
         if self.base_precision != _decimal_precision(self.base_divisor):
-            raise ValueError(
-                "base_precision must match the base divisor decimal exponent"
-            )
+            raise ValueError("base_precision must match the base divisor decimal exponent")
         dates = tuple(point.effective_date for point in self.points)
         if dates != tuple(sorted(set(dates))):
             raise ValueError("QFQ factor points must be unique and ordered")
@@ -525,9 +653,7 @@ class AdjustedKlineSeries(BaseModel):
         if self.raw_completed_through > self.raw_snapshot_as_of.date():
             raise ValueError("RAW completion proof postdates the snapshot")
         if (self.factor_version == "none") != (not self.factor_source_ids):
-            raise ValueError(
-                "factor_version none and empty factor sources must appear together"
-            )
+            raise ValueError("factor_version none and empty factor sources must appear together")
         if not self.bars:
             raise ValueError("adjusted series requires bars")
         identity = {(bar.code, bar.market) for bar in self.bars}
@@ -607,10 +733,7 @@ def adjust_qfq_as_of(
 
     if as_of.tzinfo is None or as_of.utcoffset() is None:
         raise ValueError("as_of must be timezone-aware")
-    if (
-        raw_snapshot_as_of.tzinfo is None
-        or raw_snapshot_as_of.utcoffset() is None
-    ):
+    if raw_snapshot_as_of.tzinfo is None or raw_snapshot_as_of.utcoffset() is None:
         raise ValueError("raw_snapshot_as_of must be timezone-aware")
     as_of_utc = as_of.astimezone(UTC)
     raw_snapshot_as_of_utc = raw_snapshot_as_of.astimezone(UTC)
@@ -633,10 +756,7 @@ def adjust_qfq_as_of(
         raise ValueError("RAW completion proof postdates the snapshot")
     reference_date = bars[-1].trade_date
     selected = _selected_factor_revisions(
-        tuple(
-            CorporateActionFactor.model_validate(factor.model_dump())
-            for factor in factors
-        ),
+        tuple(CorporateActionFactor.model_validate(factor.model_dump()) for factor in factors),
         as_of=as_of_utc,
         code=code,
         market=market,
@@ -650,18 +770,14 @@ def adjust_qfq_as_of(
     max_volume_digits = max(len(Decimal(bar.volume).as_tuple().digits) for bar in bars)
     calculation_precision = max(
         28,
-        max_price_digits
-        + sum(len(factor.price_factor.as_tuple().digits) for factor in selected),
-        max_volume_digits
-        + sum(len(factor.volume_factor.as_tuple().digits) for factor in selected),
+        max_price_digits + sum(len(factor.price_factor.as_tuple().digits) for factor in selected),
+        max_volume_digits + sum(len(factor.volume_factor.as_tuple().digits) for factor in selected),
     )
     adjusted_items: list[AdjustedDailyBar] = []
     with localcontext() as context:
         context.prec = calculation_precision
         for bar in bars:
-            applicable = tuple(
-                factor for factor in selected if bar.trade_date < factor.ex_date
-            )
+            applicable = tuple(factor for factor in selected if bar.trade_date < factor.ex_date)
             price_multiplier = prod(
                 (factor.price_factor for factor in applicable),
                 start=Decimal("1"),
@@ -687,13 +803,7 @@ def adjust_qfq_as_of(
     return AdjustedKlineSeries(
         raw_snapshot_id=raw_snapshot_id.strip(),
         factor_source_ids=tuple(
-            sorted(
-                {
-                    source_id
-                    for factor in selected
-                    for source_id in factor.factor_source_ids
-                }
-            )
+            sorted({source_id for factor in selected for source_id in factor.factor_source_ids})
         ),
         factor_version=_factor_set_version(selected),
         reference_date=reference_date,
@@ -709,9 +819,12 @@ __all__ = [
     "AdjustedDailyBar",
     "AdjustedKlineSeries",
     "CorporateActionFactor",
+    "CorporateActionRevisionLedger",
+    "CorporateActionRevisionStatus",
     "CumulativeQfqFactorPoint",
     "OfficialCorporateActionDocument",
     "OfficialCorporateActionEvent",
+    "OfficialCorporateActionRevision",
     "QfqFactorSnapshot",
     "adjust_qfq_as_of",
     "is_supported_a_share_code",
