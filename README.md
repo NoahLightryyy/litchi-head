@@ -13,7 +13,7 @@
   <a href="https://github.com/NoahLightryyy/litchi-head/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/NoahLightryyy/litchi-head/ci.yml?branch=main&label=CI&logo=github" alt="CI Status">
   </a>
-  <img src="https://img.shields.io/badge/tests-1459%20passed-2ea44f?logo=pytest" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-1585%20passed-2ea44f?logo=pytest" alt="Tests">
   <img src="https://img.shields.io/badge/coverage-80%25%2B-brightgreen" alt="Coverage">
   <img src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/type_check-pyright-brightgreen" alt="Pyright">
@@ -139,6 +139,7 @@
 | **AI 输出置信度量化** | 校准曲线映射 + aggregate_node 校准 + 前端置信度可视化 | ✅ R4 完成 |
 | **基本面深度（FD）** ✅ | 财报纵深 + 产业链定位 + 供应链调研 — 机构级基本面分析能力 | ✅ FD-001 全链路完成（数据层+辩论注入+API+前端Tab） |
 | **多源证据完整性** | 六态来源结果 + 独立上游计数 + K 线逐源准确响应证明 + 不可变 `as_of` 回放 + LLM 前失败关闭 | 🟡 K 线至 KR-2B-2B1 深市标准权益分派解析已完成；SSE/配股/差异化/修订模板、因子核验、统一信封及 AI/API 切换待完成 |
+| **分时历史量能基线** | 腾讯历史单源影子回填 + 双源完整日正式层 + 内容寻址 Parquet/SQLite 审计 + 同分钟中位数 | 🟡 TD-072 代码完成；等待20个双源完整日暖机与影子误报率验证，启用前失败关闭 |
 
 > FD 基本面深度轨道基于 2026-06-23 调研结论：散户 vs 机构的核心壁垒在于财报纵深和供应链数据，而非分析模型。
 > 完整调研报告见 [FUNDAMENTAL_RESEARCH.md](docs/02-requirements/FUNDAMENTAL_RESEARCH.md)。
@@ -167,12 +168,12 @@
 
 ### 🧪 工程质量
 
-- **1482 项测试已收集** — 本地非慢测 1459 通过、4 跳过、19 个慢测排除；含 K 线逐源覆盖/审计回放、新闻双源聚合与 backend 路由测试
+- **1608 项测试已收集** — 本地非慢测 1585 通过、4 跳过、19 个慢测排除；含 K 线逐源覆盖/审计回放、分时历史完整性与 backend 路由测试
 - **CI/CD 全自动** — GitHub Actions 流水线（Ruff 风格检查 + Pyright 类型检查 + Pytest 测试）
 - **类型安全** — 全项目完整类型注解，Pyright basic mode 零错误
 - **结果回调审计** — `CallbackRecord` 记录每次结果事件响应，坏回调自动熔断不拖垮主流程
 - **30+ 知识库文章** — 从《聪明的投资者》到《原则》，构建投资大师知识体系
-- **9 份架构决策记录（ADR）** — 每条技术选型均有理由、权衡和替代方案
+- **13 份架构决策记录（ADR）** — 每条技术选型均有理由、权衡和替代方案
 
 ### 📋 关键设计决策一览
 
@@ -256,8 +257,8 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 
 ### 工程素养
 
-- 📐 **9 份架构决策记录** — 每步选型有理由有权衡，不是"跟着教程写"
-- 🧪 **1482 项测试已收集** — 1459 通过、4 跳过、19 个慢测按本地闸门排除；含 K 线审计、真实 LLM、新闻双源证据契约和全链路测试
+- 📐 **13 份架构决策记录** — 每步选型有理由有权衡，不是"跟着教程写"
+- 🧪 **1608 项测试已收集** — 1585 通过、4 跳过、19 个慢测按本地闸门排除；含 K 线审计、分时历史证据契约、真实 LLM 和全链路测试
 - 📝 **完整的文档体系** — 设计文档/流程规范/工作日志，代码即文档
 - 🔄 **CI/CD 全自动流水线** — GitHub Actions 一键 lint + type + test
 - 🔁 **结果驱动闭环地基** — RC-001/002 让“实际走势出来了”可以统一触发大师信任度校准
@@ -282,7 +283,7 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 - [全局看板](docs/00-overview/ROADMAP.md) — Phase 0-4 进度
 - [技术栈](docs/00-overview/TECH_STACK.md) — 选型理由与权衡
 - [🏢 部门体系](docs/06-departments/README.md) — 12 部门组织架构 + 数据流 + 协作规程
-- [架构决策记录](docs/05-decisions/README.md) — 9 条 ADR
+- [架构决策记录](docs/05-decisions/README.md) — 13 条 ADR
 - [AI 工作流程](docs/01-guides/WORKFLOW.md) — 开发流程规范（含部门角色加载机制）
 - [环境配置](docs/01-guides/ENVIRONMENT.md) — 快速开始
 - [模块规格（辩论引擎）](docs/03-modules/02-debate-engine/SPEC.md) — 完整模块设计

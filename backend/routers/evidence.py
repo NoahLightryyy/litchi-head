@@ -16,6 +16,7 @@ from src.data.evidence import (
     EvidenceCapability,
     EvidenceEnvelope,
     EvidenceRequest,
+    SourceStatus,
 )
 from src.data.intraday import (
     IntradayBar,
@@ -40,7 +41,9 @@ collector = DataCollector()
 
 news_evidence_service = get_news_evidence_runtime().service
 quote_evidence_service = get_realtime_quote_evidence_runtime().service
-intraday_evidence_service = get_intraday_evidence_runtime().service
+intraday_runtime = get_intraday_evidence_runtime()
+intraday_evidence_service = intraday_runtime.service
+intraday_history_coordinator = intraday_runtime.history
 intraday_battlefield_engine = IntradayBattlefieldEngine()
 
 
@@ -141,18 +144,41 @@ async def intraday_battlefield(
         INTRADAY_EVIDENCE_POLICY,
     )
     bars = [IntradayBar.model_validate(item) for item in envelope.items]
-    snapshot = (
-        intraday_battlefield_engine.analyze(bars)
+    verified_series = tuple(
+        (
+            result.source_id,
+            IntradaySourceSeries.model_validate(result.items[0]),
+        )
+        for result in envelope.source_results
+        if result.status is SourceStatus.SUCCESS_DATA and result.items
+    )
+    history = (
+        await run_sync(
+            intraday_history_coordinator.prepare,
+            payload.symbol,
+            as_of=bars[-1].timestamp,
+            verified_series=verified_series,
+        )
         if envelope.complete and bars
         else None
     )
+    snapshot = (
+        intraday_battlefield_engine.analyze(
+            bars,
+            volume_baseline=history.baseline if history else None,
+        )
+        if envelope.complete and bars
+        else None
+    )
+    if snapshot is not None and history is not None:
+        snapshot.limitations.extend(
+            limitation
+            for limitation in history.limitations
+            if limitation not in snapshot.limitations
+        )
     diagnostics: list[IntradaySourceDiagnostic] = []
     for result in envelope.source_results:
-        series = (
-            IntradaySourceSeries.model_validate(result.items[0])
-            if result.items
-            else None
-        )
+        series = IntradaySourceSeries.model_validate(result.items[0]) if result.items else None
         diagnostics.append(
             IntradaySourceDiagnostic(
                 source_id=result.source_id,
@@ -163,9 +189,7 @@ async def intraday_battlefield(
                 error_message=result.error_message,
                 checkpoint_count=len(series.checkpoints) if series else 0,
                 latest_timestamp=(
-                    series.checkpoints[-1].timestamp
-                    if series and series.checkpoints
-                    else None
+                    series.checkpoints[-1].timestamp if series and series.checkpoints else None
                 ),
             )
         )

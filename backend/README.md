@@ -64,7 +64,7 @@ backend/
 | GET | `/api/stocks/{code}/technical-indicators` | 技术指标（MA/RSI/MACD/布林带） | ✅ |
 | POST | `/api/v1/evidence/news/aggregate` | 东方财富实时 + 新浪滚动缓存并发新闻证据信封 | ✅ |
 | POST | `/api/v1/evidence/quotes/aggregate` | 东方财富 + 新浪直连行情证据信封 | ✅ |
-| POST | `/api/v1/evidence/intraday/battlefield` | 东方财富 + 腾讯分钟对账、L1 战况与逐源诊断 | ✅ |
+| POST | `/api/v1/evidence/intraday/battlefield` | 双源分钟对账、影子历史限制、20日正式量能基线与逐源诊断 | ✅ |
 | POST | `/api/debate/run` | 触发 AI 辩论；新闻或实时行情证据不完整时 503 且零 LLM | ✅ |
 | GET | `/api/debate/status/{id}` | 辩论状态查询 | ✅ |
 | GET | `/api/debate/result/{id}` | 辩论结果获取 | ✅ |

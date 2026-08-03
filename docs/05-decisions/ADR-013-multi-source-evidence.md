@@ -202,6 +202,14 @@ K 线证据分为三个不可混淆的层：
   `attribution_supported=false`，不得输出“主力/量化/机构身份”；
 - 分时端点采用上游的“分钟结束标签”：当前自然分钟为已结束条，下一分钟标签为
   正在形成的临时条。真实沪、深、北代表代码联调均通过。
+- TD-072 采用“影子回填 + 正式层失败关闭”：腾讯五日历史接口只写入
+  `single_source_shadow` 分区，不参与正式 Relative Volume；只有东方财富与腾讯
+  实时逐分钟核验成功、覆盖242个常规分钟且成交量为正的完整会话才进入
+  `dual_source_verified` 分区。历史与正式会话均写入按市场/证券/日期分区的
+  内容寻址 Parquet，并由 SQLite 清单保存哈希和证据等级；成员损坏时失败关闭。
+- 不为新浪/腾讯历史分钟的不同聚合语义设置经验百分比容差。待至少20个正式会话
+  后，按同一 `HH:MM` 的累计成交量中位数生成基线；影子数据只用于后续误差分布
+  和信号一致性验证，并通过 `relative_volume_backfill_shadow_only` 对用户可见。
 - `src/data/kline.py`、`src/data/providers/kline.py` 与
   `src/data/kline_runtime.py` 已完成 KR-1A：新浪/腾讯沪深 RAW 日线按两个
   `upstream_id` 采集，固定 `RAW / CNY / 1d`、最小价位和成交量精度；
@@ -289,7 +297,8 @@ K 线证据分为三个不可混淆的层：
 
 ## 后续门禁
 
-1. 积累至少 20 个交易日的同分钟累计量基线后再启用 Relative Volume；
+1. TD-072 代码门禁已完成；继续积累至少20个双源完整交易日，并用影子回填做误差
+   与误报率验证，通过前保持 Relative Volume 不可用；
 2. KR-2B-2B/2C 完成公告解析、公司行动条款匹配、事件因子转换和真实对账后，再实现
    `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE / PROVISIONAL` 的分层业务信封；
 3. PostgreSQL 完成外部编号、规范链接、内容哈希和修订幂等；

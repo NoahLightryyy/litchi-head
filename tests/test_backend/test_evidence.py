@@ -17,7 +17,9 @@ from src.data.intraday import (
     IntradayBarState,
     IntradayCheckpoint,
     IntradaySourceSeries,
+    TimeOfDayVolumeBaseline,
 )
+from src.data.intraday_history import IntradayHistoryPreparation
 from src.data.models import NewsItem, StockQuote
 
 
@@ -172,9 +174,7 @@ def _intraday_envelope() -> EvidenceEnvelope:
         bars=[bar],
         ohlc_supported=True,
     )
-    tencent = eastmoney.model_copy(
-        update={"bars": [], "ohlc_supported": False}
-    )
+    tencent = eastmoney.model_copy(update={"bars": [], "ohlc_supported": False})
     results = [
         SourceResult[IntradaySourceSeries](
             source_id="direct-eastmoney-intraday",
@@ -214,8 +214,20 @@ def _intraday_envelope() -> EvidenceEnvelope:
 def test_intraday_battlefield_returns_bars_snapshot_and_source_diagnostics(client) -> None:
     service = Mock()
     service.collect.return_value = _intraday_envelope()
+    history = Mock()
+    history.prepare.return_value = IntradayHistoryPreparation(
+        baseline=TimeOfDayVolumeBaseline(
+            as_of_minute="10:30",
+            sample_days=20,
+            expected_cumulative_volume=225_350,
+        ),
+        limitations=("relative_volume_backfill_shadow_only",),
+    )
 
-    with patch("backend.routers.evidence.intraday_evidence_service", service):
+    with (
+        patch("backend.routers.evidence.intraday_evidence_service", service),
+        patch("backend.routers.evidence.intraday_history_coordinator", history),
+    ):
         response = client.post(
             "/api/v1/evidence/intraday/battlefield",
             json={"symbol": "000001"},
@@ -226,6 +238,8 @@ def test_intraday_battlefield_returns_bars_snapshot_and_source_diagnostics(clien
     assert payload["complete"] is True
     assert payload["bars"][0]["volume"] == 450_700
     assert payload["snapshot"]["evidence_level"] == "L1"
+    assert payload["snapshot"]["relative_volume"] == 2.0
+    assert "relative_volume_backfill_shadow_only" in payload["snapshot"]["limitations"]
     assert payload["snapshot"]["attribution_supported"] is False
     assert [item["upstream_id"] for item in payload["source_diagnostics"]] == [
         "eastmoney",

@@ -26,6 +26,8 @@
 | `src/data/news_runtime.py` | 东方财富实时源 + 新浪滚动源的共享聚合运行时 |
 | `src/data/intraday.py` | L1 分时模型、战况快照与确定性计算引擎 |
 | `src/data/intraday_runtime.py` | 东方财富 + 腾讯分钟序列对账与失败关闭 |
+| `src/data/intraday_history.py` | 影子/正式会话分层、Parquet+SQLite 完整性与20日同期基线 |
+| `src/data/providers/intraday_history.py` | 腾讯五日分钟历史影子回填；不直接进入正式信号 |
 | `src/data/models.py` | Pydantic 数据模型（StockInfo / KLine / NewsItem / StockQuote） |
 | `src/data/cache.py` | 缓存层（带 TTL） |
 | `src/data/providers/cninfo.py` | 巨潮资讯权威公告适配器（公开端点直连 + AKShare 可替换实现） |
@@ -98,12 +100,15 @@ DataEvidenceService
 17. 分时战况只输出 VWAP、开盘30分钟区间、同期相对量能等可观察事实；
     `attribution_supported=false`。没有 20 个交易日同分钟基线时 Relative Volume
     必须为不可用，禁止用上一分钟冒充历史基线。
-18. 盘中 AI 的 K 线输入采用双时间尺度：上一交易日及以前的完整日 K 标记为
+18. 单源历史分钟只能写入 `single_source_shadow`；必须覆盖242个常规分钟、成交量
+    单位为股、累计值单调且交易日受官方日历覆盖。只有双源实时核验完整日进入
+    `dual_source_verified`，正式基线只读取后者最近20日的同分钟累计量中位数。
+19. 盘中 AI 的 K 线输入采用双时间尺度：上一交易日及以前的完整日 K 标记为
     `FINAL_DAILY`；已结束分钟标记为 `FINAL_MINUTE`；双源实时行情标记为
     `LIVE_QUOTE`；正在形成的今日 OHLC 标记为 `PROVISIONAL`。
-19. `PROVISIONAL` 可以进入盘中 AI，但不得追加到完整日 K 数组，也不得用于生成
+20. `PROVISIONAL` 可以进入盘中 AI，但不得追加到完整日 K 数组，也不得用于生成
     “已确认日线形态”。收盘且多源确认后才能晋升为 `FINAL_DAILY`。
-20. 正式日线指标只基于 `FINAL_DAILY`。含盘中估算的指标若提供，必须使用独立
+21. 正式日线指标只基于 `FINAL_DAILY`。含盘中估算的指标若提供，必须使用独立
     字段、明确标签和 `as_of`，不能覆盖正式值。
 21. 停复牌公告候选必须下载官方附件并解析明确生效日，保存附件 URL 与原始文件
     SHA-256；标题推断、正文无日期或附件失败均不得生成成功状态。
@@ -149,7 +154,7 @@ DataEvidenceService
 | **统一新闻聚合 API** | **完成 ✅** | 4 |
 | **东方财富 + 新浪实时行情门禁** | **完成 ✅** | 21 |
 | **统一实时行情聚合 API + 辩论失败关闭** | **完成 ✅** | 3+ |
-| **东方财富 + 腾讯 L1 分时战况 API** | **一期完成 ✅** | 16 |
+| **东方财富 + 腾讯 L1 分时战况 API** | **一期 + TD-072 影子回填/正式基线底座完成 ✅** | 23 |
 | **旧 Provider 六态适配** | **待接入 ⟳** | — |
 | **基本面指标采集（FD-001）** | **待实现** ⟳ | — |
 | **产业链定位（FD-001）** | **待实现** ⟳ | — |

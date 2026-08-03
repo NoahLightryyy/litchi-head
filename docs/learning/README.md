@@ -73,6 +73,7 @@
 | 41 | 🆕 [累计复权因子：为什么一串 QFQ 数字还不是公司行动](41-cumulative-factor-vs-corporate-action.md) | 新浪累计除数、内容寻址、官方事件核验、BSE 失败关闭 |
 | 42 | 🆕 [官方公司行动条款契约：公告不是因子，但必须能被机器严格核验](42-official-corporate-action-contract.md) | 官方文档哈希、严格条款矩阵、解析版本、点时边界 |
 | 43 | 🆕 [公告正文解析：正则能匹配，不等于证据可以相信](43-corporate-action-document-parsing.md) | 最终章节锚定、候选集合、分页完整性、失败关闭 |
+| 44 | 🆕 [影子回填：有历史数据，不等于能直接生成实盘信号](44-shadow-backfill-and-trusted-baseline.md) | 单源影子层、双源正式层、20日同期中位数、Parquet完整性 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

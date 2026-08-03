@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, time
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from src.data.evidence import (
@@ -17,10 +18,13 @@ from src.data.evidence import (
 )
 from src.data.evidence_service import DataEvidenceService
 from src.data.intraday import IntradayBar, IntradayBarState, IntradaySourceSeries
+from src.data.intraday_history import IntradayHistoryCoordinator, IntradayHistoryStore
 from src.data.providers.intraday import (
     EastmoneyIntradaySource,
     TencentIntradaySource,
 )
+from src.data.providers.intraday_history import TencentIntradayHistorySource
+from src.utils.config import settings
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 INTRADAY_PRICE_TICK = 0.01
@@ -97,8 +101,7 @@ class IntradayEvidenceService:
 
         raw = self._collector.collect(request, policy)
         results = [
-            self._validate_source(result, request=request, now=now)
-            for result in raw.source_results
+            self._validate_source(result, request=request, now=now) for result in raw.source_results
         ]
         results = self._validate_pair(results)
         assessment = self._registry.assess(policy, results)
@@ -138,9 +141,7 @@ class IntradayEvidenceService:
                 error_code="intraday_identity_conflict",
                 error_message="Intraday series code does not match the request",
             )
-        if result.upstream_id == "eastmoney" and (
-            not series.ohlc_supported or not series.bars
-        ):
+        if result.upstream_id == "eastmoney" and (not series.ohlc_supported or not series.bars):
             return _unusable(
                 result,
                 status=SourceStatus.CONFLICTED,
@@ -149,9 +150,7 @@ class IntradayEvidenceService:
             )
         expected = _expected_latest_finalized(now)
         finalized_times = {
-            point.timestamp
-            for point in series.checkpoints
-            if point.state is IntradayBarState.FINAL
+            point.timestamp for point in series.checkpoints if point.state is IntradayBarState.FINAL
         }
         if expected is not None and expected not in finalized_times:
             return _unusable(
@@ -205,26 +204,22 @@ class IntradayEvidenceService:
             ]
 
         for timestamp in common:
-            if abs(first[timestamp].close - second[timestamp].close) > (
-                INTRADAY_PRICE_TICK + 1e-9
-            ):
+            if abs(first[timestamp].close - second[timestamp].close) > (INTRADAY_PRICE_TICK + 1e-9):
                 return IntradayEvidenceService._conflict(
                     results,
                     successful,
                     error_code="intraday_price_conflict",
                     error_message="Finalized minute closes differ by more than one tick",
                 )
-            if abs(
-                first[timestamp].cumulative_volume
-                - second[timestamp].cumulative_volume
-            ) > INTRADAY_VOLUME_TOLERANCE_SHARES:
+            if (
+                abs(first[timestamp].cumulative_volume - second[timestamp].cumulative_volume)
+                > INTRADAY_VOLUME_TOLERANCE_SHARES
+            ):
                 return IntradayEvidenceService._conflict(
                     results,
                     successful,
                     error_code="intraday_volume_conflict",
-                    error_message=(
-                        "Finalized cumulative volumes differ by more than 500 shares"
-                    ),
+                    error_message=("Finalized cumulative volumes differ by more than 500 shares"),
                 )
         return results
 
@@ -266,6 +261,12 @@ class IntradayEvidenceRuntime:
         registry.register(EastmoneyIntradaySource())
         registry.register(TencentIntradaySource())
         self.service = IntradayEvidenceService(registry)
+        self.history = IntradayHistoryCoordinator(
+            IntradayHistoryStore(
+                Path(settings.data_dir).resolve() / "evidence" / "intraday-history"
+            ),
+            backfill_source=TencentIntradayHistorySource(),
+        )
 
 
 _runtime: IntradayEvidenceRuntime | None = None

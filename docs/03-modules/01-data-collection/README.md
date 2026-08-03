@@ -24,7 +24,9 @@
   且运行时/存储共用确定性最佳精度选择规则
 - ✅ `DataEvidenceService` 并发汇总多个通道，输出统一证据信封
 - ✅ 新闻与实时行情已接入正式辩论零 LLM 失败关闭
-- ✅ L1 分时一期完成，动态分钟显式标记 `PROVISIONAL`
+- ✅ L1 分时二期底座完成：动态分钟显式标记 `PROVISIONAL`；腾讯五日历史仅进入
+  `single_source_shadow`，双源242分钟完整日才进入正式层；正式20日基线未暖机前
+  Relative Volume 失败关闭
 - ✅ KR-2B-2B1 深市标准权益分派解析/同日聚合已完成；SSE、配股、差异化和
   修订模板失败关闭，下一原子 2B2。2C 才允许生成已核验因子，当前仍未切入 AI/API
 - ⟳ 旧 Provider 继续逐个迁移到显式六态结果
@@ -53,3 +55,5 @@
 - `src/data/kline_adjustment.py`
 - `src/data/providers/sina_adjustment.py`
 - `src/data/providers/cninfo_actions.py`
+- `src/data/intraday_history.py`
+- `src/data/providers/intraday_history.py`

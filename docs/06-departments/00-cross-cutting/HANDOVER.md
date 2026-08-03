@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-07-31 (KR-2B-2B1 深市标准权益分派解析完成，下一步模板扩展)
+last_updated: 2026-08-03 (TD-072 分时历史影子回填与正式量能基线底座完成)
 ---
 
 # 🔄 跨部门状态总览
@@ -24,7 +24,7 @@ last_updated: 2026-07-31 (KR-2B-2B1 深市标准权益分派解析完成，下�
 
 | 指标 | 当前值 |
 |:-----|:------:|
-| 全量测试 | 1482 collected；1459 passed、4 skipped、19 slow deselected ✅ |
+| 全量测试 | 1608 collected；1585 passed、4 skipped、19 slow deselected ✅ |
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |
@@ -43,8 +43,8 @@ last_updated: 2026-07-31 (KR-2B-2B1 深市标准权益分派解析完成，下�
 | 记忆↔辩论接口 | ✅ | MemoryManager 语义化 |
 | 回测↔交易接口 | ✅ | TradeRecord 协议 |
 | LLM 调用（全部门→infra） | ✅ | 单 Provider 策略（DeepSeek 唯一），接口保留供扩展 |
-| 多源证据（data→debate/backend） | 🟡 | CNINFO、新闻、实时行情与 L1 分时已统一；K 线 KR-1A 旁路完成，KR-1B/下游与行业待迁移 |
-| 盘中双时间尺度（data→debate→agents→backend→frontend） | 🟡 | 已确认目标：完整历史日 K 与实时/分时/`PROVISIONAL` 今日状态分层进入 AI；待实现 |
+| 多源证据（data→debate/backend） | 🟡 | CNINFO、新闻、实时行情与 L1 分时已统一；分时历史已分影子/正式层；K 线 KR-1A 旁路完成，KR-1B/下游与行业待迁移 |
+| 盘中双时间尺度（data→debate→agents→backend→frontend） | 🟡 | 实时/分时/`PROVISIONAL` 今日状态已分层；TD-072 正式20日量能基线底座完成，待双源日暖机与影子验证后启用 Relative Volume |
 | K 线 RAW/复权血缘（data→storage→backtest/trading） | 🟡 | 2B1 深市标准权益分派解析已完成；SSE/配股/差异化/修订仍失败关闭。下一原子 2B2，当前事件和累计快照仍不得单独当因子 |
 
 ## 当前未完成事项（跨部门）
