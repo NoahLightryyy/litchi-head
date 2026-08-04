@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能批次** | KR-2B-2C 已核验因子转换核心；深市三事件实网通过，沪市验收待 TD-075 |
-| **全量测试** | 1637 collected；1614 passed、4 skipped、19 slow deselected ✅ |
+| **最新功能批次** | TD-075 关闭，KR-2 公司行动与统一复权完成；下一阶段 KR-3 |
+| **全量测试** | 1641 collected；1618 passed / 4 skipped / 19 deselected；4/4 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | ✅ Run #72 全绿（frontend + Python 3.12/3.13）；本地全量闸门 4/4 通过 |
@@ -70,7 +70,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 | 部门 | 代码 | 状态 | 开放债务 | → 看这里 |
 |:-----|:-----|:----:|:--------:|:---------|
-| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 🟡 | 6 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
+| 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 🟡 | 5 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
 | 🎯 辩论引擎部 | `src/debate/` | 🟡 | 3 | [HANDOVER](../06-departments/02-debate-engine/HANDOVER.md) |
 | 🤖 AI Agent 架构部 | `src/agents/` + `src/core/` | ✅ | 3 | [HANDOVER](../06-departments/03-ai-agents/HANDOVER.md) |
 | 🧠 记忆系统部 | `src/memory/` | 🟡 | 2 | [HANDOVER](../06-departments/04-memory-systems/HANDOVER.md) |
@@ -82,14 +82,14 @@ docs/06-departments/02-debate-engine/DEBT.md
 | ⚙️ 基础设施部 | `src/utils/` | 🟡 | 7 | [HANDOVER](../06-departments/10-infrastructure/HANDOVER.md) |
 | 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🟢 | 2 | [HANDOVER](../06-departments/11-quality-assurance/HANDOVER.md) |
 
-**全代码库开放债务**: 35 条（紧急指数待重算）→ [债务路由](debt/ROUTER.md)
+**全代码库开放债务**: 34 条（紧急指数待重算）→ [债务路由](debt/ROUTER.md)
 
 ---
 
 ## 🎯 当前跨部门优先级
 
 > **2026-07-31 战略校正**：当前主要矛盾是“系统建设能力强，真实结果验证能力弱”。
-> 当前原子任务仍是 KR-2，公司行动与统一复权；KR-2～KR-6 完成后，必须按
+> 当前原子任务是 KR-3 四层业务信封；KR-2 已完成。KR-3～KR-6 完成后，必须按
 > [决策 Baseline 与影子验证计划](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)
 > 进入 4～8 周影子验证。功能完成度、置信度字段和复盘页面不得表述为真实投资效果已验证。
 
@@ -193,7 +193,7 @@ docs/06-departments/02-debate-engine/DEBT.md
     RAW；缺权威日历、状态覆盖、来源覆盖或任一异常均失败关闭；
 21. KR-2A 已完成：`src/data/kline_adjustment.py` 提供冻结的版本化公司行动因子、
     精确股本比例/来源精度核验、内容哈希、KR-1 快照完成证明绑定和点时 QFQ；
-    26 项契约通过。不得把它误报为整个 KR-2 已完成；
+    26 项契约通过；该条只记录 2A 阶段边界，整个 KR-2 已于 2026-08-04 完成；
 22. 用户已确认 KR-2B 方案 A：沪深使用新浪直连累计 QFQ 除数，CNINFO/交易所
     正式披露承担独立事件核验；Tushare、BaoStock、AKShare 包装层不接入，北交所
     在自己的官方事件核验完成前失败关闭；
@@ -211,13 +211,14 @@ docs/06-departments/02-debate-engine/DEBT.md
     引用缺失、歧义、倒序或缺更正后完整正文均失败关闭；
 27. KR-2B-2C 转换核心已完成：相邻累计除数与官方现金/股本/配股条款、登记日 RAW
     公式复算；16 位尾差按用户批准的 12 位 `ROUND_HALF_EVEN` 门限验证并降级输出
-    精度。`000001` 三次真实事件通过；沪市日期表格实网漂移登记 TD-075，继续失败
-    关闭，因此整个 KR-2 尚未完成；
+    精度。`000001` 三次真实事件通过；
 28. TD-072 代码已完成：腾讯五日历史只进入影子分区，双源完整日进入正式分区；
     内容寻址 Parquet + SQLite 清单支持篡改失败关闭，API 明示影子限制。继续积累
     20个双源日并做误报率验证，不阻塞 K 线门禁；
-29. TD-075 修复并完成 KR-2 沪深/故障验收后，按 KR-3～KR-6 推进四层信封、
-    AI/风控/交易、API/前端和全链路验收。
+29. TD-075 已关闭：SSE 相同重复日期表幂等、不同日期冲突；“修订版”完整正文和
+    PDF 标题空白归一进入唯一修订链；`600000/688008/688503` 及三上游故障烟测
+    通过。KR-2 完成，下一步按 KR-3～KR-6 推进四层信封、AI/风控/交易、API/前端
+    和全链路验收。
 
 ---
 

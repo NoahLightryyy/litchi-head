@@ -77,6 +77,7 @@
 | 45 | 🆕 [差异化分派：股东收到的钱，不一定是除权公式里的钱](45-differential-distribution-basis.md) | 实际派发/虚拟分派双口径、SSE表格、配股最终日程、修订账本 |
 | 46 | 🆕 [公告修订归链：看见“更正”不等于知道该替换谁](46-corporate-action-revision-linking.md) | 唯一引用、完整修订正文、终态闭锁、365天同源回填 |
 | 47 | 🆕 [已核验公司行动因子：供应商尾数为什么不能直接当真](47-verified-corporate-action-factor.md) | 相邻累计除数、官方公式复算、12位门限、点时与双路血缘 |
+| 48 | 🆕 [PDF 表格与修订链：重复不是冲突，模糊相似也不是引用](48-pdf-table-idempotency-and-revision-linking.md) | 重复表格幂等、完整标题空白归一、修订版、差异化股本公式 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

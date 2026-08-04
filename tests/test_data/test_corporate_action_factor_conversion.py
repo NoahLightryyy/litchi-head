@@ -60,7 +60,7 @@ def _cash_event() -> OfficialCorporateActionEvent:
         collected_at=datetime(2026, 6, 12, 2, 0, tzinfo=UTC),
         source_id="cninfo-corporate-action",
         upstream_id="cninfo",
-        parser_version="cninfo-corporate-action-v3",
+        parser_version="cninfo-corporate-action-v4",
         documents=(
             OfficialCorporateActionDocument(
                 external_id="cash-2026",

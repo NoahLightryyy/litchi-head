@@ -39,7 +39,7 @@ from src.data.providers.cninfo_status import (
 
 CNINFO_CORPORATE_ACTION_SOURCE_ID = "cninfo-corporate-action"
 CNINFO_CORPORATE_ACTION_UPSTREAM_ID = "cninfo"
-CNINFO_CORPORATE_ACTION_PARSER_VERSION = "cninfo-corporate-action-v3"
+CNINFO_CORPORATE_ACTION_PARSER_VERSION = "cninfo-corporate-action-v4"
 CNINFO_CORPORATE_ACTION_HISTORY_LOOKBACK_DAYS = 365
 
 _DATE_BODY = (
@@ -82,8 +82,14 @@ _SSE_CURRENT_TOTAL_PATTERN = re.compile(
     re.DOTALL,
 )
 _SSE_PARTICIPATING_PATTERN = re.compile(r"本次发放现金红利的股本基数为\s*(?P<shares>[\d,]+)\s*股")
+_SSE_TOTAL_MINUS_BUYBACK_PATTERN = re.compile(
+    r"截至本公告披露日.*?总股本(?:为)?\s*(?P<total>[\d,]+)\s*股"
+    r".*?扣减.*?后的股本\s*(?P<shares>[\d,]+)\s*股",
+    re.DOTALL,
+)
 _SSE_VIRTUAL_CASH_PATTERN = re.compile(
-    r"虚拟分派的现金红利.*?[≈=]\s*(?P<amount>\d+(?:\.\d+)?)\s*元/股",
+    r"(?:虚拟分派的现金红利|每股现金红利).*?"
+    r"[≈=]\s*(?P<amount>\d+(?:\.\d+)?)\s*元/股",
     re.DOTALL,
 )
 _RIGHTS_SECTION_PATTERN = re.compile(
@@ -138,7 +144,8 @@ _REVISION_MARKERS: tuple[tuple[str, CorporateActionRevisionStatus], ...] = (
     ("调整", "adjusted"),
 )
 _REPLACEMENT_FULL_PATTERN = re.compile(
-    r"(?:权益分派实施公告|配股发行公告)[（(](?:更正|补充|修订|变更|调整)后[）)]$"
+    r"(?:权益分派实施公告|配股发行公告)"
+    r"[（(](?:(?:更正|补充|修订|变更|调整)后|修订版)[）)]$"
 )
 
 
@@ -166,9 +173,11 @@ def _revision_status(title: str) -> CorporateActionRevisionStatus | None:
 
 def _mentions(document_text: str, announcement: _FetchedAnnouncement) -> bool:
     external_id = re.escape(announcement.document.external_id)
+    normalized_text = re.sub(r"\s+", "", document_text)
+    normalized_title = re.sub(r"\s+", "", announcement.document.title)
     return (
         re.search(rf"(?<![0-9A-Za-z_-]){external_id}(?![0-9A-Za-z_-])", document_text) is not None
-        or announcement.document.title in document_text
+        or normalized_title in normalized_text
     )
 
 
@@ -308,20 +317,24 @@ def _per_share_amount(amount: Decimal, base: int) -> Decimal:
 def _sse_distribution_terms(
     text: str,
 ) -> tuple[date, date, Decimal, Decimal, int | None, int | None]:
-    date_rows = tuple(_SSE_DATE_ROW_PATTERN.finditer(text))
-    if len(date_rows) != 1:
+    date_pairs = {
+        (
+            date(
+                int(row.group("record_year")),
+                int(row.group("record_month")),
+                int(row.group("record_day")),
+            ),
+            date(
+                int(row.group("ex_year")),
+                int(row.group("ex_month")),
+                int(row.group("ex_day")),
+            ),
+        )
+        for row in _SSE_DATE_ROW_PATTERN.finditer(text)
+    }
+    if len(date_pairs) != 1:
         raise ValueError("official SSE distribution date row is missing or conflicting")
-    row = date_rows[0]
-    record_date = date(
-        int(row.group("record_year")),
-        int(row.group("record_month")),
-        int(row.group("record_day")),
-    )
-    ex_date = date(
-        int(row.group("ex_year")),
-        int(row.group("ex_month")),
-        int(row.group("ex_day")),
-    )
+    record_date, ex_date = next(iter(date_pairs))
     cash_values = {Decimal(match.group("amount")) for match in _SSE_CASH_PATTERN.finditer(text)}
     if len(cash_values) != 1:
         raise ValueError("official SSE distribution cash terms are missing or conflicting")
@@ -331,16 +344,29 @@ def _sse_distribution_terms(
         return record_date, ex_date, distribution, distribution, None, None
     total_match = _SSE_CURRENT_TOTAL_PATTERN.search(text)
     participating_match = _SSE_PARTICIPATING_PATTERN.search(text)
+    total_minus_buyback_match = _SSE_TOTAL_MINUS_BUYBACK_PATTERN.search(text)
     adjustment_match = _SSE_VIRTUAL_CASH_PATTERN.search(text)
-    if total_match is None or participating_match is None or adjustment_match is None:
+    if total_match is None or adjustment_match is None:
+        raise ValueError("official SSE differential distribution basis is incomplete")
+    total_shares = int(total_match.group("shares").replace(",", ""))
+    if participating_match is not None:
+        participating_shares = int(participating_match.group("shares").replace(",", ""))
+    elif total_minus_buyback_match is not None:
+        repeated_total = int(total_minus_buyback_match.group("total").replace(",", ""))
+        if repeated_total != total_shares:
+            raise ValueError("official SSE differential distribution totals conflict")
+        participating_shares = int(
+            total_minus_buyback_match.group("shares").replace(",", "")
+        )
+    else:
         raise ValueError("official SSE differential distribution basis is incomplete")
     return (
         record_date,
         ex_date,
         distribution,
         Decimal(adjustment_match.group("amount")),
-        int(total_match.group("shares").replace(",", "")),
-        int(participating_match.group("shares").replace(",", "")),
+        total_shares,
+        participating_shares,
     )
 
 

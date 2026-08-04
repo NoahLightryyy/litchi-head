@@ -79,7 +79,46 @@ def test_parses_sse_table_distribution_without_szse_section_headings() -> None:
     assert event.record_date == date(2025, 7, 15)
     assert event.ex_date == date(2025, 7, 16)
     assert event.distribution_cash_per_share == Decimal("0.41")
+    assert event.parser_version == "cninfo-corporate-action-v4"
     assert event.adjustment_cash_per_share == Decimal("0.41")
+
+
+def test_parses_identical_sse_date_rows_repeated_in_summary_and_body() -> None:
+    text = Path("tests/fixtures/cninfo/600000_1224119803_relevant.txt").read_text(
+        encoding="utf-8"
+    )
+    source = CninfoCorporateActionSource(
+        announcement_fetcher=lambda **_: {
+            "totalAnnouncement": 1,
+            "announcements": [
+                _announcement(
+                    announcement_id="1224119803",
+                    title="2024年年度普通股权益分派实施公告",
+                    attachment="finalpage/2025-07-10/1224119803.PDF",
+                    code="600000",
+                    name="浦发银行",
+                    org_id="gssh0600000",
+                    announcement_time=1752076800000,
+                )
+            ],
+        },
+        document_fetcher=lambda url: OfficialDocument(
+            text=text,
+            content_hash="f2e8e0e2be70848a65debac6b4858c13cfd8da10031129ec9dc72d80bf8f8b5d",
+        ),
+        clock=lambda: datetime(2025, 7, 16, 1, 0, tzinfo=UTC),
+    )
+
+    event = source.fetch_events(
+        code="600000",
+        market=MarketCode.SSE,
+        start=date(2025, 7, 1),
+        end=date(2025, 7, 31),
+    )[0]
+
+    assert event.record_date == date(2025, 7, 15)
+    assert event.ex_date == date(2025, 7, 16)
+    assert event.distribution_cash_per_share == Decimal("0.41")
 
 
 def test_parses_sse_differential_distribution_with_separate_cash_basis() -> None:
@@ -130,6 +169,47 @@ def test_parses_sse_differential_distribution_with_separate_cash_basis() -> None
     assert event.adjustment_cash_per_share == Decimal("0.1981")
     assert event.total_shares == 1_145_151_330
     assert event.participating_shares == 1_134_280_330
+
+
+def test_parses_sse_differential_basis_expressed_as_total_minus_buyback() -> None:
+    text = Path("tests/fixtures/cninfo/688503_1225378571_relevant.txt").read_text(
+        encoding="utf-8"
+    )
+    source = CninfoCorporateActionSource(
+        announcement_fetcher=lambda **_: {
+            "totalAnnouncement": 1,
+            "announcements": [
+                _announcement(
+                    announcement_id="1225378571",
+                    title="2025年年度权益分派实施公告",
+                    attachment="finalpage/2026-06-19/1225378571.PDF",
+                    code="688503",
+                    name="聚和材料",
+                    org_id="9900048103",
+                    announcement_time=1781798400000,
+                )
+            ],
+        },
+        document_fetcher=lambda url: OfficialDocument(
+            text=text,
+            content_hash="1ba3a75fd6ad603adb406da2a38850570a7ca51071d867f5c7025a47f0c11801",
+        ),
+        clock=lambda: datetime(2026, 6, 19, 1, 0, tzinfo=UTC),
+    )
+
+    event = source.fetch_events(
+        code="688503",
+        market=MarketCode.SSE,
+        start=date(2026, 6, 1),
+        end=date(2026, 6, 30),
+    )[0]
+
+    assert event.record_date == date(2026, 6, 17)
+    assert event.ex_date == date(2026, 6, 18)
+    assert event.distribution_cash_per_share == Decimal("0.432")
+    assert event.adjustment_cash_per_share == Decimal("0.413")
+    assert event.total_shares == 242_033_643
+    assert event.participating_shares == 231_483_309
 
 
 def test_parses_cash_from_implementation_section_not_approved_plan() -> None:
@@ -371,7 +451,16 @@ def test_fails_closed_on_lifecycle_notice_instead_of_faking_revision(
         )
 
 
-def test_correction_chain_uses_linked_corrected_full_implementation() -> None:
+@pytest.mark.parametrize(
+    "replacement_title",
+    [
+        "2025年年度权益分派实施公告（更正后）",
+        "2025年年度权益分派实施公告（修订版）",
+    ],
+)
+def test_correction_chain_uses_linked_corrected_full_implementation(
+    replacement_title: str,
+) -> None:
     payload = {
         "totalAnnouncement": 3,
         "announcements": [
@@ -388,7 +477,7 @@ def test_correction_chain_uses_linked_corrected_full_implementation() -> None:
             ),
             _announcement(
                 announcement_id="corrected-full",
-                title="2025年年度权益分派实施公告（更正后）",
+                title=replacement_title,
                 attachment="corrected-full.PDF",
                 announcement_time=1780761600000,
             ),
@@ -481,6 +570,45 @@ def test_linked_terminal_lifecycle_notice_suppresses_active_event(
         ),
         "terminal.PDF": OfficialDocument(
             text=f"本公司决定{status_word}公告ID original 对应的权益分派实施安排。",
+            content_hash="5" * 64,
+        ),
+    }
+    source = CninfoCorporateActionSource(
+        announcement_fetcher=lambda **_: payload,
+        document_fetcher=lambda url: documents[url.rsplit("/", 1)[-1]],
+    )
+
+    assert (
+        source.fetch_events(
+            code="000001",
+            market=MarketCode.SZSE,
+            start=date(2026, 5, 1),
+            end=date(2026, 6, 30),
+        )
+        == ()
+    )
+
+
+def test_lifecycle_link_normalizes_pdf_whitespace_inside_exact_title() -> None:
+    payload = {
+        "totalAnnouncement": 2,
+        "announcements": [
+            _announcement(announcement_id="original", attachment="original.PDF"),
+            _announcement(
+                announcement_id="terminal",
+                title="关于终止2025年年度权益分派的公告",
+                attachment="terminal.PDF",
+                announcement_time=1780675200000,
+            ),
+        ],
+    }
+    documents = {
+        "original.PDF": OfficialDocument(
+            text="原实施公告正文",
+            content_hash="4" * 64,
+        ),
+        "terminal.PDF": OfficialDocument(
+            text="本公司终止《2025 年年度\n权益分派实施公告》所载实施安排。",
             content_hash="5" * 64,
         ),
     }

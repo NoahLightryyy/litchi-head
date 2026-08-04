@@ -67,3 +67,5 @@ if price_factor_precision < Decimal("0.000000000001"):
 ---
 
 **上一篇：[46｜公告修订归链](46-corporate-action-revision-linking.md)**
+
+**下一篇：[48｜PDF 表格与修订链](48-pdf-table-idempotency-and-revision-linking.md)**

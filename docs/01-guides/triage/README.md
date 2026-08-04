@@ -30,6 +30,8 @@
 `exit code 49` + 无输出 | curl 网络错误 | [🌐 Git Bash 兼容](git-bash-compat.md) — DNS 过时
 `exit code 49` + 无输出 | python3 命令 | [🌐 Git Bash 兼容](git-bash-compat.md) — Store 存根
 `UnicodeDecodeError: 'gbk' can't decode` | 文件编码 | [🌐 Git Bash 兼容](git-bash-compat.md) — UTF-8 vs GBK
+`official SSE distribution date row is missing or conflicting` | 官方 PDF 重复表格或真冲突 | [📄 官方 PDF 解析](official-pdf-parsing.md)
+`revision ... reference is missing or ambiguous` | PDF 标题空白或修订版归链 | [📄 官方 PDF 解析](official-pdf-parsing.md)
 `No such file or directory: '/tmp/...'` | Git Bash /tmp/ 无效 | [🌐 Git Bash 兼容](git-bash-compat.md) — 路径问题
 `/flushdns` 输出乱码 / `����` | Git Bash 编码 | [🌐 Git Bash 兼容](git-bash-compat.md) — 乱码
 
@@ -45,6 +47,7 @@
 | 🐍 Python 运行时 | [python-runtime.md](python-runtime.md) | Windows torch/惰性导入/编码 |
 | 🧪 类型检查 | [type-checking.md](type-checking.md) | pandas/import 位置/Pydantic |
 | 🌐 Git Bash 兼容 | [git-bash-compat.md](git-bash-compat.md) | DNS/cURL/Python3/编码/路径交叉问题 |
+| 📄 官方 PDF 解析 | [official-pdf-parsing.md](official-pdf-parsing.md) | 重复表格幂等、修订版、完整标题归链 |
 
 ---
 
