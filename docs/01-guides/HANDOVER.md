@@ -58,8 +58,8 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能批次** | TD-075 关闭，KR-2 公司行动与统一复权完成；下一阶段 KR-3 |
-| **全量测试** | 1641 collected；1618 passed / 4 skipped / 19 deselected；4/4 闸门通过 ✅ |
+| **最新功能批次** | KR-3A 四层冻结契约与幂等收盘晋升完成；下一原子 KR-3B 运行时组装 |
+| **全量测试** | 1692 collected；1669 passed / 4 skipped / 19 deselected；4/4 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | ✅ Run #72 全绿（frontend + Python 3.12/3.13）；本地全量闸门 4/4 通过 |
@@ -89,7 +89,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 ## 🎯 当前跨部门优先级
 
 > **2026-07-31 战略校正**：当前主要矛盾是“系统建设能力强，真实结果验证能力弱”。
-> 当前原子任务是 KR-3 四层业务信封；KR-2 已完成。KR-3～KR-6 完成后，必须按
+> 当前原子任务是 KR-3B 四层运行时组装；KR-3A 已完成。KR-3～KR-6 完成后，必须按
 > [决策 Baseline 与影子验证计划](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)
 > 进入 4～8 周影子验证。功能完成度、置信度字段和复盘页面不得表述为真实投资效果已验证。
 
@@ -219,6 +219,10 @@ docs/06-departments/02-debate-engine/DEBT.md
     PDF 标题空白归一进入唯一修订链；`600000/688008/688503` 及三上游故障烟测
     通过。KR-2 完成，下一步按 KR-3～KR-6 推进四层信封、AI/风控/交易、API/前端
     和全链路验收。
+30. KR-3A 已完成：`src/data/kline_business.py` 冻结四层成功信封和四层诊断失败
+    结果；完成分钟与 RAW 实时行情深度不可变，动态日线无法混入 `FINAL_DAILY`；
+    收盘晋升按内容生成确定性 ID，相同重试幂等、冲突证据拒绝覆盖。下一原子只做
+    KR-3B 现有日线/分时/实时运行时组装，不提前进入 AI/API。
 
 ---
 

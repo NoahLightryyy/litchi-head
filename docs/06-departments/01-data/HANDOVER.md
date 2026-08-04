@@ -80,7 +80,7 @@ last_updated: 2026-08-04 (TD-075 关闭，KR-2 完成)
 | 15 ✅ | K 线 KR-1B-3A 审计持久化 | SQLite 不可变清单 + 内容寻址 Parquet；RAW/诊断/权威版本引用与 `as_of` 回放 |
 | 16 ✅ | K 线 KR-1B-3B 长窗覆盖 | 腾讯连续分段与准确响应证明；新浪不可证明请求起点时保留部分 RAW 并失败关闭；审计运行时已持久化 |
 | 17 ✅ | K 线 KR-2 统一复权 | 沪深普通/差异化/修订链、点时因子与故障关闭均完成 |
-| 18 🔥 | K 线 KR-3 四层证据信封 | `FINAL_DAILY` 与今日 `PROVISIONAL` 严格分层 |
+| 18 🔥 | K 线 KR-3 四层证据信封 | KR-3A 契约/晋升 ✅；下一步 KR-3B 运行时组装 |
 | 19 🔥 | 行业证据迁移到统一门禁 | K 线门禁完成后 |
 | 4 🟡 | PostgreSQL 新闻去重、修订与来源关系持久化 | ADR-012 |
 | 5 🟡 | 财联社版权和跨节点传输许可评估 | 用户确认后 |
@@ -213,7 +213,9 @@ AI 与 baseline 必须使用同一时点、价格坐标和成本口径；失败�
   支持“（修订版）”完整正文及完整标题空白归一，解析器升至 v4；
 - ✅ 沪市 `600000` 普通、`688008` 差异化、`688503` revision 3 真实修订链均从
   CNINFO、Sina、Tencent RAW 全链生成已核验因子；三上游超时故障注入失败关闭；
-- ✅ KR-2 整体完成。下一阶段 KR-3 四层业务信封；在 KR-3 前仍不得切入 AI/API。
+- ✅ KR-2 整体完成；KR-3A 四层契约与晋升核心也已完成。
+- ✅ KR-3A 完成：四层成功信封、四层诊断失败结果、深度冻结行情事实与幂等收盘
+  晋升核心；51 项契约通过。KR-3B 组装完成前仍不得切入 AI/API。
 
 ## 关键文件索引
 
@@ -222,6 +224,7 @@ AI 与 baseline 必须使用同一时点、价格坐标和成本口径；失败�
 | `src/data/collector.py` | 统一数据采集入口（469 行） |
 | `src/data/evidence.py` | 统一来源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/kline_adjustment.py` | KR-2A 版本化因子/点时 QFQ、官方事件契约，以及 KR-2B-2C 已核验因子转换 |
+| `src/data/kline_business.py` | KR-3A 四层成功/失败业务契约、深度冻结事实与幂等收盘晋升 |
 | `src/data/providers/sina_adjustment.py` | KR-2B-1 新浪累计 QFQ 除数证据快照；不生成公司行动事件因子 |
 | `src/data/providers/cninfo_actions.py` | KR-2B-2B1～2B2B 沪深模板、配股、差异化双口径、修订唯一归链与历史回填 |
 | `src/data/providers/cninfo.py` | CNINFO 权威公告统一证据适配器 |
@@ -270,6 +273,7 @@ AI 与 baseline 必须使用同一时点、价格坐标和成本口径；失败�
    仍不得脱离官方事件和登记日 RAW 单独使用；
 13. TD-075 已关闭且 KR-2 已通过；不得重复 SSE 重复表、修订版、空白标题归链或
    差异化扣减回购股本规则；
-14. 下一原子按 KR-3 输出 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE /
+14. KR-3A 已完成，不得另建四层模型或另写晋升状态机；下一原子 KR-3B 复用现有
+   日线、分时和实时运行时组装 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE /
    PROVISIONAL`，再交给辩论、后端等下游；
 15. 每个 KR 独立完成五同步和强制闸门，K 线全链路完成后再迁移行业证据。

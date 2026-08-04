@@ -68,3 +68,5 @@ mentioned = exact_id_match is not None or normalized_title in normalized_text
 ---
 
 **上一篇：[47｜已核验公司行动因子](47-verified-corporate-action-factor.md)**
+
+**下一篇：[49｜四层行情信封与幂等收盘晋升](49-four-layer-market-envelope.md)**
