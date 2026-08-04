@@ -64,4 +64,5 @@ Pydantic 的 `frozen=True` 默认只冻结当前模型。若内部仍放一个�
 
 ---
 
-**上一篇：[48｜PDF 表格与修订链](48-pdf-table-idempotency-and-revision-linking.md)**
+**上一篇：[48｜PDF 表格与修订链](48-pdf-table-idempotency-and-revision-linking.md)** ｜
+**下一篇：[50｜运行时证据怎样安全合流](50-runtime-evidence-assembly.md)**
