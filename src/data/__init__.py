@@ -54,7 +54,10 @@ from src.data.kline_business import (
     TradingPhase,
     promote_provisional_session,
 )
-from src.data.kline_business_runtime import assemble_complete_kline_business
+from src.data.kline_business_runtime import (
+    assemble_complete_kline_business,
+    assemble_kline_business,
+)
 from src.data.kline_calendar import (
     CalendarCoverageError,
     MarketCalendarVersion,
@@ -122,6 +125,7 @@ __all__ = [
     "ValuationMetrics",
     "adjust_qfq_as_of",
     "assemble_complete_kline_business",
+    "assemble_kline_business",
     "normalize_industry",
     "official_a_share_calendar_2026",
     "promote_provisional_session",

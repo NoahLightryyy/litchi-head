@@ -66,10 +66,10 @@ department: 辩论引擎部
   的 RAW 双源、版本化公司行动、统一点时复权和完成日线严格对账；
 - 2026-07-30 已完成 KR-1A 新浪/腾讯沪深 RAW 旁路对账与北交所失败关闭；该能力
   尚未补交易日历/个股停牌证据和持久化，也未接入正式辩论；
-- 分批顺序固定为
-  [KR-1～KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)，辩论部
-  在数据部 KR-1B～3 后承接 KR-4；
-- TD-069 暂不关闭：上述 K 线分层门禁和行业证据仍需迁移到正式失败关闭契约。
+- KR-3B-2 已完成并提供统一四层成功/失败结果；分批顺序仍按
+  [KR-1～KR-6](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)，但策略暂停
+  自动进入 KR-4，必须先规划 validation-first checkpoint；
+- TD-069 暂不关闭：KR-4～6 的正式失败关闭接入和之后的行业证据迁移仍未完成。
 
 关闭前必须证明缺独立上游、RAW 冲突、复权冲突和必需层缺失时首个 LLM 前终止；
 不能因为旧链路已经返回 `KLine[]` 就关闭。

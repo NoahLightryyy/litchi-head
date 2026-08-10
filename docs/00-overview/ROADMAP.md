@@ -160,7 +160,7 @@
 | ✅ P0 | **TD-069 / KR-1B-1 官方市场日历与预期日期集** — 三市场 2026 官方版本；共同漏开市日与日历覆盖缺口均失败关闭 | 用户已确认免费官方方案 | 已完成 |
 | ✅ P0 | **TD-069 / KR-1B-3 长窗与审计持久化** — 3A+3B 完成：不可变 `as_of` 回放、逐源准确响应证明、腾讯连续分段；新浪或权威覆盖不可证明时保留诊断并失败关闭，完整 canonical 必须可追溯到成功源 RAW | KR-1B-3B ✅ | 完成 |
 | ✅ P0 | **TD-069 / KR-2 公司行动与统一复权** — 沪深普通/差异化、revision 3 真实修订链和三上游故障烟测通过；TD-075 关闭 | KR-1B ✅；[实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-2 | 完成 |
-| 🔥 P0 | **TD-069 / KR-3～4 双时间尺度与 AI 串联** — KR-3A 契约/晋升、KR-3B-1 成功组装 ✅；下一步 KR-3B-2 四层失败诊断归并，再做辩论/Agent/风控/交易门禁 | KR-2 | ~1d |
+| 🔥 P0 | **TD-069 / KR-3～4 双时间尺度与 AI 串联** — KR-3 已交付统一的四层成功/失败结果及稳定诊断；KR-3B-2 complete，下一步为 validation-first checkpoint 的规划，之后才进入 KR-4 辩论/Agent/风控/交易门禁 | KR-2 | 待规划 |
 | 🔥 P0 | **TD-069 / KR-5～6 API、前端与全链路验收** — 状态/口径/冲突可视化，兼容迁移，回放与故障注入 | KR-4 | ~1.5d |
 | 🔥 P0 | **TD-074 决策 baseline 与影子验证** — 先冻结比较线、样本、成本、标签和停止线；KR-6 后连续积累真实样本，禁止用功能完成度冒充效果证据 | [唯一协议](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)；依赖 KR-2～6 | 4～8 周自然积累 |
 | 🔥 P0 | **TD-028 搜索防抖** — useDebounce(query, 300) | ✅ 已完成 | pnpm build ✅ |

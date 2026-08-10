@@ -36,13 +36,45 @@ KR-1/2 日线、分时和实时报价各自已经完成双源核验，但它们�
 当日动态 OHLCV 则来自双源核验后的 RAW `StockQuote`，单独构造成
 `ProvisionalSessionBar`。它能供盘中分析使用，但仍不能混进完成日线数组。
 
+## 为什么不完整信封里的缓存条目不能变成“部分成功”
+
+`EvidenceEnvelope.complete=False` 是对整条证据链的结论，不是“这次请求碰巧少了一条”的
+提示。缓存的 `items` 可能来自上一次成功请求，也可能只覆盖一个上游；一旦继续读取它们，
+调用者就会拿到看起来完整的行情，却不知道本次核验已经失败。
+
+因此 `assemble_kline_business()` 先检查三个信封的完整性，再决定是否读取 payload。任何一层
+不完整时返回 `KlineBusinessFailure`，结果中只有四层诊断和稳定错误码，不包含
+`final_daily_bars`、`final_minute_bars`、`live_quote` 或 `provisional_session_bar`。
+
+## 为什么报价失败会同时影响 `LIVE_QUOTE` 和 `PROVISIONAL`
+
+`PROVISIONAL` 不是第二套独立行情，它是由同一条 canonical RAW `StockQuote` 构造出的盘中
+动态 OHLC。报价信封不完整时，实时层没有可核验事实，动态日条也就没有合法输入。因此失败
+结果同时标记 `LIVE_QUOTE=live_quote_evidence_incomplete` 和
+`PROVISIONAL=provisional_quote_dependency_incomplete`；这能让下游准确看到依赖关系。
+
+报价信封完整但不是恰好一条时，两个层也会分别得到 `live_quote_cardinality_invalid` 和
+`provisional_quote_dependency_invalid`。只有单一报价本身不能构造成有效 OHLC 时，实时层仍可
+完整，而 `PROVISIONAL` 单独报 `provisional_quote_invalid`。
+
+## 为什么程序接线错误仍然抛异常
+
+把实时信封接到日线参数，或请求 `000001` 却传入为 `600000` 收集的信封，不是上游暂时失败，
+而是调用代码违背接口契约。`assemble_kline_business()` 会保留严格组装器的 `ValueError`，而不把
+它们压缩成业务失败；否则部署或重构错误会被错误地当成“稍后重试”的市场数据问题。
+
+打开 `src/data/kline_business_runtime.py` 可对照：接线/证券身份校验发生在失败分类之前，完整
+输入才调用 `assemble_complete_kline_business()`。
+
 ## 自己试试
 
 1. 运行 `python -m pytest tests/test_data/test_kline_business_runtime.py -q`；
-2. 把测试中的 `intraday_evidence.complete` 改成 `false` 但保留 `items`，观察组装器
-   在读取条目前拒绝；
-3. 把 `quote_evidence` 接到 `daily_evidence` 参数，观察能力槽位校验；
-4. 查看成功结果，确认 10:01 的临时分钟没有进入 `final_minute_bars`。
+2. 在 `tests/test_data/test_kline_business_runtime.py` 的 `_incomplete()` 调用处，把任一
+   日线、分时或报价信封变为 `complete=False`，但保留其中的 `items`；
+3. 运行对应的 unified assembler 测试，并检查返回 `layer_diagnostics` 是否始终包含四层，
+   同时确认序列和报价 payload 没有出现在 `model_dump()`；
+4. 再把 `quote_evidence` 接到 `daily_evidence` 参数，观察能力槽位校验仍抛出异常；
+5. 查看成功结果，确认 10:01 的临时分钟没有进入 `final_minute_bars`。
 
 ---
 

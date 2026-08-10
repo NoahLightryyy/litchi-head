@@ -149,7 +149,7 @@ DataEvidenceService
 | 特性 | 状态 | 测试数 |
 |:-----|:----:|:------:|
 | A股行情采集 | 已完成 | — |
-| K 线数据采集 | KR-1～KR-2、KR-3A、KR-3B-1 完成；逐源证明、RAW/诊断持久化、点时复权与成功四层组装可用；KR-3B-2 前仍未切入 AI/API | 120（相关回归） |
+| K 线数据采集 | KR-1～KR-3 完成；逐源证明、RAW/诊断持久化、点时复权和统一四层成功/失败结果可用；KR-4 自动进入已暂停，等待 validation-first checkpoint 规划，尚未接入下游消费者 | 120（相关回归） |
 | 新闻采集 | 已完成 | — |
 | 数据缓存（TTL） | 已完成 | — |
 | Pydantic 标准化转换 | 已完成 | — |
@@ -185,9 +185,9 @@ DataEvidenceService
    准确响应字节/哈希/时间，部分失败保留 RAW；完整快照强制日历权威和 canonical
    RAW 血缘；
 7. 🔥 KR-2：RAW、公司行动/因子和派生复权序列分层并版本化；
-8. KR-3：汇总 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE / PROVISIONAL` 分层信封；
+8. ✅ KR-3：`assemble_kline_business()` 汇总 `FINAL_DAILY / FINAL_MINUTE / LIVE_QUOTE / PROVISIONAL` 分层成功/失败结果；
 8. 保持正式指标与盘中估算指标字段隔离，覆盖晋升、冲突、未来因子和失败关闭；
-9. K 线全链路完成后继续迁移行业证据。
+9. 在规划 validation-first checkpoint 前暂停自动进入 KR-4；随后才接入下游并继续迁移行业证据。
 
 ### 数据流
 

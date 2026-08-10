@@ -588,6 +588,7 @@ def test_data_package_exports_complete_runtime_assembler() -> None:
     from src import data
 
     assert data.assemble_complete_kline_business is assemble_complete_kline_business
+    assert data.assemble_kline_business is assemble_kline_business
 
 
 @pytest.mark.parametrize("cardinality", [0, 2])

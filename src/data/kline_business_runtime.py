@@ -348,4 +348,4 @@ def assemble_complete_kline_business(
     )
 
 
-__all__ = ["assemble_complete_kline_business"]
+__all__ = ["assemble_complete_kline_business", "assemble_kline_business"]

@@ -1,6 +1,6 @@
 # K 线证据完整性实施计划
 
-> 状态：KR-1、KR-2、KR-3A、KR-3B-1 完成；下一原子 KR-3B-2 四层失败诊断归并
+> 状态：KR-1、KR-2、KR-3 完成；KR-3B-2 已交付统一的四层成功/失败结果，下一步为 validation-first checkpoint 规划
 >
 > 决策源：[ADR-013 多源证据完整性](../05-decisions/ADR-013-multi-source-evidence.md)
 >
@@ -165,8 +165,8 @@ K 线门禁会同时影响数据采集、复权、指标、AI 上下文、风控
   用户确认没有换源或加源。
 
 **KR-1 完整交付条件**：KR-1A 已通过；KR-1B 的官方日历/停牌证据、持久化、长窗
-覆盖与回放已经落地；KR-2、KR-3A 和 KR-3B-1 已于 2026-08-04 完成，下一原子
-进入 KR-3B-2。当前免费源的能力边界不变：新浪无法证明
+覆盖与回放已经落地；KR-2 与 KR-3 已完成。自动进入 KR-4 已暂停，必须先规划
+validation-first checkpoint。当前免费源的能力边界不变：新浪无法证明
 任意旧历史窗口、请求年份没有权威日历/状态覆盖时都只会失败关闭，不能进入 AI；
 如要让这些窗口成功，必须另行确认数据源与权威版本方案。
 
@@ -362,8 +362,31 @@ KR-2B-1 快照不能进入 AI。
   双源 RAW 实时报价构造并保持 `PROVISIONAL`；canonical 实时报价必须恰好一条，
   禁止静默选择；14 项新契约通过。
 
-**下一原子 KR-3B-2**：把三类运行时失败归并为四层诊断与稳定错误码，输出
-`KlineBusinessFailure`；错误码归并策略确认前不接入辩论、API 或前端。
+**KR-3B-2（✅ 2026-08-07）— 统一结果边界与失败诊断**：
+
+- `assemble_kline_business()` 是包级公开的统一入口：全部四层可用时委托
+  `assemble_complete_kline_business()`；任一来源信封不完整或可预期的派生数据校验失败
+  时返回不含半成品行情 payload 的 `KlineBusinessFailure`；
+- 能力槽位接线错误和跨证券请求属于程序错误，继续抛出异常，不能伪装成可恢复的数据
+  失败；
+- 稳定错误码表只在本实施计划维护。`LIVE_QUOTE` 不完整同时使依赖它的
+  `PROVISIONAL` 不完整：
+
+| 层 | 稳定错误码 | 含义 |
+|:---|:---|:---|
+| `FINAL_DAILY` | `final_daily_evidence_incomplete` | 日线来源信封不完整 |
+| `FINAL_MINUTE` | `final_minute_evidence_incomplete` | 分时来源信封不完整 |
+| `LIVE_QUOTE` | `live_quote_evidence_incomplete` | 实时报价来源信封不完整 |
+| `PROVISIONAL` | `provisional_quote_dependency_incomplete` | 实时报价不完整，动态日条依赖无法满足 |
+| `FINAL_DAILY` | `final_daily_adjustment_unavailable` | 缺复权序列或其 RAW 快照身份 |
+| `FINAL_DAILY` | `final_daily_lineage_conflict` | 复权序列与日线 RAW 快照血缘冲突 |
+| `FINAL_MINUTE` | `final_minute_missing` | 完整分时信封没有 `FINAL` 分钟 |
+| `LIVE_QUOTE` | `live_quote_cardinality_invalid` | canonical 实时报价不是恰好一条 |
+| `PROVISIONAL` | `provisional_quote_dependency_invalid` | 报价基数非法，动态日条依赖无法满足 |
+| `PROVISIONAL` | `provisional_quote_invalid` | 单一报价无法构造成有效动态 OHLC |
+
+本切片没有新增 AI、API、前端、风控、交易或回测消费者。策略暂停自动进入 KR-4，
+直到 validation-first checkpoint 完成规划。
 
 **交付条件**：开盘后 AI 输入齐全且无需等待收盘；动态条无法混入完成日线。
 

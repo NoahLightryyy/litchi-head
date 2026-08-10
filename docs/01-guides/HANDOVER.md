@@ -58,7 +58,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能批次** | KR-3B-1 成功运行时组装完成；下一原子 KR-3B-2 四层失败诊断归并 |
+| **最新功能批次** | KR-3B-2 已完成：KR-3 产出可判别的四层成功/失败结果；下一步为 validation-first checkpoint 规划 |
 | **全量测试** | 1706 collected；1683 passed / 4 skipped / 19 deselected；4/4 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
@@ -89,7 +89,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 ## 🎯 当前跨部门优先级
 
 > **2026-07-31 战略校正**：当前主要矛盾是“系统建设能力强，真实结果验证能力弱”。
-> 当前原子任务是 KR-3B-2 四层失败诊断归并；KR-3A 与 KR-3B-1 已完成。KR-3～KR-6 完成后，必须按
+> KR-3B-2 已完成：KR-3 现在产出可判别的四层成功/失败结果。自动进入 KR-4 已暂停，必须先规划 validation-first checkpoint；本切片未新增 AI、API、前端、风控、交易或回测消费者。KR-3～KR-6 完成后，必须按
 > [决策 Baseline 与影子验证计划](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)
 > 进入 4～8 周影子验证。功能完成度、置信度字段和复盘页面不得表述为真实投资效果已验证。
 
@@ -223,7 +223,10 @@ docs/06-departments/02-debate-engine/DEBT.md
     收盘晋升按内容生成确定性 ID，相同重试幂等、冲突证据拒绝覆盖。
 31. KR-3B-1 已完成：`assemble_complete_kline_business()` 固定三类运行时能力与证券
     请求身份，先拒绝不完整残留，只发布 `FINAL` 分钟，并从双源 RAW 报价生成独立
-    `PROVISIONAL`。下一原子 KR-3B-2 归并四层失败诊断，不提前进入 AI/API。
+    `PROVISIONAL`。
+32. KR-3B-2 已完成：`assemble_kline_business()` 在不完整证据信封或可预期派生数据
+    失败时返回四层稳定诊断，所有层均完整才委托严格组装器。下一步是 validation-first
+    checkpoint 规划；本切片未新增 AI、API、前端、风控、交易或回测消费者。
 
 ---
 
