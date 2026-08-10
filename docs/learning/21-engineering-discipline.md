@@ -74,6 +74,18 @@ c1dc629  feat: DP-001 + scripts/check.py  ← 写了工具但没更新文档
 
 **写了新东西 → 但不更新所有引用它的地方**——这不是新问题，这是这个项目反复出现的"五同步"（代码+测试+文档+债务+引用清理）中引用清理环节缺失的同一个模式。
 
+## 公共状态同步：详细真相与公开投影
+
+公共状态不应散落成多份彼此竞争的事实源：`ROADMAP`、全局 `HANDOVER` 和两份全局战略基线保存详细真相；根 `README.md` 只是面向读者的**公开投影**，不是另一份需要独立维护的详细台账。
+
+因此，`scripts/check.py` 只把 `PUBLIC_STATUS_FILES` 中精确列出的四个 canonical 文档与根 README 的同步关系固化为门禁。默认 `--diff HEAD` 还会合并相对 upstream 的已提交变更，避免“先提交、后过闸”把遗漏藏起来。模块 README、学习卡、工作日志和债务单独变更不会触发它：窄触发条件比泛化的文档依赖系统更可解释，也不会制造 README churn。
+
+### 自己试试（3 分钟）
+
+1. 在 `docs/00-overview/ROADMAP.md` 临时改一行状态文字。
+2. 运行 `pytest tests/test_scripts/test_check.py -q`，再运行 `python scripts/check.py`，观察根 README 未同步时的 `README public status sync` 结果。
+3. 提交前撤销这处临时 ROADMAP 编辑；练习的目的只是确认门禁，不应留下测试性状态变更。
+
 ## 自己试试（5 分钟）
 
 1. 读一下 `scripts/check.py` 的 `pick_test_targets()` 函数
@@ -110,3 +122,5 @@ check.ps1 删除前的状态：check.py 写好了，但 24 处文档还写着 `m
 
 - [17 测试架构与模块自治](17-testing-architecture.md) — 测试目录映射的基础
 - [20 三层测试策略](20-three-tier-test-strategy.md) — 快/慢/全量策略的起源
+
+最后更新：2026-08-10

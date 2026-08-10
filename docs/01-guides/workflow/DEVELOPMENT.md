@@ -96,7 +96,7 @@
 
 | # | 文档 | 检查重点 | 触发条件 |
 |---|:-----|:---------|:---------|
-| 📐 | `docs/01-guides/HANDOVER.md` | 项目身份卡 / 各部门状态 / 跨部门优先级 | **每次代码改动** |
+| 📐 | `docs/01-guides/HANDOVER.md` | 项目身份卡 / 各部门状态 / 跨部门优先级 | **每轮实现变更后** |
 | 🏢 | `docs/06-departments/{部门}/HANDOVER.md` | 状态、开放债务、下一步优先级 | **本部门有改动时** |
 | 🐛 | `docs/06-departments/{部门}/DEBT.md` | 新增债务登记或现有债务状态变更 | 引入或关闭债务时 |
 | 🏢 | `docs/06-departments/README.md` | 部门状态表（开放债务数） | 债务数量变化时 |
@@ -104,10 +104,17 @@
 | 📖 | `docs/03-modules/**/SPEC.md` | 特性完成度表、测试数、下一步列表 | 对应模块有改动 |
 | 🔬 | `docs/03-modules/**/RESEARCH.md` | checklist 项 → [x] | 对应模块功能完成 |
 | 🧹 | **全项目引用清理** | 搜索旧方案/旧文件/旧命令的残留引用，逐处确认清理或保留 | **新增文件/新工具时** |
-| 🏠 | `README.md` | badge 测试数 / 组件表 / Phase 进度 | **每次代码改动** |
+| 🏠 | `README.md` | badge 测试数 / 组件表 / Phase 进度 | **用户可见能力、全局阶段/战略、ADR 状态或公开验证证据变化时** |
 | 🗺️ | `docs/00-overview/ROADMAP.md` | 待办任务状态（✅/🔄/⬜） | 功能完成或债务变更 |
 | 📋 | `docs/04-changelog/logs/当天/*.md` | 待办事项、日志内容 | — |
 | 🐛 | `docs/01-guides/debt/ROUTER.md` | 部门债务计数同步 | 债务数量变化时 |
+
+> **自动门禁范围**：`scripts/check.py` 的 `README public status sync` 仅对
+> `PUBLIC_STATUS_FILES` 中精确列出的四份公共状态源强制根 `README.md` 同步：
+> `docs/00-overview/ROADMAP.md`、`docs/01-guides/HANDOVER.md`、
+> `docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md` 和
+> `docs/02-requirements/STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md`。模块 README、学习卡、
+> 工作日志和仅债务变更不会触发此门禁；它们仍按本表各自的同步规则审计。
 
 ---
 
