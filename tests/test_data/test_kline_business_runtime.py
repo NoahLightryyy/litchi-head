@@ -325,6 +325,154 @@ def test_unified_assembler_returns_four_layer_failure_without_partial_data(
     assert "provisional_session_bar" not in payload
 
 
+def test_unified_assembler_reports_missing_adjusted_daily_series() -> None:
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=None,
+        daily_snapshot_id=None,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=_quote_evidence(),
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert result.error_codes == ("final_daily_adjustment_unavailable",)
+
+
+def test_unified_assembler_reports_daily_snapshot_lineage_conflict() -> None:
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id="raw:000001:other-snapshot",
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=_quote_evidence(),
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert result.error_codes == ("final_daily_lineage_conflict",)
+
+
+def test_unified_assembler_reports_missing_final_minute() -> None:
+    intraday = _intraday_evidence()
+    provisional_items = [
+        item.model_copy(update={"state": IntradayBarState.PROVISIONAL})
+        for item in intraday.items
+        if isinstance(item, IntradayBar)
+    ]
+    intraday = intraday.model_copy(update={"items": provisional_items})
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=intraday,
+        quote_evidence=_quote_evidence(),
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert result.error_codes == ("final_minute_missing",)
+
+
+@pytest.mark.parametrize("cardinality", [0, 2])
+def test_unified_assembler_reports_invalid_quote_cardinality(cardinality: int) -> None:
+    quote = _quote_evidence()
+    canonical = quote.items[0]
+    quote = quote.model_copy(update={"items": [canonical] * cardinality})
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=quote,
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert result.error_codes == (
+        "live_quote_cardinality_invalid",
+        "provisional_quote_dependency_invalid",
+    )
+
+
+def test_unified_assembler_reports_invalid_provisional_quote() -> None:
+    quote = _quote_evidence()
+    canonical = quote.items[0].model_copy(update={"price": 11.0})
+    quote = quote.model_copy(update={"items": [canonical]})
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=quote,
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    diagnostics = {item.layer: item for item in result.layer_diagnostics}
+    assert diagnostics[KlineBusinessLayer.LIVE_QUOTE].complete is True
+    assert diagnostics[KlineBusinessLayer.PROVISIONAL].error_code == (
+        "provisional_quote_invalid"
+    )
+
+
+def test_unified_assembler_preserves_wrong_capability_contract_bug() -> None:
+    wrong_capability = _quote_evidence()
+
+    with pytest.raises(ValueError, match="runtime evidence capability"):
+        assemble_kline_business(
+            symbol="000001",
+            market=MarketCode.SZSE,
+            as_of=AS_OF,
+            trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+            final_daily_bars=_final_daily_series(),
+            daily_snapshot_id=DAILY_SNAPSHOT_ID,
+            daily_evidence=wrong_capability,
+            intraday_evidence=_intraday_evidence(),
+            quote_evidence=_quote_evidence(),
+        )
+
+
+def test_unified_assembler_preserves_cross_symbol_contract_bug() -> None:
+    other_symbol = _intraday_evidence()
+    other_symbol = other_symbol.model_copy(
+        update={
+            "request": other_symbol.request.model_copy(update={"stock_code": "600000"})
+        }
+    )
+
+    with pytest.raises(ValueError, match="runtime evidence symbol"):
+        assemble_kline_business(
+            symbol="000001",
+            market=MarketCode.SZSE,
+            as_of=AS_OF,
+            trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+            final_daily_bars=_final_daily_series(),
+            daily_snapshot_id=DAILY_SNAPSHOT_ID,
+            daily_evidence=_daily_evidence(),
+            intraday_evidence=other_symbol,
+            quote_evidence=_quote_evidence(),
+        )
+
+
 def test_assembles_complete_runtime_evidence_without_promoting_open_minute() -> None:
     final_daily = _final_daily_series()
 
