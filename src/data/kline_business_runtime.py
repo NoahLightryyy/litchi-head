@@ -4,13 +4,17 @@ from datetime import datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from src.data.evidence import EvidenceCapability, EvidenceEnvelope
+from src.data.evidence import EvidenceCapability, EvidenceEnvelope, SourceStatus
 from src.data.intraday import IntradayBar, IntradayBarState
 from src.data.kline import MarketCode
 from src.data.kline_adjustment import AdjustedKlineSeries
 from src.data.kline_business import (
     FinalMinuteBar,
     KlineBusinessEnvelope,
+    KlineBusinessFailure,
+    KlineBusinessLayer,
+    KlineBusinessResult,
+    KlineLayerDiagnostic,
     LiveRawQuote,
     ProvisionalSessionBar,
     TradingPhase,
@@ -18,6 +22,140 @@ from src.data.kline_business import (
 from src.data.models import StockQuote
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
+
+
+def _diagnostic_summary(evidence: EvidenceEnvelope) -> str:
+    parts = sorted(
+        f"{result.source_id}:{result.status.value}:"
+        f"{result.error_code or 'no_error_code'}"
+        for result in evidence.source_results
+        if result.status not in {SourceStatus.SUCCESS_DATA, SourceStatus.SUCCESS_EMPTY}
+    )
+    return ",".join(parts) or "evidence assessment is incomplete"
+
+
+def _diagnostic(
+    *,
+    layer: KlineBusinessLayer,
+    complete: bool,
+    upstream_ids: tuple[str, ...],
+    error_code: str | None = None,
+    error_message: str | None = None,
+) -> KlineLayerDiagnostic:
+    return KlineLayerDiagnostic(
+        layer=layer,
+        complete=complete,
+        upstream_ids=tuple(sorted(upstream_ids)),
+        error_code=error_code,
+        error_message=error_message,
+    )
+
+
+def _validate_runtime_evidence(
+    *,
+    symbol: str,
+    daily_evidence: EvidenceEnvelope,
+    intraday_evidence: EvidenceEnvelope,
+    quote_evidence: EvidenceEnvelope,
+) -> None:
+    expected_capabilities = (
+        (daily_evidence, EvidenceCapability.KLINE),
+        (intraday_evidence, EvidenceCapability.INTRADAY),
+        (quote_evidence, EvidenceCapability.REALTIME_QUOTE),
+    )
+    if any(
+        evidence.request.capability is not expected for evidence, expected in expected_capabilities
+    ):
+        raise ValueError("runtime evidence capability is wired to the wrong layer")
+    if any(
+        evidence.request.stock_code != symbol
+        for evidence in (daily_evidence, intraday_evidence, quote_evidence)
+    ):
+        raise ValueError("runtime evidence symbol does not match business request")
+
+
+def assemble_kline_business(
+    *,
+    symbol: str,
+    market: MarketCode,
+    as_of: datetime,
+    trading_phase: TradingPhase,
+    final_daily_bars: AdjustedKlineSeries | None,
+    daily_snapshot_id: str | None,
+    daily_evidence: EvidenceEnvelope,
+    intraday_evidence: EvidenceEnvelope,
+    quote_evidence: EvidenceEnvelope,
+) -> KlineBusinessResult:
+    """Assemble complete business data or fail closed with layer diagnostics."""
+    _validate_runtime_evidence(
+        symbol=symbol,
+        daily_evidence=daily_evidence,
+        intraday_evidence=intraday_evidence,
+        quote_evidence=quote_evidence,
+    )
+
+    evidence_by_layer = {
+        KlineBusinessLayer.FINAL_DAILY: daily_evidence,
+        KlineBusinessLayer.FINAL_MINUTE: intraday_evidence,
+        KlineBusinessLayer.LIVE_QUOTE: quote_evidence,
+        KlineBusinessLayer.PROVISIONAL: quote_evidence,
+    }
+    incomplete_codes = {
+        KlineBusinessLayer.FINAL_DAILY: "final_daily_evidence_incomplete",
+        KlineBusinessLayer.FINAL_MINUTE: "final_minute_evidence_incomplete",
+        KlineBusinessLayer.LIVE_QUOTE: "live_quote_evidence_incomplete",
+        KlineBusinessLayer.PROVISIONAL: "provisional_quote_dependency_incomplete",
+    }
+    diagnostics = []
+    for layer in KlineBusinessLayer:
+        evidence = evidence_by_layer[layer]
+        if evidence.complete:
+            diagnostics.append(
+                _diagnostic(
+                    layer=layer,
+                    complete=True,
+                    upstream_ids=tuple(evidence.assessment.successful_upstream_ids),
+                )
+            )
+        else:
+            diagnostics.append(
+                _diagnostic(
+                    layer=layer,
+                    complete=False,
+                    upstream_ids=tuple(evidence.assessment.successful_upstream_ids),
+                    error_code=incomplete_codes[layer],
+                    error_message=_diagnostic_summary(evidence),
+                )
+            )
+    if any(not diagnostic.complete for diagnostic in diagnostics):
+        return KlineBusinessFailure(
+            symbol=symbol,
+            market=market,
+            as_of=as_of,
+            trading_phase=trading_phase,
+            error_codes=tuple(
+                dict.fromkeys(
+                    diagnostic.error_code
+                    for diagnostic in diagnostics
+                    if diagnostic.error_code is not None
+                )
+            ),
+            layer_diagnostics=tuple(diagnostics),
+        )
+
+    if final_daily_bars is None or daily_snapshot_id is None:
+        raise ValueError("complete assembly requires final daily bars and daily snapshot id")
+    return assemble_complete_kline_business(
+        symbol=symbol,
+        market=market,
+        as_of=as_of,
+        trading_phase=trading_phase,
+        final_daily_bars=final_daily_bars,
+        daily_snapshot_id=daily_snapshot_id,
+        daily_evidence=daily_evidence,
+        intraday_evidence=intraday_evidence,
+        quote_evidence=quote_evidence,
+    )
 
 
 def assemble_complete_kline_business(

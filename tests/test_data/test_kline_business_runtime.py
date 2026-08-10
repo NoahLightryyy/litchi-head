@@ -23,8 +23,15 @@ from src.data.intraday import (
 )
 from src.data.kline import MarketCode, RawDailyBar
 from src.data.kline_adjustment import AdjustedDailyBar, AdjustedKlineSeries
-from src.data.kline_business import TradingPhase
-from src.data.kline_business_runtime import assemble_complete_kline_business
+from src.data.kline_business import (
+    KlineBusinessFailure,
+    KlineBusinessLayer,
+    TradingPhase,
+)
+from src.data.kline_business_runtime import (
+    assemble_complete_kline_business,
+    assemble_kline_business,
+)
 from src.data.models import StockQuote
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -219,6 +226,103 @@ def _quote_evidence() -> EvidenceEnvelope:
         complete=True,
         collected_at=AS_OF.astimezone(UTC),
     )
+
+
+def _incomplete(
+    envelope: EvidenceEnvelope,
+    *,
+    error_code: str = "upstream_request_failed",
+) -> EvidenceEnvelope:
+    failed_source = envelope.source_results[0]
+    failed = failed_source.model_copy(
+        update={
+            "status": SourceStatus.FAILED,
+            "items": [],
+            "error_code": error_code,
+            "error_message": "fixture upstream failed",
+        }
+    )
+    return envelope.model_copy(
+        update={
+            "complete": False,
+            "assessment": envelope.assessment.model_copy(
+                update={
+                    "complete": False,
+                    "successful_upstream_ids": (
+                        envelope.assessment.successful_upstream_ids
+                        - {failed_source.upstream_id}
+                    ),
+                    "successful_source_ids": (
+                        envelope.assessment.successful_source_ids
+                        - {failed_source.source_id}
+                    ),
+                    "failed_source_ids": {failed_source.source_id},
+                    "unusable_source_ids": {failed_source.source_id},
+                    "missing_independent_upstreams": 1,
+                }
+            ),
+            "source_results": [failed, *envelope.source_results[1:]],
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    ("failed_input", "expected"),
+    [
+        (
+            "daily",
+            {KlineBusinessLayer.FINAL_DAILY: "final_daily_evidence_incomplete"},
+        ),
+        (
+            "intraday",
+            {KlineBusinessLayer.FINAL_MINUTE: "final_minute_evidence_incomplete"},
+        ),
+        (
+            "quote",
+            {
+                KlineBusinessLayer.LIVE_QUOTE: "live_quote_evidence_incomplete",
+                KlineBusinessLayer.PROVISIONAL: "provisional_quote_dependency_incomplete",
+            },
+        ),
+    ],
+)
+def test_unified_assembler_returns_four_layer_failure_without_partial_data(
+    failed_input: str,
+    expected: dict[KlineBusinessLayer, str],
+) -> None:
+    evidence = {
+        "daily": _daily_evidence(),
+        "intraday": _intraday_evidence(),
+        "quote": _quote_evidence(),
+    }
+    evidence[failed_input] = _incomplete(evidence[failed_input])
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=evidence["daily"],
+        intraday_evidence=evidence["intraday"],
+        quote_evidence=evidence["quote"],
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    diagnostics = {item.layer: item for item in result.layer_diagnostics}
+    assert set(diagnostics) == set(KlineBusinessLayer)
+    assert {
+        layer: diagnostic.error_code
+        for layer, diagnostic in diagnostics.items()
+        if not diagnostic.complete
+    } == expected
+    assert set(result.error_codes) == set(expected.values())
+    payload = result.model_dump()
+    assert "final_daily_bars" not in payload
+    assert "final_minute_bars" not in payload
+    assert "live_quote" not in payload
+    assert "provisional_session_bar" not in payload
 
 
 def test_assembles_complete_runtime_evidence_without_promoting_open_minute() -> None:
