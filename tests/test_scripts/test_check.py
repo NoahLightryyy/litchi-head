@@ -133,6 +133,7 @@ def test_git_commit_batches_parses_commits_in_old_to_new_order(
     assert run.call_args_list[0].args[0] == [
         "git",
         "rev-list",
+        "--first-parent",
         "--reverse",
         "base..HEAD",
     ]
@@ -163,6 +164,7 @@ def test_git_commit_batches_returns_empty_when_comparison_ref_is_unavailable(
     assert run.call_args.args[0] == [
         "git",
         "rev-list",
+        "--first-parent",
         "--reverse",
         "@{upstream}..HEAD",
     ]
@@ -216,9 +218,9 @@ def test_git_commit_batches_detects_conflict_resolution_in_real_merge(
 
     assert batches is not None
     assert batches[-1] == {"docs/00-overview/ROADMAP.md"}
-    assert check.missing_readme_sync_batches(
-        [{"README.md"}, batches[-1]]
-    ) == ("docs/00-overview/ROADMAP.md",)
+    assert check.missing_readme_sync_batches(batches) == (
+        "docs/00-overview/ROADMAP.md",
+    )
 
 
 def test_git_commit_batches_ignores_incoming_only_path_in_real_merge(
@@ -228,16 +230,17 @@ def test_git_commit_batches_ignores_incoming_only_path_in_real_merge(
     repo = _init_git_repo(tmp_path)
     base = _git(repo, "rev-parse", "HEAD")
 
-    _git(repo, "checkout", "-b", "incoming")
+    _write(repo, "README.md", "early README sync\n")
+    _write(repo, "main-only.txt", "main only\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "early README sync and main change")
+
+    _git(repo, "checkout", "-b", "incoming", base)
     _write(repo, "docs/00-overview/ROADMAP.md", "incoming roadmap\n")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "incoming roadmap")
 
     _git(repo, "checkout", "main")
-    _write(repo, "README.md", "early README sync\n")
-    _write(repo, "main-only.txt", "main only\n")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-m", "early README sync and main change")
     _git(repo, "merge", "--no-ff", "incoming", "-m", "merge incoming")
 
     monkeypatch.setattr(check, "REPO_ROOT", repo)
@@ -245,6 +248,8 @@ def test_git_commit_batches_ignores_incoming_only_path_in_real_merge(
 
     assert batches is not None
     assert batches[-1] == set()
+    assert "docs/00-overview/ROADMAP.md" not in set().union(*batches)
+    assert check.missing_readme_sync_batches(batches) == ()
 
 
 @pytest.mark.parametrize(

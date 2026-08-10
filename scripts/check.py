@@ -106,7 +106,7 @@ def git_diff(target: str = "HEAD") -> set[str]:
 def git_commit_batches(target: str) -> list[set[str]] | None:
     """Return ordered commit batches, or None when a known commit is unreadable."""
     result = subprocess.run(
-        ["git", "rev-list", "--reverse", f"{target}..HEAD"],
+        ["git", "rev-list", "--first-parent", "--reverse", f"{target}..HEAD"],
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
