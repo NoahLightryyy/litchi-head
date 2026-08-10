@@ -5,8 +5,9 @@
 功能：
   1. ruff 代码风格检查
   2. pyright 类型检查（src/ + backend/）
-  3. 按变更范围智能选择测试子集
-  4. 前端变更触发 TypeScript 类型检查
+  3. 根 README 公共状态同步检查
+  4. 按变更范围智能选择测试子集
+  5. 前端变更触发 TypeScript 类型检查
 
 用法：
   python scripts/check.py              # 检测变更范围 + 按需跑测试
@@ -48,6 +49,14 @@ QUALITY_CONFIG_FILES = {
     "pyproject.toml",
     "pyrightconfig.json",
 }
+PUBLIC_STATUS_FILES: frozenset[str] = frozenset(
+    {
+        "docs/00-overview/ROADMAP.md",
+        "docs/01-guides/HANDOVER.md",
+        "docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md",
+        "docs/02-requirements/STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md",
+    }
+)
 
 
 def _s(text: str) -> str:
@@ -91,6 +100,26 @@ def git_diff(target: str = "HEAD") -> set[str]:
             if line:
                 files.add(line)
     return files
+
+
+def git_upstream_diff() -> set[str]:
+    """Return committed files ahead of upstream, or empty when no upstream exists."""
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "@{upstream}...HEAD"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+    if result.returncode != 0:
+        return set()
+    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+
+def missing_readme_sync(changed_files: set[str]) -> tuple[str, ...]:
+    """Return canonical public-status sources changed without root README."""
+    if "README.md" in changed_files:
+        return ()
+    return tuple(sorted(changed_files & PUBLIC_STATUS_FILES))
 
 
 def pick_test_targets(changed_files: set[str]) -> list[str] | None:
@@ -200,7 +229,7 @@ def _print_header() -> None:
     _s("")
     _s("=" * 60)
     _s("  litchi-head 本地 CI 检查")
-    _s("  ruff -> pyright -> 按变更范围智能测试 -> 前端类型检查")
+    _s("  ruff -> pyright -> README sync -> smart tests -> frontend type-check")
     _s("=" * 60)
 
 
@@ -234,11 +263,15 @@ def main() -> int:
     _print_header()
     ensure_deps()
 
-    changed = git_diff(args.diff) if not args.full else set()
+    changed = git_diff(args.diff)
+    public_changed = set(changed)
+    if args.diff == "HEAD":
+        public_changed.update(git_upstream_diff())
+    missing_public_sync = missing_readme_sync(public_changed)
     frontend_required = args.full or needs_frontend_check(changed)
 
     passes = 0
-    total = 3 + int(frontend_required)  # ruff + pyright + tests + 可选前端
+    total = 4 + int(frontend_required)  # ruff + pyright + README sync + tests + 可选前端
 
     # ── 1. Ruff ──
     if run_step("ruff", ["ruff", "check", "."]):
@@ -248,7 +281,17 @@ def main() -> int:
     if run_step("pyright", ["pyright", "src/", "backend/"]):
         passes += 1
 
-    # ── 3. 测试 ──
+    # ── 3. README public status sync ──
+    _s("\n  === README public status sync ===")
+    if missing_public_sync:
+        _s("  [FAIL] canonical public status changed without README.md:")
+        for path in missing_public_sync:
+            _s(f"         {path}")
+    else:
+        passes += 1
+        _s("  [PASS] README public status sync")
+
+    # ── 4. 测试 ──
     if args.full:
         test_target: list[str] | None = None
         _s("  [info] --full 模式：跑全量子集")
@@ -277,7 +320,7 @@ def main() -> int:
     if test_ok:
         passes += 1
 
-    # ── 4. 前端 TypeScript（前端变更或 --full）──
+    # ── 5. 前端 TypeScript（前端变更或 --full）──
     if frontend_required and run_step(
         "frontend type-check",
         frontend_typecheck_command(),

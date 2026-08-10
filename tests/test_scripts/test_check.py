@@ -43,6 +43,57 @@ def test_git_diff_includes_untracked_files(monkeypatch: pytest.MonkeyPatch) -> N
     ]
 
 
+def test_public_status_change_requires_root_readme_sync() -> None:
+    assert check.missing_readme_sync(
+        {"docs/00-overview/ROADMAP.md", "src/data/models.py"}
+    ) == ("docs/00-overview/ROADMAP.md",)
+
+
+def test_root_readme_satisfies_public_status_sync() -> None:
+    assert check.missing_readme_sync(
+        {"README.md", "docs/01-guides/HANDOVER.md"}
+    ) == ()
+
+
+def test_unrelated_docs_do_not_require_root_readme_sync() -> None:
+    assert check.missing_readme_sync(
+        {"docs/learning/21-engineering-discipline.md"}
+    ) == ()
+
+
+def test_git_upstream_diff_parses_successful_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = Mock(return_value=_completed("README.md\ndocs/00-overview/ROADMAP.md\n"))
+    monkeypatch.setattr(check.subprocess, "run", run)
+
+    assert check.git_upstream_diff() == {
+        "README.md",
+        "docs/00-overview/ROADMAP.md",
+    }
+    assert run.call_args.args[0] == [
+        "git",
+        "diff",
+        "--name-only",
+        "@{upstream}...HEAD",
+    ]
+
+
+def test_git_upstream_diff_returns_empty_set_without_upstream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run = Mock(return_value=_completed(returncode=128))
+    monkeypatch.setattr(check.subprocess, "run", run)
+
+    assert check.git_upstream_diff() == set()
+    assert run.call_args.args[0] == [
+        "git",
+        "diff",
+        "--name-only",
+        "@{upstream}...HEAD",
+    ]
+
+
 @pytest.mark.parametrize(
     "changed_file",
     [
@@ -104,6 +155,7 @@ def test_main_checks_backend_types_and_changed_frontend(
 
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": {"frontend/app/page.tsx"})
+    monkeypatch.setattr(check, "git_upstream_diff", lambda: set())
     monkeypatch.setattr(check, "run_step", fake_run_step)
     monkeypatch.setattr(sys, "argv", ["check.py"])
 
@@ -123,6 +175,8 @@ def test_full_mode_runs_python_and_frontend_gates(monkeypatch: pytest.MonkeyPatc
         return True
 
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
+    monkeypatch.setattr(check, "git_diff", lambda target="HEAD": set())
+    monkeypatch.setattr(check, "git_upstream_diff", lambda: set())
     monkeypatch.setattr(check, "run_step", fake_run_step)
     monkeypatch.setattr(sys, "argv", ["check.py", "--full"])
 
@@ -155,7 +209,24 @@ def test_run_step_returns_command_status(
 def test_main_returns_failure_when_a_gate_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": set())
+    monkeypatch.setattr(check, "git_upstream_diff", lambda: set())
     monkeypatch.setattr(check, "run_step", lambda name, cmd: name != "ruff")
+    monkeypatch.setattr(sys, "argv", ["check.py"])
+
+    assert check.main() == 1
+
+
+def test_main_fails_when_upstream_public_status_lacks_root_readme(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(check, "ensure_deps", lambda: None)
+    monkeypatch.setattr(check, "git_diff", lambda target="HEAD": {"src/data/models.py"})
+    monkeypatch.setattr(
+        check,
+        "git_upstream_diff",
+        lambda: {"docs/00-overview/ROADMAP.md"},
+    )
+    monkeypatch.setattr(check, "run_step", lambda name, cmd: True)
     monkeypatch.setattr(sys, "argv", ["check.py"])
 
     assert check.main() == 1
