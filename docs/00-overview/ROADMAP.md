@@ -11,7 +11,7 @@
 总 Python 测试数 │ 1718 collected；1695 passed / 4 skipped / 19 deselected
 技术债务         │ 74 条总记 / 40 条已关闭 / 34 条开放
 紧急指数         │ 5.6/10（TD-061 Critical；数据底座处于实施门禁）
-当前阶段         │ 🟡 Phase R validation-first checkpoint — KR-3B-2 已完成；暂停自动进入 KR-4，先冻结基线、样本、指标、成本与停止线
+当前阶段         │ 🟡 Phase R validation-first checkpoint — E0-100 设计已批准；下一步写实施计划，KR-4 继续暂停
 前端进度         │ 全部 Tab 面板就绪（技术指标/资金流向/AI 辩论/信任度）+ 暗色主题打磨 + pnpm build ✅
 后端桥接         │ market/stocks/debate/trust 四组路由全部完整实现 + TD-020 板块增强 + 技术指标 + 生产配置 ✅
 数据源诚信        │ 全项目零造假 ✅ + Provider 抽象层 ✅ + 免费多源架构 ✅ + 生产配置 ✅
@@ -162,7 +162,7 @@
 | ✅ P0 | **TD-069 / KR-2 公司行动与统一复权** — 沪深普通/差异化、revision 3 真实修订链和三上游故障烟测通过；TD-075 关闭 | KR-1B ✅；[实施计划](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md) KR-2 | 完成 |
 | 🔥 P0 | **TD-069 / KR-3～4 双时间尺度与 AI 串联** — KR-3 已交付统一的四层成功/失败结果及稳定诊断；KR-3B-2 complete，下一步为 validation-first checkpoint 的规划，之后才进入 KR-4 辩论/Agent/风控/交易门禁 | KR-2 | 待规划 |
 | 🔥 P0 | **TD-069 / KR-5～6 API、前端与全链路验收** — 状态/口径/冲突可视化，兼容迁移，回放与故障注入 | KR-4 | ~1.5d |
-| 🔥 P0 | **TD-074 决策 baseline 与影子验证** — 先冻结比较线、样本、成本、标签和停止线；KR-6 后连续积累真实样本，禁止用功能完成度冒充效果证据 | [唯一协议](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)；依赖 KR-2～6 | 4～8 周自然积累 |
+| 🔥 P0 | **TD-074 决策 baseline 与影子验证** — E0-100 离线证伪设计已批准，先比较完整系统、同模型单 Agent 与三条简单基线；E0 后再决定 KR-4～6，生产链完成后进入 E1 影子验证 | [唯一协议](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md) · [E0 设计](../superpowers/specs/2026-08-10-e0-validation-checkpoint-design.md) | 待实施计划 |
 | 🔥 P0 | **TD-028 搜索防抖** — useDebounce(query, 300) | ✅ 已完成 | pnpm build ✅ |
 | 🔥 P0 | **TD-029 前端死代码清理** — 布局目录/store/ECharts | ✅ 已完成 | pnpm build ✅ |
 | 🔥 P0 | **TD-030 资金流向接入 Provider 层** | ✅ 已完成 | 75 tests ✅ |
@@ -513,6 +513,7 @@ qa/（质量保障体系 — Hookify 规则 + Post-tool hooks）
 | **2026-08-04 (2)** | **KR-3A 四层业务契约与收盘晋升核心** — 成功/失败判别联合、动态/完成层隔离、深度冻结 RAW 实时事实、确定性 promotion ID、幂等重试与冲突拒绝；下一原子 KR-3B 运行时组装 |
 | **2026-08-04 (3)** | **KR-3B-1 成功运行时组装** — KLINE/INTRADAY/REALTIME_QUOTE 固定接线；不完整残留和跨证券请求先拒绝；只发布 FINAL 分钟并由 RAW 报价生成独立动态日条；下一原子 KR-3B-2 失败诊断归并 |
 | **2026-08-07** | **KR-3B-2 统一失败诊断完成** — 包级入口统一返回四层成功/失败结果；不完整来源与可预期派生失败稳定分类且不泄漏半成品；接线/跨证券错误继续显式抛出；KR-4 自动推进暂停，先完成 validation-first checkpoint 规划 |
+| **2026-08-10** | **E0-100 validation-first 设计批准** — 100 条冻结 A 股时点题；完整系统、同模型单 Agent、现金、买入持有、20 日动量同场闭卷评测；5 日主周期，多维淘汰后再决定是否扩样或继续 KR-4～6 |
 
 > **如何更新**：每次会话结束时，把"已完成"和"变更状态"同步到此文件。
 > 保持 `🟢 → 🔵 → ⬜` 三段式清晰可见。

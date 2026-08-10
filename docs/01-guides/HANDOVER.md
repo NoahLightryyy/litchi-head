@@ -58,7 +58,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能批次** | KR-3B-2 已完成：KR-3 产出可判别的四层成功/失败结果；下一步为 validation-first checkpoint 规划 |
+| **最新功能批次** | KR-3B-2 已完成；E0-100 validation-first 设计已批准，下一步写实施计划，KR-4 继续暂停 |
 | **全量测试** | 1718 collected；1695 passed / 4 skipped / 19 deselected；4/4 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
@@ -89,7 +89,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 ## 🎯 当前跨部门优先级
 
 > **2026-07-31 战略校正**：当前主要矛盾是“系统建设能力强，真实结果验证能力弱”。
-> KR-3B-2 已完成：KR-3 现在产出可判别的四层成功/失败结果。自动进入 KR-4 已暂停，必须先规划 validation-first checkpoint；本切片未新增 AI、API、前端、风控、交易或回测消费者。KR-3～KR-6 完成后，必须按
+> KR-3B-2 已完成：KR-3 现在产出可判别的四层成功/失败结果。E0-100 validation-first 设计已批准，自动进入 KR-4 继续暂停；下一步先写 E0 实施计划。本切片未新增 AI、API、前端、风控、交易或回测消费者。若 E0 允许继续，KR-4～KR-6 完成后，必须按
 > [决策 Baseline 与影子验证计划](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)
 > 进入 4～8 周影子验证。功能完成度、置信度字段和复盘页面不得表述为真实投资效果已验证。
 

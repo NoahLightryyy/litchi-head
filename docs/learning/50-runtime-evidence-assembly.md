@@ -86,3 +86,5 @@ KR-1/2 日线、分时和实时报价各自已经完成双源核验，但它们�
 ---
 
 **上一篇：[49｜四层行情信封](49-four-layer-market-envelope.md)**
+
+**下一篇：[51｜闭卷评测与两阶段验证](51-closed-book-e0-validation.md)**

@@ -204,7 +204,7 @@ litchi-head 的核心产品定义调整为：
 1. 确认 KR-3B-2 的稳定失败分类和完整分母已作为正式实验前置条件；
 2. 执行 O0 责任守恒清点；
 3. 执行 O1 逻辑归属，不搬代码和目录；
-4. 修订 TD-074 协议的启动顺序，冻结首轮最小实验；
+4. ✅ 已批准 [E0-100 validation-first 设计](../superpowers/specs/2026-08-10-e0-validation-checkpoint-design.md)，TD-074 改为 E0 离线证伪 → KR-4～6 → E1 影子验证；
 5. 建立最小 DecisionSnapshot、四组 baseline 和单张结果表；
 6. 先回答完整版是否优于简单替代，再决定 KR-4～6 的范围；
 7. 一个阶段后审查 O2，物理迁移仍需新的用户决策。
