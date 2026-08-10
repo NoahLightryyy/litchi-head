@@ -78,12 +78,12 @@ c1dc629  feat: DP-001 + scripts/check.py  ← 写了工具但没更新文档
 
 公共状态不应散落成多份彼此竞争的事实源：`ROADMAP`、全局 `HANDOVER` 和两份全局战略基线保存详细真相；根 `README.md` 只是面向读者的**公开投影**，不是另一份需要独立维护的详细台账。
 
-因此，`scripts/check.py` 只把 `PUBLIC_STATUS_FILES` 中精确列出的四个 canonical 文档与根 README 的同步关系固化为门禁。默认 `--diff HEAD` 还会合并相对 upstream 的已提交变更，避免“先提交、后过闸”把遗漏藏起来。模块 README、学习卡、工作日志和债务单独变更不会触发它：窄触发条件比泛化的文档依赖系统更可解释，也不会制造 README churn。
+因此，`scripts/check.py` 只把 `PUBLIC_STATUS_FILES` 中精确列出的四个 canonical 文档与根 README 的同步关系固化为门禁。它按比较 ref 到 `HEAD` 的提交批次（旧→新）再加当前未提交批次处理：同批或更晚的 README 可以关闭待同步项，但 README 之后再有 canonical 变更会再次失败。默认比较 upstream；没有 upstream 时安全地只检查当前未提交批次。PR CI 用 base SHA 调用 `--readme-sync` 专用模式，避免重复 Ruff、Pyright 和测试。模块 README、学习卡、工作日志和债务单独变更不会触发它：窄触发条件比泛化的文档依赖系统更可解释，也不会制造 README churn。
 
 ### 自己试试（3 分钟）
 
 1. 在 `docs/00-overview/ROADMAP.md` 临时改一行状态文字。
-2. 运行 `pytest tests/test_scripts/test_check.py -q`，再运行 `python scripts/check.py`，观察根 README 未同步时的 `README public status sync` 结果。
+2. 运行 `pytest tests/test_scripts/test_check.py -q`，再运行 `python scripts/check.py --readme-sync`，观察根 README 未同步时的 `README public status sync` 结果。
 3. 提交前撤销这处临时 ROADMAP 编辑；练习的目的只是确认门禁，不应留下测试性状态变更。
 
 ## 自己试试（5 分钟）

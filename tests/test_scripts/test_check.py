@@ -44,53 +44,87 @@ def test_git_diff_includes_untracked_files(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_public_status_change_requires_root_readme_sync() -> None:
-    assert check.missing_readme_sync(
-        {"docs/00-overview/ROADMAP.md", "src/data/models.py"}
+    assert check.missing_readme_sync_batches(
+        [{"docs/00-overview/ROADMAP.md", "src/data/models.py"}]
     ) == ("docs/00-overview/ROADMAP.md",)
 
 
 def test_root_readme_satisfies_public_status_sync() -> None:
-    assert check.missing_readme_sync(
-        {"README.md", "docs/01-guides/HANDOVER.md"}
+    assert check.missing_readme_sync_batches(
+        [{"README.md", "docs/01-guides/HANDOVER.md"}]
     ) == ()
 
 
 def test_unrelated_docs_do_not_require_root_readme_sync() -> None:
-    assert check.missing_readme_sync(
-        {"docs/learning/21-engineering-discipline.md"}
+    assert check.missing_readme_sync_batches(
+        [{"docs/learning/21-engineering-discipline.md"}]
     ) == ()
 
 
-def test_git_upstream_diff_parses_successful_output(
+def test_ordered_batches_require_readme_after_later_canonical_change() -> None:
+    assert check.missing_readme_sync_batches(
+        [
+            {"README.md"},
+            {"docs/00-overview/ROADMAP.md"},
+        ]
+    ) == ("docs/00-overview/ROADMAP.md",)
+
+
+def test_ordered_batches_allow_same_or_later_readme_sync() -> None:
+    assert check.missing_readme_sync_batches(
+        [
+            {"docs/00-overview/ROADMAP.md", "README.md"},
+            {"docs/01-guides/HANDOVER.md"},
+            {"README.md"},
+        ]
+    ) == ()
+
+
+def test_git_commit_batches_parses_commits_in_old_to_new_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    run = Mock(return_value=_completed("README.md\ndocs/00-overview/ROADMAP.md\n"))
+    outputs: Iterator[subprocess.CompletedProcess[str]] = iter(
+        [
+            _completed("older\nnewer\n"),
+            _completed("README.md\n"),
+            _completed("docs/00-overview/ROADMAP.md\n"),
+        ]
+    )
+    run = Mock(side_effect=lambda *args, **kwargs: next(outputs))
     monkeypatch.setattr(check.subprocess, "run", run)
 
-    assert check.git_upstream_diff() == {
-        "README.md",
-        "docs/00-overview/ROADMAP.md",
-    }
-    assert run.call_args.args[0] == [
+    assert check.git_commit_batches("base") == [
+        {"README.md"},
+        {"docs/00-overview/ROADMAP.md"},
+    ]
+    assert run.call_args_list[0].args[0] == [
         "git",
-        "diff",
+        "rev-list",
+        "--reverse",
+        "base..HEAD",
+    ]
+    assert run.call_args_list[1].args[0] == [
+        "git",
+        "diff-tree",
+        "--no-commit-id",
         "--name-only",
-        "@{upstream}...HEAD",
+        "-r",
+        "older",
     ]
 
 
-def test_git_upstream_diff_returns_empty_set_without_upstream(
+def test_git_commit_batches_returns_empty_when_comparison_ref_is_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     run = Mock(return_value=_completed(returncode=128))
     monkeypatch.setattr(check.subprocess, "run", run)
 
-    assert check.git_upstream_diff() == set()
+    assert check.git_commit_batches("@{upstream}") == []
     assert run.call_args.args[0] == [
         "git",
-        "diff",
-        "--name-only",
-        "@{upstream}...HEAD",
+        "rev-list",
+        "--reverse",
+        "@{upstream}..HEAD",
     ]
 
 
@@ -155,7 +189,7 @@ def test_main_checks_backend_types_and_changed_frontend(
 
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": {"frontend/app/page.tsx"})
-    monkeypatch.setattr(check, "git_upstream_diff", lambda: set())
+    monkeypatch.setattr(check, "git_commit_batches", lambda target: [])
     monkeypatch.setattr(check, "run_step", fake_run_step)
     monkeypatch.setattr(sys, "argv", ["check.py"])
 
@@ -176,7 +210,7 @@ def test_full_mode_runs_python_and_frontend_gates(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": set())
-    monkeypatch.setattr(check, "git_upstream_diff", lambda: set())
+    monkeypatch.setattr(check, "git_commit_batches", lambda target: [])
     monkeypatch.setattr(check, "run_step", fake_run_step)
     monkeypatch.setattr(sys, "argv", ["check.py", "--full"])
 
@@ -200,29 +234,29 @@ def test_full_mode_fails_when_public_status_lacks_root_readme(
         "git_diff",
         lambda target="HEAD": {"docs/00-overview/ROADMAP.md"},
     )
-    monkeypatch.setattr(check, "git_upstream_diff", lambda: set())
+    monkeypatch.setattr(check, "git_commit_batches", lambda target: [])
     monkeypatch.setattr(check, "run_step", lambda name, cmd: True)
     monkeypatch.setattr(sys, "argv", ["check.py", "--full"])
 
     assert check.main() == 1
 
 
-def test_explicit_diff_does_not_use_upstream_files(
+def test_explicit_diff_uses_its_ref_for_committed_sync_batches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     diff = Mock(return_value={"src/data/models.py"})
-
-    def fail_if_called() -> set[str]:
-        raise AssertionError("git_upstream_diff() must not run for explicit --diff")
+    batches = Mock(return_value=[])
 
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", diff)
-    monkeypatch.setattr(check, "git_upstream_diff", fail_if_called)
+    monkeypatch.setattr(check, "git_commit_batches", batches)
     monkeypatch.setattr(check, "run_step", lambda name, cmd: True)
     monkeypatch.setattr(sys, "argv", ["check.py", "--diff", "some-ref"])
 
     assert check.main() == 0
-    diff.assert_called_once_with("some-ref")
+    assert diff.call_args_list[0].args == ("some-ref",)
+    assert diff.call_args_list[1].args == ()
+    batches.assert_called_once_with("some-ref")
 
 
 @pytest.mark.parametrize(("returncode", "expected"), [(0, True), (1, False)])
@@ -243,24 +277,83 @@ def test_run_step_returns_command_status(
 def test_main_returns_failure_when_a_gate_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": set())
-    monkeypatch.setattr(check, "git_upstream_diff", lambda: set())
+    monkeypatch.setattr(check, "git_commit_batches", lambda target: [])
     monkeypatch.setattr(check, "run_step", lambda name, cmd: name != "ruff")
     monkeypatch.setattr(sys, "argv", ["check.py"])
 
     assert check.main() == 1
 
 
-def test_main_fails_when_upstream_public_status_lacks_root_readme(
+def test_main_fails_when_committed_public_status_lacks_root_readme(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": {"src/data/models.py"})
     monkeypatch.setattr(
         check,
-        "git_upstream_diff",
-        lambda: {"docs/00-overview/ROADMAP.md"},
+        "git_commit_batches",
+        lambda target: [{"docs/00-overview/ROADMAP.md"}],
     )
     monkeypatch.setattr(check, "run_step", lambda name, cmd: True)
     monkeypatch.setattr(sys, "argv", ["check.py"])
 
     assert check.main() == 1
+
+
+def test_readme_sync_mode_uses_explicit_diff_batches_and_skips_full_gates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    batches = Mock(
+        return_value=[
+            {"README.md"},
+            {"docs/00-overview/ROADMAP.md"},
+        ]
+    )
+    current = Mock(return_value=set())
+
+    monkeypatch.setattr(check, "git_commit_batches", batches)
+    monkeypatch.setattr(check, "git_diff", current)
+    monkeypatch.setattr(
+        check,
+        "ensure_deps",
+        lambda: pytest.fail("--readme-sync must not install dependencies"),
+    )
+    monkeypatch.setattr(
+        check,
+        "run_step",
+        lambda name, cmd: pytest.fail("--readme-sync must not run full gates"),
+    )
+    monkeypatch.setattr(sys, "argv", ["check.py", "--readme-sync", "--diff", "base"])
+
+    assert check.main() == 1
+    batches.assert_called_once_with("base")
+    current.assert_called_once_with()
+
+
+def test_readme_sync_default_without_upstream_checks_only_current_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    batches = Mock(return_value=[])
+    monkeypatch.setattr(check, "git_commit_batches", batches)
+    monkeypatch.setattr(check, "git_diff", lambda target="HEAD": {"README.md"})
+    monkeypatch.setattr(
+        check,
+        "run_step",
+        lambda name, cmd: pytest.fail("--readme-sync must not run full gates"),
+    )
+    monkeypatch.setattr(sys, "argv", ["check.py", "--readme-sync"])
+
+    assert check.main() == 0
+    batches.assert_called_once_with("@{upstream}")
+
+
+def test_ci_runs_dedicated_readme_sync_gate_for_pull_requests() -> None:
+    workflow = (check.REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    command = (
+        "python scripts/check.py --readme-sync --diff "
+        "${{ github.event.pull_request.base.sha }}"
+    )
+
+    assert "fetch-depth: 0" in workflow
+    assert "if: github.event_name == 'pull_request'" in workflow
+    assert command in workflow

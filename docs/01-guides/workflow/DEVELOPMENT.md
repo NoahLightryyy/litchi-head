@@ -114,7 +114,10 @@
 > `docs/00-overview/ROADMAP.md`、`docs/01-guides/HANDOVER.md`、
 > `docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md` 和
 > `docs/02-requirements/STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md`。模块 README、学习卡、
-> 工作日志和仅债务变更不会触发此门禁；它们仍按本表各自的同步规则审计。
+> 工作日志和仅债务变更不会触发此门禁；它们仍按本表各自的同步规则审计。门禁按比较 ref
+> 到 `HEAD` 的提交批次（旧→新）再加当前未提交批次处理：同批或更晚的 `README.md` 会关闭
+> 待同步项，之后的新 canonical 变更会重新失败。默认比较 upstream；没有 upstream 时仅检查
+> 当前未提交批次。PR CI 以 base SHA 调用 `--readme-sync` 专用模式，不重复完整质量门禁。
 
 ---
 

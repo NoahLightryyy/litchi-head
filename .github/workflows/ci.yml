@@ -19,6 +19,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Install Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
@@ -29,6 +31,10 @@ jobs:
 
       - name: Install project
         run: pip install -e ".[dev]"
+
+      - name: README public status sync
+        if: github.event_name == 'pull_request'
+        run: python scripts/check.py --readme-sync --diff ${{ github.event.pull_request.base.sha }}
 
       - name: Ruff (代码风格)
         run: ruff check .

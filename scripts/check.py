@@ -13,6 +13,7 @@
   python scripts/check.py              # 检测变更范围 + 按需跑测试
   python scripts/check.py --full       # 强制跑全部测试（-m "not slow"）
   python scripts/check.py --diff main  # 跟 main 分支比变更范围
+  python scripts/check.py --readme-sync --diff main  # 仅检查 README 公共状态同步
 
 退出码：0 全通过，1 有失败
 """
@@ -102,24 +103,67 @@ def git_diff(target: str = "HEAD") -> set[str]:
     return files
 
 
-def git_upstream_diff() -> set[str]:
-    """Return committed files ahead of upstream, or empty when no upstream exists."""
+def git_commit_batches(target: str) -> list[set[str]]:
+    """Return changed-file batches for commits from target to HEAD, oldest first."""
     result = subprocess.run(
-        ["git", "diff", "--name-only", "@{upstream}...HEAD"],
+        ["git", "rev-list", "--reverse", f"{target}..HEAD"],
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
     )
     if result.returncode != 0:
-        return set()
-    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+        return []
+
+    batches: list[set[str]] = []
+    for commit in result.stdout.splitlines():
+        commit = commit.strip()
+        if not commit:
+            continue
+        changed = subprocess.run(
+            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        if changed.returncode != 0:
+            return []
+        batches.append(
+            {line.strip() for line in changed.stdout.splitlines() if line.strip()}
+        )
+    return batches
 
 
-def missing_readme_sync(changed_files: set[str]) -> tuple[str, ...]:
-    """Return canonical public-status sources changed without root README."""
-    if "README.md" in changed_files:
-        return ()
-    return tuple(sorted(changed_files & PUBLIC_STATUS_FILES))
+def missing_readme_sync_batches(batches: list[set[str]]) -> tuple[str, ...]:
+    """Return canonical status changes not followed by README in ordered batches."""
+    pending: set[str] = set()
+    for batch in batches:
+        pending.update(batch & PUBLIC_STATUS_FILES)
+        if "README.md" in batch:
+            pending.clear()
+    return tuple(sorted(pending))
+
+
+def readme_sync_batches(diff_ref: str) -> list[set[str]]:
+    """Build ordered committed batches plus the current uncommitted batch."""
+    comparison_ref = "@{upstream}" if diff_ref == "HEAD" else diff_ref
+    batches = git_commit_batches(comparison_ref)
+    current_batch = git_diff()
+    if current_batch:
+        batches.append(current_batch)
+    return batches
+
+
+def run_readme_sync(diff_ref: str) -> bool:
+    """Run only the public README synchronization gate."""
+    _s("\n  === README public status sync ===")
+    missing = missing_readme_sync_batches(readme_sync_batches(diff_ref))
+    if missing:
+        _s("  [FAIL] canonical public status changed without README.md:")
+        for path in missing:
+            _s(f"         {path}")
+        return False
+    _s("  [PASS] README public status sync")
+    return True
 
 
 def pick_test_targets(changed_files: set[str]) -> list[str] | None:
@@ -258,16 +302,19 @@ def main() -> int:
         "--diff", metavar="REF", default="HEAD",
         help="跟哪个 ref 比较变更范围（默认 HEAD，即上次提交）",
     )
+    parser.add_argument(
+        "--readme-sync", action="store_true",
+        help="仅检查根 README 的公共状态同步，不运行其他质量门禁",
+    )
     args = parser.parse_args()
+
+    if args.readme_sync:
+        return 0 if run_readme_sync(args.diff) else 1
 
     _print_header()
     ensure_deps()
 
     changed = git_diff(args.diff)
-    public_changed = set(changed)
-    if args.diff == "HEAD":
-        public_changed.update(git_upstream_diff())
-    missing_public_sync = missing_readme_sync(public_changed)
     frontend_required = args.full or needs_frontend_check(changed)
 
     passes = 0
@@ -282,14 +329,8 @@ def main() -> int:
         passes += 1
 
     # ── 3. README public status sync ──
-    _s("\n  === README public status sync ===")
-    if missing_public_sync:
-        _s("  [FAIL] canonical public status changed without README.md:")
-        for path in missing_public_sync:
-            _s(f"         {path}")
-    else:
+    if run_readme_sync(args.diff):
         passes += 1
-        _s("  [PASS] README public status sync")
 
     # ── 4. 测试 ──
     if args.full:
