@@ -144,12 +144,28 @@ DataEvidenceService
 | `IndustryPosition` 🆕 | 产业链定位（上游/中游/下游 + 同行 + 主营构成） |
 | `SupplyChainNode` 🆕 | 供应链节点（客户/供应商 + 交易占比） |
 
+### KR-3 运行时聚合契约
+
+`assemble_kline_business()` 是运行时 K 线的唯一公开聚合边界。它必须先校验固定的
+KLINE / INTRADAY / REALTIME_QUOTE 能力槽位与证券请求身份；接线或跨证券错误属于程序
+契约错误，必须抛出异常，不能降级为数据失败。
+
+对于来源信封不完整或已知的派生数据不满足条件，聚合器必须 fail-closed：返回不携带任何
+半成品行情 payload 的 `KlineBusinessFailure`，并且在固定顺序中提供
+`FINAL_DAILY`、`FINAL_MINUTE`、`LIVE_QUOTE`、`PROVISIONAL` 四层诊断。报价层失败或基数
+非法时，依赖它的 `PROVISIONAL` 也必须有独立诊断。稳定错误码的唯一规范表见
+[`KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md`](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)。
+
+全部四层诊断都完整时，`assemble_kline_business()` 必须委托严格的
+`assemble_complete_kline_business()`；后者保留给严格/内部调用方，签名和
+`KlineBusinessEnvelope` 返回类型不得改变。不得再实现第二个组装器或第二份错误码表。
+
 ## 当前实现状态
 
 | 特性 | 状态 | 测试数 |
 |:-----|:----:|:------:|
 | A股行情采集 | 已完成 | — |
-| K 线数据采集 | KR-1～KR-3 完成；逐源证明、RAW/诊断持久化、点时复权和统一四层成功/失败结果可用；KR-4 自动进入已暂停，等待 validation-first checkpoint 规划，尚未接入下游消费者 | 120（相关回归） |
+| K 线数据采集 | KR-1～KR-3 完成；逐源证明、RAW/诊断持久化、点时复权和统一四层成功/失败结果可用；KR-4 自动进入已暂停，等待 validation-first checkpoint 规划，尚未接入下游消费者 | 历史相关回归约 120（非本次计数）；本次可审计命令 `python -m pytest tests/test_data/test_kline_business_runtime.py tests/test_data/test_kline_business_envelope.py -q`：76 passed；`python scripts/check.py`：692 passed、4 skipped |
 | 新闻采集 | 已完成 | — |
 | 数据缓存（TTL） | 已完成 | — |
 | Pydantic 标准化转换 | 已完成 | — |
