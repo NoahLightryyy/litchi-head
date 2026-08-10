@@ -153,7 +153,8 @@ KLINE / INTRADAY / REALTIME_QUOTE 能力槽位与证券请求身份；接线或�
 对于来源信封不完整或已知的派生数据不满足条件，聚合器必须 fail-closed：返回不携带任何
 半成品行情 payload 的 `KlineBusinessFailure`，并且在固定顺序中提供
 `FINAL_DAILY`、`FINAL_MINUTE`、`LIVE_QUOTE`、`PROVISIONAL` 四层诊断。报价层失败或基数
-非法时，依赖它的 `PROVISIONAL` 也必须有独立诊断。稳定错误码的唯一规范表见
+非法时，依赖它的 `PROVISIONAL` 也必须有独立诊断；canonical `StockQuote` 无法转换为冻结
+RAW `LiveRawQuote` 也属于报价层失败。稳定错误码的唯一规范表见
 [`KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md`](../../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)。
 
 全部四层诊断都完整时，`assemble_kline_business()` 必须委托严格的

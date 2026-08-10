@@ -409,6 +409,33 @@ def test_unified_assembler_reports_invalid_quote_cardinality(cardinality: int) -
     )
 
 
+def test_unified_assembler_reports_invalid_live_quote_conversion() -> None:
+    """A canonical quote that fails the frozen RAW conversion stays diagnosable."""
+    quote = _quote_evidence()
+    invalid_canonical = quote.items[0].model_copy(update={"price": float("nan")})
+    quote = quote.model_copy(update={"items": [invalid_canonical]})
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=quote,
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert result.error_codes == (
+        "live_quote_invalid",
+        "provisional_quote_dependency_invalid",
+    )
+    diagnostics = {item.layer: item for item in result.layer_diagnostics}
+    assert diagnostics[KlineBusinessLayer.LIVE_QUOTE].error_code == "live_quote_invalid"
+
+
 def test_unified_assembler_reports_invalid_provisional_quote() -> None:
     quote = _quote_evidence()
     canonical = quote.items[0].model_copy(update={"price": 11.0})

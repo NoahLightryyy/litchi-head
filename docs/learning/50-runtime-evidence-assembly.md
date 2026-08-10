@@ -57,6 +57,13 @@ KR-1/2 日线、分时和实时报价各自已经完成双源核验，但它们�
 `provisional_quote_dependency_invalid`。只有单一报价本身不能构造成有效 OHLC 时，实时层仍可
 完整，而 `PROVISIONAL` 单独报 `provisional_quote_invalid`。
 
+还有一层容易忽略的边界：`StockQuote` 是上游 canonical 模型，但业务信封必须把它转换成冻结、
+只允许 RAW 价格坐标的 `LiveRawQuote`。如果缓存残留、未校验复制或未来适配器让这个转换失败，
+不能把它误报为基数错误，也不能继续使用报价；`LIVE_QUOTE` 必须给出稳定码
+`live_quote_invalid`，同时让 `PROVISIONAL` 给出其依赖失败码。该稳定码只在
+[`KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md`](../02-requirements/KLINE_EVIDENCE_IMPLEMENTATION_PLAN.md)
+的唯一表中定义。
+
 ## 为什么程序接线错误仍然抛异常
 
 把实时信封接到日线参数，或请求 `000001` 却传入为 `600000` 收集的信封，不是上游暂时失败，

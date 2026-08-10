@@ -382,6 +382,7 @@ KR-2B-1 快照不能进入 AI。
 | `FINAL_DAILY` | `final_daily_lineage_conflict` | 复权序列与日线 RAW 快照血缘冲突 |
 | `FINAL_MINUTE` | `final_minute_missing` | 完整分时信封没有 `FINAL` 分钟 |
 | `LIVE_QUOTE` | `live_quote_cardinality_invalid` | canonical 实时报价不是恰好一条 |
+| `LIVE_QUOTE` | `live_quote_invalid` | canonical `StockQuote` 无法通过冻结 RAW `LiveRawQuote` 校验 |
 | `PROVISIONAL` | `provisional_quote_dependency_invalid` | 报价基数非法，动态日条依赖无法满足 |
 | `PROVISIONAL` | `provisional_quote_invalid` | 单一报价无法构造成有效动态 OHLC |
 
