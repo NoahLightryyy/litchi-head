@@ -191,6 +191,40 @@ def test_full_mode_runs_python_and_frontend_gates(monkeypatch: pytest.MonkeyPatc
     ) in calls
 
 
+def test_full_mode_fails_when_public_status_lacks_root_readme(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(check, "ensure_deps", lambda: None)
+    monkeypatch.setattr(
+        check,
+        "git_diff",
+        lambda target="HEAD": {"docs/00-overview/ROADMAP.md"},
+    )
+    monkeypatch.setattr(check, "git_upstream_diff", lambda: set())
+    monkeypatch.setattr(check, "run_step", lambda name, cmd: True)
+    monkeypatch.setattr(sys, "argv", ["check.py", "--full"])
+
+    assert check.main() == 1
+
+
+def test_explicit_diff_does_not_use_upstream_files(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    diff = Mock(return_value={"src/data/models.py"})
+
+    def fail_if_called() -> set[str]:
+        raise AssertionError("git_upstream_diff() must not run for explicit --diff")
+
+    monkeypatch.setattr(check, "ensure_deps", lambda: None)
+    monkeypatch.setattr(check, "git_diff", diff)
+    monkeypatch.setattr(check, "git_upstream_diff", fail_if_called)
+    monkeypatch.setattr(check, "run_step", lambda name, cmd: True)
+    monkeypatch.setattr(sys, "argv", ["check.py", "--diff", "some-ref"])
+
+    assert check.main() == 0
+    diff.assert_called_once_with("some-ref")
+
+
 @pytest.mark.parametrize(("returncode", "expected"), [(0, True), (1, False)])
 def test_run_step_returns_command_status(
     monkeypatch: pytest.MonkeyPatch,
