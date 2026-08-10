@@ -6,14 +6,14 @@
 </p>
 
 <p align="center">
-  <em>个人多智能体投资决策助手 — 你的 AI 投研团队</em>
+  <em>个人投资研究与决策证据助手 — 多智能体是待验证的实现手段</em>
 </p>
 
 <p align="center">
   <a href="https://github.com/NoahLightryyy/litchi-head/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/NoahLightryyy/litchi-head/ci.yml?branch=main&label=CI&logo=github" alt="CI Status">
   </a>
-  <img src="https://img.shields.io/badge/tests-1600%20passed-2ea44f?logo=pytest" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-pytest%20passing-2ea44f?logo=pytest" alt="Tests">
   <img src="https://img.shields.io/badge/coverage-80%25%2B-brightgreen" alt="Coverage">
   <img src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/type_check-pyright-brightgreen" alt="Pyright">
@@ -27,7 +27,10 @@
 > 散户想认真做投资？打开 APP 满屏推荐、消息轰炸、FOMO 追涨。
 > 机构有 10 个 CFA + Bloomberg Terminal — 我就不信一个人配不齐 AI 投研。
 
-**Litchi Head** 的目标是：你问一句话 → 15 秒内拿到结构化的多维投资决策信息，10 秒内能看懂、能决策、能行动。
+**Litchi Head** 的目标是：你问一句话 → 获得结构化的证据、分歧、风险和估值支持，帮助你在 10 秒内看懂关键信息；最终投资决策始终由你自己作出。
+
+> [!IMPORTANT]
+> **当前证据成熟度**：工程链路和失败关闭已有测试证据，但项目尚未证明多智能体比单 Agent、简单规则或买入持有更能创造成本后收益。E0-100 离线闭卷评测设计已批准，尚未实施、尚无胜负结论；KR-4～KR-6 在 E0 裁决前暂停。
 
 > 💡 **2026-06-23 新的方向**：投行 vs 散户的真正壁垒不是分析模型，而是**数据纵深**——财报拆解、供应链分析、产业链定位。litchi-head 补上这块，就是极少数同时具备技术分析 + 基本面深度 + AI 多角度辩论的散户投资工具。
 
@@ -37,6 +40,8 @@
 > 🏛️ 完整设计哲学见 [DESIGN_PHILOSOPHY.md](docs/00-overview/DESIGN_PHILOSOPHY.md)
 >
 > 三权分立：公式负责调整，镜子负责展示，人负责拍板
+
+> 下图是当前实现，不是已经验证的最优组织。E0 将通过 Full/Single 对照和后续消融实验检验辩论、人格、风控等层是否真的改善指标；删掉某层不降指标，就应合并或删除。
 
 ```
                          ┌───────────────────────────┐
@@ -124,7 +129,7 @@
 | **分析师层** | 4 位专业分析师（基本面/技术面/情绪面/宏观面）+ 财务指标注入 + 灵感官反共识分析 | ✅ Phase 1 完成 |
 | **风控模块** | 三层风控辩论（Aggressive/Conservative/Neutral）+ PM 裁决 + 交易纪律体系 | ✅ R1 就绪（26 tests） |
 | **交易员层** | T1 交易员执行规划 — ExecutionStep/TradePlan + 仓位计算 + 预案规划 | ✅ T1 就绪（20 tests） |
-| **7 位投资大师 + 灵感官** | 巴菲特/芒格/费雪/卡拉曼/利弗莫尔/索罗斯/西蒙斯，每人独立人格 + 投资哲学 + 第 5 位反共识分析师 🆕 | ✅ 就绪（含 DP-005 灵感官） |
+| **7 位投资大师 + 灵感官** | 当前策略/人格接口：巴菲特/芒格/费雪/卡拉曼/利弗莫尔/索罗斯/西蒙斯与第 5 位反共识分析师；不模拟历史人物。E0/消融尚未证明这些层具有不可替代优势。 | ✅ 已实现，待验证 |
 | **信任度评分** | TrustTracker — 方向准确率/校准/偏差/趋势统计 + DP-004 发言排序/低信任跳过 | ✅ M3 + RC-002 + DP-004 就绪 |
 | **动态权重** | `compute_weight_factor(metrics, sector=...)` 根据信任度和板块胜率动态调整聚合权重，D3 weight_suggestions 叠加 | ✅ M4 就绪（支持 sector） |
 | **教育小智** | RAG 驱动的问答 Agent（30 篇知识库 + TF 向量语义检索） | ✅ 就绪 |
@@ -138,13 +143,14 @@
 | **交易复盘看板** | RetroBoard 展示 AI 推荐、用户操作和结果字段 | 🟡 R4 极简版完成（27 tests）；连续真实结果与 baseline 统计未完成 |
 | **AI 输出置信度量化** | 校准曲线映射 + aggregate_node 校准 + 前端置信度可视化 | ✅ R4 完成 |
 | **基本面深度（FD）** ✅ | 财报纵深 + 产业链定位 + 供应链调研 — 机构级基本面分析能力 | ✅ FD-001 全链路完成（数据层+辩论注入+API+前端Tab） |
-| **多源证据完整性** | 六态来源结果 + 独立上游计数 + K 线逐源准确响应证明 + 不可变 `as_of` 回放 + LLM 前失败关闭 | 🟡 KR-3B-1 成功运行时组装完成；下一原子 KR-3B-2 四层失败诊断归并，后续 AI/API 尚未切换 |
+| **多源证据完整性** | 六态来源结果 + 独立上游计数 + K 线逐源准确响应证明 + 不可变 `as_of` 回放 + LLM 前失败关闭 | 🟡 KR-3B-2 已完成；`assemble_kline_business()` 是统一成功/失败边界。AI/API/前端/风控/交易/回测消费者尚未切换。 |
+| **E0-100 闭卷验证** | 对比 Full 多智能体、同模型 Single DeepSeek、现金、买入持有与 20 日动量 | 🟡 设计已批准；实施计划、数据就绪度及费用/市场状态/仓位参数待定，尚无表现结果 |
 | **分时历史量能基线** | 腾讯历史单源影子回填 + 双源完整日正式层 + 内容寻址 Parquet/SQLite 审计 + 同分钟中位数 | 🟡 TD-072 代码完成；等待20个双源完整日暖机与影子误报率验证，启用前失败关闭 |
 
 > FD 基本面深度轨道基于 2026-06-23 调研结论：散户 vs 机构的核心壁垒在于财报纵深和供应链数据，而非分析模型。
 > 完整调研报告见 [FUNDAMENTAL_RESEARCH.md](docs/02-requirements/FUNDAMENTAL_RESEARCH.md)。
 
-### 🏗️ 工程架构（12 部门体系）
+### 🏗️ 当前物理目录与责任映射
 
 ```
 ├── agents/          Agent 定义（Base → Master → 7位大师 → 教育小智）    ← 🤖 AI Agent 架构部
@@ -163,12 +169,11 @@
 └── docs/             部门体系 · 模块规格 · 设计决策 · 工作日志            ← 📋 全部门共享
 ```
 
-> 每个代码目录对应一个"部门"（`docs/06-departments/{id}/`），
-> 进入该目录 AI 自动加载对应角色身份和专业标准。
+> 为避免业务损失，现有物理目录与职责保持不变；七个逻辑能力域仅是治理视图，不是目录迁移。任何后续合并都必须先完成依赖盘点、验收检查与回滚方案。规范决策见 [STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md](docs/02-requirements/STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md)。
 
 ### 🧪 工程质量
 
-- **1623 项测试已收集** — 本地非慢测 1600 通过、4 跳过、19 个慢测排除；含 K 线逐源覆盖/审计回放、公司行动模板与修订归链测试
+- **最近完整闸门快照（2026-08-10）** — 1718 collected、1695 passed、5 skipped、19 deselected；Ruff 与 Pyright 通过。最新状态以 CI 为准。
 - **CI/CD 全自动** — GitHub Actions 流水线（Ruff 风格检查 + Pyright 类型检查 + Pytest 测试）
 - **类型安全** — 全项目完整类型注解，Pyright basic mode 零错误
 - **结果回调审计** — `CallbackRecord` 记录每次结果事件响应，坏回调自动熔断不拖垮主流程
@@ -227,7 +232,7 @@ Phase 2 ──── 增强辩论与风控 ██████████░░�
 
 Phase R ──── 实盘加固 █████████████████████████░░  88% 🟡 ← 当前阶段
   │  88% 仅表示功能清单，不表示实盘效果已经验证
-  │  多源契约 ✅ · K线 KR-2统一复权 ✅/KR-3～6 🟡 · 置信度功能 ✅/真实校准待积累 · baseline/影子验证 ⬜
+  │  多源契约 ✅ · K线 KR-2统一复权 ✅/KR-3 完成 · E0 设计已批准 · KR-4～KR-6 在 E0 裁决前暂停
 
 Phase R+1 ──── 设计哲学落地 ████████████████████████  100% ✅
   │  DP-001 模型瘦身 ✅ · DP-002 三段式互评 ✅ · DP-003 偏斜公示 ✅
@@ -240,9 +245,7 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
   │  Broker 接入 · 回测验证 · 个人决策日志
 ```
 
-> **证据成熟度说明**：功能存在、测试通过不等于投资效果成立。项目已冻结
-> [决策 Baseline 与影子验证计划](docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)，
-> 当前先完成 K 线 KR-2～KR-6，再以预注册对照、不可变样本和成本后结果验证 AI 增量价值。
+> **证据成熟度说明**：功能存在、测试通过不等于投资效果成立。当前按 E0-first 顺序推进：先实施已批准的 [E0-100 离线闭卷评测设计](docs/superpowers/specs/2026-08-10-e0-validation-checkpoint-design.md)，并落实 [决策 Baseline 与影子验证计划](docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md) 中的实施计划、数据就绪度和费用/市场状态/仓位参数；E0 裁决前不进入 KR-4～KR-6。
 
 ## 为什么值得关注
 
@@ -253,12 +256,12 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 | 🎯 **多 Agent 协同** | LangGraph StateGraph 生产级实践，解决 Agent 间状态共享与并行调度 |
 | 🧠 **RAG 知识检索** | TF 向量 + n-gram 语义检索混合方案，不依赖外部向量数据库 |
 | 🛡️ **结构化输出** | Pydantic 驱动的 Agent 输出规范化，保证下游消费的类型安全 |
-| 📊 **多源数据分析** | 统一来源身份与六态结果；按真实上游计数，证据不足时计划在 LLM 前失败关闭 |
+| 📊 **多源数据分析** | 统一来源身份与六态结果；按真实上游计数，证据不足时在 LLM 前失败关闭 |
 
 ### 工程素养
 
 - 📐 **13 份架构决策记录** — 每步选型有理由有权衡，不是"跟着教程写"
-- 🧪 **1623 项测试已收集** — 1600 通过、4 跳过、19 个慢测按本地闸门排除；含 K 线审计、公司行动修订归链、真实 LLM 和全链路测试
+- 🧪 **最近完整闸门快照（2026-08-10）** — 1718 collected、1695 passed、5 skipped、19 deselected；Ruff 与 Pyright 通过。最新状态以 CI 为准。
 - 📝 **完整的文档体系** — 设计文档/流程规范/工作日志，代码即文档
 - 🔄 **CI/CD 全自动流水线** — GitHub Actions 一键 lint + type + test
 - 🔁 **结果驱动闭环地基** — RC-001/002 让“实际走势出来了”可以统一触发大师信任度校准
@@ -282,7 +285,7 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 - [项目总览](docs/00-overview/OVERVIEW.md) — 定位、架构、快照
 - [全局看板](docs/00-overview/ROADMAP.md) — Phase 0-4 进度
 - [技术栈](docs/00-overview/TECH_STACK.md) — 选型理由与权衡
-- [🏢 部门体系](docs/06-departments/README.md) — 12 部门组织架构 + 数据流 + 协作规程
+- [🏢 职责与治理视图](docs/06-departments/README.md) — 物理目录责任映射、逻辑能力域与协作规程
 - [架构决策记录](docs/05-decisions/README.md) — 13 条 ADR
 - [AI 工作流程](docs/01-guides/WORKFLOW.md) — 开发流程规范（含部门角色加载机制）
 - [环境配置](docs/01-guides/ENVIRONMENT.md) — 快速开始
