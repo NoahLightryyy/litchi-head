@@ -103,8 +103,8 @@ def git_diff(target: str = "HEAD") -> set[str]:
     return files
 
 
-def git_commit_batches(target: str) -> list[set[str]]:
-    """Return changed-file batches for commits from target to HEAD, oldest first."""
+def git_commit_batches(target: str) -> list[set[str]] | None:
+    """Return ordered commit batches, or None when a known commit is unreadable."""
     result = subprocess.run(
         ["git", "rev-list", "--reverse", f"{target}..HEAD"],
         capture_output=True,
@@ -112,24 +112,51 @@ def git_commit_batches(target: str) -> list[set[str]]:
         cwd=REPO_ROOT,
     )
     if result.returncode != 0:
-        return []
+        return [] if target == "@{upstream}" else None
 
     batches: list[set[str]] = []
     for commit in result.stdout.splitlines():
         commit = commit.strip()
         if not commit:
             continue
-        changed = subprocess.run(
-            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit],
+        parents = subprocess.run(
+            ["git", "show", "--format=%P", "--no-patch", commit],
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
         )
-        if changed.returncode != 0:
-            return []
-        batches.append(
-            {line.strip() for line in changed.stdout.splitlines() if line.strip()}
-        )
+        if parents.returncode != 0:
+            return None
+        parent_ids = parents.stdout.split()
+
+        if len(parent_ids) <= 1:
+            changed = subprocess.run(
+                ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit],
+                capture_output=True,
+                text=True,
+                cwd=REPO_ROOT,
+            )
+            if changed.returncode != 0:
+                return None
+            batches.append(
+                {line.strip() for line in changed.stdout.splitlines() if line.strip()}
+            )
+            continue
+
+        parent_diffs: list[set[str]] = []
+        for parent in parent_ids:
+            changed = subprocess.run(
+                ["git", "diff", "--name-only", parent, commit],
+                capture_output=True,
+                text=True,
+                cwd=REPO_ROOT,
+            )
+            if changed.returncode != 0:
+                return None
+            parent_diffs.append(
+                {line.strip() for line in changed.stdout.splitlines() if line.strip()}
+            )
+        batches.append(set.intersection(*parent_diffs))
     return batches
 
 
@@ -143,10 +170,12 @@ def missing_readme_sync_batches(batches: list[set[str]]) -> tuple[str, ...]:
     return tuple(sorted(pending))
 
 
-def readme_sync_batches(diff_ref: str) -> list[set[str]]:
+def readme_sync_batches(diff_ref: str) -> list[set[str]] | None:
     """Build ordered committed batches plus the current uncommitted batch."""
     comparison_ref = "@{upstream}" if diff_ref == "HEAD" else diff_ref
     batches = git_commit_batches(comparison_ref)
+    if batches is None:
+        return None
     current_batch = git_diff()
     if current_batch:
         batches.append(current_batch)
@@ -156,7 +185,11 @@ def readme_sync_batches(diff_ref: str) -> list[set[str]]:
 def run_readme_sync(diff_ref: str) -> bool:
     """Run only the public README synchronization gate."""
     _s("\n  === README public status sync ===")
-    missing = missing_readme_sync_batches(readme_sync_batches(diff_ref))
+    batches = readme_sync_batches(diff_ref)
+    if batches is None:
+        _s("  [FAIL] unable to inspect committed public status changes")
+        return False
+    missing = missing_readme_sync_batches(batches)
     if missing:
         _s("  [FAIL] canonical public status changed without README.md:")
         for path in missing:
