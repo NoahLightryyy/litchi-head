@@ -232,7 +232,7 @@ AI 与 baseline 必须使用同一时点、价格坐标和成本口径；失败�
 | `src/data/evidence.py` | 统一来源身份、能力、六态结果、注册与完整性评估 |
 | `src/data/kline_adjustment.py` | KR-2A 版本化因子/点时 QFQ、官方事件契约，以及 KR-2B-2C 已核验因子转换 |
 | `src/data/kline_business.py` | KR-3A 四层成功/失败业务契约、深度冻结事实与幂等收盘晋升 |
-| `src/data/kline_business_runtime.py` | KR-3B 成功运行时组装、RAW 快照血缘校验；后续承接四层失败诊断归并 |
+| `src/data/kline_business_runtime.py` | KR-3B 统一运行时组装、RAW 快照血缘校验与四层稳定失败诊断归并；严格组装入口继续保留 |
 | `src/data/providers/sina_adjustment.py` | KR-2B-1 新浪累计 QFQ 除数证据快照；不生成公司行动事件因子 |
 | `src/data/providers/cninfo_actions.py` | KR-2B-2B1～2B2B 沪深模板、配股、差异化双口径、修订唯一归链与历史回填 |
 | `src/data/providers/cninfo.py` | CNINFO 权威公告统一证据适配器 |

@@ -166,7 +166,7 @@ RAW `LiveRawQuote` 也属于报价层失败。稳定错误码的唯一规范表�
 | 特性 | 状态 | 测试数 |
 |:-----|:----:|:------:|
 | A股行情采集 | 已完成 | — |
-| K 线数据采集 | KR-1～KR-3 完成；逐源证明、RAW/诊断持久化、点时复权和统一四层成功/失败结果可用；KR-4 自动进入已暂停，等待 validation-first checkpoint 规划，尚未接入下游消费者 | 历史相关回归约 120（非本次计数）；本次可审计命令 `python -m pytest tests/test_data/test_kline_business_runtime.py tests/test_data/test_kline_business_envelope.py -q`：76 passed；`python scripts/check.py`：692 passed、4 skipped |
+| K 线数据采集 | KR-1～KR-3 完成；逐源证明、RAW/诊断持久化、点时复权和统一四层成功/失败结果可用；KR-4 自动进入已暂停，等待 validation-first checkpoint 规划，尚未接入下游消费者 | 历史相关回归约 120（非本次计数）；本次可审计命令 `python -m pytest tests/test_data/test_kline_business_runtime.py tests/test_data/test_kline_business_envelope.py -q`：77 passed；最终 `python scripts/check.py --full`：1695 passed、4 skipped、19 deselected，4/4 闸门通过 |
 | 新闻采集 | 已完成 | — |
 | 数据缓存（TTL） | 已完成 | — |
 | Pydantic 标准化转换 | 已完成 | — |

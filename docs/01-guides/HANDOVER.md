@@ -59,7 +59,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
 | **最新功能批次** | KR-3B-2 已完成：KR-3 产出可判别的四层成功/失败结果；下一步为 validation-first checkpoint 规划 |
-| **全量测试** | 1706 collected；1683 passed / 4 skipped / 19 deselected；4/4 闸门通过 ✅ |
+| **全量测试** | 1718 collected；1695 passed / 4 skipped / 19 deselected；4/4 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | ✅ Run #72 全绿（frontend + Python 3.12/3.13）；本地全量闸门 4/4 通过 |
