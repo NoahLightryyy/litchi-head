@@ -59,10 +59,10 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
 | **最新功能批次** | KR-3B-2 已完成；E0-100 validation-first 设计已批准，下一步写实施计划，KR-4 继续暂停 |
-| **全量测试** | 1718 collected；1695 passed / 4 skipped / 19 deselected；4/4 闸门通过 ✅ |
+| **全量测试** | 1742 collected；1719 passed / 4 skipped / 19 deselected；5/5 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
-| **CI 状态** | ✅ Run #72 全绿（frontend + Python 3.12/3.13）；本地全量闸门 4/4 通过 |
+| **CI 状态** | ✅ 最近远端 Run #72 全绿（frontend + Python 3.12/3.13）；本地全量闸门 5/5 通过；PR README 窄门禁 checkout 实际 PR head 并对 base SHA 失败关闭审计 |
 
 ---
 

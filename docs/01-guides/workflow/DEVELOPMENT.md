@@ -116,8 +116,11 @@
 > `docs/02-requirements/STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md`。模块 README、学习卡、
 > 工作日志和仅债务变更不会触发此门禁；它们仍按本表各自的同步规则审计。门禁按比较 ref
 > 到 `HEAD` 的提交批次（旧→新）再加当前未提交批次处理：同批或更晚的 `README.md` 会关闭
-> 待同步项，之后的新 canonical 变更会重新失败。默认比较 upstream；没有 upstream 时仅检查
-> 当前未提交批次。PR CI 以 base SHA 调用 `--readme-sync` 专用模式，不重复完整质量门禁。
+> 待同步项，之后的新 canonical 变更会重新失败。只有省略 `--diff` 才选择已配置 upstream；
+> 显式 ref（包括 `HEAD`）始终权威。仅在 Git 明确确认当前分支未配置 upstream 时，默认模式
+> 才降级为当前未提交批次；权限、safe-directory、损坏 ref、缺失对象及其他 Git 错误均用简短
+> 诊断失败关闭。PR CI checkout 实际 PR head，并以 base SHA 调用 `--readme-sync` 专用模式，
+> 不重复 Ruff、Pyright、pytest 或前端类型检查。
 
 ---
 

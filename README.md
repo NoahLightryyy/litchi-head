@@ -173,7 +173,7 @@
 
 ### 🧪 工程质量
 
-- **最近完整闸门快照（2026-08-10）** — 1734 collected、1711 passed、4 skipped、19 deselected；Ruff 与 Pyright 通过。最新状态以 CI 为准。
+- **最近完整闸门快照（2026-08-10）** — 1742 collected、1719 passed、4 skipped、19 deselected；Ruff、Pyright、README 公共状态同步、Python 测试和前端类型检查 5/5 通过。PR 窄门禁以实际 PR head 对 base SHA 审计，Git 审计错误失败关闭；最新远端状态以 CI 为准。
 - **CI/CD 全自动** — GitHub Actions 流水线（Ruff 风格检查 + Pyright 类型检查 + Pytest 测试）
 - **类型安全** — 全项目完整类型注解，Pyright basic mode 零错误
 - **结果回调审计** — `CallbackRecord` 记录每次结果事件响应，坏回调自动熔断不拖垮主流程
@@ -261,7 +261,7 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 ### 工程素养
 
 - 📐 **13 份架构决策记录** — 每步选型有理由有权衡，不是"跟着教程写"
-- 🧪 **最近完整闸门快照（2026-08-10）** — 1734 collected、1711 passed、4 skipped、19 deselected；Ruff 与 Pyright 通过。最新状态以 CI 为准。
+- 🧪 **最近完整闸门快照（2026-08-10）** — 1742 collected、1719 passed、4 skipped、19 deselected；Ruff、Pyright、README 公共状态同步、Python 测试和前端类型检查 5/5 通过。PR 窄门禁以实际 PR head 对 base SHA 审计，Git 审计错误失败关闭；最新远端状态以 CI 为准。
 - 📝 **完整的文档体系** — 设计文档/流程规范/工作日志，代码即文档
 - 🔄 **CI/CD 全自动流水线** — GitHub Actions 一键 lint + type + test
 - 🔁 **结果驱动闭环地基** — RC-001/002 让“实际走势出来了”可以统一触发大师信任度校准

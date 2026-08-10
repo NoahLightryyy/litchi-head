@@ -8,7 +8,7 @@
 ## 快速统计
 
 ```
-总 Python 测试数 │ 1718 collected；1695 passed / 4 skipped / 19 deselected
+总 Python 测试数 │ 1742 collected；1719 passed / 4 skipped / 19 deselected；本地完整闸门 5/5
 技术债务         │ 74 条总记 / 40 条已关闭 / 34 条开放
 紧急指数         │ 5.6/10（TD-061 Critical；数据底座处于实施门禁）
 当前阶段         │ 🟡 Phase R validation-first checkpoint — E0-100 设计已批准；下一步写实施计划，KR-4 继续暂停

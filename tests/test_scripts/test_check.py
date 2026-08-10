@@ -74,6 +74,29 @@ def test_git_diff_includes_untracked_files(monkeypatch: pytest.MonkeyPatch) -> N
     ]
 
 
+@pytest.mark.parametrize(
+    ("failed_index", "diagnostic"),
+    [
+        (0, "working-tree diff"),
+        (1, "staged diff"),
+        (2, "untracked-file discovery"),
+    ],
+)
+def test_git_diff_fails_closed_when_discovery_command_fails(
+    failed_index: int,
+    diagnostic: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    results = [_completed(), _completed(), _completed()]
+    results[failed_index] = subprocess.CompletedProcess(
+        args=[], returncode=128, stdout="", stderr="fatal: audit unavailable\n"
+    )
+    monkeypatch.setattr(check.subprocess, "run", Mock(side_effect=results))
+
+    with pytest.raises(check.GitAuditError, match=diagnostic):
+        check.git_diff()
+
+
 def test_public_status_change_requires_root_readme_sync() -> None:
     assert check.missing_readme_sync_batches(
         [{"docs/00-overview/ROADMAP.md", "src/data/models.py"}]
@@ -154,20 +177,28 @@ def test_git_commit_batches_parses_commits_in_old_to_new_order(
     ]
 
 
-def test_git_commit_batches_returns_empty_when_comparison_ref_is_unavailable(
+def test_default_readme_sync_without_configured_upstream_checks_worktree_only(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    run = Mock(return_value=_completed(returncode=128))
-    monkeypatch.setattr(check.subprocess, "run", run)
+    repo = _init_git_repo(tmp_path)
+    _write(repo, "README.md", "uncommitted README\n")
+    monkeypatch.setattr(check, "REPO_ROOT", repo)
 
-    assert check.git_commit_batches("@{upstream}") == []
-    assert run.call_args.args[0] == [
-        "git",
-        "rev-list",
-        "--first-parent",
-        "--reverse",
-        "@{upstream}..HEAD",
-    ]
+    assert check.readme_sync_batches(None) == [{"README.md"}]
+
+
+def test_default_readme_sync_fails_closed_when_configured_upstream_is_unreadable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _init_git_repo(tmp_path)
+    _git(repo, "config", "branch.main.remote", "origin")
+    _git(repo, "config", "branch.main.merge", "refs/heads/main")
+    monkeypatch.setattr(check, "REPO_ROOT", repo)
+
+    with pytest.raises(check.GitAuditError, match="configured upstream"):
+        check.readme_sync_batches(None)
 
 
 def test_git_commit_batches_fails_closed_when_a_commit_cannot_be_inspected(
@@ -182,7 +213,28 @@ def test_git_commit_batches_fails_closed_when_a_commit_cannot_be_inspected(
         Mock(side_effect=lambda *args, **kwargs: next(outputs)),
     )
 
-    assert check.git_commit_batches("base") is None
+    with pytest.raises(check.GitAuditError, match="commit parents"):
+        check.git_commit_batches("base")
+
+
+def test_git_commit_batches_fails_closed_when_a_commit_diff_cannot_be_inspected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outputs: Iterator[subprocess.CompletedProcess[str]] = iter(
+        [
+            _completed("commit\n"),
+            _completed("parent\n"),
+            _completed(returncode=128),
+        ]
+    )
+    monkeypatch.setattr(
+        check.subprocess,
+        "run",
+        Mock(side_effect=lambda *args, **kwargs: next(outputs)),
+    )
+
+    with pytest.raises(check.GitAuditError, match="commit diff"):
+        check.git_commit_batches("base")
 
 
 def test_git_commit_batches_detects_conflict_resolution_in_real_merge(
@@ -250,6 +302,33 @@ def test_git_commit_batches_ignores_incoming_only_path_in_real_merge(
     assert batches[-1] == set()
     assert "docs/00-overview/ROADMAP.md" not in set().union(*batches)
     assert check.missing_readme_sync_batches(batches) == ()
+
+
+def test_pr_head_checkout_detects_canonical_only_change_hidden_by_synthetic_merge(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _init_git_repo(tmp_path)
+    base = _git(repo, "rev-parse", "HEAD")
+
+    _git(repo, "checkout", "-b", "pr-head")
+    _write(repo, "docs/00-overview/ROADMAP.md", "PR roadmap\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "canonical-only PR")
+    pr_head = _git(repo, "rev-parse", "HEAD")
+
+    _git(repo, "checkout", "main")
+    _git(repo, "merge", "--no-ff", "pr-head", "-m", "synthetic PR merge")
+    synthetic_merge = _git(repo, "rev-parse", "HEAD")
+    monkeypatch.setattr(check, "REPO_ROOT", repo)
+
+    _git(repo, "checkout", "--detach", pr_head)
+    assert check.run_readme_sync(base) is False
+
+    _git(repo, "checkout", "--detach", synthetic_merge)
+    synthetic_batches = check.git_commit_batches(base)
+    assert synthetic_batches == [set()]
+    assert check.missing_readme_sync_batches(synthetic_batches) == ()
 
 
 @pytest.mark.parametrize(
@@ -383,6 +462,28 @@ def test_explicit_diff_uses_its_ref_for_committed_sync_batches(
     batches.assert_called_once_with("some-ref")
 
 
+def test_explicit_diff_head_is_authoritative_and_never_queries_upstream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    batches = Mock(return_value=[])
+    monkeypatch.setattr(check, "git_commit_batches", batches)
+    monkeypatch.setattr(check, "git_diff", Mock(return_value=set()))
+    monkeypatch.setattr(
+        check,
+        "configured_upstream_ref",
+        lambda: pytest.fail("explicit --diff HEAD must not query upstream"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["check.py", "--readme-sync", "--diff", "HEAD"],
+    )
+
+    assert check.main() == 0
+    batches.assert_called_once_with("HEAD")
+
+
 @pytest.mark.parametrize(("returncode", "expected"), [(0, True), (1, False)])
 def test_run_step_returns_command_status(
     monkeypatch: pytest.MonkeyPatch,
@@ -457,8 +558,8 @@ def test_readme_sync_mode_uses_explicit_diff_batches_and_skips_full_gates(
 def test_readme_sync_default_without_upstream_checks_only_current_batch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    batches = Mock(return_value=[])
-    monkeypatch.setattr(check, "git_commit_batches", batches)
+    upstream = Mock(return_value=None)
+    monkeypatch.setattr(check, "configured_upstream_ref", upstream, raising=False)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": {"README.md"})
     monkeypatch.setattr(
         check,
@@ -468,7 +569,23 @@ def test_readme_sync_default_without_upstream_checks_only_current_batch(
     monkeypatch.setattr(sys, "argv", ["check.py", "--readme-sync"])
 
     assert check.main() == 0
-    batches.assert_called_once_with("@{upstream}")
+    upstream.assert_called_once_with()
+
+
+def test_readme_sync_reports_git_audit_error_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        check,
+        "readme_sync_batches",
+        Mock(side_effect=check.GitAuditError("staged diff failed (exit 128)")),
+    )
+
+    assert check.run_readme_sync(None) is False
+    output = capsys.readouterr().out
+    assert "[FAIL] README sync git audit failed: staged diff failed (exit 128)" in output
+    assert "Traceback" not in output
 
 
 def test_ci_runs_dedicated_readme_sync_gate_for_pull_requests() -> None:
@@ -479,5 +596,9 @@ def test_ci_runs_dedicated_readme_sync_gate_for_pull_requests() -> None:
     )
 
     assert "fetch-depth: 0" in workflow
+    assert (
+        "ref: ${{ github.event_name == 'pull_request' "
+        "&& github.event.pull_request.head.sha || github.sha }}"
+    ) in workflow
     assert "if: github.event_name == 'pull_request'" in workflow
     assert command in workflow

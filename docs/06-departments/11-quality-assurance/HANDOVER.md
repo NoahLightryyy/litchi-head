@@ -1,7 +1,7 @@
 ---
 department: 质量保障部
 codebase: .github/workflows/ + tests/ + docs/01-guides/ci/ + docs/01-guides/workflow/
-last_updated: 2026-08-03 (TD-072 全量闸门通过)
+last_updated: 2026-08-10 (README 公共状态审计最终加固)
 ---
 
 # 🔄 质量保障部工作交接
@@ -15,8 +15,9 @@ last_updated: 2026-08-03 (TD-072 全量闸门通过)
 | GitHub Actions 最新状态 | ✅ Run #72 全绿（frontend + Python 3.12/3.13） |
 | 最近一次绿色 | Run #72 — `test: isolate CI from network and clock drift`（2026-07-31） |
 | Python 3.12/3.13 | Run #71 均因辩论路由测试泄漏真实 AKShare 网络而失败；已修复 |
-| 本地全量闸门 | ✅ 4/4；1600 passed、4 skipped、19 slow deselected |
+| 本地全量闸门 | ✅ 5/5；1742 collected、1719 passed、4 skipped、19 deselected |
 | Ruff | ✅ 通过 |
+| README 公共状态门禁 | ✅ PR checkout 实际 head、对 base SHA 运行轻量审计；Git 发现/历史错误失败关闭 |
 
 ### 当前 CI 问题
 
@@ -98,4 +99,4 @@ last_updated: 2026-08-03 (TD-072 全量闸门通过)
 
 ---
 
-> **最后更新**: 2026-07-31 | Run #71 测试隔离修复，Run #72 全绿
+> **最后更新**: 2026-08-10 | 远端最近 Run #72 全绿；本地 README 公共状态审计最终加固与 5/5 闸门通过

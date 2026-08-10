@@ -56,7 +56,7 @@
 │  ✓ 公共表面同步：ROADMAP / 全局 HANDOVER / 两份全局战略 │
 │    基线有变更时，根 README 已同步                      │
 │  ✓ `python scripts/check.py` 的 README public status │
-│    sync 已通过；PR CI 也会执行专用门禁                │
+│    sync 已通过；PR CI 以实际 head 对 base 失败关闭审计 │
 ├─ 4. 问用户 ────────────────────────────────────┤
 │   "XX 完成了。下个方向？"                            │
 └────────────────────────────────────────────────────┘
@@ -99,7 +99,7 @@
 - [ ] ADR 已更新（如有架构变更）
 - [ ] **引用清理**：如本次创建了新文件/新方案，已搜索旧方案的残留引用并清理
 - [ ] **公共表面同步**：ROADMAP / 全局 HANDOVER / 两份全局战略基线有变更时，根 README 已同步
-- [ ] `python scripts/check.py` 的 **README public status sync** 已通过，PR CI 也会执行其专用门禁
+- [ ] `python scripts/check.py` 的 **README public status sync** 已通过；PR CI checkout 实际 PR head，并对 base SHA 执行失败关闭的专用门禁
 
 ### ☑️ 上下文耗尽专属（自动触发）
 - [ ] 日志末尾标记「上下文耗尽，需续接」

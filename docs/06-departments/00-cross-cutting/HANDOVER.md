@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-08-03 (TD-072 分时历史影子回填与正式量能基线底座完成)
+last_updated: 2026-08-10 (README 公共状态审计最终加固)
 ---
 
 # 🔄 跨部门状态总览
@@ -24,7 +24,7 @@ last_updated: 2026-08-03 (TD-072 分时历史影子回填与正式量能基线�
 
 | 指标 | 当前值 |
 |:-----|:------:|
-| 全量测试 | 1623 collected；1600 passed、4 skipped、19 slow deselected ✅ |
+| 全量测试 | 1742 collected；1719 passed、4 skipped、19 deselected；完整闸门 5/5 ✅ |
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |

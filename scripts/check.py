@@ -60,6 +60,24 @@ PUBLIC_STATUS_FILES: frozenset[str] = frozenset(
 )
 
 
+class GitAuditError(RuntimeError):
+    """A Git failure that prevents a trustworthy README synchronization audit."""
+
+
+def _git_audit_error(
+    operation: str,
+    command: list[str],
+    result: subprocess.CompletedProcess[str],
+) -> GitAuditError:
+    """Build a concise, deterministic diagnostic for an expected Git failure."""
+    detail = " ".join((result.stderr or result.stdout).strip().splitlines())
+    if not detail:
+        detail = "no diagnostic output"
+    return GitAuditError(
+        f"{operation} failed ({' '.join(command)}; exit {result.returncode}): {detail}"
+    )
+
+
 def _s(text: str) -> str:
     """安全输出：抑制 Windows GBK 终端的 emoji/Unicode 错误。"""
     try:
@@ -76,68 +94,110 @@ def _bool_symbol(ok: bool) -> str:
 
 def git_diff(target: str = "HEAD") -> set[str]:
     """返回当前分支相对 target 的全部变更文件，包括未跟踪文件。"""
-    result = subprocess.run(
-        ["git", "diff", "--name-only", target],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-    )
-    staged = subprocess.run(
-        ["git", "diff", "--cached", "--name-only"],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-    )
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-    )
+    commands = [
+        ("working-tree diff", ["git", "diff", "--name-only", target]),
+        ("staged diff", ["git", "diff", "--cached", "--name-only"]),
+        (
+            "untracked-file discovery",
+            ["git", "ls-files", "--others", "--exclude-standard"],
+        ),
+    ]
+    results: list[subprocess.CompletedProcess[str]] = []
+    for operation, command in commands:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        if result.returncode != 0:
+            raise _git_audit_error(operation, command, result)
+        results.append(result)
+
     files: set[str] = set()
-    for out in (result.stdout, staged.stdout, untracked.stdout):
-        for line in out.strip().splitlines():
+    for result in results:
+        for line in result.stdout.strip().splitlines():
             line = line.strip()
             if line:
                 files.add(line)
     return files
 
 
-def git_commit_batches(target: str) -> list[set[str]] | None:
-    """Return ordered commit batches, or None when a known commit is unreadable."""
+def configured_upstream_ref() -> str | None:
+    """Return the configured upstream ref, or None only for a confirmed absence."""
+    command = [
+        "git",
+        "rev-parse",
+        "--abbrev-ref",
+        "--symbolic-full-name",
+        "@{upstream}",
+    ]
     result = subprocess.run(
-        ["git", "rev-list", "--first-parent", "--reverse", f"{target}..HEAD"],
+        command,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return "@{upstream}"
+
+    detail = (result.stderr or result.stdout).lower()
+    if "no upstream configured for branch" in detail:
+        return None
+    raise _git_audit_error("configured upstream discovery", command, result)
+
+
+def git_commit_batches(target: str) -> list[set[str]]:
+    """Return ordered first-parent commit batches from target through HEAD."""
+    command = [
+        "git",
+        "rev-list",
+        "--first-parent",
+        "--reverse",
+        f"{target}..HEAD",
+    ]
+    result = subprocess.run(
+        command,
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
     )
     if result.returncode != 0:
-        return [] if target == "@{upstream}" else None
+        raise _git_audit_error("commit history", command, result)
 
     batches: list[set[str]] = []
     for commit in result.stdout.splitlines():
         commit = commit.strip()
         if not commit:
             continue
+        command = ["git", "show", "--format=%P", "--no-patch", commit]
         parents = subprocess.run(
-            ["git", "show", "--format=%P", "--no-patch", commit],
+            command,
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
         )
         if parents.returncode != 0:
-            return None
+            raise _git_audit_error("commit parents", command, parents)
         parent_ids = parents.stdout.split()
 
         if len(parent_ids) <= 1:
+            command = [
+                "git",
+                "diff-tree",
+                "--no-commit-id",
+                "--name-only",
+                "-r",
+                commit,
+            ]
             changed = subprocess.run(
-                ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit],
+                command,
                 capture_output=True,
                 text=True,
                 cwd=REPO_ROOT,
             )
             if changed.returncode != 0:
-                return None
+                raise _git_audit_error("commit diff", command, changed)
             batches.append(
                 {line.strip() for line in changed.stdout.splitlines() if line.strip()}
             )
@@ -145,14 +205,15 @@ def git_commit_batches(target: str) -> list[set[str]] | None:
 
         parent_diffs: list[set[str]] = []
         for parent in parent_ids:
+            command = ["git", "diff", "--name-only", parent, commit]
             changed = subprocess.run(
-                ["git", "diff", "--name-only", parent, commit],
+                command,
                 capture_output=True,
                 text=True,
                 cwd=REPO_ROOT,
             )
             if changed.returncode != 0:
-                return None
+                raise _git_audit_error("merge-parent diff", command, changed)
             parent_diffs.append(
                 {line.strip() for line in changed.stdout.splitlines() if line.strip()}
             )
@@ -170,24 +231,26 @@ def missing_readme_sync_batches(batches: list[set[str]]) -> tuple[str, ...]:
     return tuple(sorted(pending))
 
 
-def readme_sync_batches(diff_ref: str) -> list[set[str]] | None:
+def readme_sync_batches(diff_ref: str | None) -> list[set[str]]:
     """Build ordered committed batches plus the current uncommitted batch."""
-    comparison_ref = "@{upstream}" if diff_ref == "HEAD" else diff_ref
-    batches = git_commit_batches(comparison_ref)
-    if batches is None:
-        return None
+    if diff_ref is None:
+        comparison_ref = configured_upstream_ref()
+        batches = [] if comparison_ref is None else git_commit_batches(comparison_ref)
+    else:
+        batches = git_commit_batches(diff_ref)
     current_batch = git_diff()
     if current_batch:
         batches.append(current_batch)
     return batches
 
 
-def run_readme_sync(diff_ref: str) -> bool:
+def run_readme_sync(diff_ref: str | None) -> bool:
     """Run only the public README synchronization gate."""
     _s("\n  === README public status sync ===")
-    batches = readme_sync_batches(diff_ref)
-    if batches is None:
-        _s("  [FAIL] unable to inspect committed public status changes")
+    try:
+        batches = readme_sync_batches(diff_ref)
+    except GitAuditError as exc:
+        _s(f"  [FAIL] README sync git audit failed: {exc}")
         return False
     missing = missing_readme_sync_batches(batches)
     if missing:
@@ -332,8 +395,8 @@ def main() -> int:
         help="强制跑全量测试（-m 'not slow'），忽略变更范围检测",
     )
     parser.add_argument(
-        "--diff", metavar="REF", default="HEAD",
-        help="跟哪个 ref 比较变更范围（默认 HEAD，即上次提交）",
+        "--diff", metavar="REF", default=None,
+        help="跟哪个 ref 比较变更范围（默认使用 upstream；无 upstream 时仅检查工作区）",
     )
     parser.add_argument(
         "--readme-sync", action="store_true",
@@ -347,7 +410,11 @@ def main() -> int:
     _print_header()
     ensure_deps()
 
-    changed = git_diff(args.diff)
+    try:
+        changed = git_diff(args.diff or "HEAD")
+    except GitAuditError as exc:
+        _s(f"  [FAIL] README sync git audit failed: {exc}")
+        return 1
     frontend_required = args.full or needs_frontend_check(changed)
 
     passes = 0
