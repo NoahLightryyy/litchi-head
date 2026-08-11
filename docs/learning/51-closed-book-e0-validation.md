@@ -89,4 +89,4 @@ brier_score = brier_sum / n if n > 0 else 0.0
 
 **上一篇：[50｜运行时证据怎样安全合流](50-runtime-evidence-assembly.md)**
 
-**下一篇：待后续卡片**
+**下一篇：[52｜会话快照不是事实源](52-session-snapshot-is-not-source-of-truth.md)**
