@@ -14,6 +14,7 @@ if __package__ in {None, ""}:
 
 from scripts.session_state_git import (  # noqa: E402
     GitInspectionError,
+    SnapshotGitHeadMissingError,
     collect_repository_state,
     is_ancestor,
 )
@@ -26,7 +27,9 @@ from scripts.session_state_models import (  # noqa: E402
     ValidationResult,
 )
 from scripts.session_state_store import (  # noqa: E402
+    CorruptSnapshotError,
     SnapshotStoreError,
+    SnapshotStoreOperationalError,
     discover_legacy,
     discover_v2,
     load_v2,
@@ -159,6 +162,13 @@ def validate_snapshot(
             requires_user_confirmation=bool(warnings),
             handoff=snapshot.handoff if allow_old or not warnings else None,
         )
+    except SnapshotGitHeadMissingError as error:
+        return _validation_failure(
+            SnapshotStatus.MALFORMED,
+            snapshot_path,
+            f"session validation failed: {type(error).__name__}",
+            ValidationFailureReason.CORRUPT_SNAPSHOT,
+        )
     except GitInspectionError as error:
         return _validation_failure(
             SnapshotStatus.MALFORMED,
@@ -166,14 +176,14 @@ def validate_snapshot(
             f"session validation failed: {type(error).__name__}",
             ValidationFailureReason.OPERATIONAL_FAILURE,
         )
-    except (SnapshotStoreError, ValueError) as error:
+    except CorruptSnapshotError as error:
         return _validation_failure(
             SnapshotStatus.MALFORMED,
             snapshot_path,
             f"session validation failed: {type(error).__name__}",
             ValidationFailureReason.CORRUPT_SNAPSHOT,
         )
-    except OSError as error:
+    except (SnapshotStoreOperationalError, SnapshotStoreError, OSError) as error:
         return _validation_failure(
             SnapshotStatus.MALFORMED,
             snapshot_path,
@@ -220,7 +230,7 @@ def inspect_sessions(
             handoff=None,
             failure_reason=ValidationFailureReason.NO_CANDIDATE,
         )
-    except (SnapshotStoreError, ValueError) as error:
+    except CorruptSnapshotError as error:
         return ValidationResult(
             status=SnapshotStatus.MALFORMED,
             snapshot_path=None,
@@ -228,7 +238,12 @@ def inspect_sessions(
             handoff=None,
             failure_reason=ValidationFailureReason.CORRUPT_SNAPSHOT,
         )
-    except (GitInspectionError, OSError) as error:
+    except (
+        SnapshotStoreOperationalError,
+        SnapshotStoreError,
+        GitInspectionError,
+        OSError,
+    ) as error:
         return ValidationResult(
             status=SnapshotStatus.MALFORMED,
             snapshot_path=None,

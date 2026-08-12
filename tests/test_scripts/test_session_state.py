@@ -241,7 +241,7 @@ def test_malformed_snapshot_hides_body_and_handoff(tmp_path: Path) -> None:
     assert result.status is SnapshotStatus.MALFORMED
     assert result.handoff is None
     assert hidden not in " ".join(result.diagnostics)
-    assert result.diagnostics == ("session validation failed: SnapshotStoreError",)
+    assert result.diagnostics == ("session validation failed: CorruptSnapshotError",)
     assert result.failure_reason is ValidationFailureReason.CORRUPT_SNAPSHOT
 
 
@@ -280,8 +280,10 @@ def test_nonexistent_snapshot_head_is_malformed(tmp_path: Path) -> None:
 
     assert result.status is SnapshotStatus.MALFORMED
     assert result.handoff is None
-    assert result.diagnostics == ("session validation failed: GitInspectionError",)
-    assert result.failure_reason is ValidationFailureReason.OPERATIONAL_FAILURE
+    assert result.diagnostics == (
+        "session validation failed: SnapshotGitHeadMissingError",
+    )
+    assert result.failure_reason is ValidationFailureReason.CORRUPT_SNAPSHOT
 
 
 def test_legacy_incident_never_returns_td_072_as_diagnostic_or_executable(
@@ -524,7 +526,7 @@ def test_inspect_git_failure_reports_only_stable_exception_class(
 
     assert result.returncode == 3
     assert result.stdout == ""
-    assert result.stderr == "ERROR: GitInspectionError\n"
+    assert result.stderr == "ERROR: GitOperationalError\n"
     assert hidden not in result.stderr
 
 
@@ -600,3 +602,45 @@ def test_save_invalid_utf8_payload_reports_only_stable_exception_class(
     assert result.stderr == "ERROR: UnicodeDecodeError\n"
     assert "private-payload-secret" not in result.stderr
     assert "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("error_name", "expected_reason"),
+    [
+        ("corrupt", ValidationFailureReason.CORRUPT_SNAPSHOT),
+        ("operational", ValidationFailureReason.OPERATIONAL_FAILURE),
+    ],
+)
+def test_store_failure_origin_survives_validation_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    error_name: str,
+    expected_reason: ValidationFailureReason,
+) -> None:
+    from scripts.session_state_store import (
+        CorruptSnapshotError,
+        SnapshotStoreOperationalError,
+    )
+
+    repo = init_repo(tmp_path)
+    root = tmp_path / "sessions"
+    path = save_current(repo, root)
+    hidden = "private-store-detail"
+    error = (
+        CorruptSnapshotError(hidden)
+        if error_name == "corrupt"
+        else SnapshotStoreOperationalError(hidden)
+    )
+
+    def fail_load(_path: Path) -> object:
+        raise error
+
+    monkeypatch.setattr("scripts.session_state.load_v2", fail_load)
+
+    result = validate_snapshot(repo, path, collect_repository_state(repo), NOW)
+
+    assert result.status is SnapshotStatus.MALFORMED
+    assert result.failure_reason is expected_reason
+    assert exit_code(result) == 3
+    assert hidden not in " ".join(result.diagnostics)
+    assert result.handoff is None

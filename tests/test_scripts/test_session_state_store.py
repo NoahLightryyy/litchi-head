@@ -13,7 +13,9 @@ import pytest
 from scripts import session_state_store
 from scripts.session_state_models import HandoffPayload, SessionSnapshotV2
 from scripts.session_state_store import (
+    CorruptSnapshotError,
     SnapshotStoreError,
+    SnapshotStoreOperationalError,
     contains_secret,
     discover_legacy,
     discover_v2,
@@ -328,3 +330,88 @@ def test_snapshot_id_cannot_escape_scoped_destination(tmp_path: Path) -> None:
 
     assert path.parent == snapshot_directory(root, project, project)
     assert path.is_relative_to(root / "v2")
+
+
+def test_invalid_snapshot_bytes_preserve_corrupt_origin(tmp_path: Path) -> None:
+    path = tmp_path / "invalid-session.json"
+    path.write_bytes(b'\xff{"private":"payload"}')
+
+    with pytest.raises(CorruptSnapshotError) as caught:
+        load_v2(path)
+
+    assert "private" not in str(caught.value)
+
+
+def test_snapshot_read_permission_failure_preserves_operational_origin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "unreadable-session.json"
+    hidden = "private-device-detail"
+
+    def fail_open(_path: Path) -> BufferedReader:
+        raise PermissionError(hidden)
+
+    monkeypatch.setattr(session_state_store, "_open_snapshot_file", fail_open)
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        load_v2(path)
+
+    assert hidden not in str(caught.value)
+
+
+def test_snapshot_discovery_permission_failure_preserves_operational_origin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    directory = snapshot_directory(tmp_path / "sessions", project, project)
+    hidden = "private-directory-detail"
+    original_stat = Path.stat
+
+    def fail_target_stat(path: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        if path == directory:
+            raise PermissionError(hidden)
+        return original_stat(path, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", fail_target_stat)
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        discover_v2(tmp_path / "sessions", project, project)
+
+    assert hidden not in str(caught.value)
+
+
+def test_legacy_discovery_permission_failure_preserves_operational_origin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    legacy = tmp_path / "private-session.tmp"
+    legacy.write_text(f"**Project:** {project}\n", encoding="utf-8")
+    hidden = "private-legacy-device-detail"
+    original_stat = Path.stat
+
+    def fail_legacy_stat(path: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        if path == legacy:
+            raise PermissionError(hidden)
+        return original_stat(path, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", fail_legacy_stat)
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        discover_legacy(tmp_path, project)
+
+    assert hidden not in str(caught.value)
+
+
+def test_legacy_candidate_with_missing_claimed_project_is_skipped(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    missing = tmp_path / "retired-project"
+    (tmp_path / "stale-session.tmp").write_text(
+        f"**Project:** {missing}\n", encoding="utf-8"
+    )
+    matching = tmp_path / "matching-session.tmp"
+    matching.write_text(f"**Project:** {project}\n", encoding="utf-8")
+
+    assert discover_legacy(tmp_path, project)[0].path == str(matching.resolve())

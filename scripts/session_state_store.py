@@ -35,6 +35,14 @@ class SnapshotStoreError(RuntimeError):
     """Raised when a session snapshot cannot be safely stored or read."""
 
 
+class CorruptSnapshotError(SnapshotStoreError):
+    """Raised when snapshot bytes or schema are intrinsically invalid."""
+
+
+class SnapshotStoreOperationalError(SnapshotStoreError):
+    """Raised when the environment prevents snapshot storage access."""
+
+
 class LegacySnapshot(BaseModel):
     """Non-executable metadata recovered from a legacy handover file."""
 
@@ -165,7 +173,7 @@ def _open_windows_snapshot_file(path: Path) -> int:
         raise OSError(get_last_error(), "GetFileInformationByHandleEx failed")
     if info.FileAttributes & _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT:
         close_handle(handle)
-        raise SnapshotStoreError("snapshot must be a regular file")
+        raise CorruptSnapshotError("snapshot must be a regular file")
     import msvcrt
 
     try:
@@ -188,15 +196,19 @@ def load_v2(path: Path) -> SessionSnapshotV2:
     try:
         with closing(_open_snapshot_file(path)) as handle:
             if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
-                raise SnapshotStoreError("snapshot must be a regular file")
+                raise CorruptSnapshotError("snapshot must be a regular file")
             encoded = handle.read(_MAX_SNAPSHOT_BYTES + 1)
         if len(encoded) > _MAX_SNAPSHOT_BYTES:
-            raise SnapshotStoreError("snapshot exceeds the 1 MiB limit")
+            raise CorruptSnapshotError("snapshot exceeds the 1 MiB limit")
         return SessionSnapshotV2.model_validate_json(encoded)
     except SnapshotStoreError:
         raise
-    except (OSError, UnicodeError, ValidationError, ValueError) as error:
-        raise SnapshotStoreError(
+    except OSError as error:
+        raise SnapshotStoreOperationalError(
+            f"snapshot access failed: {type(error).__name__}"
+        ) from error
+    except (UnicodeError, ValidationError, ValueError) as error:
+        raise CorruptSnapshotError(
             f"snapshot load failed: {type(error).__name__}"
         ) from error
 
@@ -204,9 +216,19 @@ def load_v2(path: Path) -> SessionSnapshotV2:
 def discover_v2(root: Path, project: Path, worktree: Path) -> tuple[Path, ...]:
     """Find every valid in-scope snapshot in chronological order."""
     directory = snapshot_directory(root, project, worktree)
-    if not directory.exists():
-        return ()
-    loaded = [(load_v2(path).saved_at, path) for path in directory.glob("*-session.json")]
+    try:
+        if not directory.exists():
+            return ()
+        loaded = [
+            (load_v2(path).saved_at, path)
+            for path in directory.glob("*-session.json")
+        ]
+    except SnapshotStoreError:
+        raise
+    except OSError as error:
+        raise SnapshotStoreOperationalError(
+            f"snapshot discovery failed: {type(error).__name__}"
+        ) from error
     return tuple(path for _, path in sorted(loaded, key=lambda item: (item[0], str(item[1]))))
 
 
@@ -221,17 +243,29 @@ def discover_legacy(root: Path, project: Path) -> tuple[LegacySnapshot, ...]:
             if path.stat().st_size > _MAX_SNAPSHOT_BYTES:
                 continue
             text = path.read_text(encoding="utf-8-sig", errors="replace")
-            project_match = project_pattern.search(text)
-            if project_match is None:
-                continue
-            candidate_project = Path(project_match.group(1).strip())
-            if normalize_identity_path(candidate_project) != expected:
-                continue
-            date_match = date_pattern.search(text)
             resolved_path = path.resolve(strict=True)
-            resolved_project = candidate_project.resolve(strict=True)
-        except (OSError, ValueError):
+        except OSError as error:
+            raise SnapshotStoreOperationalError(
+                f"legacy snapshot discovery failed: {type(error).__name__}"
+            ) from error
+        project_match = project_pattern.search(text)
+        if project_match is None:
             continue
+        candidate_project = Path(project_match.group(1).strip())
+        try:
+            candidate_identity = normalize_identity_path(candidate_project)
+            resolved_project = candidate_project.resolve(strict=True)
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            raise SnapshotStoreOperationalError(
+                f"legacy project identity failed: {type(error).__name__}"
+            ) from error
+        except ValueError:
+            continue
+        if candidate_identity != expected:
+            continue
+        date_match = date_pattern.search(text)
         matches.append(
             LegacySnapshot(
                 path=str(resolved_path),

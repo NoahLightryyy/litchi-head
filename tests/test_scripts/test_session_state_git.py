@@ -126,9 +126,42 @@ def test_parse_porcelain_z_accepts_complete_valid_status_pairs(
 
 def test_is_ancestor_rejects_git_errors(tmp_path: Path) -> None:
     from scripts import session_state_git
-    from scripts.session_state_git import GitInspectionError, is_ancestor
+    from scripts.session_state_git import GitOperationalError, is_ancestor
 
     repo = init_repo(tmp_path)
-    with patch.object(session_state_git, "_git", return_value=session_state_git._GitOutput("", 2)):
-        with pytest.raises(GitInspectionError, match="ancestry"):
+    with patch.object(
+        session_state_git,
+        "_git",
+        side_effect=(
+            session_state_git._GitOutput("a" * 40, 0),
+            session_state_git._GitOutput("", 2),
+        ),
+    ):
+        with pytest.raises(GitOperationalError, match="ancestry"):
             is_ancestor(repo, "a" * 40, "b" * 40)
+
+
+def test_is_ancestor_classifies_missing_snapshot_head_without_parsing_stderr(
+    tmp_path: Path,
+) -> None:
+    from scripts.session_state_git import SnapshotGitHeadMissingError, is_ancestor
+
+    repo = init_repo(tmp_path)
+    current = git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    with pytest.raises(SnapshotGitHeadMissingError):
+        is_ancestor(repo, "f" * 40, current)
+
+
+def test_git_process_launch_failure_preserves_operational_origin(
+    tmp_path: Path,
+) -> None:
+    from scripts import session_state_git
+    from scripts.session_state_git import GitOperationalError, collect_repository_state
+
+    hidden = "private-process-launch-detail"
+    with patch.object(session_state_git.subprocess, "run", side_effect=OSError(hidden)):
+        with pytest.raises(GitOperationalError) as caught:
+            collect_repository_state(tmp_path)
+
+    assert hidden not in str(caught.value)

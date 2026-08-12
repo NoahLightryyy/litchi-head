@@ -22,6 +22,14 @@ class GitInspectionError(RuntimeError):
     """Raised when repository identity or Git evidence cannot be verified."""
 
 
+class GitOperationalError(GitInspectionError):
+    """Raised when Git or repository evidence cannot be read operationally."""
+
+
+class SnapshotGitHeadMissingError(GitInspectionError):
+    """Raised when a snapshot references a commit object absent from the repository."""
+
+
 class _GitOutput(str):
     """Git output carrying its checked exit code for commands with multiple OK codes."""
 
@@ -47,15 +55,20 @@ def _git(
     strip: bool = True,
 ) -> _GitOutput:
     """Run Git with bounded diagnostic output and explicit acceptable exit codes."""
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        raise GitOperationalError(
+            f"Git {operation} failed: {type(error).__name__}"
+        ) from error
     if completed.returncode not in ok:
-        raise GitInspectionError(
+        raise GitOperationalError(
             f"Git {operation} failed: exit code {completed.returncode}; "
             f"stderr={_summary(completed.stderr)}; stdout={_summary(completed.stdout)}"
         )
@@ -122,13 +135,26 @@ def find_latest_sdd_progress(repo: Path) -> Path | None:
 
 def is_ancestor(repo: Path, older: str, newer: str) -> bool:
     """Return whether ``older`` is an ancestor of ``newer``, failing closed on Git errors."""
+    snapshot_object = _git(
+        repo,
+        "snapshot HEAD object verification",
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        f"{older}^{{commit}}",
+        ok=(0, 1),
+    )
+    if snapshot_object.returncode == 1:
+        raise SnapshotGitHeadMissingError("snapshot HEAD object is missing")
+    if snapshot_object.returncode != 0:
+        raise GitOperationalError("Git snapshot HEAD object verification failed")
     result = _git(repo, "ancestry", "merge-base", "--is-ancestor", older, newer, ok=(0, 1))
     exit_code = result.returncode
     if exit_code == 0:
         return True
     if exit_code == 1:
         return False
-    raise GitInspectionError(f"Git ancestry failed: exit code {exit_code}")
+    raise GitOperationalError(f"Git ancestry failed: exit code {exit_code}")
 
 
 def collect_repository_state(repo: Path) -> RepositoryState:
