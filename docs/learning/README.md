@@ -81,7 +81,7 @@
 | 49 | 🆕 [四层行情信封：盘中可用，不等于已经收盘](49-four-layer-market-envelope.md) | 判别联合、深度冻结、动态/完成隔离、幂等收盘晋升 |
 | 50 | 🆕 [运行时证据怎样安全合流](50-runtime-evidence-assembly.md) | 不完整信封 fail-closed、报价到动态条的依赖诊断、能力/证券接线异常保留、FINAL 分钟过滤与 RAW 动态条 |
 | 51 | 🆕 [闭卷评测与两阶段验证](51-closed-book-e0-validation.md) | E0 历史时点证伪、测试集隔离、多维淘汰、E1 在线影子验证 |
-| 52 | 🆕 [会话快照不是事实源](52-session-snapshot-is-not-source-of-truth.md) | worktree/Git 权威、快照一致性校验、跨项目隔离、失败关闭恢复 |
+| 52 | 🆕 [会话快照不是事实源](52-session-snapshot-is-not-source-of-truth.md) | worktree/Git 权威、可信本机用户边界、预存重定向失败关闭、只读恢复 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
