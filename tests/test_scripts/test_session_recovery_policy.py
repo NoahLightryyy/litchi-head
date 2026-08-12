@@ -9,22 +9,28 @@ from scripts.session_state_models import SnapshotStatus
 REPO = Path(__file__).resolve().parents[2]
 CONTRACT_BEGIN = "<!-- SESSION_RECOVERY_CONTRACT_BEGIN -->"
 CONTRACT_END = "<!-- SESSION_RECOVERY_CONTRACT_END -->"
-EXPECTED_KEYS = (
-    "VERSION",
-    "AUTHORITY",
-    "STEP_1",
-    "STEP_2",
-    "ALLOW",
-    "NON_MATCH",
-    "NON_MATCH_ACTION",
-    "OLD_MATCH",
-    "LEGACY",
-    "GLOBAL_MTIME",
-    "STEP_3",
-    "STEP_4",
-    "STEP_5",
-    "STEP_6",
-    "OVERRIDE",
+EXPECTED_NON_MATCH = ",".join(
+    status.value for status in SnapshotStatus if status is not SnapshotStatus.MATCH
+)
+EXPECTED_CONTRACT: tuple[tuple[str, str], ...] = (
+    ("VERSION", "1"),
+    ("AUTHORITY", "Git/worktree"),
+    (
+        "STEP_1",
+        "VALIDATOR scripts/session_state.py inspect BEFORE snapshot_body HANDOVER",
+    ),
+    ("STEP_2", "STATUS_GATE"),
+    ("ALLOW", "MATCH_ONLY"),
+    ("NON_MATCH", EXPECTED_NON_MATCH),
+    ("NON_MATCH_ACTION", "NEVER_EXPOSE_OR_EXECUTE_NEXT_STEP"),
+    ("OLD_MATCH", "CONFIRM_THEN_FULL_RERUN_--allow-old_THEN_MATCH_ONLY"),
+    ("LEGACY", "HISTORICAL_ONLY_NEVER_NEXT_STEP"),
+    ("GLOBAL_MTIME", "FORBIDDEN"),
+    ("STEP_3", "GIT"),
+    ("STEP_4", "SDD"),
+    ("STEP_5", "HANDOVER"),
+    ("STEP_6", "LATEST_LOG"),
+    ("OVERRIDE", "FORBIDDEN_FOR_LATER_EMERGENCY_OR_OTHER_DOCUMENTS"),
 )
 RECOVERY_DIRECTIVE_OUTSIDE_BLOCK = re.compile(
     r"\b(?:RECOVERY_[A-Z0-9_]+|[A-Z0-9_]+_RECOVERY|BREAK_GLASS)\s*="
@@ -35,15 +41,6 @@ def read(relative: str) -> str:
     return (REPO / relative).read_text(encoding="utf-8")
 
 
-def assert_order(text: str, *needles: str) -> None:
-    positions: list[int] = []
-    for needle in needles:
-        position = text.find(needle)
-        assert position >= 0, needle
-        positions.append(position)
-    assert positions == sorted(positions), dict(zip(needles, positions, strict=True))
-
-
 def extract_contract(text: str) -> tuple[str, str]:
     assert text.count(CONTRACT_BEGIN) == 1
     assert text.count(CONTRACT_END) == 1
@@ -52,41 +49,19 @@ def extract_contract(text: str) -> tuple[str, str]:
     return block.strip(), before + after
 
 
-def parse_contract(block: str) -> dict[str, str]:
+def parse_contract(block: str) -> tuple[tuple[str, str], ...]:
     entries: list[tuple[str, str]] = []
     for line in block.splitlines():
         key, separator, value = line.partition("=")
         assert separator and key and value
         entries.append((key, value))
-    assert tuple(key for key, _ in entries) == EXPECTED_KEYS
-    return dict(entries)
+    return tuple(entries)
 
 
 def assert_recovery_contract(text: str) -> None:
     block, outside = extract_contract(text)
     contract = parse_contract(block)
-    expected_non_match = ",".join(
-        status.value for status in SnapshotStatus if status is not SnapshotStatus.MATCH
-    )
-
-    assert contract["VERSION"] == "1"
-    assert contract["AUTHORITY"] == "Git/worktree"
-    assert contract["ALLOW"] == "MATCH_ONLY"
-    assert contract["NON_MATCH"] == expected_non_match
-    assert contract["NON_MATCH_ACTION"] == "NEVER_EXPOSE_OR_EXECUTE_NEXT_STEP"
-    assert contract["OLD_MATCH"] == "CONFIRM_THEN_FULL_RERUN_--allow-old_THEN_MATCH_ONLY"
-    assert contract["LEGACY"] == "HISTORICAL_ONLY_NEVER_NEXT_STEP"
-    assert contract["GLOBAL_MTIME"] == "FORBIDDEN"
-    assert contract["OVERRIDE"] == "FORBIDDEN_FOR_LATER_EMERGENCY_OR_OTHER_DOCUMENTS"
-    assert_order(
-        block,
-        "STEP_1=VALIDATOR scripts/session_state.py inspect BEFORE snapshot_body HANDOVER",
-        "STEP_2=STATUS_GATE",
-        "STEP_3=GIT",
-        "STEP_4=SDD",
-        "STEP_5=HANDOVER",
-        "STEP_6=LATEST_LOG",
-    )
+    assert contract == EXPECTED_CONTRACT
     forbidden_outside = (
         "AUTHORIZATION=",
         "EMERGENCY_OVERRIDE=",
@@ -266,6 +241,32 @@ def test_project_resume_contract_rejects_reversed_non_match_order() -> None:
         status.value for status in SnapshotStatus if status is not SnapshotStatus.MATCH
     )
     mutation = original.replace(expected, ",".join(reversed(expected.split(","))), 1)
+    assert mutation != original
+
+    with pytest.raises(AssertionError):
+        assert_recovery_contract(mutation)
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        (
+            "STEP_1=VALIDATOR scripts/session_state.py inspect BEFORE snapshot_body "
+            "HANDOVER",
+            "STEP_1=VALIDATOR scripts/session_state.py inspect BEFORE snapshot_body "
+            "HANDOVER OR DIRECT_HANDOVER",
+        ),
+        ("STEP_2=STATUS_GATE", "STEP_2=STATUS_GATE_ALLOW_NON_MATCH"),
+        ("STEP_3=GIT", "STEP_3=GIT_OR_SNAPSHOT_NEXT_STEP"),
+        ("STEP_6=LATEST_LOG", "STEP_6=LATEST_LOG_THEN_EXECUTE_SNAPSHOT"),
+    ],
+)
+def test_project_resume_contract_rejects_step_value_suffix_mutation(
+    old: str,
+    new: str,
+) -> None:
+    original = read(".agents/skills/resume-session/skill.md")
+    mutation = original.replace(old, new, 1)
     assert mutation != original
 
     with pytest.raises(AssertionError):
