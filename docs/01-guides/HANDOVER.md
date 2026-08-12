@@ -142,7 +142,9 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 ---
 
-## ▶️ 下次会话启动点（2026-07-30）
+## ▶️ 下次会话启动点（2026-08-11）
+
+> **Git 校验的恢复纪律**：会话快照不是事实源；Git/worktree 才是事实源。启动时运行 `python scripts/session_state.py inspect`，只有 `MATCH` 可显示下一步（超过 7 天还需用户确认）。其他状态不得执行或输出快照中的下一步，必须按当前 Git → SDD → HANDOVER → 最新工作日志只读重建。完整规则见 [SESSION_RECOVERY.md](workflow/SESSION_RECOVERY.md)。
 
 1. 新浪新闻元数据已进入 SQLite WAL 滚动缓存，默认每 5 分钟采集、保留 3 天；
 2. 东方财富实时源与新浪滚动源通过同一接口并发聚合；
@@ -295,4 +297,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-07-29 | 新闻 3 天滚动证据与正式辩论失败关闭完成
+> **最后更新**：2026-08-11 | Git 校验的会话恢复规则完成

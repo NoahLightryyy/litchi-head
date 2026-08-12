@@ -10,6 +10,7 @@
 | 你在干嘛 | 读这个 | 行数 |
 |:---------|:-------|:----:|
 | 🚀 **开新会话**、判断部门、加载角色 | [workflow/STARTUP.md](workflow/STARTUP.md) | ~200 |
+| 🔐 **恢复/保存会话**、判定快照可信度 | [workflow/SESSION_RECOVERY.md](workflow/SESSION_RECOVERY.md) | ~50 |
 | 🔁 **自动推进一轮 Batch Loop** | [LOOP.md](LOOP.md) | ~120 |
 | 🔨 **日常开发**、代码规范、Agent 编排 | [workflow/DEVELOPMENT.md](workflow/DEVELOPMENT.md) | ~360 |
 | ✅ **会话收尾**、**强制闸门**、写日志、管债务、更新文档 | [workflow/CLOSING.md](workflow/CLOSING.md) | ~250 |
@@ -50,6 +51,7 @@
 | **质量红线** | hook 自动 ruff + pyright + 快测试子集（~70s），23 个慢测试 CI 负责 |
 | **交付闸门** | 每个功能完成 → 问"下个方向"前 → 必须走 CLOSING.md §1 强制闸门 |
 | **Loop 自动化** | 新窗口发送“启动 litchi-head loop” → 恢复上下文 → 推进一个原子任务 → 验证 → 落文档 |
+| **恢复权威** | Git/worktree 是事实源；仅 `MATCH` 快照可显示下一步，其余状态只读重建 |
 
 ---
 
@@ -60,6 +62,7 @@
 | [HANDOVER.md](HANDOVER.md) | 全局交接仪表盘（项目身份卡 + 各部门状态 + 跨部门优先级） |
 | [HANDOVER_TIP.md](HANDOVER_TIP.md) | ⚡ 快速交接卡（扫一眼就够） |
 | [LOOP.md](LOOP.md) | Codex Batch Loop 自动化协议 |
+| [workflow/SESSION_RECOVERY.md](workflow/SESSION_RECOVERY.md) | Git 校验的会话恢复、v2 保存与可信本机用户安全边界 |
 | [debt/ROUTER.md](debt/ROUTER.md) | 技术债务路由索引 |
 | [ENVIRONMENT.md](ENVIRONMENT.md) | 双 Key 体系 + 模型快慢分离配置 |
 | 🔄 [CI 治理体系](ci/README.md) | CI 标准、处理工作流、本地检查、根因知识库 |
@@ -68,4 +71,4 @@
 
 > **文档版本**：v2.0 — 按阶段拆分为 4 份聚焦文档
 > **创建日期**：2026-06-05
-> **最近更新**：2026-06-21 — 拆分为 STARTUP / DEVELOPMENT / CLOSING / EMERGENCIES 四模块
+> **最近更新**：2026-08-11 — 增加 Git 校验的会话恢复与保存契约

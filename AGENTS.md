@@ -8,7 +8,7 @@
 
 ## 核心规则
 
-1. **会话启动**：执行 `/resume-session` Skill（项目级），或手动读取 `docs/01-guides/HANDOVER.md` §2+§5 + 最新工作日志
+1. **会话启动**：Git/worktree 是事实源。先执行 `/resume-session`，并强制用 `python scripts/session_state.py inspect`、当前 Git、SDD、HANDOVER 与最新工作日志组合校验；快照不是事实源，非 `MATCH` 时不得执行其中的下一步。完整规则见 `docs/01-guides/workflow/SESSION_RECOVERY.md`。
 2. **五同步原则**：代码 + 测试 + 文档 + 债务 + **引用清理**。改一个必须改全部。引用清理指：创建新方案/新工具后，必须搜索旧方案在全项目的所有引用并逐处清理，不留下孤立的旧文件、旧命令、旧路径。
 3. **发现债务必登记** — 使用 `docs/01-guides/debt/TEMPLATE.md` 模板
 4. **每次会话结束必须更新**：AI 工作日志 + 债务日志（如有变更）
@@ -36,6 +36,7 @@
 | 🏠 项目总览 | `docs/00-overview/OVERVIEW.md` |
 | 📐 AI 工作流程 | `docs/01-guides/WORKFLOW.md` |
 | 📐 会话交接 | `docs/01-guides/HANDOVER.md` |
+| 🔐 会话恢复与保存 | `docs/01-guides/workflow/SESSION_RECOVERY.md` |
 | 🔄 CI 治理 | `docs/01-guides/ci/README.md` |
 | 📐 环境配置 | `docs/01-guides/ENVIRONMENT.md` |
 | 🐛 债务路由 | `docs/01-guides/debt/ROUTER.md` |
