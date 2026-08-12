@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from io import BufferedReader
 from pathlib import Path
@@ -148,6 +149,84 @@ def test_concurrent_destination_creation_is_never_overwritten(
     assert list(destination.parent.glob("tmp*")) == []
 
 
+def test_temp_cleanup_failure_rolls_back_published_destination(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    root = tmp_path / "sessions"
+    snapshot = make_snapshot(project, project)
+    directory = snapshot_directory(root, project, project)
+    destination = directory / f"{snapshot.snapshot_id}-session.json"
+    original_unlink = Path.unlink
+
+    def fail_temp_unlink(path: Path, missing_ok: bool = False) -> None:
+        if path.name.startswith("tmp"):
+            raise OSError("cleanup blocked")
+        original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", fail_temp_unlink)
+
+    with pytest.raises(SnapshotStoreError, match="atomic publish cleanup failed"):
+        write_snapshot(root, snapshot)
+
+    assert not destination.exists()
+
+
+def test_cleanup_and_rollback_failure_has_stable_integrity_diagnostic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    secret = "sk-live-12345678901234567890"
+    snapshot = make_snapshot(project, project, next_step="not-secret")
+
+    def fail_unlink(_path: Path, missing_ok: bool = False) -> None:
+        raise OSError("cleanup blocked")
+
+    monkeypatch.setattr(Path, "unlink", fail_unlink)
+
+    with pytest.raises(SnapshotStoreError, match="atomic publish integrity failure") as caught:
+        write_snapshot(tmp_path / "sessions", snapshot)
+
+    assert secret not in str(caught.value)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows reparse-point contract")
+def test_windows_load_delegates_reparse_rejection_to_opened_handle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "reparse-session.json"
+    called: list[Path] = []
+
+    def reject_reparse(path: Path) -> int:
+        called.append(path)
+        raise SnapshotStoreError("snapshot must be a regular file")
+
+    monkeypatch.setattr(session_state_store, "_open_windows_snapshot_file", reject_reparse)
+
+    with pytest.raises(SnapshotStoreError, match="regular file"):
+        load_v2(target)
+
+    assert called == [target]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows reparse-point contract")
+def test_windows_reparse_point_is_rejected_by_opened_handle(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    source = tmp_path / "source-session.json"
+    source.write_text(make_snapshot(project, project).model_dump_json(), encoding="utf-8")
+    replacement = tmp_path / "replacement-session.json"
+    try:
+        replacement.symlink_to(source)
+    except OSError as error:
+        pytest.skip(f"symlink unavailable: {type(error).__name__}")
+
+    with pytest.raises(SnapshotStoreError, match="snapshot must be a regular file"):
+        load_v2(replacement)
+
+
 def test_load_uses_one_capped_handle_read_when_file_grows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -165,6 +244,9 @@ def test_load_uses_one_capped_handle_read_when_file_grows(
             return self
 
         def __exit__(self, *args: object) -> None:
+            self._handle.close()
+
+        def close(self) -> None:
             self._handle.close()
 
         def fileno(self) -> int:
