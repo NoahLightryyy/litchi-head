@@ -1,8 +1,13 @@
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from scripts.session_state_models import SnapshotStatus
+
 REPO = Path(__file__).resolve().parents[2]
+CONTRACT_BEGIN = "<!-- SESSION_RECOVERY_CONTRACT_BEGIN -->"
+CONTRACT_END = "<!-- SESSION_RECOVERY_CONTRACT_END -->"
 
 
 def read(relative: str) -> str:
@@ -10,53 +15,67 @@ def read(relative: str) -> str:
 
 
 def assert_order(text: str, *needles: str) -> None:
-    positions = [text.index(needle) for needle in needles]
+    positions: list[int] = []
+    for needle in needles:
+        position = text.find(needle)
+        assert position >= 0, needle
+        positions.append(position)
     assert positions == sorted(positions), dict(zip(needles, positions, strict=True))
 
 
-def assert_project_resume_contract(text: str) -> None:
-    inspect = "scripts/session_state.py inspect"
-    assert inspect in text
-    assert_order(text, inspect, "快照正文")
-    assert_order(text, inspect, "HANDOVER.md")
-    assert "只有非过期的 `MATCH`" in text
-    for status in (
-        "REPO_AHEAD",
-        "HEAD_DIVERGED",
-        "BRANCH_MISMATCH",
-        "DIRTY_MISMATCH",
-        "EVIDENCE_CHANGED",
-        "PROJECT_MISMATCH",
-        "LEGACY_UNVERIFIABLE",
-        "MALFORMED",
-    ):
-        assert f"`{status}`" in text
-    assert "都不得输出或执行快照中的下一步" in text
-    assert_order(text, "Git status", ".superpowers/sdd/", "HANDOVER.md", "最新工作日志")
-    assert "明确确认" in text
-    assert "--allow-old" in text
-    assert "只有第二次仍为 `MATCH`" in text
-    assert "不得按全局 mtime" in text
-    assert "legacy `.tmp` 只作为 `LEGACY_UNVERIFIABLE` 历史线索" in text
-    forbidden = (
-        "先读取 HANDOVER.md，再运行校验器",
-        "非 MATCH 也可以执行下一步",
-        "允许按全局 mtime 选择快照",
-        "执行 legacy 快照中的下一步",
-        "直接读取 HANDOVER.md 即可恢复",
+def extract_contract(text: str) -> tuple[str, str]:
+    assert text.count(CONTRACT_BEGIN) == 1
+    assert text.count(CONTRACT_END) == 1
+    before, remainder = text.split(CONTRACT_BEGIN, 1)
+    block, after = remainder.split(CONTRACT_END, 1)
+    return block.strip(), before + after
+
+
+def parse_contract(block: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for line in block.splitlines():
+        key, separator, value = line.partition("=")
+        assert separator and key and value
+        assert key not in parsed
+        parsed[key] = value
+    return parsed
+
+
+def assert_recovery_contract(text: str) -> None:
+    block, outside = extract_contract(text)
+    contract = parse_contract(block)
+    expected_non_match = {
+        status.value for status in SnapshotStatus if status is not SnapshotStatus.MATCH
+    }
+
+    assert contract["VERSION"] == "1"
+    assert contract["AUTHORITY"] == "Git/worktree"
+    assert contract["ALLOW"] == "MATCH_ONLY"
+    assert set(contract["NON_MATCH"].split(",")) == expected_non_match
+    assert contract["NON_MATCH_ACTION"] == "NEVER_EXPOSE_OR_EXECUTE_NEXT_STEP"
+    assert contract["OLD_MATCH"] == "CONFIRM_THEN_FULL_RERUN_--allow-old_THEN_MATCH_ONLY"
+    assert contract["LEGACY"] == "HISTORICAL_ONLY_NEVER_NEXT_STEP"
+    assert contract["GLOBAL_MTIME"] == "FORBIDDEN"
+    assert contract["OVERRIDE"] == "FORBIDDEN_FOR_LATER_EMERGENCY_OR_OTHER_DOCUMENTS"
+    assert_order(
+        block,
+        "STEP_1=VALIDATOR scripts/session_state.py inspect BEFORE snapshot_body HANDOVER",
+        "STEP_2=STATUS_GATE",
+        "STEP_3=GIT",
+        "STEP_4=SDD",
+        "STEP_5=HANDOVER",
+        "STEP_6=LATEST_LOG",
     )
-    for phrase in forbidden:
-        assert phrase not in text
-
-
-def assert_claude_resume_contract(text: str) -> None:
-    rule = text.split("\n", 12)[10]
-    assert "scripts/session_state.py inspect" in rule
-    assert "只有 `MATCH`" in rule
-    assert "--allow-old" in rule
-    assert "不得绕过校验器" in rule
-    assert "或手动读取" not in rule
-    assert "直接读取 HANDOVER 即可恢复" not in rule
+    forbidden_outside = (
+        "AUTHORIZATION=",
+        "EMERGENCY_OVERRIDE=",
+        "ALLOW=NON_MATCH",
+        "DIRECT_HANDOVER_RECOVERY=ALLOWED",
+        "GLOBAL_MTIME=ALLOWED",
+        "LEGACY_NEXT_STEP=ALLOWED",
+    )
+    for phrase in forbidden_outside:
+        assert phrase not in outside
 
 
 def test_startup_requires_combined_git_verified_recovery() -> None:
@@ -143,40 +162,45 @@ def test_project_resume_entrypoint_and_claude_require_validator() -> None:
     project_skill = read(".agents/skills/resume-session/skill.md")
     claude = read("CLAUDE.md")
 
-    assert_project_resume_contract(project_skill)
-    assert_claude_resume_contract(claude)
+    assert_recovery_contract(project_skill)
+    assert_recovery_contract(claude)
 
 
 @pytest.mark.parametrize(
-    "old,new",
+    "mutate",
     [
-        ("不得先读快照正文", "先读取 HANDOVER.md，再运行校验器；不得先读快照正文"),
-        ("都不得输出或执行快照中的下一步", "非 MATCH 也可以执行下一步"),
-        ("不得按全局 mtime 选择快照", "允许按全局 mtime 选择快照"),
-        (
-            "legacy `.tmp` 只作为 `LEGACY_UNVERIFIABLE` 历史线索",
-            "执行 legacy 快照中的下一步",
+        lambda text: text.replace(
+            "VALIDATOR scripts/session_state.py inspect BEFORE snapshot_body HANDOVER",
+            "HANDOVER BEFORE VALIDATOR scripts/session_state.py inspect snapshot_body",
+            1,
         ),
+        lambda text: text.replace("ALLOW=MATCH_ONLY", "ALLOW=NON_MATCH", 1),
+        lambda text: text + "\nAUTHORIZATION=NON_MATCH_NEXT_STEP\n",
+        lambda text: text + "\nGLOBAL_MTIME=ALLOWED\n",
+        lambda text: text + "\nLEGACY_NEXT_STEP=ALLOWED\n",
     ],
 )
-def test_project_resume_contract_rejects_unsafe_rule_mutations(old: str, new: str) -> None:
+def test_project_resume_contract_rejects_unsafe_rule_mutations(
+    mutate: Callable[[str], str],
+) -> None:
     original = read(".agents/skills/resume-session/skill.md")
-    assert old in original
+    mutation = mutate(original)
+    assert mutation != original
 
     with pytest.raises(AssertionError):
-        assert_project_resume_contract(original.replace(old, new, 1))
+        assert_recovery_contract(mutation)
 
 
-def test_claude_contract_rejects_direct_handover_bypass_mutation() -> None:
+@pytest.mark.parametrize(
+    "override",
+    ["DIRECT_HANDOVER_RECOVERY=ALLOWED", "EMERGENCY_OVERRIDE=DIRECT_HANDOVER"],
+)
+def test_claude_contract_rejects_later_override_mutation(override: str) -> None:
     original = read("CLAUDE.md")
-    mutation = original.replace(
-        "不得绕过校验器直接把 HANDOVER 或最新日志当作当前状态",
-        "直接读取 HANDOVER 即可恢复",
-        1,
-    )
+    mutation = original + f"\n{override}\n"
 
     with pytest.raises(AssertionError):
-        assert_claude_resume_contract(mutation)
+        assert_recovery_contract(mutation)
 
 
 def test_project_guides_require_full_allow_old_rerun() -> None:

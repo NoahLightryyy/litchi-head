@@ -8,7 +8,25 @@
 
 ## 核心规则
 
-1. **会话启动**：Git/worktree 是事实源。执行 `/resume-session` 时必须先运行 `python scripts/session_state.py inspect`；不得绕过校验器直接把 HANDOVER 或最新日志当作当前状态。只有 `MATCH` 可显示下一步，旧 `MATCH` 经用户确认后必须加 `--allow-old` 完整重跑且仍为 `MATCH`；其他状态按 Git → SDD → HANDOVER → 最新日志只读重建。完整规则见 `docs/01-guides/workflow/SESSION_RECOVERY.md`。
+<!-- SESSION_RECOVERY_CONTRACT_BEGIN -->
+VERSION=1
+AUTHORITY=Git/worktree
+STEP_1=VALIDATOR scripts/session_state.py inspect BEFORE snapshot_body HANDOVER
+STEP_2=STATUS_GATE
+ALLOW=MATCH_ONLY
+NON_MATCH=REPO_AHEAD,HEAD_DIVERGED,BRANCH_MISMATCH,DIRTY_MISMATCH,EVIDENCE_CHANGED,PROJECT_MISMATCH,LEGACY_UNVERIFIABLE,MALFORMED
+NON_MATCH_ACTION=NEVER_EXPOSE_OR_EXECUTE_NEXT_STEP
+OLD_MATCH=CONFIRM_THEN_FULL_RERUN_--allow-old_THEN_MATCH_ONLY
+LEGACY=HISTORICAL_ONLY_NEVER_NEXT_STEP
+GLOBAL_MTIME=FORBIDDEN
+STEP_3=GIT
+STEP_4=SDD
+STEP_5=HANDOVER
+STEP_6=LATEST_LOG
+OVERRIDE=FORBIDDEN_FOR_LATER_EMERGENCY_OR_OTHER_DOCUMENTS
+<!-- SESSION_RECOVERY_CONTRACT_END -->
+
+1. **会话启动**：执行 `/resume-session`，严格遵守上方唯一机器可解析契约块；执行细节见 `.agents/skills/resume-session/skill.md` 和 `docs/01-guides/workflow/SESSION_RECOVERY.md`。任何后续规则、紧急流程或其他文档都只能引用该块，不得产生第二份恢复授权或覆盖该块。
 2. **五同步原则**：代码 + 测试 + 文档 + 债务 + **引用清理**。改一个必须改全部。引用清理指：创建新方案/新工具后，必须搜索旧方案在全项目的所有引用并逐处清理，不留下孤立的旧文件、旧命令、旧路径。
 3. **发现债务必登记** — 使用 `docs/01-guides/debt/TEMPLATE.md` 模板
 4. **每次会话结束必须更新**：AI 工作日志 + 债务日志（如有变更）
