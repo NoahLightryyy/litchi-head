@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 if __package__ in {None, ""}:
@@ -119,8 +119,18 @@ def validate_snapshot(
                 "handover/log/SDD evidence changed",
             )
 
-        age_days = (now - snapshot.saved_at).days
-        warnings = (f"snapshot is {age_days} days old",) if age_days > 7 else ()
+        elapsed = now - snapshot.saved_at
+        if elapsed < timedelta(0):
+            return _validation_failure(
+                SnapshotStatus.MALFORMED,
+                snapshot_path,
+                "snapshot saved_at is in the future",
+            )
+        warnings = (
+            (f"snapshot is {elapsed.days} days old",)
+            if elapsed > timedelta(days=7)
+            else ()
+        )
         return ValidationResult(
             status=SnapshotStatus.MATCH,
             snapshot_path=str(snapshot_path),

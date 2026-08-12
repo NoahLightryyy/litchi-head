@@ -133,6 +133,44 @@ def test_old_but_matching_snapshot_requires_confirmation(tmp_path: Path) -> None
     assert approved.handoff is not None
 
 
+def test_snapshot_exactly_seven_days_old_remains_fresh(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    path = save_current(repo, tmp_path / "sessions", NOW - timedelta(days=7))
+
+    result = validate_snapshot(repo, path, collect_repository_state(repo), NOW)
+
+    assert result.status is SnapshotStatus.MATCH
+    assert result.requires_user_confirmation is False
+    assert result.warnings == ()
+    assert result.handoff is not None
+
+
+def test_snapshot_over_seven_days_by_one_microsecond_requires_confirmation(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path)
+    saved_at = NOW - timedelta(days=7, microseconds=1)
+    path = save_current(repo, tmp_path / "sessions", saved_at)
+
+    result = validate_snapshot(repo, path, collect_repository_state(repo), NOW)
+
+    assert result.status is SnapshotStatus.MATCH
+    assert result.requires_user_confirmation is True
+    assert result.warnings == ("snapshot is 7 days old",)
+    assert result.handoff is None
+
+
+def test_future_snapshot_fails_closed_without_handoff(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    path = save_current(repo, tmp_path / "sessions", NOW + timedelta(microseconds=1))
+
+    result = validate_snapshot(repo, path, collect_repository_state(repo), NOW)
+
+    assert result.status is SnapshotStatus.MALFORMED
+    assert result.diagnostics == ("snapshot saved_at is in the future",)
+    assert result.handoff is None
+
+
 def test_branch_project_and_diverged_head_are_distinct(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     root = tmp_path / "sessions"
