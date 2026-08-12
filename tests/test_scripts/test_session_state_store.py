@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from io import BufferedReader
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
+from scripts import session_state_store
 from scripts.session_state_models import HandoffPayload, SessionSnapshotV2
 from scripts.session_state_store import (
     SnapshotStoreError,
@@ -57,7 +60,7 @@ def test_v2_write_load_and_discovery_are_scoped_by_project_and_worktree(tmp_path
     assert load_v2(path).snapshot_id.startswith("20260811")
 
 
-def test_atomic_replace_failure_preserves_prior_bytes_and_cleans_temp(
+def test_atomic_publish_failure_preserves_prior_bytes_and_cleans_temp(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     project = tmp_path / "project"
@@ -67,12 +70,12 @@ def test_atomic_replace_failure_preserves_prior_bytes_and_cleans_temp(
     previous_bytes = previous.read_bytes()
     directory = previous.parent
 
-    def fail_replace(_source: object, _destination: object) -> None:
+    def fail_publish(_source: object, _destination: object) -> None:
         raise OSError("blocked")
 
-    monkeypatch.setattr("scripts.session_state_store.os.replace", fail_replace)
+    monkeypatch.setattr("scripts.session_state_store.os.link", fail_publish)
 
-    with pytest.raises(SnapshotStoreError, match="atomic replace"):
+    with pytest.raises(SnapshotStoreError, match="atomic publish"):
         write_snapshot(root, make_snapshot(project, project, snapshot_id="second-snapshot"))
 
     assert previous.read_bytes() == previous_bytes
@@ -118,6 +121,78 @@ def test_duplicate_destination_is_rejected_as_immutable(tmp_path: Path) -> None:
 
     with pytest.raises(SnapshotStoreError, match="snapshot already exists and is immutable"):
         write_snapshot(tmp_path / "sessions", snapshot)
+
+
+def test_concurrent_destination_creation_is_never_overwritten(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    root = tmp_path / "sessions"
+    snapshot = make_snapshot(project, project)
+    directory = snapshot_directory(root, project, project)
+    destination = directory / f"{snapshot.snapshot_id}-session.json"
+    concurrent_bytes = b"concurrent immutable snapshot"
+    original_link = session_state_store.os.link
+
+    def create_destination_then_link(source: Path, target: Path) -> None:
+        target.write_bytes(concurrent_bytes)
+        original_link(source, target)
+
+    monkeypatch.setattr(session_state_store.os, "link", create_destination_then_link)
+
+    with pytest.raises(SnapshotStoreError, match="snapshot already exists and is immutable"):
+        write_snapshot(root, snapshot)
+
+    assert destination.read_bytes() == concurrent_bytes
+    assert list(destination.parent.glob("tmp*")) == []
+
+
+def test_load_uses_one_capped_handle_read_when_file_grows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "growing-session.json"
+    path.write_bytes(b"{}")
+    original_open = session_state_store.os.open
+    original_fdopen = session_state_store.os.fdopen
+    read_sizes: list[int] = []
+
+    class TrackedHandle:
+        def __init__(self, handle: BufferedReader) -> None:
+            self._handle = handle
+
+        def __enter__(self) -> TrackedHandle:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            self._handle.close()
+
+        def fileno(self) -> int:
+            return self._handle.fileno()
+
+        def read(self, size: int = -1) -> bytes:
+            read_sizes.append(size)
+            assert size == 1024 * 1024 + 1
+            return b"x" * size
+
+    def tracked_open(target: Path, flags: int) -> int:
+        return original_open(target, flags)
+
+    def tracked_fdopen(descriptor: int, mode: str) -> TrackedHandle:
+        handle = cast(BufferedReader, cast(Any, original_fdopen)(descriptor, mode))
+        return TrackedHandle(handle)
+
+    def fail_unbounded_read(_target: Path) -> bytes:
+        raise AssertionError("load_v2 must not call Path.read_bytes")
+
+    monkeypatch.setattr(session_state_store.os, "open", tracked_open)
+    monkeypatch.setattr(session_state_store.os, "fdopen", tracked_fdopen)
+    monkeypatch.setattr(Path, "read_bytes", fail_unbounded_read)
+
+    with pytest.raises(SnapshotStoreError, match="1 MiB"):
+        load_v2(path)
+
+    assert read_sizes == [1024 * 1024 + 1]
 
 
 @pytest.mark.parametrize("malformed", [True, False])

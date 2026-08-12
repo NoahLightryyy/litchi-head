@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import tempfile
 from pathlib import Path
 
@@ -63,9 +64,6 @@ def write_snapshot(root: Path, snapshot: SessionSnapshotV2) -> Path:
     )
     directory.mkdir(parents=True, exist_ok=True)
     destination = directory / f"{snapshot.snapshot_id}-session.json"
-    if destination.exists():
-        raise SnapshotStoreError("snapshot already exists and is immutable")
-
     encoded = (
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     ).encode("utf-8")
@@ -76,23 +74,34 @@ def write_snapshot(root: Path, snapshot: SessionSnapshotV2) -> Path:
             handle.write(encoded)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, destination)
+        os.link(temporary, destination)
+    except FileExistsError as error:
+        raise SnapshotStoreError("snapshot already exists and is immutable") from error
     except OSError as error:
+        raise SnapshotStoreError(f"atomic publish failed: {type(error).__name__}") from error
+    finally:
         if temporary is not None:
             try:
                 temporary.unlink(missing_ok=True)
             except OSError:
                 pass
-        raise SnapshotStoreError(f"atomic replace failed: {type(error).__name__}") from error
     return destination
 
 
 def load_v2(path: Path) -> SessionSnapshotV2:
     """Load and validate a bounded v2 snapshot without exposing its contents."""
     try:
-        if path.stat().st_size > _MAX_SNAPSHOT_BYTES:
+        no_follow = getattr(os, "O_NOFOLLOW", 0)
+        if no_follow == 0 and path.is_symlink():
+            raise SnapshotStoreError("snapshot must be a regular file")
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0) | no_follow)
+        with os.fdopen(descriptor, "rb") as handle:
+            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                raise SnapshotStoreError("snapshot must be a regular file")
+            encoded = handle.read(_MAX_SNAPSHOT_BYTES + 1)
+        if len(encoded) > _MAX_SNAPSHOT_BYTES:
             raise SnapshotStoreError("snapshot exceeds the 1 MiB limit")
-        return SessionSnapshotV2.model_validate_json(path.read_bytes())
+        return SessionSnapshotV2.model_validate_json(encoded)
     except SnapshotStoreError:
         raise
     except (OSError, UnicodeError, ValidationError, ValueError) as error:
