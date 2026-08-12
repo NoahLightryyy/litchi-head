@@ -22,6 +22,7 @@ from scripts.session_state_models import (  # noqa: E402
     RepositoryState,
     SessionSnapshotV2,
     SnapshotStatus,
+    ValidationFailureReason,
     ValidationResult,
 )
 from scripts.session_state_store import (  # noqa: E402
@@ -74,12 +75,14 @@ def _validation_failure(
     status: SnapshotStatus,
     snapshot_path: Path,
     diagnostic: str,
+    failure_reason: ValidationFailureReason | None = None,
 ) -> ValidationResult:
     return ValidationResult(
         status=status,
         snapshot_path=str(snapshot_path),
         diagnostics=(diagnostic,),
         handoff=None,
+        failure_reason=failure_reason,
     )
 
 
@@ -141,6 +144,7 @@ def validate_snapshot(
                 SnapshotStatus.MALFORMED,
                 snapshot_path,
                 "snapshot saved_at is in the future",
+                ValidationFailureReason.CORRUPT_SNAPSHOT,
             )
         warnings = (
             (f"snapshot is {elapsed.days} days old",)
@@ -155,11 +159,26 @@ def validate_snapshot(
             requires_user_confirmation=bool(warnings),
             handoff=snapshot.handoff if allow_old or not warnings else None,
         )
-    except (GitInspectionError, SnapshotStoreError, OSError, ValueError) as error:
+    except GitInspectionError as error:
         return _validation_failure(
             SnapshotStatus.MALFORMED,
             snapshot_path,
             f"session validation failed: {type(error).__name__}",
+            ValidationFailureReason.OPERATIONAL_FAILURE,
+        )
+    except (SnapshotStoreError, ValueError) as error:
+        return _validation_failure(
+            SnapshotStatus.MALFORMED,
+            snapshot_path,
+            f"session validation failed: {type(error).__name__}",
+            ValidationFailureReason.CORRUPT_SNAPSHOT,
+        )
+    except OSError as error:
+        return _validation_failure(
+            SnapshotStatus.MALFORMED,
+            snapshot_path,
+            f"session validation failed: {type(error).__name__}",
+            ValidationFailureReason.OPERATIONAL_FAILURE,
         )
 
 
@@ -199,13 +218,23 @@ def inspect_sessions(
             snapshot_path=None,
             diagnostics=("no matching session snapshot",),
             handoff=None,
+            failure_reason=ValidationFailureReason.NO_CANDIDATE,
         )
-    except (GitInspectionError, SnapshotStoreError, OSError, ValueError) as error:
+    except (SnapshotStoreError, ValueError) as error:
         return ValidationResult(
             status=SnapshotStatus.MALFORMED,
             snapshot_path=None,
             diagnostics=(f"session inspection failed: {type(error).__name__}",),
             handoff=None,
+            failure_reason=ValidationFailureReason.CORRUPT_SNAPSHOT,
+        )
+    except (GitInspectionError, OSError) as error:
+        return ValidationResult(
+            status=SnapshotStatus.MALFORMED,
+            snapshot_path=None,
+            diagnostics=(f"session inspection failed: {type(error).__name__}",),
+            handoff=None,
+            failure_reason=ValidationFailureReason.OPERATIONAL_FAILURE,
         )
 
 
@@ -232,18 +261,24 @@ def exit_code(result: ValidationResult) -> int:
     if (
         result.status in _STALE_STATUSES
         or result.requires_user_confirmation
-        or (
-            result.status is SnapshotStatus.MALFORMED
-            and result.diagnostics == ("no matching session snapshot",)
-        )
+        or result.failure_reason is ValidationFailureReason.NO_CANDIDATE
     ):
         return 2
     return 3
 
 
+class CliArgumentError(ValueError):
+    """Raised for malformed CLI invocations without exposing user input."""
+
+
+class _SessionArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        raise CliArgumentError from None
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the save/inspect command-line contract."""
-    parser = argparse.ArgumentParser(description="Git-verified session snapshot tool")
+    parser = _SessionArgumentParser(description="Git-verified session snapshot tool")
     commands = parser.add_subparsers(dest="command", required=True)
 
     inspect = commands.add_parser("inspect")
@@ -262,8 +297,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """Save or inspect a repository-scoped snapshot."""
-    args = build_parser().parse_args(argv)
     try:
+        args = build_parser().parse_args(argv)
         if args.command == "save":
             handoff = HandoffPayload.model_validate_json(
                 args.payload.read_text(encoding="utf-8")
@@ -294,7 +329,14 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(output)
         return exit_code(result)
-    except (OSError, ValidationError, GitInspectionError, SnapshotStoreError) as error:
+    except (
+        CliArgumentError,
+        GitInspectionError,
+        OSError,
+        SnapshotStoreError,
+        UnicodeError,
+        ValidationError,
+    ) as error:
         print(f"ERROR: {type(error).__name__}", file=sys.stderr)
         return 3
 

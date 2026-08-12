@@ -10,9 +10,19 @@ from pathlib import Path
 
 import pytest
 
-from scripts.session_state import build_snapshot, inspect_sessions, validate_snapshot
+from scripts.session_state import (
+    build_snapshot,
+    exit_code,
+    inspect_sessions,
+    validate_snapshot,
+)
 from scripts.session_state_git import GitInspectionError, collect_repository_state
-from scripts.session_state_models import HandoffPayload, SnapshotStatus
+from scripts.session_state_models import (
+    HandoffPayload,
+    SnapshotStatus,
+    ValidationFailureReason,
+    ValidationResult,
+)
 from scripts.session_state_store import load_v2, snapshot_directory, write_snapshot
 from tests.test_scripts.session_state_helpers import git, init_repo, write
 
@@ -181,6 +191,7 @@ def test_future_snapshot_fails_closed_without_handoff(tmp_path: Path) -> None:
 
     assert result.status is SnapshotStatus.MALFORMED
     assert result.diagnostics == ("snapshot saved_at is in the future",)
+    assert result.failure_reason is ValidationFailureReason.CORRUPT_SNAPSHOT
     assert result.handoff is None
 
 
@@ -231,6 +242,7 @@ def test_malformed_snapshot_hides_body_and_handoff(tmp_path: Path) -> None:
     assert result.handoff is None
     assert hidden not in " ".join(result.diagnostics)
     assert result.diagnostics == ("session validation failed: SnapshotStoreError",)
+    assert result.failure_reason is ValidationFailureReason.CORRUPT_SNAPSHOT
 
 
 def test_ancestry_error_is_class_only_and_hides_handoff(
@@ -252,6 +264,7 @@ def test_ancestry_error_is_class_only_and_hides_handoff(
     assert result.handoff is None
     assert hidden not in " ".join(result.diagnostics)
     assert result.diagnostics == ("session validation failed: GitInspectionError",)
+    assert result.failure_reason is ValidationFailureReason.OPERATIONAL_FAILURE
 
 
 def test_nonexistent_snapshot_head_is_malformed(tmp_path: Path) -> None:
@@ -268,6 +281,7 @@ def test_nonexistent_snapshot_head_is_malformed(tmp_path: Path) -> None:
     assert result.status is SnapshotStatus.MALFORMED
     assert result.handoff is None
     assert result.diagnostics == ("session validation failed: GitInspectionError",)
+    assert result.failure_reason is ValidationFailureReason.OPERATIONAL_FAILURE
 
 
 def test_legacy_incident_never_returns_td_072_as_diagnostic_or_executable(
@@ -297,6 +311,7 @@ def test_no_matching_candidate_is_malformed(tmp_path: Path) -> None:
     assert result.snapshot_path is None
     assert result.handoff is None
     assert result.diagnostics == ("no matching session snapshot",)
+    assert result.failure_reason is ValidationFailureReason.NO_CANDIDATE
 
 
 def test_newest_v2_candidate_takes_priority_over_legacy(tmp_path: Path) -> None:
@@ -334,6 +349,7 @@ def test_inspection_boundary_error_is_class_only(
     assert result.handoff is None
     assert hidden not in " ".join(result.diagnostics)
     assert result.diagnostics == ("session inspection failed: OSError",)
+    assert result.failure_reason is ValidationFailureReason.OPERATIONAL_FAILURE
 
 
 def test_save_then_inspect_json_round_trip_has_pure_stdout(tmp_path: Path) -> None:
@@ -510,3 +526,77 @@ def test_inspect_git_failure_reports_only_stable_exception_class(
     assert result.stdout == ""
     assert result.stderr == "ERROR: GitInspectionError\n"
     assert hidden not in result.stderr
+
+
+def test_malformed_exit_code_uses_structured_reason_not_diagnostic_wording() -> None:
+    no_candidate = ValidationResult(
+        status=SnapshotStatus.MALFORMED,
+        snapshot_path=None,
+        diagnostics=("completely revised no-candidate wording",),
+        failure_reason=ValidationFailureReason.NO_CANDIDATE,
+    )
+    corrupt = no_candidate.model_copy(
+        update={
+            "diagnostics": ("completely revised corrupt wording",),
+            "failure_reason": ValidationFailureReason.CORRUPT_SNAPSHOT,
+        }
+    )
+    operational = no_candidate.model_copy(
+        update={
+            "diagnostics": ("completely revised operation wording",),
+            "failure_reason": ValidationFailureReason.OPERATIONAL_FAILURE,
+        }
+    )
+
+    assert exit_code(no_candidate) == 2
+    assert exit_code(corrupt) == 3
+    assert exit_code(operational) == 3
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ("private-unknown-command",),
+        ("inspect", "--repo", "private-missing-value"),
+    ],
+)
+def test_malformed_cli_invocation_returns_stable_exit_3_without_echo(
+    arguments: tuple[str, ...],
+) -> None:
+    project_repo = Path(__file__).resolve().parents[2]
+
+    result = run_cli(project_repo, *arguments)
+
+    assert result.returncode == 3
+    assert result.stdout == ""
+    assert result.stderr == "ERROR: CliArgumentError\n"
+    assert "private" not in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_save_invalid_utf8_payload_reports_only_stable_exception_class(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path)
+    payload = tmp_path / "payload.json"
+    payload.write_bytes(b'\xff{"exact_next_step":"private-payload-secret"}')
+    project_repo = Path(__file__).resolve().parents[2]
+
+    result = run_cli(
+        project_repo,
+        "save",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(tmp_path / "sessions"),
+        "--topic",
+        "recovery",
+        "--payload",
+        str(payload),
+    )
+
+    assert result.returncode == 3
+    assert result.stdout == ""
+    assert result.stderr == "ERROR: UnicodeDecodeError\n"
+    assert "private-payload-secret" not in result.stderr
+    assert "Traceback" not in result.stderr

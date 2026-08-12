@@ -13,6 +13,9 @@ from scripts.session_state_models import (
     HandoffPayload,
     RepositoryState,
     SessionSnapshotV2,
+    SnapshotStatus,
+    ValidationFailureReason,
+    ValidationResult,
     normalize_identity_path,
     path_key,
 )
@@ -77,3 +80,24 @@ def test_snapshot_rejects_dirty_flag_path_disagreement(tmp_path: Path) -> None:
 
     with pytest.raises(ValidationError, match="git_dirty must match dirty_paths"):
         SessionSnapshotV2.model_validate(payload)
+
+
+def test_validation_result_failure_reason_is_frozen_and_backward_compatible() -> None:
+    legacy_result = ValidationResult(
+        status=SnapshotStatus.MATCH,
+        snapshot_path=None,
+        diagnostics=("match",),
+    )
+    no_candidate = ValidationResult(
+        status=SnapshotStatus.MALFORMED,
+        snapshot_path=None,
+        diagnostics=("wording may change",),
+        failure_reason=ValidationFailureReason.NO_CANDIDATE,
+    )
+
+    assert legacy_result.failure_reason is None
+    assert no_candidate.failure_reason is ValidationFailureReason.NO_CANDIDATE
+    with pytest.raises(ValidationError):
+        no_candidate.failure_reason = (  # type: ignore[misc]
+            ValidationFailureReason.OPERATIONAL_FAILURE
+        )

@@ -21,6 +21,14 @@ class SnapshotStatus(StrEnum):
     MALFORMED = "MALFORMED"
 
 
+class ValidationFailureReason(StrEnum):
+    """Stable reason for a malformed validation outcome."""
+
+    NO_CANDIDATE = "NO_CANDIDATE"
+    CORRUPT_SNAPSHOT = "CORRUPT_SNAPSHOT"
+    OPERATIONAL_FAILURE = "OPERATIONAL_FAILURE"
+
+
 class FrozenModel(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -92,6 +100,7 @@ class ValidationResult(FrozenModel):
     warnings: tuple[str, ...] = ()
     requires_user_confirmation: bool = False
     handoff: HandoffPayload | None = None
+    failure_reason: ValidationFailureReason | None = None
 
 
 def normalize_identity_path(path: Path) -> str:
