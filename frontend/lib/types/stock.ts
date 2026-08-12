@@ -130,3 +130,112 @@ export interface DynamicIndicators {
   indicator_ids: string[];
   indicators: IndicatorDef[];
 }
+
+export type IntradayVerificationStatus =
+  | "multi_source_verified"
+  | "single_source"
+  | "source_conflict"
+  | "unavailable";
+
+export type IntradayBarState = "final" | "provisional";
+
+export type EvidenceSourceStatus =
+  | "success_data"
+  | "success_empty"
+  | "failed"
+  | "unsupported"
+  | "stale"
+  | "conflicted";
+
+export type EvidenceCapability =
+  | "realtime_quote"
+  | "intraday"
+  | "kline"
+  | "cumulative_qfq_factor"
+  | "corporate_action_factor"
+  | "news"
+  | "industry"
+  | "announcement"
+  | "financials"
+  | "capital_flow"
+  | "market_sentiment";
+
+export interface EvidenceAssessment {
+  capability: EvidenceCapability;
+  complete: boolean;
+  successful_upstream_ids: string[];
+  successful_source_ids: string[];
+  failed_source_ids: string[];
+  discovery_only_source_ids: string[];
+  unusable_source_ids: string[];
+  missing_required_upstream_ids: string[];
+  missing_independent_upstreams: number;
+}
+
+export interface IntradayPricePoint {
+  code: string;
+  timestamp: string;
+  close: number;
+  cumulative_volume: number;
+  cumulative_amount: number;
+  state: IntradayBarState;
+}
+
+export interface IntradayBar {
+  code: string;
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  amount: number;
+  state: IntradayBarState;
+}
+
+export interface IntradaySourceDiagnostic {
+  source_id: string;
+  source_name: string;
+  upstream_id: string;
+  status: EvidenceSourceStatus;
+  fetched_at: string;
+  error_code: string | null;
+  error_message: string | null;
+  checkpoint_count: number;
+  latest_timestamp: string | null;
+}
+
+export interface IntradayBattlefieldSnapshot {
+  code: string;
+  evidence_level: "L1";
+  as_of: string;
+  current_price: number;
+  current_bar_state: IntradayBarState;
+  session_vwap: number | null;
+  vwap_deviation_pct: number | null;
+  vwap_position: "above" | "at" | "below" | "unavailable";
+  opening_range_high: number | null;
+  opening_range_low: number | null;
+  cumulative_volume: number;
+  relative_volume: number | null;
+  relative_volume_sample_days: number | null;
+  attribution_supported: false;
+  limitations: string[];
+}
+
+export interface IntradayBattlefield {
+  symbol: string;
+  complete: boolean;
+  usable: boolean;
+  verification_status: IntradayVerificationStatus;
+  canonical_source_id: string | null;
+  available_source_ids: string[];
+  failed_source_ids: string[];
+  as_of: string | null;
+  collected_at: string;
+  assessment: EvidenceAssessment;
+  source_diagnostics: IntradaySourceDiagnostic[];
+  bars: IntradayBar[];
+  price_points: IntradayPricePoint[];
+  snapshot: IntradayBattlefieldSnapshot | null;
+}

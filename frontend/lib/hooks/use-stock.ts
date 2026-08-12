@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchQuote, fetchKline, fetchNews, fetchCapitalFlow, fetchTechnicalIndicators, fetchFinancials, fetchValuation, fetchIndicators, searchStocks } from "@/lib/api/stocks";
+import { fetchQuote, fetchKline, fetchNews, fetchCapitalFlow, fetchTechnicalIndicators, fetchFinancials, fetchValuation, fetchIndicators, fetchIntradayBattlefield, searchStocks } from "@/lib/api/stocks";
 import { useDebounce } from "./use-debounce";
 
 /* ── 搜索（300ms 防抖） ── */
@@ -92,6 +92,17 @@ export function useIndicators(code: string) {
     queryKey: ["stocks", code, "indicators"],
     queryFn: () => fetchIndicators(code),
     staleTime: 300_000,
+    enabled: !!code,
+  });
+}
+
+/** 分时行情每 30 秒刷新，且不会因单一来源而阻断数据展示。 */
+export function useIntradayBattlefield(code: string) {
+  return useQuery({
+    queryKey: ["stocks", code, "intraday-battlefield"],
+    queryFn: () => fetchIntradayBattlefield(code),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
     enabled: !!code,
   });
 }

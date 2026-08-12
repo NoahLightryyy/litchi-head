@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { StockQuote, KLineData, NewsItem, CapitalFlow, StockSearchResult, TechnicalIndicators, FinancialMetrics, ValuationMetrics, DynamicIndicators } from "@/lib/types/stock";
+import type { StockQuote, KLineData, NewsItem, CapitalFlow, StockSearchResult, TechnicalIndicators, FinancialMetrics, ValuationMetrics, DynamicIndicators, IntradayBattlefield } from "@/lib/types/stock";
 
 /** 搜索股票/板块 */
 export async function searchStocks(query: string): Promise<StockSearchResult[]> {
@@ -55,4 +55,11 @@ export async function fetchValuation(code: string): Promise<ValuationMetrics | n
 /** 个股动态关键指标（按行业注册表） */
 export async function fetchIndicators(code: string): Promise<DynamicIndicators> {
   return api.get(`/stocks/${code}/indicators`);
+}
+
+/** 分时曲线、战况与数据源诊断。 */
+export async function fetchIntradayBattlefield(
+  code: string,
+): Promise<IntradayBattlefield> {
+  return api.post("/v1/evidence/intraday/battlefield", { symbol: code });
 }
