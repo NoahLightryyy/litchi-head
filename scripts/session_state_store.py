@@ -90,23 +90,59 @@ def snapshot_directory(root: Path, project: Path, worktree: Path) -> Path:
     )
 
 
+def _reject_existing_scope_redirections(root: Path, directory: Path) -> None:
+    """Reject redirections already present in the scoped directory chain."""
+    components = (root, root / "v2", directory.parent, directory)
+
+    def inspect() -> None:
+        for component in components:
+            try:
+                metadata = os.lstat(component)
+            except FileNotFoundError:
+                continue
+            is_reparse_point = bool(
+                getattr(metadata, "st_file_attributes", 0)
+                & _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT
+            )
+            if stat.S_ISLNK(metadata.st_mode) or is_reparse_point:
+                raise SnapshotStoreOperationalError(
+                    "snapshot scope contains a redirection"
+                )
+
+    _store_io(inspect, "snapshot scope validation failed")
+
+
 def write_snapshot(root: Path, snapshot: SessionSnapshotV2) -> Path:
     """Atomically write one immutable UTF-8 v2 snapshot."""
-    payload = snapshot.model_dump(mode="json")
-    if contains_secret(payload):
-        raise SnapshotStoreError("snapshot contains a suspected secret field")
+    encoded: bytes | None = None
+    serialization_failure: SnapshotStoreOperationalError | None = None
+    try:
+        payload = snapshot.model_dump(mode="json")
+        if contains_secret(payload):
+            raise SnapshotStoreError("snapshot contains a suspected secret field")
+        encoded = (
+            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+        ).encode("utf-8")
+    except SnapshotStoreError:
+        raise
+    except UnicodeError:
+        serialization_failure = SnapshotStoreOperationalError(
+            "snapshot serialization failed"
+        )
+    if serialization_failure is not None:
+        raise serialization_failure
+    if encoded is None:
+        raise SnapshotStoreOperationalError("snapshot serialization failed")
 
     directory = snapshot_directory(
         root, Path(snapshot.project_root), Path(snapshot.worktree_path)
     )
+    _reject_existing_scope_redirections(root, directory)
     _store_io(
         lambda: directory.mkdir(parents=True, exist_ok=True),
         "snapshot directory creation failed",
     )
     destination = directory / f"{snapshot.snapshot_id}-session.json"
-    encoded = (
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-    ).encode("utf-8")
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(dir=directory, delete=False) as handle:
@@ -256,6 +292,7 @@ def discover_v2(root: Path, project: Path, worktree: Path) -> tuple[Path, ...]:
     failure: SnapshotStoreOperationalError | None = None
     try:
         directory = snapshot_directory(root, project, worktree)
+        _reject_existing_scope_redirections(root, directory)
         if not directory.exists():
             return ()
         loaded = [

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
+import subprocess
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from io import BufferedReader
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Iterator, cast
 
 import pytest
 
@@ -66,6 +68,80 @@ def make_snapshot(
         topic="recovery",
         handoff=HandoffPayload(exact_next_step=next_step),
     )
+
+
+@contextmanager
+def directory_redirection(link: Path, target: Path) -> Iterator[None]:
+    """Create and safely remove a real directory redirection for this platform."""
+    if os.name == "nt":
+        completed = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode != 0:
+            pytest.skip(f"junction unavailable: exit {completed.returncode}")
+    else:
+        link.symlink_to(target, target_is_directory=True)
+    try:
+        yield
+    finally:
+        if os.name == "nt":
+            os.rmdir(link)
+        else:
+            link.unlink()
+
+
+def test_write_rejects_preexisting_v2_reparse_component(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    root = tmp_path / "sessions"
+    root.mkdir()
+    redirected = tmp_path / "redirected-v2"
+    redirected.mkdir()
+
+    with directory_redirection(root / "v2", redirected):
+        with pytest.raises(SnapshotStoreOperationalError, match="snapshot scope"):
+            write_snapshot(root, make_snapshot(project, project))
+
+    assert list(redirected.iterdir()) == []
+
+
+def test_discovery_rejects_preexisting_worktree_reparse_component(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    root = tmp_path / "sessions"
+    directory = snapshot_directory(root, project, project)
+    directory.parent.mkdir(parents=True)
+    redirected = tmp_path / "redirected-worktree"
+    redirected.mkdir()
+
+    with directory_redirection(directory, redirected):
+        with pytest.raises(SnapshotStoreOperationalError, match="snapshot scope"):
+            discover_v2(root, project, project)
+
+
+def test_snapshot_serialization_unicode_error_is_sanitized(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    hidden = "private-serialization-payload"
+    snapshot = make_snapshot(project, project).model_copy(
+        update={
+            "handoff": HandoffPayload.model_construct(
+                exact_next_step=f"{hidden}\ud800"
+            )
+        }
+    )
+
+    with pytest.raises(
+        SnapshotStoreOperationalError, match="snapshot serialization failed"
+    ) as caught:
+        write_snapshot(tmp_path / "sessions", snapshot)
+
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_v2_write_load_and_discovery_are_scoped_by_project_and_worktree(tmp_path: Path) -> None:
