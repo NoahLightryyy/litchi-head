@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+
+from pydantic import ValidationError
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -26,6 +29,19 @@ from scripts.session_state_store import (  # noqa: E402
     discover_legacy,
     discover_v2,
     load_v2,
+    write_snapshot,
+)
+
+_STALE_STATUSES = frozenset(
+    {
+        SnapshotStatus.REPO_AHEAD,
+        SnapshotStatus.HEAD_DIVERGED,
+        SnapshotStatus.BRANCH_MISMATCH,
+        SnapshotStatus.DIRTY_MISMATCH,
+        SnapshotStatus.EVIDENCE_CHANGED,
+        SnapshotStatus.PROJECT_MISMATCH,
+        SnapshotStatus.LEGACY_UNVERIFIABLE,
+    }
 )
 
 
@@ -191,3 +207,97 @@ def inspect_sessions(
             diagnostics=(f"session inspection failed: {type(error).__name__}",),
             handoff=None,
         )
+
+
+def render_report(result: ValidationResult, current: RepositoryState) -> str:
+    """Render a stable human-readable report without quarantined handoff data."""
+    lines = [
+        f"STATUS: {result.status.value}",
+        f"WORKTREE: {current.worktree_path}",
+        f"BRANCH: {current.branch}",
+        f"HEAD: {current.git_head}",
+        f"SNAPSHOT: {result.snapshot_path or 'none'}",
+    ]
+    lines.extend(f"DIAGNOSTIC: {item}" for item in result.diagnostics)
+    lines.extend(f"WARNING: {item}" for item in result.warnings)
+    if result.status is SnapshotStatus.MATCH and result.handoff is not None:
+        lines.append(f"NEXT STEP: {result.handoff.exact_next_step}")
+    return "\n".join(lines)
+
+
+def exit_code(result: ValidationResult) -> int:
+    """Map a validation result to the documented stable process exit code."""
+    if result.status is SnapshotStatus.MATCH and result.handoff is not None:
+        return 0
+    if (
+        result.status in _STALE_STATUSES
+        or result.requires_user_confirmation
+        or (
+            result.status is SnapshotStatus.MALFORMED
+            and result.diagnostics == ("no matching session snapshot",)
+        )
+    ):
+        return 2
+    return 3
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the save/inspect command-line contract."""
+    parser = argparse.ArgumentParser(description="Git-verified session snapshot tool")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    inspect = commands.add_parser("inspect")
+    inspect.add_argument("--repo", type=Path, required=True)
+    inspect.add_argument("--session-root", type=Path, required=True)
+    inspect.add_argument("--json", action="store_true")
+    inspect.add_argument("--allow-old", action="store_true")
+
+    save = commands.add_parser("save")
+    save.add_argument("--repo", type=Path, required=True)
+    save.add_argument("--session-root", type=Path, required=True)
+    save.add_argument("--topic", required=True)
+    save.add_argument("--payload", type=Path, required=True)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Save or inspect a repository-scoped snapshot."""
+    args = build_parser().parse_args(argv)
+    try:
+        if args.command == "save":
+            handoff = HandoffPayload.model_validate_json(
+                args.payload.read_text(encoding="utf-8")
+            )
+            state = collect_repository_state(args.repo)
+            snapshot = build_snapshot(
+                state,
+                topic=args.topic,
+                handoff=handoff,
+                saved_at=datetime.now().astimezone(),
+            )
+            destination = write_snapshot(args.session_root, snapshot)
+            print(destination)
+            return 0
+
+        current = collect_repository_state(args.repo)
+        result = inspect_sessions(
+            args.repo,
+            args.session_root,
+            datetime.now().astimezone(),
+            current=current,
+            allow_old=args.allow_old,
+        )
+        output = (
+            result.model_dump_json(indent=2)
+            if args.json
+            else render_report(result, current)
+        )
+        print(output)
+        return exit_code(result)
+    except (OSError, ValidationError, GitInspectionError, SnapshotStoreError) as error:
+        print(f"ERROR: {type(error).__name__}", file=sys.stderr)
+        return 3
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

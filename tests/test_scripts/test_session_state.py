@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -14,6 +17,16 @@ from scripts.session_state_store import load_v2, snapshot_directory, write_snaps
 from tests.test_scripts.session_state_helpers import git, init_repo, write
 
 NOW = datetime(2026, 8, 11, 2, 0, tzinfo=UTC)
+
+
+def run_cli(repo_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(repo_root / "scripts/session_state.py"), *args],
+        capture_output=True,
+        cwd=repo_root,
+        text=True,
+        check=False,
+    )
 
 
 def save_current(repo: Path, root: Path, saved_at: datetime = NOW) -> Path:
@@ -321,3 +334,179 @@ def test_inspection_boundary_error_is_class_only(
     assert result.handoff is None
     assert hidden not in " ".join(result.diagnostics)
     assert result.diagnostics == ("session inspection failed: OSError",)
+
+
+def test_save_then_inspect_json_round_trip_has_pure_stdout(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    root = tmp_path / "sessions"
+    payload = tmp_path / "payload.json"
+    payload.write_text(
+        json.dumps({"exact_next_step": "continue E0"}), encoding="utf-8"
+    )
+    project_repo = Path(__file__).resolve().parents[2]
+
+    saved = run_cli(
+        project_repo,
+        "save",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(root),
+        "--topic",
+        "recovery",
+        "--payload",
+        str(payload),
+    )
+    inspected = run_cli(
+        project_repo,
+        "inspect",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(root),
+        "--json",
+    )
+
+    assert saved.returncode == 0
+    assert saved.stderr == ""
+    assert inspected.returncode == 0
+    assert inspected.stderr == ""
+    report = json.loads(inspected.stdout)
+    assert report["status"] == "MATCH"
+    assert report["handoff"]["exact_next_step"] == "continue E0"
+
+
+def test_inspect_stale_snapshot_returns_exit_2_and_hides_next_step(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path)
+    root = tmp_path / "sessions"
+    save_current(repo, root)
+    write(repo, "new.txt", "new\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "advance")
+    project_repo = Path(__file__).resolve().parents[2]
+
+    result = run_cli(
+        project_repo,
+        "inspect",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(root),
+    )
+
+    assert result.returncode == 2
+    assert "STATUS: REPO_AHEAD" in result.stdout
+    assert "continue E0" not in result.stdout
+    assert result.stderr == ""
+
+
+def test_save_rejects_payload_with_unknown_fields_without_echoing_payload(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path)
+    payload = tmp_path / "payload.json"
+    payload.write_text(
+        '{"exact_next_step":"safe","token":"secret-value"}', encoding="utf-8"
+    )
+    project_repo = Path(__file__).resolve().parents[2]
+
+    result = run_cli(
+        project_repo,
+        "save",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(tmp_path / "sessions"),
+        "--topic",
+        "recovery",
+        "--payload",
+        str(payload),
+    )
+
+    assert result.returncode == 3
+    assert result.stdout == ""
+    assert result.stderr == "ERROR: ValidationError\n"
+    assert "secret-value" not in result.stderr
+
+
+def test_old_match_requires_explicit_allow_old(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    root = tmp_path / "sessions"
+    save_current(repo, root, datetime.now(UTC) - timedelta(days=8))
+    project_repo = Path(__file__).resolve().parents[2]
+
+    blocked = run_cli(
+        project_repo,
+        "inspect",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(root),
+    )
+    approved = run_cli(
+        project_repo,
+        "inspect",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(root),
+        "--allow-old",
+    )
+
+    assert blocked.returncode == 2
+    assert "STATUS: MATCH" in blocked.stdout
+    assert "snapshot is 8 days old" in blocked.stdout
+    assert "continue E0" not in blocked.stdout
+    assert approved.returncode == 0
+    assert "NEXT STEP: continue E0" in approved.stdout
+
+
+def test_inspect_legacy_cli_returns_exit_2_without_next_step(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    root = tmp_path / "sessions"
+    root.mkdir()
+    (root / "2026-07-30-intraday-handover-session.tmp").write_text(
+        f"# Session: 2026-07-30\n**Project:** {repo}\n## Exact Next Step\nTD-072\n",
+        encoding="utf-8",
+    )
+    project_repo = Path(__file__).resolve().parents[2]
+
+    result = run_cli(
+        project_repo,
+        "inspect",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(root),
+    )
+
+    assert result.returncode == 2
+    assert "STATUS: LEGACY_UNVERIFIABLE" in result.stdout
+    assert "2026-07-30-intraday-handover-session.tmp" in result.stdout
+    assert "TD-072" not in result.stdout
+
+
+def test_inspect_git_failure_reports_only_stable_exception_class(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "broken-repo"
+    repo.mkdir()
+    hidden = "private-git-stderr-secret"
+    (repo / ".git").write_text(f"gitdir: ../{hidden}\n", encoding="utf-8")
+    project_repo = Path(__file__).resolve().parents[2]
+
+    result = run_cli(
+        project_repo,
+        "inspect",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(tmp_path / "sessions"),
+    )
+
+    assert result.returncode == 3
+    assert result.stdout == ""
+    assert result.stderr == "ERROR: GitInspectionError\n"
+    assert hidden not in result.stderr
