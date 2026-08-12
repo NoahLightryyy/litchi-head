@@ -174,7 +174,7 @@
 ### 🧪 工程质量
 
 - **最近完整闸门快照（2026-08-10）** — 1742 collected、1719 passed、4 skipped、19 deselected；Ruff、Pyright、README 公共状态同步、Python 测试和前端类型检查 5/5 通过。PR 窄门禁以实际 PR head 对 base SHA 审计，Git 审计错误失败关闭；最新远端状态以 CI 为准。
-- **Git 校验的会话恢复** — Git/worktree 是事实源；v2 快照仅作缓存，只有身份一致的 `MATCH` 可显示下一步，其他状态按仓库证据只读重建。
+- **Git 校验的会话恢复** — Git/worktree 是事实源；v2 快照仅作缓存，旧 `MATCH` 经用户确认后须用 `--allow-old` 二次校验；Skill 通过原生参数数组调用项目 CLI，其他状态按仓库证据只读重建。
 - **CI/CD 全自动** — GitHub Actions 流水线（Ruff 风格检查 + Pyright 类型检查 + Pytest 测试）
 - **类型安全** — 全项目完整类型注解，Pyright basic mode 零错误
 - **结果回调审计** — `CallbackRecord` 记录每次结果事件响应，坏回调自动熔断不拖垮主流程

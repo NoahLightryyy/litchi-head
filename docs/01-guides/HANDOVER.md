@@ -43,7 +43,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 ...
 ```
 
-> **新 AI 启动**：执行 `/resume-session` Skill → 自动加载身份卡 + 当前状态 + 工作日志。
+> **新 AI 启动**：执行 `/resume-session` Skill，先执行 `scripts/session_state.py inspect`；只有校验通过才使用快照，否则按 Git/SDD/HANDOVER/最新日志只读重建。
 
 ---
 

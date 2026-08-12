@@ -68,7 +68,7 @@ with urllib.request.urlopen(req, timeout=10) as r:
 
 ## 项目里的真实代码
 
-打开 `.claude/skills/resume-session/skill.md`（第 58-75 行）：
+打开 `.agents/skills/resume-session/skill.md`：
 
 ```python
 # 之前的 resume-session CI 检查（脆弱版）
@@ -129,7 +129,7 @@ except Exception as e:
 
 ## 自己试试（5 分钟）
 
-1. 打开 `.claude/skills/resume-session/skill.md` 看第 58-75 行的 CI 检查命令
+1. 打开 `.agents/skills/resume-session/skill.md` 看当前恢复入口
 2. 对比之前（注释掉的旧版本）和现在（自包含 Python 版本）的区别
 3. 思考题：如果你需要在 GitHub API 返回数据后做更多处理（比如只取失败的任务），是在 Python 里加循环好，还是用 `jq` 过滤好？（答案：全放 Python 里，避免增加工具链依赖）
 

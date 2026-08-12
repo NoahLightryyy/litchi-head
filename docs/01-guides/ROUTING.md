@@ -9,7 +9,7 @@
 > - 🆕 新 AI 首次接入项目（配合 CLAUDE.md 理解加载体系）
 > - 🔧 新增/变更了 docs/ 目录结构后更新本文档
 > - 📋 需要确认某个特定任务的加载策略
-> - **日常开发不需要重读本文档**（`/resume-session` Skill 已封装加载策略）
+> - **日常开发不需要重读本文档**（`/resume-session` Skill 已封装校验器前置的加载策略）
 >
 > **设计参照**：Claude Skills 渐进披露 / Cursor `.cursor/rules` 条件加载 / Cline Memory Bank 三层模型。
 
@@ -26,7 +26,7 @@
 │    └── current-state          → 活跃任务、模块完成度   │
 ├─────────────────────────────────────────────────────┤
 │  L2 ─ 快速同步（每次会话必读）    ~5~8K tokens        │
-│    resume-session Skill 自动完成                     │
+│    resume-session Skill 在 validator MATCH 后加载    │
 │    ├── HANDOVER.md 🏢 各部门一览 + 🎯 优先级       │
 │    ├── 最新 AI 工作日志                              │
 │    ├── git status（工作区快照）                       │
@@ -48,7 +48,7 @@
 ### 1.2 加载优先级等级
 
 ```
-S-tier（必须）  ─ 不读无法工作          → HANDOVER.md 🏢各部门+🎯优先级、最新日志
+S-tier（必须）  ─ validator / Git 身份校验 → 再读 HANDOVER 🏢各部门+🎯优先级、最新日志
 A-tier（重要）  ─ 读了少踩坑            → 对应模块 SPEC + ADR
 B-tier（按需）  ─ 遇到问题才读          → 债务日志相关条目、模块 README
 C-tier（跳过）  ─ 当前任务不需要        → 归档、非相关模块文档、旧日志（30天前）
@@ -73,7 +73,7 @@ C-tier（跳过）  ─ 当前任务不需要        → 归档、非相关模�
 | 7 | **文档更新** | `README.md`（docs 路由表）<br>被更新文档的上下游引用 | 相关模块 `SPEC.md` | 功能代码<br>测试代码<br>债务日志 |
 | 8 | **调研分析** | `99-archive/` 对应条目<br>`README.md` 路由表 | 竞品源码分析笔记<br>对应模块 SPEC 的战线分析 | 债务日志<br>工作日志 |
 | 9 | **部署/CI** | `01-guides/ENVIRONMENT.md`<br>`.env.example` | CI 配置 `.github/workflows/` | 不加载文档，直接看 Makefile |
-| 10 | **会话恢复**<br>（`/resume-session`） | L1 Memory + L2 快速同步<br>参见 §3.1 完整流程 | 按下一步任务切到对应行 | 所有离线的 |
+| 10 | **会话恢复**<br>（`/resume-session`） | `scripts/session_state.py inspect` + L1 Memory + L2 快速同步<br>参见 [SESSION_RECOVERY.md](workflow/SESSION_RECOVERY.md) | 按下一步任务切到对应行 | 所有离线的 |
 
 ### 2.1 模块标识速查
 

@@ -173,7 +173,13 @@ docs/06-departments/{id}/
 python scripts/session_state.py inspect --repo . --session-root "$env:USERPROFILE\.Codex\session-data"
 ```
 
-只有 `MATCH` 可以显示并采用快照中的 `exact_next_step`；超过 7 天还要先请用户确认。`REPO_AHEAD`、`HEAD_DIVERGED`、`BRANCH_MISMATCH`、`DIRTY_MISMATCH`、`EVIDENCE_CHANGED`、`LEGACY_UNVERIFIABLE` 和 `MALFORMED` 均不得执行快照中的下一步，也不得输出该下一步。此时按当前 Git 状态/日志 → SDD → HANDOVER → 最新工作日志只读重建；校验器缺失时手工核对项目、worktree、分支和完整 HEAD，事实不全就失败关闭，绝不按全局 mtime 选快照。
+只有 `MATCH` 可以显示并采用快照中的 `exact_next_step`。超过 7 天时首次 `MATCH` 不显示 handoff，先请用户明确确认，再用同一参数完整重跑：
+
+```powershell
+python scripts/session_state.py inspect --repo . --session-root "$env:USERPROFILE\.Codex\session-data" --allow-old
+```
+
+只有第二次仍为 `MATCH` 才采用这次校验器输出，不得直接读取快照正文。`REPO_AHEAD`、`HEAD_DIVERGED`、`BRANCH_MISMATCH`、`DIRTY_MISMATCH`、`EVIDENCE_CHANGED`、`LEGACY_UNVERIFIABLE` 和 `MALFORMED` 均不得执行快照中的下一步，也不得输出该下一步。此时按当前 Git 状态/日志 → SDD → HANDOVER → 最新工作日志只读重建；校验器缺失时手工核对项目、worktree、分支和完整 HEAD，事实不全就失败关闭，绝不按全局 mtime 选快照。
 
 > **上下文优化**：核心信息（身份卡/ADR/当前状态）已由 Memory 系统自动注入，
 > 无需再逐份完整读取 CLAUDE.md、债务日志和设计文档。
