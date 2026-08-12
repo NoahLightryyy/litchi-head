@@ -415,3 +415,78 @@ def test_legacy_candidate_with_missing_claimed_project_is_skipped(tmp_path: Path
     matching.write_text(f"**Project:** {project}\n", encoding="utf-8")
 
     assert discover_legacy(tmp_path, project)[0].path == str(matching.resolve())
+
+
+def test_store_operational_exception_discards_io_cause(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "unreadable-session.json"
+    hidden = "private-store-cause"
+
+    def fail_open(_path: Path) -> BufferedReader:
+        raise PermissionError(hidden)
+
+    monkeypatch.setattr(session_state_store, "_open_snapshot_file", fail_open)
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        load_v2(path)
+
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None
+
+
+def test_store_root_enumeration_io_is_sanitized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    hidden = "private-root-enumeration-detail"
+
+    def fail_root_glob(_path: Path, _pattern: str) -> object:
+        raise PermissionError(hidden)
+
+    monkeypatch.setattr(Path, "glob", fail_root_glob)
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        discover_legacy(tmp_path, project)
+
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None
+
+
+def test_v2_scope_resolution_io_is_sanitized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    hidden = "private-scope-resolution-detail"
+
+    def fail_scope(_path: Path) -> str:
+        raise PermissionError(hidden)
+
+    monkeypatch.setattr(session_state_store, "path_key", fail_scope)
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        discover_v2(tmp_path / "sessions", project, project)
+
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None
+
+
+def test_legacy_scope_resolution_io_is_sanitized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    hidden = "private-legacy-scope-detail"
+
+    def fail_identity(_path: Path) -> str:
+        raise PermissionError(hidden)
+
+    monkeypatch.setattr(session_state_store, "normalize_identity_path", fail_identity)
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        discover_legacy(tmp_path, project)
+
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None

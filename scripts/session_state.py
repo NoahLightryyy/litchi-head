@@ -17,6 +17,7 @@ from scripts.session_state_git import (  # noqa: E402
     SnapshotGitHeadMissingError,
     collect_repository_state,
     is_ancestor,
+    verify_commit_exists,
 )
 from scripts.session_state_models import (  # noqa: E402
     HandoffPayload,
@@ -108,6 +109,7 @@ def validate_snapshot(
                 snapshot_path,
                 "project/worktree identity differs",
             )
+        verify_commit_exists(repo, snapshot.git_head)
         if snapshot.branch != current.branch:
             return _validation_failure(
                 SnapshotStatus.BRANCH_MISMATCH, snapshot_path, "branch differs"

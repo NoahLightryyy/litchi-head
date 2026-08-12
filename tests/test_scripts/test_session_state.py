@@ -644,3 +644,27 @@ def test_store_failure_origin_survives_validation_boundary(
     assert exit_code(result) == 3
     assert hidden not in " ".join(result.diagnostics)
     assert result.handoff is None
+
+
+def test_missing_snapshot_head_precedes_branch_mismatch(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    root = tmp_path / "sessions"
+    original = save_current(repo, root)
+    broken = load_v2(original).model_copy(
+        update={
+            "snapshot_id": "missing-head-wrong-branch",
+            "branch": "other",
+            "git_head": "f" * 40,
+        }
+    )
+    path = write_snapshot(root, broken)
+
+    result = validate_snapshot(repo, path, collect_repository_state(repo), NOW)
+
+    assert result.status is SnapshotStatus.MALFORMED
+    assert result.failure_reason is ValidationFailureReason.CORRUPT_SNAPSHOT
+    assert result.diagnostics == (
+        "session validation failed: SnapshotGitHeadMissingError",
+    )
+    assert exit_code(result) == 3
+    assert result.handoff is None

@@ -71,10 +71,13 @@ def write_snapshot(root: Path, snapshot: SessionSnapshotV2) -> Path:
     if contains_secret(payload):
         raise SnapshotStoreError("snapshot contains a suspected secret field")
 
-    directory = snapshot_directory(
-        root, Path(snapshot.project_root), Path(snapshot.worktree_path)
-    )
-    directory.mkdir(parents=True, exist_ok=True)
+    try:
+        directory = snapshot_directory(
+            root, Path(snapshot.project_root), Path(snapshot.worktree_path)
+        )
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        raise SnapshotStoreOperationalError("snapshot directory creation failed") from None
     destination = directory / f"{snapshot.snapshot_id}-session.json"
     encoded = (
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
@@ -87,19 +90,21 @@ def write_snapshot(root: Path, snapshot: SessionSnapshotV2) -> Path:
             handle.flush()
             os.fsync(handle.fileno())
         os.link(temporary, destination)
-    except FileExistsError as error:
+    except FileExistsError:
         _remove_temporary(temporary)
-        raise SnapshotStoreError("snapshot already exists and is immutable") from error
-    except OSError as error:
+        raise SnapshotStoreError("snapshot already exists and is immutable") from None
+    except OSError:
         _remove_temporary(temporary)
-        raise SnapshotStoreError(f"atomic publish failed: {type(error).__name__}") from error
+        raise SnapshotStoreOperationalError("atomic publish failed") from None
     try:
         _remove_temporary(temporary)
     except SnapshotStoreError as cleanup_error:
         try:
             destination.unlink()
-        except OSError as rollback_error:
-            raise SnapshotStoreError("atomic publish integrity failure") from rollback_error
+        except OSError:
+            raise SnapshotStoreOperationalError(
+                "atomic publish integrity failure"
+            ) from None
         raise cleanup_error
     return destination
 
@@ -109,10 +114,8 @@ def _remove_temporary(temporary: Path | None) -> None:
         return
     try:
         temporary.unlink()
-    except OSError as error:
-        raise SnapshotStoreError(
-            f"atomic publish cleanup failed: {type(error).__name__}"
-        ) from error
+    except OSError:
+        raise SnapshotStoreOperationalError("atomic publish cleanup failed") from None
 
 
 def _open_windows_snapshot_file(path: Path) -> int:
@@ -203,20 +206,16 @@ def load_v2(path: Path) -> SessionSnapshotV2:
         return SessionSnapshotV2.model_validate_json(encoded)
     except SnapshotStoreError:
         raise
-    except OSError as error:
-        raise SnapshotStoreOperationalError(
-            f"snapshot access failed: {type(error).__name__}"
-        ) from error
-    except (UnicodeError, ValidationError, ValueError) as error:
-        raise CorruptSnapshotError(
-            f"snapshot load failed: {type(error).__name__}"
-        ) from error
+    except OSError:
+        raise SnapshotStoreOperationalError("snapshot access failed") from None
+    except (UnicodeError, ValidationError, ValueError):
+        raise CorruptSnapshotError("snapshot load failed") from None
 
 
 def discover_v2(root: Path, project: Path, worktree: Path) -> tuple[Path, ...]:
     """Find every valid in-scope snapshot in chronological order."""
-    directory = snapshot_directory(root, project, worktree)
     try:
+        directory = snapshot_directory(root, project, worktree)
         if not directory.exists():
             return ()
         loaded = [
@@ -225,29 +224,32 @@ def discover_v2(root: Path, project: Path, worktree: Path) -> tuple[Path, ...]:
         ]
     except SnapshotStoreError:
         raise
-    except OSError as error:
-        raise SnapshotStoreOperationalError(
-            f"snapshot discovery failed: {type(error).__name__}"
-        ) from error
+    except OSError:
+        raise SnapshotStoreOperationalError("snapshot discovery failed") from None
     return tuple(path for _, path in sorted(loaded, key=lambda item: (item[0], str(item[1]))))
 
 
 def discover_legacy(root: Path, project: Path) -> tuple[LegacySnapshot, ...]:
     """Return matching legacy files as quarantined, non-executable history."""
-    expected = normalize_identity_path(project)
+    try:
+        expected = normalize_identity_path(project)
+    except OSError:
+        raise SnapshotStoreOperationalError("legacy project access failed") from None
     project_pattern = re.compile(r"^\*\*Project:\*\*\s*(.+?)\s*$", re.MULTILINE)
     date_pattern = re.compile(r"^# Session:\s*(.+?)\s*$", re.MULTILINE)
     matches: list[LegacySnapshot] = []
-    for path in sorted(root.glob("*-session.tmp")):
+    try:
+        legacy_paths = sorted(root.glob("*-session.tmp"))
+    except OSError:
+        raise SnapshotStoreOperationalError("legacy snapshot discovery failed") from None
+    for path in legacy_paths:
         try:
             if path.stat().st_size > _MAX_SNAPSHOT_BYTES:
                 continue
             text = path.read_text(encoding="utf-8-sig", errors="replace")
             resolved_path = path.resolve(strict=True)
-        except OSError as error:
-            raise SnapshotStoreOperationalError(
-                f"legacy snapshot discovery failed: {type(error).__name__}"
-            ) from error
+        except OSError:
+            raise SnapshotStoreOperationalError("legacy snapshot discovery failed") from None
         project_match = project_pattern.search(text)
         if project_match is None:
             continue
@@ -257,10 +259,8 @@ def discover_legacy(root: Path, project: Path) -> tuple[LegacySnapshot, ...]:
             resolved_project = candidate_project.resolve(strict=True)
         except FileNotFoundError:
             continue
-        except OSError as error:
-            raise SnapshotStoreOperationalError(
-                f"legacy project identity failed: {type(error).__name__}"
-            ) from error
+        except OSError:
+            raise SnapshotStoreOperationalError("legacy project identity failed") from None
         except ValueError:
             continue
         if candidate_identity != expected:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from subprocess import CompletedProcess
 from unittest.mock import patch
 
 import pytest
@@ -165,3 +166,138 @@ def test_git_process_launch_failure_preserves_operational_origin(
             collect_repository_state(tmp_path)
 
     assert hidden not in str(caught.value)
+
+
+def test_git_failure_exception_discards_stdout_stderr_and_cause(tmp_path: Path) -> None:
+    from scripts import session_state_git
+    from scripts.session_state_git import GitOperationalError, collect_repository_state
+
+    hidden = "private-git-process-detail"
+    failed = CompletedProcess(
+        args=["git"], returncode=128, stdout=hidden, stderr=hidden
+    )
+    with patch.object(session_state_git.subprocess, "run", return_value=failed):
+        with pytest.raises(GitOperationalError) as caught:
+            collect_repository_state(tmp_path)
+
+    assert hidden not in str(caught.value)
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None
+
+
+def test_git_launch_exception_discards_original_cause(tmp_path: Path) -> None:
+    from scripts import session_state_git
+    from scripts.session_state_git import GitOperationalError, collect_repository_state
+
+    hidden = "private-launch-cause"
+    with patch.object(
+        session_state_git.subprocess, "run", side_effect=PermissionError(hidden)
+    ):
+        with pytest.raises(GitOperationalError) as caught:
+            collect_repository_state(tmp_path)
+
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None
+
+
+def test_evidence_read_io_is_sanitized_as_git_operational(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.session_state_git import GitOperationalError, hash_evidence
+
+    repo = init_repo(tmp_path)
+    evidence = repo / "README.md"
+    hidden = "private-evidence-device-detail"
+    original_read_bytes = Path.read_bytes
+
+    def fail_evidence_read(path: Path) -> bytes:
+        if path == evidence:
+            raise PermissionError(hidden)
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", fail_evidence_read)
+
+    with pytest.raises(GitOperationalError) as caught:
+        hash_evidence(repo, evidence)
+
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None
+
+
+def test_evidence_enumeration_io_is_sanitized_as_git_operational(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.session_state_git import GitOperationalError, find_latest_work_log
+
+    hidden = "private-evidence-enumeration-detail"
+
+    def fail_glob(_path: Path, _pattern: str) -> object:
+        raise PermissionError(hidden)
+
+    monkeypatch.setattr(Path, "glob", fail_glob)
+
+    with pytest.raises(GitOperationalError) as caught:
+        find_latest_work_log(tmp_path)
+
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None
+
+
+def test_handover_stat_io_is_sanitized_as_git_operational(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.session_state_git import GitOperationalError, collect_repository_state
+
+    repo = init_repo(tmp_path)
+    handover = repo / "docs/01-guides/HANDOVER.md"
+    hidden = "private-handover-stat-detail"
+    original_is_file = Path.is_file
+
+    def fail_handover_stat(path: Path) -> bool:
+        if path == handover:
+            raise PermissionError(hidden)
+        return original_is_file(path)
+
+    monkeypatch.setattr(Path, "is_file", fail_handover_stat)
+
+    with pytest.raises(GitOperationalError) as caught:
+        collect_repository_state(repo)
+
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None
+
+
+def test_git_output_decode_failure_is_sanitized(tmp_path: Path) -> None:
+    from scripts import session_state_git
+    from scripts.session_state_git import GitOperationalError, collect_repository_state
+
+    hidden = "private-git-decode-detail"
+    decode_error = UnicodeDecodeError("utf-8", hidden.encode(), 0, 1, hidden)
+    with patch.object(session_state_git.subprocess, "run", side_effect=decode_error):
+        with pytest.raises(GitOperationalError) as caught:
+            collect_repository_state(tmp_path)
+
+    assert hidden not in str(caught.value)
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None
+
+
+def test_repository_identity_normalization_io_is_sanitized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts import session_state_git
+    from scripts.session_state_git import GitOperationalError, collect_repository_state
+
+    repo = init_repo(tmp_path)
+    hidden = "private-identity-normalization-detail"
+
+    def fail_identity(_path: Path) -> str:
+        raise PermissionError(hidden)
+
+    monkeypatch.setattr(session_state_git, "normalize_identity_path", fail_identity)
+
+    with pytest.raises(GitOperationalError) as caught:
+        collect_repository_state(repo)
+
+    assert hidden not in repr(caught.value.args)
+    assert caught.value.__cause__ is None

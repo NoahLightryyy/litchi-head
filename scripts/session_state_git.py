@@ -41,12 +41,6 @@ class _GitOutput(str):
         return instance
 
 
-def _summary(value: str) -> str:
-    """Return a stable, single-line subprocess diagnostic summary."""
-    normalized = " ".join(value.split())
-    return normalized[:200] or "<empty>"
-
-
 def _git(
     repo: Path,
     operation: str,
@@ -63,15 +57,10 @@ def _git(
             text=True,
             check=False,
         )
-    except OSError as error:
-        raise GitOperationalError(
-            f"Git {operation} failed: {type(error).__name__}"
-        ) from error
+    except (OSError, UnicodeError):
+        raise GitOperationalError(f"Git {operation} failed") from None
     if completed.returncode not in ok:
-        raise GitOperationalError(
-            f"Git {operation} failed: exit code {completed.returncode}; "
-            f"stderr={_summary(completed.stderr)}; stdout={_summary(completed.stdout)}"
-        )
+        raise GitOperationalError(f"Git {operation} failed")
     output = completed.stdout.strip() if strip else completed.stdout
     return _GitOutput(output, completed.returncode)
 
@@ -105,49 +94,64 @@ def parse_porcelain_z(output: str) -> tuple[str, ...]:
 
 def hash_evidence(repo: Path, path: Path) -> EvidenceRef:
     """Hash a repository-contained evidence file using a stable relative identity."""
-    resolved_repo = repo.resolve(strict=True)
-    resolved_path = path.resolve(strict=True)
     try:
+        resolved_repo = repo.resolve(strict=True)
+        resolved_path = path.resolve(strict=True)
         relative = resolved_path.relative_to(resolved_repo)
-    except ValueError as error:
-        raise GitInspectionError("evidence path escapes repository") from error
-    if not resolved_path.is_file():
-        raise GitInspectionError("evidence path is not a file")
-    digest = hashlib.sha256(resolved_path.read_bytes()).hexdigest()
+        if not resolved_path.is_file():
+            raise GitInspectionError("evidence path is not a file")
+        digest = hashlib.sha256(resolved_path.read_bytes()).hexdigest()
+    except GitInspectionError:
+        raise
+    except ValueError:
+        raise GitInspectionError("evidence path escapes repository") from None
+    except OSError:
+        raise GitOperationalError("Git evidence access failed") from None
     return EvidenceRef(path=relative.as_posix(), sha256=digest)
 
 
 def find_latest_work_log(repo: Path) -> Path | None:
     """Return the lexically latest dated project work log, if present."""
-    logs = repo.glob("docs/04-changelog/logs/????-??-??/????-??-??*.md")
-    return max(logs, key=lambda path: path.relative_to(repo).as_posix(), default=None)
+    try:
+        logs = repo.glob("docs/04-changelog/logs/????-??-??/????-??-??*.md")
+        return max(logs, key=lambda path: path.relative_to(repo).as_posix(), default=None)
+    except OSError:
+        raise GitOperationalError("Git work-log discovery failed") from None
 
 
 def find_latest_sdd_progress(repo: Path) -> Path | None:
     """Return the newest local SDD progress file, with a deterministic tie-breaker."""
-    progress_files = repo.glob(".superpowers/sdd/*/progress.md")
-    return max(
-        progress_files,
-        key=lambda path: (path.stat().st_mtime_ns, path.relative_to(repo).as_posix()),
-        default=None,
-    )
+    try:
+        progress_files = repo.glob(".superpowers/sdd/*/progress.md")
+        return max(
+            progress_files,
+            key=lambda path: (path.stat().st_mtime_ns, path.relative_to(repo).as_posix()),
+            default=None,
+        )
+    except OSError:
+        raise GitOperationalError("Git SDD discovery failed") from None
 
 
-def is_ancestor(repo: Path, older: str, newer: str) -> bool:
-    """Return whether ``older`` is an ancestor of ``newer``, failing closed on Git errors."""
+def verify_commit_exists(repo: Path, commit: str) -> None:
+    """Verify one commit object exists without parsing localized Git output."""
     snapshot_object = _git(
         repo,
         "snapshot HEAD object verification",
         "rev-parse",
         "--verify",
         "--quiet",
-        f"{older}^{{commit}}",
+        f"{commit}^{{commit}}",
         ok=(0, 1),
     )
     if snapshot_object.returncode == 1:
         raise SnapshotGitHeadMissingError("snapshot HEAD object is missing")
     if snapshot_object.returncode != 0:
         raise GitOperationalError("Git snapshot HEAD object verification failed")
+
+
+def is_ancestor(repo: Path, older: str, newer: str) -> bool:
+    """Return whether ``older`` is an ancestor of ``newer``, failing closed on Git errors."""
+    verify_commit_exists(repo, older)
     result = _git(repo, "ancestry", "merge-base", "--is-ancestor", older, newer, ok=(0, 1))
     exit_code = result.returncode
     if exit_code == 0:
@@ -159,16 +163,24 @@ def is_ancestor(repo: Path, older: str, newer: str) -> bool:
 
 def collect_repository_state(repo: Path) -> RepositoryState:
     """Collect Git identity, dirty paths, and local evidence for a worktree."""
-    worktree = Path(
-        _git(repo, "repository identity", "rev-parse", "--show-toplevel")
-    ).resolve(strict=True)
+    try:
+        worktree = Path(
+            _git(repo, "repository identity", "rev-parse", "--show-toplevel")
+        ).resolve(strict=True)
+    except GitInspectionError:
+        raise
+    except OSError:
+        raise GitOperationalError("Git repository path access failed") from None
     common_dir_output = _git(
         worktree, "repository common directory", "rev-parse", "--git-common-dir"
     )
     common_dir = Path(str(common_dir_output))
     if not common_dir.is_absolute():
         common_dir = worktree / common_dir
-    common_dir = common_dir.resolve(strict=True)
+    try:
+        common_dir = common_dir.resolve(strict=True)
+    except OSError:
+        raise GitOperationalError("Git common directory access failed") from None
     project_root = common_dir.parent if common_dir.name == ".git" else worktree
 
     branch = str(
@@ -191,14 +203,25 @@ def collect_repository_state(repo: Path) -> RepositoryState:
     handover_path = worktree / "docs/01-guides/HANDOVER.md"
     work_log = find_latest_work_log(worktree)
     sdd_progress = find_latest_sdd_progress(worktree)
+    try:
+        handover = hash_evidence(worktree, handover_path) if handover_path.is_file() else None
+    except GitInspectionError:
+        raise
+    except OSError:
+        raise GitOperationalError("Git handover evidence access failed") from None
+    try:
+        normalized_project_root = normalize_identity_path(project_root)
+        normalized_worktree = normalize_identity_path(worktree)
+    except OSError:
+        raise GitOperationalError("Git repository identity access failed") from None
     return RepositoryState(
-        project_root=normalize_identity_path(project_root),
-        worktree_path=normalize_identity_path(worktree),
+        project_root=normalized_project_root,
+        worktree_path=normalized_worktree,
         branch=branch,
         git_head=git_head,
         git_dirty=bool(dirty_paths),
         dirty_paths=dirty_paths,
-        handover=hash_evidence(worktree, handover_path) if handover_path.is_file() else None,
+        handover=handover,
         latest_work_log=hash_evidence(worktree, work_log) if work_log is not None else None,
         sdd_progress=hash_evidence(worktree, sdd_progress) if sdd_progress is not None else None,
     )
