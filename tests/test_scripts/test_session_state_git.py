@@ -96,6 +96,34 @@ def test_parse_porcelain_z_rejects_unknown_status_code() -> None:
         parse_porcelain_z("ZZ unknown.txt\0")
 
 
+@pytest.mark.parametrize("output", ("?M mixed.txt\0", "A! mixed.txt\0", "U  tracked.txt\0"))
+def test_parse_porcelain_z_rejects_invalid_complete_status_pairs(output: str) -> None:
+    from scripts.session_state_git import GitInspectionError, parse_porcelain_z
+
+    with pytest.raises(GitInspectionError, match="malformed"):
+        parse_porcelain_z(output)
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    (
+        ("M  ordinary.txt\0", ("ordinary.txt",)),
+        ("T  type-changed.txt\0", ("type-changed.txt",)),
+        ("R  destination.txt\0source.txt\0", ("destination.txt", "source.txt")),
+        ("C  destination.txt\0source.txt\0", ("destination.txt", "source.txt")),
+        ("UU conflict.txt\0", ("conflict.txt",)),
+        ("?? untracked.txt\0", ("untracked.txt",)),
+        ("!! ignored.txt\0", ("ignored.txt",)),
+    ),
+)
+def test_parse_porcelain_z_accepts_complete_valid_status_pairs(
+    output: str, expected: tuple[str, ...]
+) -> None:
+    from scripts.session_state_git import parse_porcelain_z
+
+    assert parse_porcelain_z(output) == expected
+
+
 def test_is_ancestor_rejects_git_errors(tmp_path: Path) -> None:
     from scripts import session_state_git
     from scripts.session_state_git import GitInspectionError, is_ancestor

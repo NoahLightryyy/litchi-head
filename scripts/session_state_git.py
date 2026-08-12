@@ -8,6 +8,15 @@ from pathlib import Path
 
 from scripts.session_state_models import EvidenceRef, RepositoryState, normalize_identity_path
 
+_ORDINARY_STATUS_PAIRS = frozenset(
+    f"{index_status}{worktree_status}"
+    for index_status in " MADRCT"
+    for worktree_status in " MTD"
+    if (index_status, worktree_status) != (" ", " ")
+)
+_UNMERGED_STATUS_PAIRS = frozenset({"DD", "AU", "UD", "UA", "DU", "AA", "UU"})
+_VALID_STATUS_PAIRS = _ORDINARY_STATUS_PAIRS | _UNMERGED_STATUS_PAIRS | {"??", "!!"}
+
 
 class GitInspectionError(RuntimeError):
     """Raised when repository identity or Git evidence cannot be verified."""
@@ -69,7 +78,7 @@ def parse_porcelain_z(output: str) -> tuple[str, ...]:
         if len(record) < 4 or record[2] != " ":
             raise GitInspectionError("malformed porcelain status record")
         status, first_path = record[:2], record[3:]
-        if not first_path or any(character not in " MADRCU?!" for character in status):
+        if not first_path or status not in _VALID_STATUS_PAIRS:
             raise GitInspectionError("malformed porcelain status record")
         paths.add(first_path.replace("\\", "/"))
         index += 1
