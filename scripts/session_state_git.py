@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import subprocess
 from pathlib import Path
+from typing import Callable, TypeVar
 
 from scripts.session_state_models import EvidenceRef, RepositoryState, normalize_identity_path
 
@@ -16,6 +18,9 @@ _ORDINARY_STATUS_PAIRS = frozenset(
 )
 _UNMERGED_STATUS_PAIRS = frozenset({"DD", "AU", "UD", "UA", "DU", "AA", "UU"})
 _VALID_STATUS_PAIRS = _ORDINARY_STATUS_PAIRS | _UNMERGED_STATUS_PAIRS | {"??", "!!"}
+_GIT_HEAD_PATTERN = re.compile(r"[0-9a-f]{40}")
+_GIT_REF_FORBIDDEN = frozenset(" ~^:?*[\\")
+_T = TypeVar("_T")
 
 
 class GitInspectionError(RuntimeError):
@@ -41,6 +46,53 @@ class _GitOutput(str):
         return instance
 
 
+def _git_io(action: Callable[[], _T], diagnostic: str) -> _T:
+    """Translate process/filesystem I/O after its private exception context ends."""
+    try:
+        result = action()
+    except (OSError, UnicodeError):
+        failure = GitOperationalError(diagnostic)
+    else:
+        return result
+    raise failure
+
+
+def _require_single_line_identity(output: str, operation: str) -> str:
+    """Reject empty or multiline identity output without retaining its value."""
+    if not output or any(character in output for character in "\0\r\n"):
+        raise GitOperationalError(f"Git {operation} failed")
+    return output
+
+
+def _require_branch_identity(output: str) -> str:
+    """Accept only an attached, syntactically valid short branch identity."""
+    branch = _require_single_line_identity(output, "attached branch identity")
+    components = branch.split("/")
+    if (
+        branch == "HEAD"
+        or branch.startswith("-")
+        or branch.startswith("/")
+        or branch.endswith(("/", "."))
+        or ".." in branch
+        or "@{" in branch
+        or any(character in _GIT_REF_FORBIDDEN or ord(character) < 32 for character in branch)
+        or any(
+            not component or component.startswith(".") or component.endswith(".lock")
+            for component in components
+        )
+    ):
+        raise GitOperationalError("Git attached branch identity failed")
+    return branch
+
+
+def _require_head_identity(output: str) -> str:
+    """Accept only the SHA-1 commit identity supported by the snapshot contract."""
+    head = _require_single_line_identity(output, "HEAD identity")
+    if _GIT_HEAD_PATTERN.fullmatch(head) is None:
+        raise GitOperationalError("Git HEAD identity failed")
+    return head
+
+
 def _git(
     repo: Path,
     operation: str,
@@ -49,16 +101,16 @@ def _git(
     strip: bool = True,
 ) -> _GitOutput:
     """Run Git with bounded diagnostic output and explicit acceptable exit codes."""
-    try:
-        completed = subprocess.run(
+    completed = _git_io(
+        lambda: subprocess.run(
             ["git", *args],
             cwd=repo,
             capture_output=True,
             text=True,
             check=False,
-        )
-    except (OSError, UnicodeError):
-        raise GitOperationalError(f"Git {operation} failed") from None
+        ),
+        f"Git {operation} failed",
+    )
     if completed.returncode not in ok:
         raise GitOperationalError(f"Git {operation} failed")
     output = completed.stdout.strip() if strip else completed.stdout
@@ -95,41 +147,47 @@ def parse_porcelain_z(output: str) -> tuple[str, ...]:
 def hash_evidence(repo: Path, path: Path) -> EvidenceRef:
     """Hash a repository-contained evidence file using a stable relative identity."""
     try:
-        resolved_repo = repo.resolve(strict=True)
-        resolved_path = path.resolve(strict=True)
+        resolved_repo, resolved_path = _git_io(
+            lambda: (repo.resolve(strict=True), path.resolve(strict=True)),
+            "Git evidence access failed",
+        )
         relative = resolved_path.relative_to(resolved_repo)
-        if not resolved_path.is_file():
+        if not _git_io(resolved_path.is_file, "Git evidence access failed"):
             raise GitInspectionError("evidence path is not a file")
-        digest = hashlib.sha256(resolved_path.read_bytes()).hexdigest()
+        digest = hashlib.sha256(
+            _git_io(resolved_path.read_bytes, "Git evidence access failed")
+        ).hexdigest()
     except GitInspectionError:
         raise
     except ValueError:
-        raise GitInspectionError("evidence path escapes repository") from None
-    except OSError:
-        raise GitOperationalError("Git evidence access failed") from None
-    return EvidenceRef(path=relative.as_posix(), sha256=digest)
+        failure = GitInspectionError("evidence path escapes repository")
+    else:
+        return EvidenceRef(path=relative.as_posix(), sha256=digest)
+    raise failure
 
 
 def find_latest_work_log(repo: Path) -> Path | None:
     """Return the lexically latest dated project work log, if present."""
-    try:
-        logs = repo.glob("docs/04-changelog/logs/????-??-??/????-??-??*.md")
-        return max(logs, key=lambda path: path.relative_to(repo).as_posix(), default=None)
-    except OSError:
-        raise GitOperationalError("Git work-log discovery failed") from None
+    return _git_io(
+        lambda: max(
+            repo.glob("docs/04-changelog/logs/????-??-??/????-??-??*.md"),
+            key=lambda path: path.relative_to(repo).as_posix(),
+            default=None,
+        ),
+        "Git work-log discovery failed",
+    )
 
 
 def find_latest_sdd_progress(repo: Path) -> Path | None:
     """Return the newest local SDD progress file, with a deterministic tie-breaker."""
-    try:
-        progress_files = repo.glob(".superpowers/sdd/*/progress.md")
-        return max(
-            progress_files,
+    return _git_io(
+        lambda: max(
+            repo.glob(".superpowers/sdd/*/progress.md"),
             key=lambda path: (path.stat().st_mtime_ns, path.relative_to(repo).as_posix()),
             default=None,
-        )
-    except OSError:
-        raise GitOperationalError("Git SDD discovery failed") from None
+        ),
+        "Git SDD discovery failed",
+    )
 
 
 def verify_commit_exists(repo: Path, commit: str) -> None:
@@ -163,32 +221,46 @@ def is_ancestor(repo: Path, older: str, newer: str) -> bool:
 
 def collect_repository_state(repo: Path) -> RepositoryState:
     """Collect Git identity, dirty paths, and local evidence for a worktree."""
-    try:
-        worktree = Path(
-            _git(repo, "repository identity", "rev-parse", "--show-toplevel")
-        ).resolve(strict=True)
-    except GitInspectionError:
-        raise
-    except OSError:
-        raise GitOperationalError("Git repository path access failed") from None
+    worktree_output = _require_single_line_identity(
+        str(_git(repo, "repository identity", "rev-parse", "--show-toplevel")),
+        "repository identity",
+    )
+    if not Path(worktree_output).is_absolute():
+        raise GitOperationalError("Git repository identity failed")
+    worktree = _git_io(
+        lambda: Path(worktree_output).resolve(strict=True),
+        "Git repository path access failed",
+    )
     common_dir_output = _git(
         worktree, "repository common directory", "rev-parse", "--git-common-dir"
     )
-    common_dir = Path(str(common_dir_output))
+    common_dir_value = _require_single_line_identity(
+        str(common_dir_output), "repository common directory"
+    )
+    common_dir = Path(common_dir_value)
     if not common_dir.is_absolute():
         common_dir = worktree / common_dir
-    try:
-        common_dir = common_dir.resolve(strict=True)
-    except OSError:
-        raise GitOperationalError("Git common directory access failed") from None
+    common_dir = _git_io(
+        lambda: common_dir.resolve(strict=True),
+        "Git common directory access failed",
+    )
     project_root = common_dir.parent if common_dir.name == ".git" else worktree
 
-    branch = str(
-        _git(worktree, "attached branch identity", "symbolic-ref", "--quiet", "--short", "HEAD")
+    branch = _require_branch_identity(
+        str(
+            _git(
+                worktree,
+                "attached branch identity",
+                "symbolic-ref",
+                "--quiet",
+                "--short",
+                "HEAD",
+            )
+        )
     )
-    if not branch:
-        raise GitInspectionError("Git attached branch identity failed: detached HEAD")
-    git_head = str(_git(worktree, "HEAD identity", "rev-parse", "--verify", "HEAD"))
+    git_head = _require_head_identity(
+        str(_git(worktree, "HEAD identity", "rev-parse", "--verify", "HEAD"))
+    )
     status = _git(
         worktree,
         "working tree status",
@@ -203,17 +275,17 @@ def collect_repository_state(repo: Path) -> RepositoryState:
     handover_path = worktree / "docs/01-guides/HANDOVER.md"
     work_log = find_latest_work_log(worktree)
     sdd_progress = find_latest_sdd_progress(worktree)
-    try:
-        handover = hash_evidence(worktree, handover_path) if handover_path.is_file() else None
-    except GitInspectionError:
-        raise
-    except OSError:
-        raise GitOperationalError("Git handover evidence access failed") from None
-    try:
-        normalized_project_root = normalize_identity_path(project_root)
-        normalized_worktree = normalize_identity_path(worktree)
-    except OSError:
-        raise GitOperationalError("Git repository identity access failed") from None
+    handover = _git_io(
+        lambda: hash_evidence(worktree, handover_path) if handover_path.is_file() else None,
+        "Git handover evidence access failed",
+    )
+    normalized_project_root, normalized_worktree = _git_io(
+        lambda: (
+            normalize_identity_path(project_root),
+            normalize_identity_path(worktree),
+        ),
+        "Git repository identity access failed",
+    )
     return RepositoryState(
         project_root=normalized_project_root,
         worktree_path=normalized_worktree,

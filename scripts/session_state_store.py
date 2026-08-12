@@ -10,7 +10,7 @@ import stat
 import tempfile
 from contextlib import closing
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Callable, TypeVar
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -29,6 +29,7 @@ _SECRET_PATTERNS = (
         r"[\"']?[^\s\"']{8,}"
     ),
 )
+_T = TypeVar("_T")
 
 
 class SnapshotStoreError(RuntimeError):
@@ -54,6 +55,27 @@ class LegacySnapshot(BaseModel):
     next_step_executable: bool = False
 
 
+def _store_io(action: Callable[[], _T], diagnostic: str) -> _T:
+    """Translate filesystem I/O only after its private exception context ends."""
+    try:
+        result = action()
+    except OSError:
+        failure = SnapshotStoreOperationalError(diagnostic)
+    else:
+        return result
+    raise failure
+
+
+def _read_legacy_candidate(path: Path) -> tuple[str, Path] | None:
+    """Read one bounded legacy candidate while preserving the pre-read size gate."""
+    if path.stat().st_size > _MAX_SNAPSHOT_BYTES:
+        return None
+    return (
+        path.read_text(encoding="utf-8-sig", errors="replace"),
+        path.resolve(strict=True),
+    )
+
+
 def contains_secret(value: object) -> bool:
     """Return whether JSON-compatible data contains a likely credential."""
     text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
@@ -62,7 +84,10 @@ def contains_secret(value: object) -> bool:
 
 def snapshot_directory(root: Path, project: Path, worktree: Path) -> Path:
     """Return the non-reversible project/worktree namespace below ``root``."""
-    return root / "v2" / path_key(project) / path_key(worktree)
+    return _store_io(
+        lambda: root / "v2" / path_key(project) / path_key(worktree),
+        "snapshot scope resolution failed",
+    )
 
 
 def write_snapshot(root: Path, snapshot: SessionSnapshotV2) -> Path:
@@ -71,13 +96,13 @@ def write_snapshot(root: Path, snapshot: SessionSnapshotV2) -> Path:
     if contains_secret(payload):
         raise SnapshotStoreError("snapshot contains a suspected secret field")
 
-    try:
-        directory = snapshot_directory(
-            root, Path(snapshot.project_root), Path(snapshot.worktree_path)
-        )
-        directory.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        raise SnapshotStoreOperationalError("snapshot directory creation failed") from None
+    directory = snapshot_directory(
+        root, Path(snapshot.project_root), Path(snapshot.worktree_path)
+    )
+    _store_io(
+        lambda: directory.mkdir(parents=True, exist_ok=True),
+        "snapshot directory creation failed",
+    )
     destination = directory / f"{snapshot.snapshot_id}-session.json"
     encoded = (
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
@@ -91,31 +116,37 @@ def write_snapshot(root: Path, snapshot: SessionSnapshotV2) -> Path:
             os.fsync(handle.fileno())
         os.link(temporary, destination)
     except FileExistsError:
-        _remove_temporary(temporary)
-        raise SnapshotStoreError("snapshot already exists and is immutable") from None
+        publish_failure = SnapshotStoreError(
+            "snapshot already exists and is immutable"
+        )
     except OSError:
+        publish_failure = SnapshotStoreOperationalError("atomic publish failed")
+    else:
+        publish_failure = None
+    if publish_failure is not None:
         _remove_temporary(temporary)
-        raise SnapshotStoreOperationalError("atomic publish failed") from None
+        raise publish_failure
+    cleanup_failure: SnapshotStoreError | None = None
     try:
         _remove_temporary(temporary)
-    except SnapshotStoreError as cleanup_error:
+    except SnapshotStoreError as error:
+        cleanup_failure = error
+    if cleanup_failure is not None:
+        rollback_failed = False
         try:
             destination.unlink()
         except OSError:
-            raise SnapshotStoreOperationalError(
-                "atomic publish integrity failure"
-            ) from None
-        raise cleanup_error
+            rollback_failed = True
+        if rollback_failed:
+            raise SnapshotStoreOperationalError("atomic publish integrity failure")
+        raise cleanup_failure
     return destination
 
 
 def _remove_temporary(temporary: Path | None) -> None:
     if temporary is None:
         return
-    try:
-        temporary.unlink()
-    except OSError:
-        raise SnapshotStoreOperationalError("atomic publish cleanup failed") from None
+    _store_io(temporary.unlink, "atomic publish cleanup failed")
 
 
 def _open_windows_snapshot_file(path: Path) -> int:
@@ -196,6 +227,8 @@ def _open_snapshot_file(path: Path) -> BinaryIO:
 
 def load_v2(path: Path) -> SessionSnapshotV2:
     """Load and validate a bounded v2 snapshot without exposing its contents."""
+    loaded: SessionSnapshotV2 | None = None
+    failure: SnapshotStoreError | None = None
     try:
         with closing(_open_snapshot_file(path)) as handle:
             if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
@@ -203,17 +236,24 @@ def load_v2(path: Path) -> SessionSnapshotV2:
             encoded = handle.read(_MAX_SNAPSHOT_BYTES + 1)
         if len(encoded) > _MAX_SNAPSHOT_BYTES:
             raise CorruptSnapshotError("snapshot exceeds the 1 MiB limit")
-        return SessionSnapshotV2.model_validate_json(encoded)
+        loaded = SessionSnapshotV2.model_validate_json(encoded)
     except SnapshotStoreError:
         raise
     except OSError:
-        raise SnapshotStoreOperationalError("snapshot access failed") from None
+        failure = SnapshotStoreOperationalError("snapshot access failed")
     except (UnicodeError, ValidationError, ValueError):
-        raise CorruptSnapshotError("snapshot load failed") from None
+        failure = CorruptSnapshotError("snapshot load failed")
+    if failure is not None:
+        raise failure
+    if loaded is None:
+        raise CorruptSnapshotError("snapshot load failed")
+    return loaded
 
 
 def discover_v2(root: Path, project: Path, worktree: Path) -> tuple[Path, ...]:
     """Find every valid in-scope snapshot in chronological order."""
+    loaded: list[tuple[object, Path]] | None = None
+    failure: SnapshotStoreOperationalError | None = None
     try:
         directory = snapshot_directory(root, project, worktree)
         if not directory.exists():
@@ -225,44 +265,52 @@ def discover_v2(root: Path, project: Path, worktree: Path) -> tuple[Path, ...]:
     except SnapshotStoreError:
         raise
     except OSError:
-        raise SnapshotStoreOperationalError("snapshot discovery failed") from None
+        failure = SnapshotStoreOperationalError("snapshot discovery failed")
+    if failure is not None:
+        raise failure
+    if loaded is None:
+        raise SnapshotStoreOperationalError("snapshot discovery failed")
     return tuple(path for _, path in sorted(loaded, key=lambda item: (item[0], str(item[1]))))
 
 
 def discover_legacy(root: Path, project: Path) -> tuple[LegacySnapshot, ...]:
     """Return matching legacy files as quarantined, non-executable history."""
-    try:
-        expected = normalize_identity_path(project)
-    except OSError:
-        raise SnapshotStoreOperationalError("legacy project access failed") from None
+    expected = _store_io(
+        lambda: normalize_identity_path(project), "legacy project access failed"
+    )
     project_pattern = re.compile(r"^\*\*Project:\*\*\s*(.+?)\s*$", re.MULTILINE)
     date_pattern = re.compile(r"^# Session:\s*(.+?)\s*$", re.MULTILINE)
     matches: list[LegacySnapshot] = []
-    try:
-        legacy_paths = sorted(root.glob("*-session.tmp"))
-    except OSError:
-        raise SnapshotStoreOperationalError("legacy snapshot discovery failed") from None
+    legacy_paths = _store_io(
+        lambda: sorted(root.glob("*-session.tmp")),
+        "legacy snapshot discovery failed",
+    )
     for path in legacy_paths:
-        try:
-            if path.stat().st_size > _MAX_SNAPSHOT_BYTES:
-                continue
-            text = path.read_text(encoding="utf-8-sig", errors="replace")
-            resolved_path = path.resolve(strict=True)
-        except OSError:
-            raise SnapshotStoreOperationalError("legacy snapshot discovery failed") from None
+        candidate = _store_io(
+            lambda: _read_legacy_candidate(path),
+            "legacy snapshot discovery failed",
+        )
+        if candidate is None:
+            continue
+        text, resolved_path = candidate
         project_match = project_pattern.search(text)
         if project_match is None:
             continue
         candidate_project = Path(project_match.group(1).strip())
+        candidate_failure: SnapshotStoreOperationalError | None = None
         try:
             candidate_identity = normalize_identity_path(candidate_project)
             resolved_project = candidate_project.resolve(strict=True)
         except FileNotFoundError:
             continue
         except OSError:
-            raise SnapshotStoreOperationalError("legacy project identity failed") from None
+            candidate_failure = SnapshotStoreOperationalError(
+                "legacy project identity failed"
+            )
         except ValueError:
             continue
+        if candidate_failure is not None:
+            raise candidate_failure
         if candidate_identity != expected:
             continue
         date_match = date_pattern.search(text)

@@ -12,6 +12,25 @@ from scripts.session_state_models import normalize_identity_path
 from tests.test_scripts.session_state_helpers import git, init_repo, write
 
 
+def assert_sanitized_exception_chain(error: BaseException, hidden: str) -> None:
+    """Require a public exception to retain no nested private exception objects."""
+    pending = [error]
+    visited: list[BaseException] = []
+    while pending:
+        current = pending.pop()
+        if any(current is seen for seen in visited):
+            continue
+        visited.append(current)
+        assert hidden not in str(current)
+        assert hidden not in repr(current.args)
+        pending.extend(
+            nested
+            for nested in (current.__cause__, current.__context__)
+            if nested is not None
+        )
+    assert visited == [error]
+
+
 def test_collect_repository_state_records_git_identity_dirty_paths_and_evidence(
     tmp_path: Path,
 ) -> None:
@@ -70,10 +89,13 @@ def test_hash_evidence_rejects_path_outside_repository(tmp_path: Path) -> None:
     from scripts.session_state_git import GitInspectionError, hash_evidence
 
     repo = init_repo(tmp_path)
-    outside = write(tmp_path, "outside.md", "outside\n")
+    hidden = "private-outside-path"
+    outside = write(tmp_path, f"{hidden}.md", "outside\n")
 
-    with pytest.raises(GitInspectionError, match="escapes repository"):
+    with pytest.raises(GitInspectionError, match="escapes repository") as caught:
         hash_evidence(repo, outside)
+
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_parse_porcelain_z_rejects_truncated_rename() -> None:
@@ -165,7 +187,7 @@ def test_git_process_launch_failure_preserves_operational_origin(
         with pytest.raises(GitOperationalError) as caught:
             collect_repository_state(tmp_path)
 
-    assert hidden not in str(caught.value)
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_git_failure_exception_discards_stdout_stderr_and_cause(tmp_path: Path) -> None:
@@ -180,9 +202,7 @@ def test_git_failure_exception_discards_stdout_stderr_and_cause(tmp_path: Path) 
         with pytest.raises(GitOperationalError) as caught:
             collect_repository_state(tmp_path)
 
-    assert hidden not in str(caught.value)
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_git_launch_exception_discards_original_cause(tmp_path: Path) -> None:
@@ -196,8 +216,7 @@ def test_git_launch_exception_discards_original_cause(tmp_path: Path) -> None:
         with pytest.raises(GitOperationalError) as caught:
             collect_repository_state(tmp_path)
 
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_evidence_read_io_is_sanitized_as_git_operational(
@@ -220,8 +239,7 @@ def test_evidence_read_io_is_sanitized_as_git_operational(
     with pytest.raises(GitOperationalError) as caught:
         hash_evidence(repo, evidence)
 
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_evidence_enumeration_io_is_sanitized_as_git_operational(
@@ -239,8 +257,33 @@ def test_evidence_enumeration_io_is_sanitized_as_git_operational(
     with pytest.raises(GitOperationalError) as caught:
         find_latest_work_log(tmp_path)
 
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
+
+
+def test_sdd_stat_io_is_sanitized_as_git_operational(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from scripts.session_state_git import GitOperationalError, find_latest_sdd_progress
+
+    progress = tmp_path / ".superpowers/sdd/task/progress.md"
+    progress.parent.mkdir(parents=True)
+    progress.write_text("progress", encoding="utf-8")
+    hidden = "private-sdd-stat-detail"
+    original_stat = Path.stat
+
+    def fail_progress_stat(
+        path: Path, *, follow_symlinks: bool = True
+    ) -> object:
+        if path == progress:
+            raise PermissionError(hidden)
+        return original_stat(path, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", fail_progress_stat)
+
+    with pytest.raises(GitOperationalError) as caught:
+        find_latest_sdd_progress(tmp_path)
+
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_handover_stat_io_is_sanitized_as_git_operational(
@@ -263,8 +306,7 @@ def test_handover_stat_io_is_sanitized_as_git_operational(
     with pytest.raises(GitOperationalError) as caught:
         collect_repository_state(repo)
 
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_git_output_decode_failure_is_sanitized(tmp_path: Path) -> None:
@@ -277,9 +319,7 @@ def test_git_output_decode_failure_is_sanitized(tmp_path: Path) -> None:
         with pytest.raises(GitOperationalError) as caught:
             collect_repository_state(tmp_path)
 
-    assert hidden not in str(caught.value)
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_repository_identity_normalization_io_is_sanitized(
@@ -299,5 +339,64 @@ def test_repository_identity_normalization_io_is_sanitized(
     with pytest.raises(GitOperationalError) as caught:
         collect_repository_state(repo)
 
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
+
+
+@pytest.mark.parametrize("failure_site", ("worktree", "common_dir"))
+def test_repository_path_resolve_io_is_sanitized(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_site: str,
+) -> None:
+    from scripts.session_state_git import GitOperationalError, collect_repository_state
+
+    repo = init_repo(tmp_path)
+    target = repo if failure_site == "worktree" else repo / ".git"
+    hidden = f"private-{failure_site}-resolve-detail"
+    original_resolve = Path.resolve
+
+    def fail_target_resolve(path: Path, *, strict: bool = False) -> Path:
+        if path == target:
+            raise PermissionError(hidden)
+        return original_resolve(path, strict=strict)
+
+    monkeypatch.setattr(Path, "resolve", fail_target_resolve)
+
+    with pytest.raises(GitOperationalError) as caught:
+        collect_repository_state(repo)
+
+    assert_sanitized_exception_chain(caught.value, hidden)
+
+
+@pytest.mark.parametrize(
+    ("identity_command", "malformed_output"),
+    (
+        (("rev-parse", "--show-toplevel"), "private-path-identity"),
+        (("rev-parse", "--git-common-dir"), "private-common-dir\nother"),
+        (("symbolic-ref", "--quiet", "--short", "HEAD"), "HEAD"),
+        (("rev-parse", "--verify", "HEAD"), "private-head-identity"),
+    ),
+)
+def test_exit_zero_malformed_git_identity_is_rejected_at_git_boundary(
+    tmp_path: Path,
+    identity_command: tuple[str, ...],
+    malformed_output: str,
+) -> None:
+    from scripts import session_state_git
+    from scripts.session_state_git import GitOperationalError, collect_repository_state
+
+    repo = init_repo(tmp_path)
+    real_run = session_state_git.subprocess.run
+
+    def malformed_identity(
+        command: list[str], **kwargs: object
+    ) -> CompletedProcess[str]:
+        if tuple(command[1:]) == identity_command:
+            return CompletedProcess(command, 0, malformed_output + "\n", "")
+        return real_run(command, **kwargs)  # type: ignore[call-overload]
+
+    with patch.object(session_state_git.subprocess, "run", side_effect=malformed_identity):
+        with pytest.raises(GitOperationalError) as caught:
+            collect_repository_state(repo)
+
+    assert_sanitized_exception_chain(caught.value, malformed_output)

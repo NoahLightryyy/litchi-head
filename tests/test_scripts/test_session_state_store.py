@@ -25,6 +25,25 @@ from scripts.session_state_store import (
 )
 
 
+def assert_sanitized_exception_chain(error: BaseException, hidden: str) -> None:
+    """Require a public exception to retain no nested private exception objects."""
+    pending = [error]
+    visited: list[BaseException] = []
+    while pending:
+        current = pending.pop()
+        if any(current is seen for seen in visited):
+            continue
+        visited.append(current)
+        assert hidden not in str(current)
+        assert hidden not in repr(current.args)
+        pending.extend(
+            nested
+            for nested in (current.__cause__, current.__context__)
+            if nested is not None
+        )
+    assert visited == [error]
+
+
 def make_snapshot(
     project: Path,
     worktree: Path,
@@ -78,9 +97,10 @@ def test_atomic_publish_failure_preserves_prior_bytes_and_cleans_temp(
 
     monkeypatch.setattr("scripts.session_state_store.os.link", fail_publish)
 
-    with pytest.raises(SnapshotStoreError, match="atomic publish"):
+    with pytest.raises(SnapshotStoreError, match="atomic publish") as caught:
         write_snapshot(root, make_snapshot(project, project, snapshot_id="second-snapshot"))
 
+    assert_sanitized_exception_chain(caught.value, "blocked")
     assert previous.read_bytes() == previous_bytes
     assert list(directory.glob("tmp*")) == []
 
@@ -119,11 +139,16 @@ def test_matching_legacy_header_is_history_without_retaining_next_step(tmp_path:
 def test_duplicate_destination_is_rejected_as_immutable(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    snapshot = make_snapshot(project, project)
+    hidden = "private-duplicate-snapshot"
+    snapshot = make_snapshot(project, project, snapshot_id=hidden)
     write_snapshot(tmp_path / "sessions", snapshot)
 
-    with pytest.raises(SnapshotStoreError, match="snapshot already exists and is immutable"):
+    with pytest.raises(
+        SnapshotStoreError, match="snapshot already exists and is immutable"
+    ) as caught:
         write_snapshot(tmp_path / "sessions", snapshot)
+
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_concurrent_destination_creation_is_never_overwritten(
@@ -132,7 +157,8 @@ def test_concurrent_destination_creation_is_never_overwritten(
     project = tmp_path / "project"
     project.mkdir()
     root = tmp_path / "sessions"
-    snapshot = make_snapshot(project, project)
+    hidden = "private-concurrent-snapshot"
+    snapshot = make_snapshot(project, project, snapshot_id=hidden)
     directory = snapshot_directory(root, project, project)
     destination = directory / f"{snapshot.snapshot_id}-session.json"
     concurrent_bytes = b"concurrent immutable snapshot"
@@ -144,9 +170,12 @@ def test_concurrent_destination_creation_is_never_overwritten(
 
     monkeypatch.setattr(session_state_store.os, "link", create_destination_then_link)
 
-    with pytest.raises(SnapshotStoreError, match="snapshot already exists and is immutable"):
+    with pytest.raises(
+        SnapshotStoreError, match="snapshot already exists and is immutable"
+    ) as caught:
         write_snapshot(root, snapshot)
 
+    assert_sanitized_exception_chain(caught.value, hidden)
     assert destination.read_bytes() == concurrent_bytes
     assert list(destination.parent.glob("tmp*")) == []
 
@@ -169,9 +198,10 @@ def test_temp_cleanup_failure_rolls_back_published_destination(
 
     monkeypatch.setattr(Path, "unlink", fail_temp_unlink)
 
-    with pytest.raises(SnapshotStoreError, match="atomic publish cleanup failed"):
+    with pytest.raises(SnapshotStoreError, match="atomic publish cleanup failed") as caught:
         write_snapshot(root, snapshot)
 
+    assert_sanitized_exception_chain(caught.value, "cleanup blocked")
     assert not destination.exists()
 
 
@@ -192,6 +222,7 @@ def test_cleanup_and_rollback_failure_has_stable_integrity_diagnostic(
         write_snapshot(tmp_path / "sessions", snapshot)
 
     assert secret not in str(caught.value)
+    assert_sanitized_exception_chain(caught.value, "cleanup blocked")
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows reparse-point contract")
@@ -295,7 +326,7 @@ def test_malformed_or_oversize_v2_fails_closed_without_body_values(
     with pytest.raises(SnapshotStoreError) as caught:
         load_v2(path)
 
-    assert hidden_value not in str(caught.value)
+    assert_sanitized_exception_chain(caught.value, hidden_value)
 
 
 def test_discovery_fails_closed_for_malformed_in_scope_snapshot(tmp_path: Path) -> None:
@@ -306,8 +337,10 @@ def test_discovery_fails_closed_for_malformed_in_scope_snapshot(tmp_path: Path) 
     directory.mkdir(parents=True)
     (directory / "broken-session.json").write_text("{", encoding="utf-8")
 
-    with pytest.raises(SnapshotStoreError, match="snapshot load failed"):
+    with pytest.raises(SnapshotStoreError, match="snapshot load failed") as caught:
         discover_v2(root, project, project)
+
+    assert_sanitized_exception_chain(caught.value, "{")
 
 
 def test_malformed_out_of_project_and_oversize_legacy_are_skipped(tmp_path: Path) -> None:
@@ -340,6 +373,7 @@ def test_invalid_snapshot_bytes_preserve_corrupt_origin(tmp_path: Path) -> None:
         load_v2(path)
 
     assert "private" not in str(caught.value)
+    assert_sanitized_exception_chain(caught.value, "private")
 
 
 def test_snapshot_read_permission_failure_preserves_operational_origin(
@@ -356,7 +390,7 @@ def test_snapshot_read_permission_failure_preserves_operational_origin(
     with pytest.raises(SnapshotStoreOperationalError) as caught:
         load_v2(path)
 
-    assert hidden not in str(caught.value)
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_snapshot_discovery_permission_failure_preserves_operational_origin(
@@ -378,7 +412,7 @@ def test_snapshot_discovery_permission_failure_preserves_operational_origin(
     with pytest.raises(SnapshotStoreOperationalError) as caught:
         discover_v2(tmp_path / "sessions", project, project)
 
-    assert hidden not in str(caught.value)
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_legacy_discovery_permission_failure_preserves_operational_origin(
@@ -401,7 +435,7 @@ def test_legacy_discovery_permission_failure_preserves_operational_origin(
     with pytest.raises(SnapshotStoreOperationalError) as caught:
         discover_legacy(tmp_path, project)
 
-    assert hidden not in str(caught.value)
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_legacy_candidate_with_missing_claimed_project_is_skipped(tmp_path: Path) -> None:
@@ -431,8 +465,35 @@ def test_store_operational_exception_discards_io_cause(
     with pytest.raises(SnapshotStoreOperationalError) as caught:
         load_v2(path)
 
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
+
+
+def test_snapshot_directory_creation_io_is_sanitized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    root = tmp_path / "sessions"
+    directory = snapshot_directory(root, project, project)
+    hidden = "private-directory-creation-detail"
+    original_mkdir = Path.mkdir
+
+    def fail_directory_mkdir(
+        path: Path,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
+    ) -> None:
+        if path == directory:
+            raise PermissionError(hidden)
+        original_mkdir(path, mode=mode, parents=parents, exist_ok=exist_ok)
+
+    monkeypatch.setattr(Path, "mkdir", fail_directory_mkdir)
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        write_snapshot(root, make_snapshot(project, project))
+
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_store_root_enumeration_io_is_sanitized(
@@ -450,8 +511,7 @@ def test_store_root_enumeration_io_is_sanitized(
     with pytest.raises(SnapshotStoreOperationalError) as caught:
         discover_legacy(tmp_path, project)
 
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_v2_scope_resolution_io_is_sanitized(
@@ -469,8 +529,7 @@ def test_v2_scope_resolution_io_is_sanitized(
     with pytest.raises(SnapshotStoreOperationalError) as caught:
         discover_v2(tmp_path / "sessions", project, project)
 
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
 
 
 def test_legacy_scope_resolution_io_is_sanitized(
@@ -488,5 +547,64 @@ def test_legacy_scope_resolution_io_is_sanitized(
     with pytest.raises(SnapshotStoreOperationalError) as caught:
         discover_legacy(tmp_path, project)
 
-    assert hidden not in repr(caught.value.args)
-    assert caught.value.__cause__ is None
+    assert_sanitized_exception_chain(caught.value, hidden)
+
+
+def test_legacy_candidate_identity_io_is_sanitized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    candidate_project = tmp_path / "candidate-project"
+    project.mkdir()
+    candidate_project.mkdir()
+    (tmp_path / "candidate-session.tmp").write_text(
+        f"**Project:** {candidate_project}\n", encoding="utf-8"
+    )
+    hidden = "private-candidate-identity-detail"
+    original_identity = session_state_store.normalize_identity_path
+
+    def fail_candidate_identity(path: Path) -> str:
+        if path == candidate_project:
+            raise PermissionError(hidden)
+        return original_identity(path)
+
+    monkeypatch.setattr(
+        session_state_store, "normalize_identity_path", fail_candidate_identity
+    )
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        discover_legacy(tmp_path, project)
+
+    assert_sanitized_exception_chain(caught.value, hidden)
+
+
+@pytest.mark.parametrize("failure_site", ("path_key", "resolve"))
+def test_snapshot_directory_sanitizes_scope_resolution_io(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_site: str,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    hidden = f"private-snapshot-directory-{failure_site}"
+
+    if failure_site == "path_key":
+
+        def fail_path_key(_path: Path) -> str:
+            raise PermissionError(hidden)
+
+        monkeypatch.setattr(session_state_store, "path_key", fail_path_key)
+    else:
+        original_resolve = Path.resolve
+
+        def fail_project_resolve(path: Path, *, strict: bool = False) -> Path:
+            if path == project:
+                raise PermissionError(hidden)
+            return original_resolve(path, strict=strict)
+
+        monkeypatch.setattr(Path, "resolve", fail_project_resolve)
+
+    with pytest.raises(SnapshotStoreOperationalError) as caught:
+        snapshot_directory(tmp_path / "sessions", project, project)
+
+    assert_sanitized_exception_chain(caught.value, hidden)
