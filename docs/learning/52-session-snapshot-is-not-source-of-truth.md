@@ -49,12 +49,13 @@ scripts/session_state.py
 tests/test_scripts/test_session_state.py
 ```
 
-核心判定不是“文件够不够新”，而是“快照描述的世界是否仍与当前世界一致”：
+核心判定不是“文件够不够新”，而是“快照描述的世界是否仍与当前世界一致”。HEAD 相等只表示
+HEAD 这一项匹配，代码仍会继续检查脏路径和证据；只有 HEAD 不等时才判断祖先关系：
 
 ```python
-if is_ancestor(snapshot.git_head, current.git_head):
-    return "REPO_AHEAD"
 if snapshot.git_head != current.git_head:
+    if is_ancestor(repo, snapshot.git_head, current.git_head):
+        return "REPO_AHEAD"
     return "HEAD_DIVERGED"
 if snapshot.dirty_paths != current.dirty_paths:
     return "DIRTY_MISMATCH"
