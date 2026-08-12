@@ -58,7 +58,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能批次** | KR-3B-2 已完成；E0-100 validation-first 设计与实施计划已就绪，下一步实施 E0，KR-4 继续暂停 |
+| **最新功能批次** | 会话恢复 Tasks 1–6 已完成；Task 7 因三项最终复审发现中断，TD-076 不关闭；修复复审后再回到已就绪的 E0-100 实施，KR-4 继续暂停 |
 | **全量测试** | 1742 collected；1719 passed / 4 skipped / 19 deselected；5/5 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
@@ -82,13 +82,20 @@ docs/06-departments/02-debate-engine/DEBT.md
 | ⚙️ 基础设施部 | `src/utils/` | 🟡 | 7 | [HANDOVER](../06-departments/10-infrastructure/HANDOVER.md) |
 | 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🟢 | 2 | [HANDOVER](../06-departments/11-quality-assurance/HANDOVER.md) |
 
-**全代码库开放债务**: 34 条（紧急指数待重算）→ [债务路由](debt/ROUTER.md)
+**全代码库开放债务**: 39 条（紧急指数待重算）→ [债务路由](debt/ROUTER.md)
 
 ---
 
 ## 🎯 当前跨部门优先级
 
 > **2026-07-31 战略校正**：当前主要矛盾是“系统建设能力强，真实结果验证能力弱”。
+> **2026-08-12 恢复可靠性中断交接**：会话恢复 Tasks 1–6 已完成，Task 7 的初步真实
+> round-trip 与仓库推进证明通过，但最终复审确认 TD-078（v2 载入凭据复扫/扫描契约）、
+> TD-079（`exact_next_step` 控制字符输出注入）和 TD-080（legacy 候选越界读取）。立即优先级是
+> 分别完成三项 RED→GREEN 修复与独立复审，再重跑 Task 7 闸门；TD-076 保持未关闭，TD-077
+> 保持条件性债务。Python review 的 Windows 非 ASCII Git 解码、文本报告字段契约、Pydantic
+> strictness 与规格/报告漂移仅为待独立复核，不得当作已确认缺陷。
+>
 > KR-3B-2 已完成：KR-3 现在产出可判别的四层成功/失败结果。E0-100 validation-first 设计与实施计划已就绪，自动进入 KR-4 继续暂停；下一步按 [E0 实施计划](../superpowers/plans/2026-08-10-e0-validation-checkpoint.md) 建设离线证伪闸门。本切片未新增 AI、API、前端、风控、交易或回测消费者。若 E0 允许继续，KR-4～KR-6 完成后，必须按
 > [决策 Baseline 与影子验证计划](../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)
 > 进入 4～8 周影子验证。功能完成度、置信度字段和复盘页面不得表述为真实投资效果已验证。
@@ -142,9 +149,13 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 ---
 
-## ▶️ 下次会话启动点（2026-08-11）
+## ▶️ 下次会话启动点（2026-08-12）
 
 > **Git 校验的恢复纪律**：会话快照不是事实源；Git/worktree 才是事实源。启动时运行 `python scripts/session_state.py inspect`，只有 `MATCH` 可显示下一步（超过 7 天还需用户确认）。其他状态不得执行或输出快照中的下一步，必须按当前 Git → SDD → HANDOVER → 最新工作日志只读重建。完整规则见 [SESSION_RECOVERY.md](workflow/SESSION_RECOVERY.md)。
+>
+> **当前恢复任务**：先处理 TD-078～TD-080，各自补 RED→GREEN 回归并完成独立复审；随后
+> 恢复原计划 Task 7 的完整闸门与 TD-076 收尾。最终复审尚未批准，禁止把 Task 7 或 TD-076
+> 标为完成。完成该中断切片后，再继续下列既有 E0/KR 优先级。
 
 1. 新浪新闻元数据已进入 SQLite WAL 滚动缓存，默认每 5 分钟采集、保留 3 天；
 2. 东方财富实时源与新浪滚动源通过同一接口并发聚合；
@@ -297,4 +308,4 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ---
 
-> **最后更新**：2026-08-11 | Git 校验的会话恢复规则完成
+> **最后更新**：2026-08-12 | 会话恢复 Task 7 中断交接，三项复审发现待修复
