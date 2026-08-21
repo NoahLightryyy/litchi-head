@@ -91,11 +91,29 @@ def _manifest_values() -> dict[str, object]:
         ),
         "decision_question": "未来五个交易日是否应持有该股票？",
         "runner_ids": tuple(RunnerId),
+        "runner_versions": tuple(
+            (runner_id, f"{runner_id.value.lower()}:v1") for runner_id in RunnerId
+        ),
+        "runner_config_versions": (
+            (RunnerId.A0, "a0:v1"),
+            (RunnerId.A1, "a1-config:v1"),
+            (RunnerId.B0, "b0-config:v1"),
+            (RunnerId.B1, "b1-config:v1"),
+            (RunnerId.B3, "b3-config:v1"),
+        ),
+        "runner_prompt_versions": (
+            (RunnerId.A0, "production:abc1234"),
+            (RunnerId.A1, "e0-single-agent:v1"),
+            (RunnerId.B0, "not-applicable:v1"),
+            (RunnerId.B1, "not-applicable:v1"),
+            (RunnerId.B3, "not-applicable:v1"),
+        ),
         "primary_horizon": 5,
         "auxiliary_horizons": (1, 20),
         "candidate_universe_hash": HASH,
         "replacement_order": (),
         "samples": (),
+        "stability_sample_ids": (),
         "fixture_mode": True,
     }
 
@@ -237,7 +255,15 @@ def test_real_manifest_rejects_invalid_official_sample_set(mutation: str) -> Non
             update={"candidate_id": samples[0].candidate_id}
         )
     values = _manifest_values()
-    values.update({"fixture_mode": False, "samples": tuple(samples)})
+    values.update(
+        {
+            "fixture_mode": False,
+            "samples": tuple(samples),
+            "stability_sample_ids": tuple(
+                sample.sample_id for sample in samples[:20]
+            ),
+        }
+    )
 
     with pytest.raises(ValidationError):
         E0Manifest.model_validate(values)

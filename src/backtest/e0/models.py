@@ -246,11 +246,15 @@ class E0Manifest(_FrozenModel):
     a0_config: A0RunnerConfig
     decision_question: str = Field(min_length=1)
     runner_ids: tuple[RunnerId, ...]
+    runner_versions: tuple[tuple[RunnerId, str], ...]
+    runner_config_versions: tuple[tuple[RunnerId, str], ...]
+    runner_prompt_versions: tuple[tuple[RunnerId, str], ...]
     primary_horizon: int
     auxiliary_horizons: tuple[int, ...]
     candidate_universe_hash: str = Field(pattern=SHA256_PATTERN)
     replacement_order: tuple[str, ...]
     samples: tuple[E0Sample, ...]
+    stability_sample_ids: tuple[str, ...]
     fixture_mode: bool = False
 
     _aware_created_at = field_validator("created_at")(_require_aware)
@@ -259,6 +263,24 @@ class E0Manifest(_FrozenModel):
     def validate_registered_experiment(self) -> Self:
         if self.runner_ids != tuple(RunnerId):
             raise ValueError("runner_ids must be exactly A0, A1, B0, B1, B3")
+        version_tables = {
+            "runner_versions": self.runner_versions,
+            "runner_config_versions": self.runner_config_versions,
+            "runner_prompt_versions": self.runner_prompt_versions,
+        }
+        for table_name, entries in version_tables.items():
+            if tuple(runner_id for runner_id, _ in entries) != tuple(RunnerId):
+                raise ValueError(f"{table_name} must cover every runner exactly once")
+            if any(not value.strip() or value != value.strip() for _, value in entries):
+                raise ValueError(f"{table_name} values must be non-blank and unpadded")
+        prompt_versions = dict(self.runner_prompt_versions)
+        if (
+            prompt_versions[RunnerId.A0] != self.a0_prompt_version
+            or prompt_versions[RunnerId.A1] != self.a1_prompt_version
+        ):
+            raise ValueError("A0/A1 prompt versions must match frozen prompt identities")
+        if dict(self.runner_config_versions)[RunnerId.A0] != self.a0_config.version:
+            raise ValueError("A0 config version must match frozen A0 configuration")
         if self.primary_horizon != 5 or self.auxiliary_horizons != (1, 20):
             raise ValueError("E0 horizons must be primary 5 and auxiliary 1, 20")
         if not self.fixture_mode and len(self.samples) != 100:
@@ -269,6 +291,10 @@ class E0Manifest(_FrozenModel):
         candidate_ids = [sample.candidate_id for sample in self.samples]
         if len(candidate_ids) != len(set(candidate_ids)):
             raise ValueError("candidate IDs must be unique")
+        if len(self.stability_sample_ids) != len(set(self.stability_sample_ids)):
+            raise ValueError("stability sample IDs must be unique")
+        if not set(self.stability_sample_ids).issubset(sample_ids):
+            raise ValueError("stability sample IDs must belong to manifest samples")
         if any(
             not candidate_id.strip() or candidate_id != candidate_id.strip()
             for candidate_id in self.replacement_order
@@ -277,6 +303,8 @@ class E0Manifest(_FrozenModel):
         if len(self.replacement_order) != len(set(self.replacement_order)):
             raise ValueError("replacement_order IDs must be unique")
         if not self.fixture_mode:
+            if len(self.stability_sample_ids) != 20:
+                raise ValueError("real E0 manifest requires exactly 20 stability samples")
             regime_counts = Counter(sample.regime for sample in self.samples)
             if any(regime_counts[regime] != 25 for regime in MarketRegime):
                 raise ValueError("real E0 manifest requires exactly 25 samples per regime")
@@ -471,6 +499,7 @@ class E0IntegrityReport(_FrozenModel):
     checks: tuple[str, ...]
     reasons: tuple[str, ...]
     missing_decision_keys: tuple[str, ...] = ()
+    unexpected_decision_keys: tuple[str, ...] = ()
     missing_label_keys: tuple[str, ...] = ()
 
 
