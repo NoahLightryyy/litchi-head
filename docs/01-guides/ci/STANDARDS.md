@@ -17,6 +17,8 @@
 | 3 | 测试 | Pytest | 🔴 阻塞 | ~60s |
 | 4 | 覆盖率 | pytest-cov (≥80%) | 🔴 阻塞 | ~60s |
 | 5 | 依赖漏洞 | pip-audit | 🟡 警告 | ~30s |
+| 6 | 前端规则与可访问性 | ESLint + Next.js Core Web Vitals | 🔴 阻塞 | ~5s |
+| 7 | 前端类型与构建 | TypeScript + Next.js build | 🔴 阻塞 | ~10s |
 
 ### 门禁级别
 
@@ -53,7 +55,7 @@
 
 ```bash
 # 推荐（跨平台，自动检测变更范围）
-python scripts/check.py         # ruff + pyright + 按模块选测试
+python scripts/check.py         # ruff + pyright + 按模块选测试 + 前端 lint/type（按需）
 
 # 跨模块变更/大重构用全量子集
 python scripts/check.py --full  # ruff + pyright + 全量子集（不含慢测试）

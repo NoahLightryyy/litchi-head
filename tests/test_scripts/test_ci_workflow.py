@@ -54,6 +54,7 @@ def test_ci_has_reproducible_frontend_type_and_build_job() -> None:
 
     assert "pnpm --dir frontend install --frozen-lockfile" in commands
     assert "pnpm --dir frontend test:coverage" in commands
+    assert "pnpm --dir frontend lint" in commands
     assert "pnpm --dir frontend type-check" in commands
     assert "pnpm --dir frontend build" in commands
     assert "actions/checkout@v6" in actions

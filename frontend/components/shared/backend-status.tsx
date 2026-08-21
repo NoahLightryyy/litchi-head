@@ -81,10 +81,11 @@ export function BackendStatusIndicator() {
 
   useEffect(() => {
     mountedRef.current = true;
-    check();
+    const initialCheck = setTimeout(() => void check(), 0);
     const interval = setInterval(check, POLL_INTERVAL);
     return () => {
       mountedRef.current = false;
+      clearTimeout(initialCheck);
       clearInterval(interval);
     };
   }, [check]);

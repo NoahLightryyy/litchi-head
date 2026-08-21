@@ -5,11 +5,10 @@ import type { NewsItem } from "@/lib/types/stock";
 interface NewsFeedProps {
   items: NewsItem[];
   loading?: boolean;
-  code: string;
 }
 
 /** 关联新闻流 */
-export function NewsFeed({ items, loading, code }: NewsFeedProps) {
+export function NewsFeed({ items, loading }: NewsFeedProps) {
   return (
     <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-5">
       <h2 className="text-sm font-semibold text-text-primary mb-3">关联新闻</h2>

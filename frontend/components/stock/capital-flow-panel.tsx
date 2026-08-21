@@ -1,7 +1,6 @@
 "use client";
 
 import { useCapitalFlow } from "@/lib/hooks/use-stock";
-import type { CapitalFlow } from "@/lib/types/stock";
 
 interface CapitalFlowPanelProps {
   code: string;
@@ -34,7 +33,6 @@ export function CapitalFlowPanel({ code }: CapitalFlowPanelProps) {
   const recent = data.slice(-10);
 
   // 计算汇总
-  const latest = recent[recent.length - 1];
   const totals = recent.reduce(
     (acc, item) => ({
       main: acc.main + item.main_net_inflow,

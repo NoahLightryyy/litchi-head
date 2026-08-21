@@ -6,7 +6,7 @@
   1. ruff 代码风格检查
   2. pyright 类型检查（src/ + backend/）
   3. 按变更范围智能选择测试子集
-  4. 前端变更触发 TypeScript 类型检查
+  4. 前端变更触发 ESLint + TypeScript 类型检查
 
 用法：
   python scripts/check.py              # 检测变更范围 + 按需跑测试
@@ -171,6 +171,13 @@ def frontend_typecheck_command(os_name: str | None = None) -> list[str]:
     return [executable, "--dir", "frontend", "type-check"]
 
 
+def frontend_lint_command(os_name: str | None = None) -> list[str]:
+    """返回当前平台可直接执行的 pnpm ESLint 检查命令。"""
+    platform_name = os_name or os.name
+    executable = "pnpm.cmd" if platform_name == "nt" else "pnpm"
+    return [executable, "--dir", "frontend", "lint"]
+
+
 def run_step(name: str, cmd: list[str]) -> bool:
     """运行一个检查步骤。返回 True 表示通过。"""
     _s(f"\n  === {name} ===")
@@ -200,7 +207,7 @@ def _print_header() -> None:
     _s("")
     _s("=" * 60)
     _s("  litchi-head 本地 CI 检查")
-    _s("  ruff -> pyright -> 按变更范围智能测试 -> 前端类型检查")
+    _s("  ruff -> pyright -> 按变更范围智能测试 -> 前端 lint + 类型检查")
     _s("=" * 60)
 
 
@@ -238,7 +245,7 @@ def main() -> int:
     frontend_required = args.full or needs_frontend_check(changed)
 
     passes = 0
-    total = 3 + int(frontend_required)  # ruff + pyright + tests + 可选前端
+    total = 3 + 2 * int(frontend_required)  # 后端 3 项 + 可选前端 2 项
 
     # ── 1. Ruff ──
     if run_step("ruff", ["ruff", "check", "."]):
@@ -277,7 +284,13 @@ def main() -> int:
     if test_ok:
         passes += 1
 
-    # ── 4. 前端 TypeScript（前端变更或 --full）──
+    # ── 4. 前端 ESLint + TypeScript（前端变更或 --full）──
+    if frontend_required and run_step(
+        "frontend lint",
+        frontend_lint_command(),
+    ):
+        passes += 1
+
     if frontend_required and run_step(
         "frontend type-check",
         frontend_typecheck_command(),

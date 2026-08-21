@@ -73,6 +73,9 @@ jobs:
       - name: Frontend tests and coverage
         run: pnpm --dir frontend test:coverage
 
+      - name: Frontend lint
+        run: pnpm --dir frontend lint
+
       - name: Frontend type-check
         run: pnpm --dir frontend type-check
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useFinancials, useValuation, useIndicators } from "@/lib/hooks/use-stock";
-import type { FinancialMetrics, ValuationMetrics, DynamicIndicators } from "@/lib/types/stock";
+import type { FinancialMetrics, ValuationMetrics } from "@/lib/types/stock";
 
 interface FinancialPanelProps {
   code: string;

@@ -13,13 +13,11 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  HelpCircle,
 } from "lucide-react";
 import {
   useRetroRecords,
   useRetroSummary,
   useUpdateAction,
-  useUpdateOutcome,
   useRefreshRetro,
   useDeleteRecord,
 } from "@/lib/hooks/use-retro";
@@ -36,7 +34,6 @@ export function RetroBoard() {
   });
   const { data: summary, isLoading: summaryLoading } = useRetroSummary();
   const { mutate: updateAction, isPending: actionUpdating } = useUpdateAction();
-  const { mutate: updateOutcome, isPending: outcomeUpdating } = useUpdateOutcome();
   const { mutate: refreshAll, isPending: refreshing } = useRefreshRetro();
   const { mutate: deleteRecord } = useDeleteRecord();
 
@@ -237,7 +234,6 @@ function RetroRow({
         </td>
         <td className="px-4 py-3">
           <ActionChips
-            recordId={record.record_id}
             current={record.user_action}
             disabled={actionUpdating}
             onChange={(action) => onAction(record.record_id, action)}
@@ -374,12 +370,10 @@ function OutcomeBadge({ outcome }: { outcome: string }) {
 
 /* ── 用户操作按钮组 ── */
 function ActionChips({
-  recordId,
   current,
   disabled,
   onChange,
 }: {
-  recordId: string;
   current: string | null;
   disabled: boolean;
   onChange: (action: string) => void;

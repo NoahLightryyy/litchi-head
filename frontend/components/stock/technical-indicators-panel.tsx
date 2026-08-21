@@ -40,7 +40,7 @@ export function TechnicalIndicatorsPanel({ code }: TechnicalIndicatorsPanelProps
         <MaCard ma={data.ma} />
         <RsiCard rsi={data.rsi} />
         <MacdCard macd={data.macd} />
-        <BollingerCard bollinger={data.bollinger} price={null} />
+        <BollingerCard bollinger={data.bollinger} />
       </div>
 
       {/* 详细说明 */}
@@ -176,10 +176,8 @@ function MacdCard({ macd }: { macd: TechnicalIndicators["macd"] }) {
 
 function BollingerCard({
   bollinger,
-  price,
 }: {
   bollinger: TechnicalIndicators["bollinger"];
-  price: number | null;
 }) {
   return (
     <div className="p-3 rounded-lg border border-bg-tertiary bg-bg-primary/50">

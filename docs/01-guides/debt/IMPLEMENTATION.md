@@ -285,7 +285,7 @@
 | **分类** | `💻 implementation` `severity:minor` `module:frontend` `impact:代码质量` |
 | **发现日期** | 2026-06-17 |
 | **发现人** | AI 审计 |
-| **状态** | `🆕 待评估` |
+| **状态** | `✅ 已关闭（2026-08-21）` |
 | **本金估算** | ∼5min |
 | **实盘影响** | 🟢 当前 React 版本未见异常，未来并发模式下可能出问题 |
 | **触发场景** | React 18/19 并发模式下 render |
@@ -295,6 +295,9 @@
 
 **修复方向**：
 改为 `[...recent].reverse()` 或 `recent.toReversed()`
+
+**关闭证据**：当前 `CapitalFlowPanel` 只使用 `data.slice(-10)` 保留原顺序，不再调用
+`.reverse()`；ESLint 零警告门禁覆盖该文件。
 
 ---
 

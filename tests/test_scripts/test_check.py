@@ -93,6 +93,22 @@ def test_frontend_typecheck_command_is_platform_compatible(
     assert check.frontend_typecheck_command(os_name)[0] == executable
 
 
+@pytest.mark.parametrize(
+    ("os_name", "executable"),
+    [("nt", "pnpm.cmd"), ("posix", "pnpm")],
+)
+def test_frontend_lint_command_is_platform_compatible(
+    os_name: str,
+    executable: str,
+) -> None:
+    assert check.frontend_lint_command(os_name) == [
+        executable,
+        "--dir",
+        "frontend",
+        "lint",
+    ]
+
+
 def test_main_checks_backend_types_and_changed_frontend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -109,6 +125,10 @@ def test_main_checks_backend_types_and_changed_frontend(
 
     assert check.main() == 0
     assert ("pyright", ["pyright", "src/", "backend/"]) in calls
+    assert (
+        "frontend lint",
+        check.frontend_lint_command(),
+    ) in calls
     assert (
         "frontend type-check",
         check.frontend_typecheck_command(),
@@ -130,6 +150,10 @@ def test_full_mode_runs_python_and_frontend_gates(monkeypatch: pytest.MonkeyPatc
     assert (
         "tests (not slow)",
         [sys.executable, "-m", "pytest", "-x", "--tb=short", "-m", "not slow"],
+    ) in calls
+    assert (
+        "frontend lint",
+        check.frontend_lint_command(),
     ) in calls
     assert (
         "frontend type-check",

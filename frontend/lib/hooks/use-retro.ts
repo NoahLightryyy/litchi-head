@@ -9,7 +9,6 @@ import {
   refreshRetroRecords,
   deleteRetroRecord,
 } from "@/lib/api/retro";
-import type { RetroRecord } from "@/lib/types/retro";
 
 /* ── 复盘记录列表 ── */
 export function useRetroRecords(params?: {

@@ -16,6 +16,9 @@ export default function Error({
         <p className="text-sm text-text-muted mb-6">
           遇到意外错误，请尝试重新加载
         </p>
+        {error.digest && (
+          <p className="mb-4 text-xs text-text-muted">错误编号：{error.digest}</p>
+        )}
         <button
           onClick={reset}
           className="px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 transition-colors"

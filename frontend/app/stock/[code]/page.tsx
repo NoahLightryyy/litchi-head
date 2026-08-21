@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { TrendingUp, DollarSign, MessageSquare, ShieldCheck, BarChart3 } from "lucide-react";
 import { useStockQuote, useStockNews } from "@/lib/hooks/use-stock";
 import { QuoteCard } from "@/components/stock/quote-card";
@@ -43,9 +44,9 @@ export default function StockPage() {
     return (
       <div className="flex flex-col gap-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-2 text-sm">
-          <a href="/" className="text-text-secondary hover:text-text-primary transition-colors">
+          <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">
             宏观总览
-          </a>
+          </Link>
           <span className="text-text-muted">/</span>
           <span className="text-text-muted">{code}</span>
         </div>
@@ -54,9 +55,9 @@ export default function StockPage() {
           <p className="text-sm text-text-muted mb-2">个股数据加载失败</p>
           <p className="text-xs text-text-muted mb-4">股票代码 {code} 数据暂时不可用</p>
           <div className="flex items-center justify-center gap-3">
-            <a href="/" className="px-4 py-2 rounded-md bg-bg-tertiary text-text-secondary text-sm font-medium hover:bg-bg-elevated transition-colors">
+            <Link href="/" className="px-4 py-2 rounded-md bg-bg-tertiary text-text-secondary text-sm font-medium hover:bg-bg-elevated transition-colors">
               返回宏观总览
-            </a>
+            </Link>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 transition-colors"
@@ -73,9 +74,9 @@ export default function StockPage() {
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {/* 面包屑 */}
       <div className="flex items-center gap-2 text-sm">
-        <a href="/" className="text-text-secondary hover:text-text-primary transition-colors">
+        <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">
           宏观总览
-        </a>
+        </Link>
         <span className="text-text-muted">/</span>
         <span className="text-text-muted">个股</span>
         <span className="text-text-muted">/</span>
@@ -133,7 +134,7 @@ export default function StockPage() {
       </div>
 
       {/* 新闻 */}
-      <NewsFeed items={news ?? []} loading={newsLoading} code={code} />
+      <NewsFeed items={news ?? []} loading={newsLoading} />
     </div>
   );
 }

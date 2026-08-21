@@ -23,7 +23,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
     setTriggered(true);
     try {
       await trigger({ stock_code: stockCode, question: `${stockName} 投资分析` });
-    } catch (e) {
+    } catch {
       setError("辩论触发失败，请检查后端服务是否运行");
     }
   };

@@ -109,6 +109,23 @@ GitHub CI     → ruff + pyright + 全量测试（含慢测试）   ← PR 合�
 - pre-push 不一定要零测试，关键是要 **<2min**
 - CI 是全量门禁，pre-push 是快筛
 
+### 前端为什么必须单独跑 ESLint
+
+Next.js 16 已移除 `next lint`，而且 `next build` 也不再自动执行 lint。项目现在在
+`frontend/eslint.config.mjs` 中显式启用 `core-web-vitals + typescript` flat config：
+
+```javascript
+export default defineConfig([
+  ...nextVitals,
+  ...nextTypeScript,
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+]);
+```
+
+`pnpm --dir frontend lint` 使用 `--max-warnings 0`，所以未使用变量、错误的内部 `<a>`
+导航、Effect 中同步 setState 等问题都会阻断。`scripts/check.py` 在检测到 `frontend/`
+变更时自动执行 lint 和类型检查，GitHub Actions 还会在构建前独立执行一次。
+
 ---
 
 ## 和单独用 `pytest.mark.integration` 有什么不同
@@ -144,4 +161,4 @@ GitHub CI     → ruff + pyright + 全量测试（含慢测试）   ← PR 合�
 
 ---
 
-> **更新**：2026-06-22 | 三层测试策略，配套 `docs/01-guides/ci/` 文档体系
+> **更新**：2026-08-21 | 补充 Next.js 16 ESLint CLI 独立门禁

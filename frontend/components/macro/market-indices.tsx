@@ -1,7 +1,7 @@
 "use client";
 
 import type { MarketIndex } from "@/lib/types/market";
-import { formatPrice, formatChangePct } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 
 interface MarketIndicesProps {
   indices: MarketIndex[];

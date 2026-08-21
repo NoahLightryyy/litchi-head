@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { MarketIndex, SectorItem, MacroBrief, SectorDetail, ChainAnalysis, HotNewsItem } from "@/lib/types/market";
+import type { MarketIndex, SectorItem, MacroBrief, SectorDetail, HotNewsItem } from "@/lib/types/market";
 
 /** 三大指数行情 */
 export async function fetchMarketIndices(): Promise<MarketIndex[]> {

@@ -31,6 +31,7 @@ last_updated: 2026-08-21 (真实分时图与逐源披露完成)
 | TypeScript strict | ✅ 零 `any`、零 `@ts-ignore` |
 | 前端 mock 数据 | ✅ 零造假 |
 | 前端纯函数测试 | ✅ 16 项通过（含分时契约、四态、来源文案、曲线与上海时区） |
+| ESLint | ✅ Next.js Core Web Vitals + TypeScript，零警告阻塞 |
 
 ### 关键架构决策
 
@@ -44,8 +45,7 @@ last_updated: 2026-08-21 (真实分时图与逐源披露完成)
 
 | ID | 描述 | 优先级 | 预估 |
 |:---|:-----|:------:|:----:|
-| TD-033 | capital-flow-panel.tsx `.reverse()` 变异数组违反不可变性 | 🟢 | 5min |
-| TD-077 | Next.js 16 下 `pnpm lint` 仍调用已移除的 `next lint` | 🟢 | 30min |
+| — | 当前无开放前端债务 | — | — |
 
 ## 已关闭
 
@@ -58,19 +58,20 @@ last_updated: 2026-08-21 (真实分时图与逐源披露完成)
 | TD-029 | 死代码未清理 | 2026-06-17 |
 | TD-030 | 资金流向绕过 Provider 层 | 2026-06-17 |
 | TD-031 | 辩论轮询永不停止 | 2026-06-17 |
+| TD-033 | 资金流数组就地反转风险 | 2026-08-21 |
+| TD-077 | Next.js 16 前端 lint 脚本失效 | 2026-08-21 |
 
 ---
 
 ## 下一步优先级
 
-### 现有债务
+### 后续质量与集成
 
 | 优先级 | 事项 | 依赖 |
 |:------:|:-----|:----:|
-| 1 🟢 | TD-033 修 `.reverse()` → `.toReversed()` | 无 |
-| 2 🟢 | 浏览器端四态全量验证（拔网线/空数据/超时） | 无 |
-| 3 🟢 | TypeScript 类型与 Pydantic 模型自动同步 | 后端 API 部 |
-| 4 🔥 | KR-5 K 线证据展示：四层状态、RAW/复权口径、基准日、冲突和来源不足可见 | KR-3B-1 成功组装已完成；KR-3B-2～5 待完成。前端不得把条款事件展示为可用复权 |
+| 1 🟢 | 浏览器端四态全量验证（拔网线/空数据/超时） | 无 |
+| 2 🟢 | TypeScript 类型与 Pydantic 模型自动同步 | 后端 API 部 |
+| 3 🔥 | KR-5 K 线证据展示：四层状态、RAW/复权口径、基准日、冲突和来源不足可见 | KR-3B-1 成功组装已完成；KR-3B-2～5 待完成。前端不得把条款事件展示为可用复权 |
 
 ### 盘中决策页当前实现（2026-08-21）
 
@@ -197,7 +198,7 @@ frontend/components/
 | `frontend/components/stock/intraday-line-chart.tsx` | — | 真实分钟价格折线，不合成 OHLC |
 | `frontend/components/stock/debate-panel.tsx` | 191 | 辩论面板 |
 | `frontend/components/stock/technical-indicators-panel.tsx` | 302 | 技术指标面板 |
-| `frontend/components/stock/capital-flow-panel.tsx` | 134 | 资金流向面板（⚠️ TD-033） |
+| `frontend/components/stock/capital-flow-panel.tsx` | 134 | 资金流向面板 |
 | `frontend/components/stock/financial-panel.tsx` | 🆕 | 🏛️ 财务分析面板（财务指标+估值比率+历史对比表） |
 | `docs/06-departments/09-frontend/ROLE.md` | — | 👤 前端部角色定义 |
 | `docs/06-departments/09-frontend/STANDARDS.md` | — | 📐 前端部技术规范 |

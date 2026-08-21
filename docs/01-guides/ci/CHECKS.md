@@ -10,7 +10,7 @@
 
 ```bash
 # 日常开发 —— 按变更范围智能选择测试
-python scripts/check.py          # ruff -> pyright -> 模块测试（~40s）
+python scripts/check.py          # ruff -> pyright -> 模块测试 -> 前端 lint/type（按变更触发）
 
 # 跨模块/大重构 —— 全量子集（不含慢测试）
 python scripts/check.py --full   # ruff -> pyright -> 全量子集（~3min）
@@ -33,6 +33,7 @@ make check                       # 同 --full（委托给 check.py）
 - [ ] `pyright src/` — 零错误、零警告
 - [ ] 新增代码有类型注解
 - [ ] `python scripts/check.py` — 智能检测变更范围，跑对应测试
+- [ ] 前端变更：`pnpm --dir frontend lint` — ESLint 零错误、零警告
 - [ ] 新增功能有对应测试
 - [ ] `git diff --check` — 无空白字符错误
 - [ ] `git diff --name-only --diff-filter=A` — 如有新增文件，搜索旧方案/旧命令/旧路径是否还有残留引用
@@ -59,9 +60,9 @@ make check                       # 同 --full（委托给 check.py）
 
 ```
 pre-push hook   → ruff + pyright + 快测试子集（~70s）    ← 每次推送自动
-check.py        → ruff + pyright + 按变更选测试（~40s）   ← 日常开发推荐
-check.py --full → ruff + pyright + 全量子集（~3min）      ← 跨模块/推送前
-GitHub CI       → ruff + pyright + 全量测试（含慢测试）    ← PR 合并前完整验证
+check.py        → ruff + pyright + 按变更选测试 + 前端 lint/type（按需）
+check.py --full → 上述全部 + Python 全量子集（~3min）
+GitHub CI       → Python 全量 + 前端 test/lint/type/build  ← PR 合并前完整验证
 ```
 
 ```bash

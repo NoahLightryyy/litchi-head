@@ -119,3 +119,31 @@
 ---
 
 > **最后更新**: 2026-06-21 | CI 治理体系创建，记录了首次连续失败分析的已知问题
+# Next.js 16 下 `pnpm lint` 把 `lint` 当目录
+
+## 症状
+
+```text
+Invalid project directory provided, no such directory: frontend/lint
+```
+
+## 根因
+
+Next.js 16 已移除 `next lint`，且生产构建不再自动执行 lint。旧脚本
+`"lint": "next lint"` 因而失效，长期不会检查 React Hooks、内部导航和未使用代码。
+
+## 修复
+
+1. 安装同 Next.js 版本匹配的 `eslint-config-next` 与 ESLint 9；
+2. 新建 `frontend/eslint.config.mjs`，启用 Core Web Vitals 与 TypeScript flat config；
+3. 将脚本改为 `eslint . --max-warnings 0`；
+4. 同时接入 `scripts/check.py` 和 `.github/workflows/ci.yml`，避免只修本地命令。
+
+## 验证
+
+```bash
+pnpm --dir frontend lint
+python -m pytest tests/test_scripts/test_check.py tests/test_scripts/test_ci_workflow.py
+```
+
+---

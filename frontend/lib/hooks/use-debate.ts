@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { runDebate, fetchDebateResult, fetchTrustReport, fetchTrustLeaderboard } from "@/lib/api/debate";
-import type { DebateResult, TrustReport, DebateRequest } from "@/lib/types/debate";
+import type { DebateResult, DebateRequest } from "@/lib/types/debate";
 
 /* ── 触发辩论（mutation hook） ── */
 export function useRunDebate() {

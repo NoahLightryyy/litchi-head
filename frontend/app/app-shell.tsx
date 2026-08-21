@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { BackendStatusIndicator, HeaderStatusDot } from "@/components/shared/backend-status";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 /* ── 路径 → 标题 映射 ── */
 function useRouteMeta(pathname: string): { title: string } {
@@ -15,20 +16,21 @@ function useRouteMeta(pathname: string): { title: string } {
 }
 
 /** 全局网络状态 */
+function subscribeToOnlineStatus(onStoreChange: () => void): () => void {
+  window.addEventListener("online", onStoreChange);
+  window.addEventListener("offline", onStoreChange);
+  return () => {
+    window.removeEventListener("online", onStoreChange);
+    window.removeEventListener("offline", onStoreChange);
+  };
+}
+
 function useOnlineStatus(): boolean {
-  const [online, setOnline] = useState(true);
-  useEffect(() => {
-    setOnline(navigator.onLine);
-    const onOnline = () => setOnline(true);
-    const onOffline = () => setOnline(false);
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-    return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-    };
-  }, []);
-  return online;
+  return useSyncExternalStore(
+    subscribeToOnlineStatus,
+    () => navigator.onLine,
+    () => true,
+  );
 }
 
 /** 客户端交互外壳（布局逻辑、导航高亮、加载进度条、离线检测） */
@@ -58,11 +60,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 /* ── 全局顶部加载进度条 ── */
 function LoadingBar() {
   const pathname = usePathname();
-  const [loading, setLoading] = useState(false);
+  const [settledPath, setSettledPath] = useState(pathname);
+  const loading = settledPath !== pathname;
 
   useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 400);
+    const timer = setTimeout(() => setSettledPath(pathname), 400);
     return () => clearTimeout(timer);
   }, [pathname]);
 
@@ -99,7 +101,7 @@ function SidebarNav({ pathname }: { pathname: string }) {
         {navItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
-            <a
+            <Link
               key={item.label}
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
@@ -110,7 +112,7 @@ function SidebarNav({ pathname }: { pathname: string }) {
             >
               <span>{item.icon}</span>
               <span>{item.label}</span>
-            </a>
+            </Link>
           );
         })}
       </nav>

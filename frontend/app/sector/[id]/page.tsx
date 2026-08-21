@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { ArrowLeft, Network, List, BrainCircuit } from "lucide-react";
 import { useSectorDetail } from "@/lib/hooks/use-market";
 import { SectorHeader } from "@/components/sector/sector-header";
@@ -36,9 +37,9 @@ export default function SectorPage() {
     return (
       <div className="flex flex-col gap-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-2 text-sm">
-          <a href="/" className="text-text-secondary hover:text-text-primary transition-colors">
+          <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">
             宏观总览
-          </a>
+          </Link>
           <span className="text-text-muted">/</span>
           <span className="text-text-muted">板块未找到</span>
         </div>
@@ -47,12 +48,12 @@ export default function SectorPage() {
           <p className="text-sm text-text-muted mb-2">板块数据加载失败</p>
           <p className="text-xs text-text-muted mb-4">数据源可能暂时不可用，请稍后重试</p>
           <div className="flex items-center justify-center gap-3">
-            <a
+            <Link
               href="/"
               className="px-4 py-2 rounded-md bg-bg-tertiary text-text-secondary text-sm font-medium hover:bg-bg-elevated transition-colors"
             >
               返回宏观总览
-            </a>
+            </Link>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 transition-colors"
@@ -69,9 +70,9 @@ export default function SectorPage() {
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {/* 面包屑 */}
       <div className="flex items-center gap-2 text-sm">
-        <a href="/" className="text-text-secondary hover:text-text-primary transition-colors">
+        <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">
           宏观总览
-        </a>
+        </Link>
         <span className="text-text-muted">/</span>
         <span className="text-text-primary font-medium">{sector.name}</span>
       </div>
@@ -84,12 +85,12 @@ export default function SectorPage() {
           fundFlow={sector.fund_flow}
           heat={sector.heat as "high" | "medium" | "low"}
         />
-        <a
+        <Link
           href="/"
           className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="w-3 h-3" /> 返回
-        </a>
+        </Link>
       </div>
 
       {/* 两列布局 */}
