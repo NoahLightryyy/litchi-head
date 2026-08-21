@@ -175,6 +175,7 @@ def _sample(
         regime=regime,
         evidence_snapshot_id=f"evidence-{index:03d}",
         evidence_hash=HASH,
+        entry_tradable=True,
     )
 
 

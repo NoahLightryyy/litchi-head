@@ -228,6 +228,7 @@ class E0Sample(_FrozenModel):
     regime: MarketRegime
     evidence_snapshot_id: str = Field(min_length=1)
     evidence_hash: str = Field(pattern=SHA256_PATTERN)
+    entry_tradable: bool
 
     _aware_decision_at = field_validator("decision_at")(_require_aware)
 

@@ -208,6 +208,7 @@ def freeze_samples(
             regime=regime,
             evidence_snapshot_id=candidate.evidence_snapshot_id,
             evidence_hash=candidate.evidence_hash,
+            entry_tradable=candidate.entry_tradable,
         )
         for candidate, regime in selected
     )

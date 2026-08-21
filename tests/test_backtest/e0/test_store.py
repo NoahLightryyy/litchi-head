@@ -116,6 +116,7 @@ def _manifest() -> E0Manifest:
                 regime=MarketRegime.UP,
                 evidence_snapshot_id="evidence-001",
                 evidence_hash=HASH,
+                entry_tradable=True,
             ),
         ),
         stability_sample_ids=(),
