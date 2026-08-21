@@ -109,6 +109,27 @@ random.Random(random_seed).shuffle(shuffled)
 manifest 模型边界还会共同拒绝语义重复样本，以及 selected、excluded、replacement 三组
 身份冲突。
 
+Task 4 加入三个完全确定性的参照系：`CashRunner`（B0）永远持有现金，`BuyHoldRunner`
+（B1）只根据清单中冻结的决策时可成交证明决定是否按统一仓位买入，`Momentum20Runner`
+（B3）比较最新收盘价与 20 个交易会话前的收盘价。规则 runner 不产生 Token 或模型成本，
+也不读取标签。
+
+```python
+# src/backtest/e0/runners.py
+if bar_date >= sample.decision_at.date():
+    raise E0RunnerEvidenceError("future_bar_forbidden", ...)
+if bar_date >= evidence.as_of.date():
+    raise E0RunnerEvidenceError("bar_after_evidence_as_of", ...)
+
+if closes[-1] > closes[-21]:
+    return LONG
+return CASH
+```
+
+日 K 线只有日期、没有可证明的完成时刻，因此使用保守边界：必须严格早于 evidence
+snapshot 的自然日。这里还直接比较两个正价格，而不先做 Decimal 除法；对于“收益是否大于
+零”这个问题两者数学等价，却不会被调用进程的 Decimal 精度把极小正收益舍入成零。
+
 ---
 
 ## 和训练集有什么不同？
@@ -141,7 +162,9 @@ manifest 模型边界还会共同拒绝语义重复样本，以及 selected、ex
    篡改记录和注入 `os.replace` 失败都会形成可重复的完整性失败；
 5. 运行 `python -m pytest tests/test_backtest/e0/test_sampling.py -q`，再尝试切换 Decimal
    rounding mode，观察分类结果仍保持一致；
-6. 思考：如果看完结果后把 5 日主周期改成 20 日，这轮实验为什么已经失效？
+6. 运行 `python -m pytest tests/test_backtest/e0/test_runners.py -q`，观察快照后的 K 线、
+   决策日 K 线、错误实验身份和不足 21 个收盘价都会失败关闭；
+7. 思考：如果看完结果后把 5 日主周期改成 20 日，这轮实验为什么已经失效？
 
 ---
 
