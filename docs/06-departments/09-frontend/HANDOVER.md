@@ -1,7 +1,7 @@
 ---
 department: 前端部
 codebase: frontend/
-last_updated: 2026-07-30 (K 线口径与 KR-5 展示计划批准)
+last_updated: 2026-08-21 (真实分时图与逐源披露完成)
 ---
 
 # 🎨 前端部工作交接
@@ -13,9 +13,10 @@ last_updated: 2026-07-30 (K 线口径与 KR-5 展示计划批准)
 | 子系统 | 状态 | 说明 |
 |:-------|:----:|:------|
 | 三页路由（首页→板块→个股） | ✅ | Next.js 16 App Router |
-| 17 个功能组件 + 4 布局组件 | ✅ | 含 loading/error/empty/data 四态 |
+| 分时战况面板 | ✅ | 真实分钟折线、30 秒轮询、四态与逐源诊断 |
+| 功能组件 + 4 布局组件 | ✅ | 含 loading/error/empty/data 四态 |
 | K 线真渲染（CandlestickChart） | ✅ | Lightweight Charts 成交量直方图 |
-| 暗色主题系统 | ✅ | CSS 变量 + Tailwind, Bloomberg × TradingView 配色 |
+| 暖白研究台主题 | ✅ | CSS 变量 + Tailwind v4，降低大面积暗色压迫感 |
 | 搜索 autocomplete | ✅ | 防抖 300ms + useStockSearch hook |
 | 4 Tab 面板（个股页） | ✅ | 辩论/技术指标/资金流向/财务分析/信任度 |
 | 离线检测 | ✅ | `useOnlineStatus()` + 全局离线横幅 |
@@ -29,6 +30,7 @@ last_updated: 2026-07-30 (K 线口径与 KR-5 展示计划批准)
 | `pnpm build` | ✅ 零错误 |
 | TypeScript strict | ✅ 零 `any`、零 `@ts-ignore` |
 | 前端 mock 数据 | ✅ 零造假 |
+| 前端纯函数测试 | ✅ 16 项通过（含分时契约、四态、来源文案、曲线与上海时区） |
 
 ### 关键架构决策
 
@@ -43,6 +45,7 @@ last_updated: 2026-07-30 (K 线口径与 KR-5 展示计划批准)
 | ID | 描述 | 优先级 | 预估 |
 |:---|:-----|:------:|:----:|
 | TD-033 | capital-flow-panel.tsx `.reverse()` 变异数组违反不可变性 | 🟢 | 5min |
+| TD-077 | Next.js 16 下 `pnpm lint` 仍调用已移除的 `next lint` | 🟢 | 30min |
 
 ## 已关闭
 
@@ -69,7 +72,18 @@ last_updated: 2026-07-30 (K 线口径与 KR-5 展示计划批准)
 | 3 🟢 | TypeScript 类型与 Pydantic 模型自动同步 | 后端 API 部 |
 | 4 🔥 | KR-5 K 线证据展示：四层状态、RAW/复权口径、基准日、冲突和来源不足可见 | KR-3B-1 成功组装已完成；KR-3B-2～5 待完成。前端不得把条款事件展示为可用复权 |
 
-### 盘中决策页目标（2026-07-30 确认）
+### 盘中决策页当前实现（2026-08-21）
+
+- `IntradayBattlefieldPanel` 已置于历史 K 线之前，曲线仅来自 API `price_points`；
+- 多源通过、单源可用、来源冲突、不可用、网络错误均有独立文案；单源只提醒来源单一，
+  不阻断图表和后续功能；
+- 来源详情可展开，显示数据商、抓取时间、检查点、状态和 API 返回错误；
+- VWAP 与同期量比均有白话解释，量比同时披露历史样本天数；
+- 无真实分钟点时主动留空，不使用示意曲线。
+- API 边界运行时校验新分时契约；旧后端不会崩页，而是显示版本不兼容；后台刷新失败
+  保留最后成功图并常驻标红，不把缓存伪装成当前数据。
+
+### 后续盘中目标
 
 - 开盘后“AI 辩论”保持可用，不显示“等待日 K 收盘”；
 - 历史蜡烛只渲染已确认 `FINAL_DAILY`；今日动态蜡烛单独标记“盘中形成中”；
@@ -179,6 +193,8 @@ frontend/components/
 | `frontend/app/sector/[id]/page.tsx` | 134 | 板块分析页 |
 | `frontend/app/stock/[code]/page.tsx` | 130 | 个股决策页（5 Tab：技术分析+资金流向+财务分析+AI辩论+信任度） |
 | `frontend/components/stock/candlestick-chart.tsx` | 138 | K 线图（Lightweight Charts） |
+| `frontend/components/stock/intraday-battlefield-panel.tsx` | — | 分时四态、指标解释与逐源诊断 |
+| `frontend/components/stock/intraday-line-chart.tsx` | — | 真实分钟价格折线，不合成 OHLC |
 | `frontend/components/stock/debate-panel.tsx` | 191 | 辩论面板 |
 | `frontend/components/stock/technical-indicators-panel.tsx` | 302 | 技术指标面板 |
 | `frontend/components/stock/capital-flow-panel.tsx` | 134 | 资金流向面板（⚠️ TD-033） |

@@ -54,7 +54,7 @@ Content-Type: application/json
 |:----|:-----|:-----|
 | POST | `/api/v1/evidence/news/aggregate` | 东方财富 + 新浪新闻证据信封 |
 | POST | `/api/v1/evidence/quotes/aggregate` | 东方财富 + 新浪实时行情证据信封；含逐源状态与完整性 |
-| POST | `/api/v1/evidence/intraday/battlefield` | 双源核验分钟曲线 + L1 战况；当前条含 `PROVISIONAL` 状态 |
+| POST | `/api/v1/evidence/intraday/battlefield` | 分钟价格曲线 + L1 战况；支持多源核验、单源可用、来源冲突与不可用四态 |
 | 目标 | K 线双时间尺度证据信封 | `final_daily_bars`、实时/分钟与 `provisional_session_bar` 分栏；尚未实现 |
 
 > `/api/stocks/{code}/quote` 是页面展示兼容接口；业务节点和 AI 辩论使用统一证据
@@ -68,6 +68,24 @@ Content-Type: application/json
 > K 线证据目标响应还必须包含 `price_basis`、`adjustment_mode`、`reference_date`、
 > `factor_version`、`upstream_ids` 和字段精度，并区分 RAW 冲突、复权冲突与独立
 > 上游不足。旧 K 线接口在 KR-5 迁移完成前保持兼容。
+
+#### 分时战况前端契约
+
+请求体为 `{ "symbol": "000001" }`。前端只使用响应中的真实字段：
+
+- `price_points[].timestamp + close` 绘制分钟价格折线，不从单价点推造 OHLC；
+- `verification_status` 区分 `multi_source_verified`、`single_source`、
+  `source_conflict`、`unavailable`；单源和冲突只做持续可见提醒，不阻断可用数据；
+- `source_diagnostics[]` 展示数据商名称、获取时间、检查点数量、状态和原始错误；
+- `snapshot.session_vwap` 展示为 VWAP（成交量加权平均价），
+  `relative_volume` 必须同时展示历史样本天数；
+- `usable=false` 或价格点为空时不绘制示意曲线。网络错误与数据源不可用分开展示，
+  网络错误不得猜测具体是哪家数据商失败。
+
+前端每 30 秒轮询，查询在 15 秒后视为陈旧。已有可用数据刷新失败时保留最后一次可用画面，
+常驻标红“刷新失败”和最后成功时间，避免短暂网络波动把图清空或把旧图冒充当前数据。
+HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单源放行字段，页面显示
+“分时接口版本不兼容”，不得让 `undefined` 字段进入组件。
 
 ### 信任度
 

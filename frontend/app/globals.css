@@ -1,28 +1,27 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@config "../tailwind.config.ts";
+@import "tailwindcss";
 
-/* ── Bloomberg × TradingView 暗色主题 ── */
+/* ── 暖白研究终端：降低长时间阅读压迫感 ── */
 :root {
-  --bg-primary: #0D1117;
-  --bg-secondary: #161B22;
-  --bg-tertiary: #21262D;
-  --bg-elevated: #2D333B;
+  --bg-primary: #eeeae0;
+  --bg-secondary: #f8f6f0;
+  --bg-tertiary: #e4ded2;
+  --bg-elevated: #d8d0c2;
 
-  --text-primary: #E6EDF3;
-  --text-secondary: #8B949E;
-  --text-muted: #484F58;
+  --text-primary: #18231f;
+  --text-secondary: #68736e;
+  --text-muted: #5f6b65;
 
-  --accent-blue: #2962FF;
-  --accent-green: #00C853;
-  --accent-red: #FF5252;
-  --accent-gold: #FFB300;
-  --accent-purple: #7C3AED;
+  --accent-blue: #2f6555;
+  --accent-green: #2f7d5a;
+  --accent-red: #b34b43;
+  --accent-gold: #7f570f;
+  --accent-purple: #745f8d;
 
-  --chart-bull: #26A69A;
-  --chart-bear: #EF5350;
-  --chart-grid: #1E2A3A;
-  --chart-volume: rgba(41, 98, 255, 0.2);
+  --chart-bull: #2f7d5a;
+  --chart-bear: #b34b43;
+  --chart-grid: #d9d4c9;
+  --chart-volume: rgba(47, 101, 85, 0.18);
 }
 
 * {
@@ -46,7 +45,7 @@ body {
   font-family: 'Cascadia Code', 'Consolas', monospace;
 }
 
-/* ── 滚动条暗色主题 ── */
+/* ── 低对比度滚动条 ── */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

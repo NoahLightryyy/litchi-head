@@ -12,6 +12,7 @@ import { CapitalFlowPanel } from "@/components/stock/capital-flow-panel";
 import { TechnicalIndicatorsPanel } from "@/components/stock/technical-indicators-panel";
 import { FinancialPanel } from "@/components/stock/financial-panel";
 import { TrustChart } from "@/components/stock/trust-chart";
+import { IntradayBattlefieldPanel } from "@/components/stock/intraday-battlefield-panel";
 import { useTrustLeaderboard } from "@/lib/hooks/use-debate";
 
 const TABS = [
@@ -84,6 +85,9 @@ export default function StockPage() {
 
       {/* 行情卡片 */}
       <QuoteCard quote={quote ?? null} loading={quoteLoading} />
+
+      {/* 真实盘中分钟结构与数据来源状态 */}
+      <IntradayBattlefieldPanel code={code} />
 
       {/* K 线图 */}
       <KlineChart code={code} />

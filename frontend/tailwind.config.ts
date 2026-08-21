@@ -9,30 +9,30 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        /* ── 暗色主题（Bloomberg × TradingView 风格） ── */
+        /* 颜色由 globals.css 统一控制，避免主题值分叉。 */
         bg: {
-          primary: "#0D1117",
-          secondary: "#161B22",
-          tertiary: "#21262D",
-          elevated: "#2D333B",
+          primary: "var(--bg-primary)",
+          secondary: "var(--bg-secondary)",
+          tertiary: "var(--bg-tertiary)",
+          elevated: "var(--bg-elevated)",
         },
         text: {
-          primary: "#E6EDF3",
-          secondary: "#8B949E",
-          muted: "#484F58",
+          primary: "var(--text-primary)",
+          secondary: "var(--text-secondary)",
+          muted: "var(--text-muted)",
         },
         accent: {
-          blue: "#2962FF",
-          green: "#00C853",
-          red: "#FF5252",
-          gold: "#FFB300",
-          purple: "#7C3AED",
+          blue: "var(--accent-blue)",
+          green: "var(--accent-green)",
+          red: "var(--accent-red)",
+          gold: "var(--accent-gold)",
+          purple: "var(--accent-purple)",
         },
         chart: {
-          bull: "#26A69A",
-          bear: "#EF5350",
-          grid: "#1E2A3A",
-          volume: "rgba(41, 98, 255, 0.2)",
+          bull: "var(--chart-bull)",
+          bear: "var(--chart-bear)",
+          grid: "var(--chart-grid)",
+          volume: "var(--chart-volume)",
         },
       },
       fontFamily: {

@@ -14,16 +14,16 @@ interface CandlestickChartProps {
   data: KLineData[];
 }
 
-/** 暗色主题配色（匹配 Tailwind bg-bg-secondary / bg-bg-primary） */
+/** 暖白研究终端配色（匹配全局数据面板） */
 const THEME = {
-  background: "#141420",
-  textColor: "#8b8fa3",
-  gridColor: "#2a2a3e",
-  borderColor: "#2a2a3e",
-  candleUp: "#26a69a",
-  candleDown: "#ef5350",
-  volumeUp: "rgba(38, 166, 154, 0.3)",
-  volumeDown: "rgba(239, 83, 80, 0.3)",
+  background: "#f8f6f0",
+  textColor: "#68736e",
+  gridColor: "#ddd8cd",
+  borderColor: "#d8d0c2",
+  candleUp: "#2f7d5a",
+  candleDown: "#b34b43",
+  volumeUp: "rgba(47, 125, 90, 0.24)",
+  volumeDown: "rgba(179, 75, 67, 0.22)",
 };
 
 /**

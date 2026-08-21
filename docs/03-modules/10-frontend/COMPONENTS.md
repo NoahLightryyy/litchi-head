@@ -25,7 +25,9 @@
     │
     └── [Page 3] <StockPage>        ← 个股决策
         ├── <QuoteCard />           ←   行情卡片
-        ├── <KlineChart />          ←   K 线图
+        ├── <IntradayBattlefieldPanel /> ← 分时价格、指标解释与逐源诊断
+        │   └── <IntradayLineChart />     ← 仅渲染真实分钟价格点
+        ├── <KlineChart />          ←   历史 K 线图
         ├── <Tabs>                  ←   Tab 切换
         │   ├── <TechnicalPanel />  ←   技术分析
         │   ├── <CapitalFlow />     ←   资金流向
@@ -70,7 +72,18 @@ scroll-area — 滚动区域
 每个组件遵循规则：
 1. **纯展示组件**（没有 `useEffect`/`useState` 副作用）
 2. 数据通过 props 或 hooks 获取
-3. 错误态、加载态、空态三态覆盖
+3. 错误态、加载态、空态、数据态四态覆盖
+
+### 个股分时组件
+
+| 组件 | 职责 | 真实性边界 |
+|:-----|:-----|:-----------|
+| `IntradayBattlefieldPanel` | 30 秒轮询、四态编排、刷新失败告警、VWAP/量比解释、来源披露与重试 | 单源与冲突照常展示；无可用点时明确留空 |
+| `IntradayLineChart` | Lightweight Charts 分钟价格折线 | 只读取 `timestamp` 与 `close`，不推造开高低收 |
+
+来源状态始终显示在面板头部；“查看数据来源”可展开每一路 API 诊断。状态颜色只是辅助，
+必须同时有文字，不能用绿色或分数暗示接口健康等于投资结论可靠。
+首次请求区分网络、限流、服务端与契约错误；后台刷新失败保留旧图但明确标红。
 
 ### 全局组件 (components/global/)
 
@@ -93,16 +106,16 @@ scroll-area — 滚动区域
 
 ## UI 规范
 
-### 暗色主题 Token
+### 暖白研究台主题 Token
 
-CSS 变量在 `globals.css` 中定义，参照 `FRONTEND_VISION.md §2.2`：
+CSS 变量在 `globals.css` 中定义。页面采用低压迫的暖白底色，红绿只表达状态和涨跌：
 
 ```css
---bg-primary:   #0D1117;
---bg-secondary: #161B22;
---bg-tertiary:  #21262D;
---chart-bull:   #26A69A;
---chart-bear:   #EF5350;
+--bg-primary:   #eeeae0;
+--bg-secondary: #f8f6f0;
+--bg-tertiary:  #ddd7ca;
+--accent-green: #2f6b57;
+--accent-red:   #a14b43;
 ```
 
 ### 排版层级

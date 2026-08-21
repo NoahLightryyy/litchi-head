@@ -1,5 +1,6 @@
 import { api } from "./client";
 import type { StockQuote, KLineData, NewsItem, CapitalFlow, StockSearchResult, TechnicalIndicators, FinancialMetrics, ValuationMetrics, DynamicIndicators, IntradayBattlefield } from "@/lib/types/stock";
+import { parseIntradayBattlefield } from "@/lib/intraday-contract";
 
 /** 搜索股票/板块 */
 export async function searchStocks(query: string): Promise<StockSearchResult[]> {
@@ -61,5 +62,8 @@ export async function fetchIndicators(code: string): Promise<DynamicIndicators> 
 export async function fetchIntradayBattlefield(
   code: string,
 ): Promise<IntradayBattlefield> {
-  return api.post("/v1/evidence/intraday/battlefield", { symbol: code });
+  const response: unknown = await api.post("/v1/evidence/intraday/battlefield", {
+    symbol: code,
+  });
+  return parseIntradayBattlefield(response);
 }

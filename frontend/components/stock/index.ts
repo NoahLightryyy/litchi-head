@@ -6,3 +6,5 @@ export { TrustChart } from "./trust-chart";
 export { CapitalFlowPanel } from "./capital-flow-panel";
 export { TechnicalIndicatorsPanel } from "./technical-indicators-panel";
 export { FinancialPanel } from "./financial-panel";
+export { IntradayLineChart } from "./intraday-line-chart";
+export { IntradayBattlefieldPanel } from "./intraday-battlefield-panel";
