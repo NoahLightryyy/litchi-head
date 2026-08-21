@@ -78,6 +78,11 @@ class DecisionRecord(_FrozenModel):
 `DecisionRecord` 拒绝 `as_of > decision_at` 以及与时间差不一致的新鲜度。冻结 JSON 同时拒绝
 `NaN`、`Infinity` 和重复 key，避免同一字节在不同解析器中产生不同事实。
 
+Task 2 把“冻结”扩展到磁盘：`src/backtest/e0/store.py` 使用同目录临时文件、`fsync` 和
+`os.replace` 发布 manifest 与 JSONL；相同记录重放是字节稳定 no-op，不同内容占用同一
+决策 key 则失败。`terminal.json` 最后发布，并同时绑定 manifest、decisions、labels、
+report JSON 和 Markdown 的哈希；终态后公开追加接口全部拒绝写入。
+
 ---
 
 ## 和训练集有什么不同？
@@ -106,7 +111,9 @@ class DecisionRecord(_FrozenModel):
 1. 运行 `python -m pytest tests/test_backtest/e0/test_models.py -q`；
 2. 在测试 fixture 中把 `DecisionRecord.as_of` 改到 `decision_at` 之后，观察未来证据被拒绝；
 3. 把冻结 JSON 改成 `{"price": 10, "price": 11}`，观察重复事实被拒绝；
-4. 思考：如果看完结果后把 5 日主周期改成 20 日，这轮实验为什么已经失效？
+4. 运行 `python -m pytest tests/test_backtest/e0/test_store.py -q`，观察删除终态 ledger、
+   篡改记录和注入 `os.replace` 失败都会形成可重复的完整性失败；
+5. 思考：如果看完结果后把 5 日主周期改成 20 日，这轮实验为什么已经失效？
 
 ---
 
