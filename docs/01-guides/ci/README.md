@@ -45,6 +45,7 @@
 > 三层渐进式验证，每次推送拦截大部分问题，不阻塞开发流程。
 > 慢测试（当前 19 个 `@pytest.mark.slow`）由 GitHub Actions CI 运行，pre-push 跳过。
 > - 每次推送前：pre-push hook 自动捕获风格、类型和快测试失败
+> - hook 要求 worktree 干净且不自动 stash；linked worktree 的 Git 环境不会传给测试子进程
 > - 质量保障部负责维护 hook（参见 [HANDBOOK.md](HANDBOOK.md#pre-push-hook)）
 
 ### 3. 五同步延伸到 CI
