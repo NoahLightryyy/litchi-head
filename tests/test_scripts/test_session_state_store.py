@@ -26,6 +26,45 @@ from scripts.session_state_store import (
     write_snapshot,
 )
 
+SUSPECTED_CREDENTIALS = (
+    pytest.param("sk-proj-0123456789abcdefghij", id="openai-sk"),
+    pytest.param("api_key = abcdefghijklmnop", id="generic-api-key"),
+    pytest.param("token: x", id="generic-token"),
+    pytest.param("password=abcdefghijklmnop", id="generic-password"),
+    pytest.param("secret: abcdefghijklmnop", id="generic-secret"),
+    pytest.param("-----BEGIN PRIVATE KEY-----", id="pem-pkcs8"),
+    pytest.param("-----BEGIN RSA PRIVATE KEY-----", id="pem-rsa"),
+    pytest.param(
+        "postgresql://service-user:correct-horse-battery@db.internal/app",
+        id="authenticated-uri",
+    ),
+    pytest.param(
+        "Server=db.internal;User Id=service;Password=x;Database=app",
+        id="semicolon-connection-string",
+    ),
+    pytest.param("AKIAIOSFODNN7EXAMPLE", id="aws-akia-access-key-id"),
+    pytest.param("ASIAIOSFODNN7EXAMPLE", id="aws-asia-access-key-id"),
+    pytest.param(
+        "aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        id="aws-secret-access-key",
+    ),
+    pytest.param("ghp_0123456789abcdefghijklmnopqrstuvwxyz", id="github-ghp"),
+    pytest.param("gho_0123456789abcdefghijklmnopqrstuvwxyz", id="github-gho"),
+    pytest.param("ghu_0123456789abcdefghijklmnopqrstuvwxyz", id="github-ghu"),
+    pytest.param("ghs_0123456789abcdefghijklmnopqrstuvwxyz", id="github-ghs"),
+    pytest.param("ghr_0123456789abcdefghijklmnopqrstuvwxyz", id="github-ghr"),
+    pytest.param(
+        "github_pat_11AA0abcdefghijklmnopqrstuvwx",
+        id="github-fine-grained",
+    ),
+)
+
+ALLOWED_RECOVERY_PROSE = (
+    pytest.param("Review the token budget before continuing", id="token-budget"),
+    pytest.param("Document the password policy", id="password-policy"),
+    pytest.param("Generate a secret-free snapshot", id="secret-free"),
+)
+
 
 def assert_sanitized_exception_chain(error: BaseException, hidden: str) -> None:
     """Require a public exception to retain no nested private exception objects."""
@@ -181,17 +220,55 @@ def test_atomic_publish_failure_preserves_prior_bytes_and_cleans_temp(
     assert list(directory.glob("tmp*")) == []
 
 
-def test_suspected_secret_in_handoff_is_rejected_without_echoing_value(tmp_path: Path) -> None:
+def test_handcrafted_v2_with_secret_is_rejected_on_load_without_echoing_value(
+    tmp_path: Path,
+) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    secret = "sk-live-12345678901234567890"
+    secret = "token = directly-written-private-value"
+    path = tmp_path / "handcrafted-session.json"
+    path.write_text(
+        make_snapshot(project, project, next_step=secret).model_dump_json(),
+        encoding="utf-8",
+    )
 
-    with pytest.raises(SnapshotStoreError) as caught:
-        write_snapshot(tmp_path / "sessions", make_snapshot(project, project, next_step=secret))
+    with pytest.raises(SnapshotStoreError, match="suspected secret") as caught:
+        load_v2(path)
 
-    assert secret not in str(caught.value)
-    assert contains_secret(secret)
-    assert contains_secret({"api-key": "abcdefgh"})
+    assert_sanitized_exception_chain(caught.value, secret)
+
+
+@pytest.mark.parametrize("suspected_secret", SUSPECTED_CREDENTIALS)
+def test_scanner_contract_rejects_credentials_on_write_and_load(
+    tmp_path: Path, suspected_secret: str
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    root = tmp_path / "sessions"
+    snapshot = make_snapshot(project, project, next_step=suspected_secret)
+
+    with pytest.raises(SnapshotStoreError, match="suspected secret") as write_error:
+        write_snapshot(root, snapshot)
+    assert_sanitized_exception_chain(write_error.value, suspected_secret)
+
+    handcrafted = tmp_path / "handcrafted-session.json"
+    handcrafted.write_text(snapshot.model_dump_json(), encoding="utf-8")
+    with pytest.raises(SnapshotStoreError, match="suspected secret") as load_error:
+        load_v2(handcrafted)
+    assert_sanitized_exception_chain(load_error.value, suspected_secret)
+
+
+@pytest.mark.parametrize("ordinary_prose", ALLOWED_RECOVERY_PROSE)
+def test_scanner_contract_allows_ordinary_recovery_prose(
+    tmp_path: Path, ordinary_prose: str
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    snapshot = make_snapshot(project, project, next_step=ordinary_prose)
+
+    assert not contains_secret(ordinary_prose)
+    path = write_snapshot(tmp_path / "sessions", snapshot)
+    assert load_v2(path).handoff.exact_next_step == ordinary_prose
 
 
 def test_matching_legacy_header_is_history_without_retaining_next_step(tmp_path: Path) -> None:

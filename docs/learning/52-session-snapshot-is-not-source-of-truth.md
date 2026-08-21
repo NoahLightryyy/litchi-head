@@ -32,6 +32,10 @@ worktree + Git
 时，如果已有 `v2`、project key 或 worktree key 目录是符号链接/junction/reparse point，也
 同样失败关闭。
 
+2026-08-21 的 TD-078 回归还证明：只在官方保存入口查凭据不够，因为外部程序可以直接写入
+结构合法的 v2 JSON。`write_snapshot` 与 `load_v2` 现在都调用同一个窄扫描契约；载入发现
+凭据时只返回稳定的 `SnapshotStoreError`，不让正文进入文本或 JSON 恢复报告。
+
 ---
 
 ## 项目里的真实设计与代码
@@ -68,6 +72,22 @@ return "MATCH"
 `scripts/session_state_store.py`，并由相应的 `tests/test_scripts/test_session_state*.py`
 覆盖。快照、目录或 Git 检查有任何不确定性时，恢复只读取 Git、SDD、HANDOVER 和工作日志。
 
+凭据边界也必须在读写两端一致：
+
+```python
+payload = snapshot.model_dump(mode="json")
+_reject_suspected_secret(payload)  # write_snapshot
+
+loaded = SessionSnapshotV2.model_validate_json(encoded)
+_reject_suspected_secret(loaded.model_dump(mode="json"))  # load_v2
+```
+
+这里故意不用熵评分或第三方扫描器。冻结的范围只覆盖可审计的常见形式：`sk-`、具名
+key/token/password/secret 赋值、PEM 私钥头、带认证的 URI/连接串、AWS key 和 GitHub token
+前缀。`token budget`、`password policy`、`secret-free snapshot` 这类普通恢复文字仍能通过。
+对应的参数化契约在 `tests/test_scripts/test_session_state_store.py`，文本/JSON 隔离回归在
+`tests/test_scripts/test_session_state.py`。
+
 ---
 
 ## 威胁模型要花在真正的风险上
@@ -92,6 +112,7 @@ handle-relative 目录后端的复杂度不符合这项可丢弃缓存的收益�
 | 跨分支 | 容易串线 | `BRANCH_MISMATCH` 失败关闭 |
 | 旧格式 | 照常执行 | 只作历史线索 |
 | Git 报错 | 容易当成空变化 | 稳定错误并停止，改读仓库证据 |
+| 外部直接写入合法 JSON | 绕过保存入口检查 | `load_v2` 用同一扫描器重新隔离 |
 | 已有重定向目录 | 可能被带出作用域 | 保存/发现立即失败关闭 |
 | 校验后的同账号目录替换 | 常被误承诺为已防御 | 当前明确不在威胁模型内 |
 
@@ -113,7 +134,8 @@ handle-relative 目录后端的复杂度不符合这项可丢弃缓存的收益�
 2. 思考：即使快照只旧 1 分钟，只要期间产生新提交，它还能自动恢复吗？
 3. 切换到另一个 worktree，比较为什么同一个仓库名仍不足以证明身份；
 4. 看 `tests/test_scripts/test_session_state_store.py` 的预存 junction 测试，区分“验证前已存在”与“验证后替换”；
-5. 列出恢复报告必须显示的五项证据，并说明不确定时为何要回到 Git。
+5. 把 `token budget` 和一个假的 `ghp_` 测试值分别传给 `contains_secret`，解释为什么前者允许、后者拒绝；
+6. 列出恢复报告必须显示的五项证据，并说明不确定时为何要回到 Git。
 
 ---
 

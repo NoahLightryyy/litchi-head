@@ -26,7 +26,19 @@ _SECRET_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(
         r"(?i)\b(api[_-]?key|token|password|secret)\b[\"']?\s*[:=]\s*"
-        r"[\"']?[^\s\"']{8,}"
+        r"[\"']?[^\s\"',;]+"
+    ),
+    re.compile(r"-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----"),
+    re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^\s/:@?#]+:[^@\s/?#]+@"),
+    re.compile(r"(?i)(?:^|;)\s*(?:password|pwd)\s*=\s*[^;\s\"']+"),
+    re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),
+    re.compile(
+        r"(?i)\baws_secret_access_key\b[\"']?\s*[:=]\s*"
+        r"[\"']?[A-Za-z0-9/+=]{40}"
+    ),
+    re.compile(
+        r"\b(?:ghp_|gho_|ghu_|ghs_|ghr_)[A-Za-z0-9]{20,}\b"
+        r"|\bgithub_pat_[A-Za-z0-9_]{20,}\b"
     ),
 )
 _T = TypeVar("_T")
@@ -82,6 +94,12 @@ def contains_secret(value: object) -> bool:
     return any(pattern.search(text) is not None for pattern in _SECRET_PATTERNS)
 
 
+def _reject_suspected_secret(value: object) -> None:
+    """Apply the shared snapshot scanner without retaining credential values."""
+    if contains_secret(value):
+        raise SnapshotStoreError("snapshot contains a suspected secret field")
+
+
 def snapshot_directory(root: Path, project: Path, worktree: Path) -> Path:
     """Return the non-reversible project/worktree namespace below ``root``."""
     return _store_io(
@@ -118,8 +136,7 @@ def write_snapshot(root: Path, snapshot: SessionSnapshotV2) -> Path:
     serialization_failure: SnapshotStoreOperationalError | None = None
     try:
         payload = snapshot.model_dump(mode="json")
-        if contains_secret(payload):
-            raise SnapshotStoreError("snapshot contains a suspected secret field")
+        _reject_suspected_secret(payload)
         encoded = (
             json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
         ).encode("utf-8")
@@ -273,6 +290,7 @@ def load_v2(path: Path) -> SessionSnapshotV2:
         if len(encoded) > _MAX_SNAPSHOT_BYTES:
             raise CorruptSnapshotError("snapshot exceeds the 1 MiB limit")
         loaded = SessionSnapshotV2.model_validate_json(encoded)
+        _reject_suspected_secret(loaded.model_dump(mode="json"))
     except SnapshotStoreError:
         raise
     except OSError:

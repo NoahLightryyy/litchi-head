@@ -394,6 +394,52 @@ def test_save_then_inspect_json_round_trip_has_pure_stdout(tmp_path: Path) -> No
     assert report["handoff"]["exact_next_step"] == "continue E0"
 
 
+@pytest.mark.parametrize("json_output", [False, True], ids=["human", "json"])
+def test_inspect_quarantines_handcrafted_v2_secret_from_reports(
+    tmp_path: Path, json_output: bool
+) -> None:
+    repo = init_repo(tmp_path)
+    root = tmp_path / "sessions"
+    state = collect_repository_state(repo)
+    secret = "token = directly-written-report-value"
+    snapshot = build_snapshot(
+        state,
+        topic="recovery",
+        handoff=HandoffPayload(exact_next_step=secret),
+        saved_at=datetime.now(UTC),
+    )
+    directory = snapshot_directory(
+        root, Path(state.project_root), Path(state.worktree_path)
+    )
+    directory.mkdir(parents=True)
+    (directory / f"{snapshot.snapshot_id}-session.json").write_text(
+        snapshot.model_dump_json(), encoding="utf-8"
+    )
+    project_repo = Path(__file__).resolve().parents[2]
+    args = [
+        "inspect",
+        "--repo",
+        str(repo),
+        "--session-root",
+        str(root),
+    ]
+    if json_output:
+        args.append("--json")
+
+    result = run_cli(project_repo, *args)
+
+    assert result.returncode == 3
+    assert result.stderr == ""
+    assert secret not in result.stdout
+    if json_output:
+        report = json.loads(result.stdout)
+        assert report["status"] == "MALFORMED"
+        assert report["handoff"] is None
+    else:
+        assert "STATUS: MALFORMED" in result.stdout
+        assert "NEXT STEP:" not in result.stdout
+
+
 def test_inspect_stale_snapshot_returns_exit_2_and_hides_next_step(
     tmp_path: Path,
 ) -> None:
