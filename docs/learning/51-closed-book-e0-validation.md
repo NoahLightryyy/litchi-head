@@ -83,6 +83,32 @@ Task 2 把“冻结”扩展到磁盘：`src/backtest/e0/store.py` 使用同目�
 决策 key 则失败。`terminal.json` 最后发布，并同时绑定 manifest、decisions、labels、
 report JSON 和 Markdown 的哈希；终态后公开追加接口全部拒绝写入。
 
+Task 3 冻结正式题集：`src/backtest/e0/sampling.py` 只读取候选中已经冻结的决策前窗口，
+重新计算区间收益和样本标准差年化波动率。分类优先级固定为高波动、上涨、下跌、横盘；
+候选先按 ID 排序，再用固定 seed 洗牌，并同时满足每状态 25 条、单股最多 2 条、单日最多
+5 条。未使用的合法候选按预注册顺序保存，排除候选保存稳定错误码，不能在看到结果后再
+挑替补。
+
+```python
+# src/backtest/e0/sampling.py
+E0_DECIMAL_CONTEXT = Context(
+    prec=50,
+    rounding=ROUND_HALF_EVEN,
+    Emin=-999999,
+    Emax=999999,
+    capitals=1,
+    clamp=0,
+)
+
+ordered_candidates = tuple(sorted(candidates, key=lambda item: item.candidate_id))
+random.Random(random_seed).shuffle(shuffled)
+```
+
+这里不仅固定 Decimal 精度，也固定舍入模式和指数范围。否则同一候选在不同调用进程的
+全局 Decimal context 下可能跨过分类阈值，使 manifest 不再只由冻结输入决定。采样入口与
+manifest 模型边界还会共同拒绝语义重复样本，以及 selected、excluded、replacement 三组
+身份冲突。
+
 ---
 
 ## 和训练集有什么不同？
@@ -113,7 +139,9 @@ report JSON 和 Markdown 的哈希；终态后公开追加接口全部拒绝写�
 3. 把冻结 JSON 改成 `{"price": 10, "price": 11}`，观察重复事实被拒绝；
 4. 运行 `python -m pytest tests/test_backtest/e0/test_store.py -q`，观察删除终态 ledger、
    篡改记录和注入 `os.replace` 失败都会形成可重复的完整性失败；
-5. 思考：如果看完结果后把 5 日主周期改成 20 日，这轮实验为什么已经失效？
+5. 运行 `python -m pytest tests/test_backtest/e0/test_sampling.py -q`，再尝试切换 Decimal
+   rounding mode，观察分类结果仍保持一致；
+6. 思考：如果看完结果后把 5 日主周期改成 20 日，这轮实验为什么已经失效？
 
 ---
 
