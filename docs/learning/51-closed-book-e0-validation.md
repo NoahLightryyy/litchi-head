@@ -55,6 +55,29 @@ brier_score = brier_sum / n if n > 0 else 0.0
 关键点不是再造指标，而是让所有参赛器读取同一时点证据、保留完整失败分母，并在运行前
 冻结样本、代码、模型、Prompt、成本和随机种子。
 
+Task 1 已把这些要求落实为不可变契约：
+
+```python
+# src/backtest/e0/models.py
+class E0Manifest(_FrozenModel):
+    regime_policy: RegimePolicy
+    fee_profile: FeeProfile
+    position_profile: PositionProfile
+    confidence_policy: ConfidencePolicy
+    samples: tuple[E0Sample, ...]
+
+
+class DecisionRecord(_FrozenModel):
+    evidence_hash: str
+    as_of: datetime
+    decision_at: datetime
+    status: RunnerStatus
+```
+
+正式 `E0Manifest` 在模型边界直接拒绝非 25×4、单股超过 2 条、单日超过 5 条或重复候选；
+`DecisionRecord` 拒绝 `as_of > decision_at` 以及与时间差不一致的新鲜度。冻结 JSON 同时拒绝
+`NaN`、`Infinity` 和重复 key，避免同一字节在不同解析器中产生不同事实。
+
 ---
 
 ## 和训练集有什么不同？
@@ -80,9 +103,9 @@ brier_score = brier_sum / n if n > 0 else 0.0
 
 ## 自己试试（5 分钟）
 
-1. 打开 E0 设计文档的“五个参赛器”和“E0 裁决”两节；
-2. 假设完整系统收益略高但 Brier、最大回撤和成本更差，判断它为什么不能直接宣布通过；
-3. 再假设单 Agent 在全部质量/风险指标不差且成本更低，判断下一步为什么是消融而不是新增 Agent；
+1. 运行 `python -m pytest tests/test_backtest/e0/test_models.py -q`；
+2. 在测试 fixture 中把 `DecisionRecord.as_of` 改到 `decision_at` 之后，观察未来证据被拒绝；
+3. 把冻结 JSON 改成 `{"price": 10, "price": 11}`，观察重复事实被拒绝；
 4. 思考：如果看完结果后把 5 日主周期改成 20 日，这轮实验为什么已经失效？
 
 ---
