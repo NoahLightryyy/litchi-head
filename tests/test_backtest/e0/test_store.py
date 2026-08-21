@@ -105,6 +105,7 @@ def _manifest() -> E0Manifest:
         primary_horizon=5,
         auxiliary_horizons=(1, 20),
         candidate_universe_hash=HASH,
+        candidate_exclusions=(),
         replacement_order=(),
         samples=(
             E0Sample(

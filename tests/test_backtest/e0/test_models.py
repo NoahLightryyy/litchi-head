@@ -111,6 +111,7 @@ def _manifest_values() -> dict[str, object]:
         "primary_horizon": 5,
         "auxiliary_horizons": (1, 20),
         "candidate_universe_hash": HASH,
+        "candidate_exclusions": (),
         "replacement_order": (),
         "samples": (),
         "stability_sample_ids": (),
@@ -240,7 +241,13 @@ def test_manifest_rejects_invalid_replacement_identity(
 
 @pytest.mark.parametrize(
     "mutation",
-    ["regime_quota", "symbol_cap", "date_cap", "candidate_duplicate"],
+    [
+        "regime_quota",
+        "symbol_cap",
+        "date_cap",
+        "candidate_duplicate",
+        "semantic_duplicate",
+    ],
 )
 def test_real_manifest_rejects_invalid_official_sample_set(mutation: str) -> None:
     samples = list(_real_samples())
@@ -250,9 +257,18 @@ def test_real_manifest_rejects_invalid_official_sample_set(mutation: str) -> Non
         samples[2] = samples[2].model_copy(update={"symbol": samples[0].symbol})
     elif mutation == "date_cap":
         samples[5] = samples[5].model_copy(update={"decision_at": samples[0].decision_at})
-    else:
+    elif mutation == "candidate_duplicate":
         samples[1] = samples[1].model_copy(
             update={"candidate_id": samples[0].candidate_id}
+        )
+    else:
+        samples[1] = samples[1].model_copy(
+            update={
+                "symbol": samples[0].symbol,
+                "decision_at": samples[0].decision_at,
+                "evidence_snapshot_id": samples[0].evidence_snapshot_id,
+                "evidence_hash": samples[0].evidence_hash,
+            }
         )
     values = _manifest_values()
     values.update(
@@ -266,6 +282,28 @@ def test_real_manifest_rejects_invalid_official_sample_set(mutation: str) -> Non
     )
 
     with pytest.raises(ValidationError):
+        E0Manifest.model_validate(values)
+
+
+@pytest.mark.parametrize(
+    "candidate_exclusions",
+    [
+        (("candidate-001", "regime_unclassified"),),
+        (("excluded-candidate", "Not stable prose code"),),
+    ],
+)
+def test_manifest_rejects_contradictory_or_unstable_exclusions(
+    candidate_exclusions: tuple[tuple[str, str], ...],
+) -> None:
+    values = _manifest_values()
+    values.update(
+        {
+            "samples": (_sample(1, MarketRegime.UP),),
+            "candidate_exclusions": candidate_exclusions,
+        }
+    )
+
+    with pytest.raises(ValidationError, match="candidate exclusion"):
         E0Manifest.model_validate(values)
 
 

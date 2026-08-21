@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -168,7 +169,7 @@ class CandidateSnapshot(_FrozenModel):
     evidence_hash: str = Field(pattern=SHA256_PATTERN)
     return_dates: tuple[date, ...]
     return_closes: tuple[Decimal, ...]
-    return_window_hash: str = Field(pattern=SHA256_PATTERN)
+    return_window_hash: str = Field(pattern=IDENTITY_SHA256_PATTERN)
     entry_tradable: bool
 
     _aware_decision_at = field_validator("decision_at")(_require_aware)
@@ -252,6 +253,7 @@ class E0Manifest(_FrozenModel):
     primary_horizon: int
     auxiliary_horizons: tuple[int, ...]
     candidate_universe_hash: str = Field(pattern=SHA256_PATTERN)
+    candidate_exclusions: tuple[tuple[str, str], ...]
     replacement_order: tuple[str, ...]
     samples: tuple[E0Sample, ...]
     stability_sample_ids: tuple[str, ...]
@@ -291,6 +293,35 @@ class E0Manifest(_FrozenModel):
         candidate_ids = [sample.candidate_id for sample in self.samples]
         if len(candidate_ids) != len(set(candidate_ids)):
             raise ValueError("candidate IDs must be unique")
+        sample_identities = [
+            (
+                sample.symbol,
+                sample.decision_at,
+                sample.evidence_snapshot_id,
+                sample.evidence_hash,
+            )
+            for sample in self.samples
+        ]
+        if len(sample_identities) != len(set(sample_identities)):
+            raise ValueError("sample semantic identities must be unique")
+        excluded_ids = [candidate_id for candidate_id, _ in self.candidate_exclusions]
+        if len(excluded_ids) != len(set(excluded_ids)):
+            raise ValueError("candidate exclusion IDs must be unique")
+        if any(
+            not candidate_id.strip()
+            or candidate_id != candidate_id.strip()
+            or not error_code.strip()
+            or error_code != error_code.strip()
+            for candidate_id, error_code in self.candidate_exclusions
+        ):
+            raise ValueError("candidate exclusions must be non-blank and unpadded")
+        if any(
+            re.fullmatch(ERROR_CODE_PATTERN, error_code) is None
+            for _, error_code in self.candidate_exclusions
+        ):
+            raise ValueError("candidate exclusion codes must be stable snake_case")
+        if set(excluded_ids) & set(candidate_ids):
+            raise ValueError("candidate exclusions must not contain selected candidates")
         if len(self.stability_sample_ids) != len(set(self.stability_sample_ids)):
             raise ValueError("stability sample IDs must be unique")
         if not set(self.stability_sample_ids).issubset(sample_ids):
@@ -302,6 +333,8 @@ class E0Manifest(_FrozenModel):
             raise ValueError("replacement_order IDs must be non-blank and unpadded")
         if len(self.replacement_order) != len(set(self.replacement_order)):
             raise ValueError("replacement_order IDs must be unique")
+        if set(self.replacement_order) & (set(candidate_ids) | set(excluded_ids)):
+            raise ValueError("replacement_order IDs must be unused valid candidates")
         if not self.fixture_mode:
             if len(self.stability_sample_ids) != 20:
                 raise ValueError("real E0 manifest requires exactly 20 stability samples")
