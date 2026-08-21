@@ -88,6 +88,11 @@ key/token/password/secret 赋值、PEM 私钥头、带认证的 URI/连接串、
 对应的参数化契约在 `tests/test_scripts/test_session_state_store.py`，文本/JSON 隔离回归在
 `tests/test_scripts/test_session_state.py`。
 
+Fix Round 1 补上了一个容易漏掉的层次：扫描结构化 JSON 能发现字段名和值的组合，却会把
+字符串内部的引号转义，也会在连接串前加上 JSON 引号，从而破坏正则的引号或行首语义。
+因此 `contains_secret` 既扫描序列化后的整体，也递归扫描每个原始字符串值；这让双引号
+AWS secret assignment、以 `Pwd=` 开头的连接串和空用户名的认证 URI 都走同一失败关闭边界。
+
 ---
 
 ## 威胁模型要花在真正的风险上

@@ -29,7 +29,7 @@ _SECRET_PATTERNS = (
         r"[\"']?[^\s\"',;]+"
     ),
     re.compile(r"-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----"),
-    re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^\s/:@?#]+:[^@\s/?#]+@"),
+    re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^\s/:@?#]*:[^@\s/?#]+@"),
     re.compile(r"(?i)(?:^|;)\s*(?:password|pwd)\s*=\s*[^;\s\"']+"),
     re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),
     re.compile(
@@ -90,8 +90,22 @@ def _read_legacy_candidate(path: Path) -> tuple[str, Path] | None:
 
 def contains_secret(value: object) -> bool:
     """Return whether JSON-compatible data contains a likely credential."""
-    text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
-    return any(pattern.search(text) is not None for pattern in _SECRET_PATTERNS)
+    serialized = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+    pending = [value]
+    raw_strings: list[str] = []
+    while pending:
+        current = pending.pop()
+        if isinstance(current, str):
+            raw_strings.append(current)
+        elif isinstance(current, dict):
+            pending.extend(current.values())
+        elif isinstance(current, (list, tuple)):
+            pending.extend(current)
+    return any(
+        pattern.search(text) is not None
+        for text in (serialized, *raw_strings)
+        for pattern in _SECRET_PATTERNS
+    )
 
 
 def _reject_suspected_secret(value: object) -> None:

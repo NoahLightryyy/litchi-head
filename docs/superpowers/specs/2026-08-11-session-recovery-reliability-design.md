@@ -194,7 +194,8 @@
 - 保存或载入的快照包含疑似 secret 时，统一通过 `SnapshotStoreError` 失败关闭，不回显值、
   正文或私有异常链。冻结的窄扫描契约覆盖 OpenAI `sk-`、具名 key/token/password/secret
   赋值、PEM 私钥头、带认证 URI/连接串、AWS access/secret key 和 GitHub token 前缀；
-  `token budget`、`password policy`、`secret-free snapshot` 等普通恢复文字继续允许；
+  扫描器同时检查结构化 JSON 和递归取得的原始字符串值，避免 JSON 转义或字符串起始锚点
+  绕过；`token budget`、`password policy`、`secret-free snapshot` 等普通恢复文字继续允许；
 - 多个 `MATCH` 候选按 `saved_at` 选择最新，同时在报告中列出被忽略候选。
 
 ## 9. 测试矩阵

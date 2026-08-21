@@ -39,14 +39,26 @@ SUSPECTED_CREDENTIALS = (
         id="authenticated-uri",
     ),
     pytest.param(
+        "postgresql://:x@db.internal/app",
+        id="authenticated-uri-without-username",
+    ),
+    pytest.param(
         "Server=db.internal;User Id=service;Password=x;Database=app",
         id="semicolon-connection-string",
+    ),
+    pytest.param(
+        "Pwd=x;Server=db.internal;User Id=service",
+        id="pwd-first-connection-string",
     ),
     pytest.param("AKIAIOSFODNN7EXAMPLE", id="aws-akia-access-key-id"),
     pytest.param("ASIAIOSFODNN7EXAMPLE", id="aws-asia-access-key-id"),
     pytest.param(
         "aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
         id="aws-secret-access-key",
+    ),
+    pytest.param(
+        'aws_secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"',
+        id="quoted-aws-secret-access-key",
     ),
     pytest.param("ghp_0123456789abcdefghijklmnopqrstuvwxyz", id="github-ghp"),
     pytest.param("gho_0123456789abcdefghijklmnopqrstuvwxyz", id="github-gho"),
@@ -65,8 +77,28 @@ ALLOWED_RECOVERY_PROSE = (
     pytest.param("Generate a secret-free snapshot", id="secret-free"),
 )
 
+HANDCRAFTED_CREDENTIALS = (
+    pytest.param(
+        'aws_secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"',
+        "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        id="quoted-aws-secret-access-key",
+    ),
+    pytest.param(
+        "Pwd=round1-connection-value;Server=db.internal;User Id=service",
+        "round1-connection-value",
+        id="pwd-first-connection-string",
+    ),
+    pytest.param(
+        "postgresql://:round1-uri-value@db.internal/app",
+        "round1-uri-value",
+        id="authenticated-uri-without-username",
+    ),
+)
 
-def assert_sanitized_exception_chain(error: BaseException, hidden: str) -> None:
+
+def assert_sanitized_exception_chain(
+    error: BaseException, *hidden_values: str
+) -> None:
     """Require a public exception to retain no nested private exception objects."""
     pending = [error]
     visited: list[BaseException] = []
@@ -75,8 +107,9 @@ def assert_sanitized_exception_chain(error: BaseException, hidden: str) -> None:
         if any(current is seen for seen in visited):
             continue
         visited.append(current)
-        assert hidden not in str(current)
-        assert hidden not in repr(current.args)
+        for hidden in hidden_values:
+            assert hidden not in str(current)
+            assert hidden not in repr(current.args)
         pending.extend(
             nested
             for nested in (current.__cause__, current.__context__)
@@ -220,22 +253,27 @@ def test_atomic_publish_failure_preserves_prior_bytes_and_cleans_temp(
     assert list(directory.glob("tmp*")) == []
 
 
-def test_handcrafted_v2_with_secret_is_rejected_on_load_without_echoing_value(
-    tmp_path: Path,
+@pytest.mark.parametrize(("credential_text", "bare_credential"), HANDCRAFTED_CREDENTIALS)
+def test_handcrafted_v2_credentials_are_rejected_without_leaking_body(
+    tmp_path: Path, credential_text: str, bare_credential: str
 ) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    secret = "token = directly-written-private-value"
     path = tmp_path / "handcrafted-session.json"
-    path.write_text(
-        make_snapshot(project, project, next_step=secret).model_dump_json(),
-        encoding="utf-8",
-    )
+    serialized_body = make_snapshot(
+        project, project, next_step=credential_text
+    ).model_dump_json()
+    path.write_text(serialized_body, encoding="utf-8")
 
     with pytest.raises(SnapshotStoreError, match="suspected secret") as caught:
         load_v2(path)
 
-    assert_sanitized_exception_chain(caught.value, secret)
+    assert_sanitized_exception_chain(
+        caught.value,
+        bare_credential,
+        credential_text,
+        serialized_body,
+    )
 
 
 @pytest.mark.parametrize("suspected_secret", SUSPECTED_CREDENTIALS)
@@ -247,6 +285,7 @@ def test_scanner_contract_rejects_credentials_on_write_and_load(
     root = tmp_path / "sessions"
     snapshot = make_snapshot(project, project, next_step=suspected_secret)
 
+    assert contains_secret(suspected_secret)
     with pytest.raises(SnapshotStoreError, match="suspected secret") as write_error:
         write_snapshot(root, snapshot)
     assert_sanitized_exception_chain(write_error.value, suspected_secret)

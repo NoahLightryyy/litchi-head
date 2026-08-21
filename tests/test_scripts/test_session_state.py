@@ -401,19 +401,23 @@ def test_inspect_quarantines_handcrafted_v2_secret_from_reports(
     repo = init_repo(tmp_path)
     root = tmp_path / "sessions"
     state = collect_repository_state(repo)
-    secret = "token = directly-written-report-value"
+    bare_credential = "round1-report-value"
+    credential_text = (
+        f"Pwd={bare_credential};Server=db.internal;User Id=service"
+    )
     snapshot = build_snapshot(
         state,
         topic="recovery",
-        handoff=HandoffPayload(exact_next_step=secret),
+        handoff=HandoffPayload(exact_next_step=credential_text),
         saved_at=datetime.now(UTC),
     )
     directory = snapshot_directory(
         root, Path(state.project_root), Path(state.worktree_path)
     )
     directory.mkdir(parents=True)
+    serialized_body = snapshot.model_dump_json()
     (directory / f"{snapshot.snapshot_id}-session.json").write_text(
-        snapshot.model_dump_json(), encoding="utf-8"
+        serialized_body, encoding="utf-8"
     )
     project_repo = Path(__file__).resolve().parents[2]
     args = [
@@ -429,8 +433,11 @@ def test_inspect_quarantines_handcrafted_v2_secret_from_reports(
     result = run_cli(project_repo, *args)
 
     assert result.returncode == 3
+    for public_output in (result.stdout, result.stderr):
+        assert bare_credential not in public_output
+        assert credential_text not in public_output
+        assert serialized_body not in public_output
     assert result.stderr == ""
-    assert secret not in result.stdout
     if json_output:
         report = json.loads(result.stdout)
         assert report["status"] == "MALFORMED"
