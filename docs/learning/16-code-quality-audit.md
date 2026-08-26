@@ -89,6 +89,17 @@ class TestEdgeCases:
 **审计前**：数据模型没有 `Field(ge=0.0)` 约束，负股价、负交易量可以通过验证。
 **审计后**：`StockQuote.price` 加了 `Field(ge=0.0)`，KLine 加了 `model_validator` 验证 OHLC 合理性。
 
+### 语义造假比空数据更危险
+
+`backend/routers/market.py:_build_chain_map()` 曾把成分股按涨幅分成“领涨龙头、
+中坚力量、基础层”，然后通过名为 `chain_map` 的字段交给界面。输入数据都是真实行情，
+计算也没有异常，但输出暗示了行情无法证明的产业链关系。
+
+这类问题不是传统意义上的 silent failure，而是 **semantic fabrication（语义造假）**：
+值是真的，解释是假的。实盘系统应优先返回可观察的空态或受限状态，不能为了让页面丰满
+而跨越证据边界。本项目的修复是保留兼容字段、返回 `chain_map=[]`，等真实关系数据源和
+契约获批后再恢复能力。
+
 ---
 
 ## 按察检查清单（每次审计必查）
@@ -103,6 +114,7 @@ class TestEdgeCases:
 | 类型安全 | 函数缺返回类型注解？ | 🟡 MAJOR |
 | 边界条件 | Pydantic 字段有 `Field(ge=/le=)` 约束吗？ | 🟡 MAJOR |
 | 边界条件 | 测试覆盖空输入/None/网络错误了吗？ | 🟡 MAJOR |
+| 证据边界 | 输出语义能由输入字段直接证明吗？是否把排名/相关性写成关系或因果？ | 🔴 CRITICAL |
 | 硬编码 | 价格/URL/路径可以从配置读取吗？ | 🟢 MINOR |
 | 硬编码 | magic number 有注释解释吗？ | 🟢 MINOR |
 
@@ -160,6 +172,8 @@ class TestEdgeCases:
 2. 数一数现在多少个 `except` 块有 `logger.exception()`？多少个没有？
 3. 打开 `src/data/models.py`，看看 `StockQuote` 和 `KLine` 的 `Field(ge=...)` 约束
 4. 思考题：如果你加一个新数据源，应该检查哪三个地方确保它不会静默吞异常？
+5. 打开 `backend/routers/market.py:_build_chain_map()`，解释为什么“真实涨幅 + 正确排序”
+   仍然不能产出真实产业链。
 
 ---
 

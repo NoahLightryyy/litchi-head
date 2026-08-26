@@ -127,14 +127,14 @@ docs/learning/               ── 学习卡片
 | **缓存基建已就绪** | DataCollector 的 TTL 缓存 + HealthStats 监控对新数据类型零成本适用 |
 | **基本面占位符已留** | `format_market_brief()` 的 fundamentals 区段当前是占位文本"暂无基本面数据" |
 | **分析师已有基本面角色** | `analyst.fundamental` 提示词已包含 ROE/利润率/负债率，只缺真实数据输入 |
-| **前端产业链页面已存在** | `frontend/app/sector/[id]/` 页面有 ChainMap 组件骨架，数据是伪的 |
+| **前端产业链页面已存在** | `frontend/app/sector/[id]/` 页面有 ChainMap 组件骨架；后端已停止提供涨幅伪关系，真实关系数据仍缺 |
 | **辩论数据流接口清晰** | 基本面分析师的 `data_evidence` 和 `key_findings` 字段可直接承载财务数据 |
 
 ### 4.3 当前架构的问题点
 
 | 问题 | 位置 | 影响 |
 |:-----|:-----|:-----|
-| **产业链数据是伪数据** | `backend/routers/market.py:_build_chain_map()` | 根据涨幅排序虚构"上游/中游/下游"，违反零造假数据原则 |
+| **真实产业链关系缺失** | `backend/routers/market.py:_build_chain_map()` | 2026-08-26 已删除涨幅伪关系并安全返回空列表；真实关系仍需获批数据源与契约 |
 | **基本面占位符未填充** | `collector.py:460-464` | LLM 只能看到"暂无基本面数据"，分析质量受限 |
 | **后端绕过 Provider 层** | `market.py:114-138` 直接调 akshare | 无缓存、无健康监控、违反数据部规范 |
 | **知识库基本面文件未激活** | `data/knowledge_base/fundamentals/` 7 篇 | 现有的 ROE/PE/PEG 等概念知识未被实时数据激活 |
@@ -211,7 +211,7 @@ def get_industry_position(self, code: str) -> IndustryPosition | None:
 
 #### 4.4.5 后端 API（`backend/routers/market.py`）
 
-- `_build_chain_map()` 用真实行业分类替代伪产业链
+- `_build_chain_map()` 已先删除伪关系；真实行业分类只能说明公司所属行业，不能单独证明上下游关系
 - 新增 `/api/market/sector/{id}/chain` 详细产业链接口
 - 从直接调 akshare 改为通过 DataCollector
 - 新增 `/api/financial/{code}` 财务数据接口
@@ -262,17 +262,17 @@ def get_industry_position(self, code: str) -> IndustryPosition | None:
   → aggregate → 决策
 ```
 
-### 场景 B：产业链从伪数据到真实数据（必修坑）
+### 场景 B：产业链从安全空态到真实数据（待决策）
 
-> 当前前端产业链页面用涨幅排序假装产业链，必须修复。
+> 2026-08-26 后端已停止用涨幅排序假装产业链；在真实关系证据获批前返回空列表。
 
 **范围**：后端 API → 前端组件
 **难度**：⭐⭐（简单）
 **预估**：半天
 
 ```
-当前: 涨幅排序 → 标记为"上游/中游/下游" ❌ 造假
-修复: 行业分类 + 主营业务构成 → 按业务实质归类 ✅ 真实
+已封口: 涨幅排序伪关系 → chain_map=[] ✅
+真实能力: 行业分类 + 主营构成 + 可核验关系证据 → 新契约（待批准）
 ```
 
 ### 场景 C：供应链图谱（天花板功能）
@@ -303,7 +303,7 @@ def get_industry_position(self, code: str) -> IndustryPosition | None:
 | 1️⃣ | **填充基本面占位符** — 用 akshare 真实财务数据替换"暂无基本面数据" | **~2h** | 🔥 立刻提升分析质量 |
 | 2️⃣ | **Provider 扩展** — DataSource 协议 + akshare 实现 | **~3h** | 🏗️ 为后续打地基 |
 | 3️⃣ | **辩论引擎注入** — collect_data_node 获取财务数据 | **~3h** | 🎯 分析师看到真实数据 |
-| 4️⃣ | **修复伪产业链** — 后端真实行业分类替代伪数据 | **~4h** | 🛡️ 消除数据诚信债务 |
+| 4️⃣ | **修复伪产业链** — ✅ 后端已安全封口；真实关系接入另设数据源与契约决策 | **安全封口完成** | 🛡️ 消除数据诚信风险 |
 | 5️⃣ | **前端财务卡片** — FinancialSummary 组件 | **~4h** | 👀 用户可见的变化 |
 
 **总计：~16h（2天）** → 基本面数据接入完成

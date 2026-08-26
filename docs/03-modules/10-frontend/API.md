@@ -28,7 +28,7 @@ Content-Type: application/json
 | GET | `/api/market/indices` | 三大指数行情 |
 | GET | `/api/market/brief` | AI 宏观简报（LLM 生成） |
 | GET | `/api/market/sectors` | 板块排行列表 |
-| GET | `/api/market/sector/{id}` | 板块详情 + 产业链分析 |
+| GET | `/api/market/sector/{id}` | 板块详情；真实关系证据未接入时 `chain_map=[]` |
 
 ### 个股
 
@@ -100,29 +100,17 @@ Content-Type: application/json
 
 ### GET /api/market/sector/{id}
 
-板块详情 + 产业链分析。
+板块详情。`chain_map` 保留为兼容字段，但当前没有可核验产业链关系数据，因此返回空数组；
+不得依据涨跌幅、价格或排行生成上下游关系。
 
 **响应**：
 ```typescript
 {
   "data": {
-    "sector": { /* 板块基础信息 */ },
-    "chain_map": {
-      "upstream": [   // 上游
-        { "name": "锂矿/稀土", "key_companies": ["赣锋锂业", "天齐锂业"], "is_bottleneck": true }
-      ],
-      "midstream": [  // 中游
-        { "name": "电池/电芯", "key_companies": ["宁德时代", "比亚迪"], "is_bottleneck": true }
-      ],
-      "downstream": [ // 下游
-        { "name": "充电桩/储能", "key_companies": ["特锐德", "阳光电源"], "is_bottleneck": false }
-      ]
-    },
-    "ai_analysis": {
-      "summary": "锂电池为当前产业链核心瓶颈，宁德时代不可替代性最强...",
-      "key_links": ["宁德时代", "赣锋锂业", "阳光电源"],
-      "risk_factors": ["上游锂价波动", "海外政策风险"]
-    },
+    "id": "BK001",
+    "name": "银行",
+    "chain_map": [],
+    "ai_analysis": "基于成分股行情生成的市场表现摘要，不包含产业链关系推断。",
     "stocks": [
       { "code": "300750", "name": "宁德时代", "price": 256.80,
         "change_pct": 2.34, "fund_flow": 2.1, "ai_rating": "A+" }

@@ -8,6 +8,7 @@
 |:-----|:---------|:-----|
 | 指数行情 | `src/data/collector.py` | 上证/深证/创业板实时行情 |
 | 板块排行 | `src/data/collector.py` | 行业/概念板块排行 + 资金流向 |
+| 板块详情 | `backend/routers/market.py` | 成分股行情；无可核验关系证据时 `chain_map=[]`，禁止用涨幅制造产业链 |
 | 个股行情 | `src/data/collector.py` | 实时行情单只过滤 |
 | K 线数据 | `src/data/collector.py` | 日/周/月 K 线 |
 | 个股新闻 | `src/data/collector.py` | 新闻列表 |
@@ -47,3 +48,5 @@ uvicorn main:app --reload --port 8000
 - **缓存头**：返回 `meta.cached` 和 `latency_ms` 供前端展示
 - **错误转换**：将 Python 异常统一转换为 `{ error: { code, message } }` 格式
 - **惰性导入**：避免 Windows 环境 torch 访问冲突（沿用 `src/debate/__init__.py` 模式）
+- **产业链完整性**：行情排名只能表达市场表现，不能证明上下游关系；真实关系数据源和
+  契约获批前，板块详情保留 `chain_map` 字段但返回空列表

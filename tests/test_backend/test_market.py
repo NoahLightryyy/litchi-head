@@ -17,8 +17,6 @@ import pandas as pd
 import pytest
 
 from backend.routers.market import (
-    ChainNodeResp,
-    ChainStageResp,
     _build_ai_analysis,
     _build_chain_map,
     _build_top_stocks,
@@ -98,16 +96,12 @@ class TestBuildTopStocks:
 
 
 class TestBuildChainMap:
-    """产业链映射"""
+    """产业链映射必须只来自可核验关系证据。"""
 
-    def test_normal_industry(self):
-        """行业板块 → 3 层结构"""
+    def test_market_ranking_fields_cannot_create_chain_relationships(self):
+        """涨跌幅、价格等行情字段不能被解释成上下游关系。"""
         df = make_board_stocks_df()
-        result = _build_chain_map(df, board_type="industry")
-        assert len(result) == 3
-        assert result[0].stage == "领涨龙头"
-        assert result[1].stage == "中坚力量"
-        assert result[2].stage == "基础层"
+        assert _build_chain_map(df, board_type="industry") == []
 
     def test_empty_df_returns_empty(self):
         assert _build_chain_map(pd.DataFrame(), "industry") == []
@@ -119,16 +113,10 @@ class TestBuildChainMap:
         )
         assert _build_chain_map(df, "industry") == []
 
-    def test_chain_node_types(self):
-        """每层节点格式正确"""
+    def test_concept_market_fields_also_cannot_create_chain_relationships(self):
+        """概念板块同样不能依据行情排名制造产业链节点。"""
         df = make_board_stocks_df()
-        result = _build_chain_map(df, "concept")
-        for stage in result:
-            assert isinstance(stage, ChainStageResp)
-            assert stage.stage
-            for node in stage.nodes:
-                assert isinstance(node, ChainNodeResp)
-                assert node.companies
+        assert _build_chain_map(df, "concept") == []
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -327,6 +315,7 @@ class TestGetSectorDetail:
         assert data["name"] == "银行"
         assert "stocks" in data
         assert "chain_map" in data
+        assert data["chain_map"] == []
         assert "ai_analysis" in data
         assert "heat" in data
 

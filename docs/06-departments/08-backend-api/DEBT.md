@@ -57,3 +57,4 @@ checkpointer，durable queue、全局背压和 1/3/5 并发门禁仍未完成。
 | TD-023 | 后端全返回 HTTP 200 | 2026-06-17 | trust.py→503, debate.py→500 |
 | TD-024 | 数据源调用无超时 | 2026-06-17 | async_utils.py 15s 超时 |
 | TD-036 | backend 路由测试全覆盖 | 2026-07-27 | 176 测试（含 retro/main/hot-news/utils）+ indicators 100% |
+| FD-003a | 涨幅排名伪装成产业链关系 | 2026-08-26 | 删除伪造分层；无可核验关系证据时 `chain_map=[]`，真实能力保留为数据源/契约决策 |

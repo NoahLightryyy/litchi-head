@@ -113,13 +113,15 @@ last_updated: 2026-07-30 (K 线证据 KR-5 API 迁移计划批准)
 
 ### 基本面深度（FD 系列，2026-06-23 新增）
 
-> **⚠️ 后端 API 部有一项数据造假债务必须立即修复**：`backend/routers/market.py:_build_chain_map()` 用涨幅排序虚构产业链上游/中游/下游，违反项目"零造假数据"红线。
+> **✅ 2026-08-26 安全封口完成**：`backend/routers/market.py:_build_chain_map()` 已停止用
+> 涨幅排序制造产业链。现有行情字段不能证明上下游关系，因此在真实关系数据源和契约
+> 获批前稳定返回 `chain_map=[]`。
 >
 > 完整背景见 [FUNDAMENTAL_RESEARCH.md](../../02-requirements/FUNDAMENTAL_RESEARCH.md)。
 
 | FD | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **FD-003a** 🔴 | **修复伪产业链** — `_build_chain_map()` 改用真实行业分类（从 DataCollector.get_industry_position 获取），停止按照涨幅虚构上下游 | 无（可用现有 akshare 行业分类） | ~2h |
+| **FD-003a** ✅ | **伪产业链安全封口** — `_build_chain_map()` 不再依据行情排名制造关系；无证据返回空列表 | 真实产业链能力仍需批准数据源与契约 | ✅ 已完成 |
 | **FD-003b** 🥇 | **新增财务指标端点** — `GET /api/stocks/{code}/financials` + `GET /api/stocks/{code}/valuation` 返回财务指标+估值比率 JSON | 无 | ✅ 已完成 |
 | **FD-003c** 🥇 | **新增产业链定位端点** — `GET /api/industry/{code}` 返回 `IndustryPosition` JSON | 数据管道部 FD-001d | ~1h |
 | **FD-003d** 🥇 | **路由规范化** — 移除 `market.py` 中直接调 akshare 的代码（第114-138行），改为通过 `DataCollector` | 数据管道部 FD-001d | ~1h |
@@ -129,7 +131,7 @@ last_updated: 2026-07-30 (K 线证据 KR-5 API 迁移计划批准)
 
 | 问题 | 位置 | 描述 | 严重度 |
 |:-----|:-----|:------|:------:|
-| **伪产业链数据** | `market.py:187-228` | 按涨幅排序把成分股分为"上游/中游/下游"，不反映真实供应链关系，违反"零造假数据"政策 | 🔴 CRITICAL |
+| **真实产业链能力待建** | `market.py:_build_chain_map()` | 伪造算法已移除；当前稳定返回空列表，真实上下游关系仍缺已批准数据源 | 🟡 待决策 |
 | **绕过 Provider 层** | `market.py:114-138` | 直接调 akshare，无缓存/健康监控，违反数据部规范 ROLE.md §禁止行为 | 🟡 HIGH |
 
 ### 产品定位新任务（PD 系列，2026-07-23 新增）
@@ -141,7 +143,7 @@ last_updated: 2026-07-30 (K 线证据 KR-5 API 迁移计划批准)
 |:--:|:-----|:----:|:----|:----:|
 | **PD-008** 🥇 | **行业定位端点** — `GET /api/industry/{code}/position` 返回：产业链位置（上游/中游/下游）、判断理由（基于主营构成/行业分类）、该行业关键指标列表（名称+含义+当前值）| ⬜ **待办** | 数据部 PD-001~002 | ~1h |
 | **PD-009** 🥇 | **动态指标端点** — `GET /api/industry/{code}/indicators` 返回：当前股票该看的 5-10 个指标（指标名+值+同行业分位+正常区间+一句话解读） | ✅ **已完成**（`/api/stocks/{code}/indicators`） | 数据部 PD-003 | ~1h |
-| **PD-010** 🥇 | **FD-003a 伪产业链修复** — 同下方 FD-003a 任务，PD 系列重新编号以对齐产品定位，不再重复描述 | ⬜ **待办**（同 FD-003a） | 无 | 同 FD-003a |
+| **PD-010** 🥇 | **FD-003a 伪产业链修复** — 后端安全封口完成；真实关系能力另行决策 | ✅ **安全封口完成** | 新数据源与字段契约待确认 | — |
 
 ### 新端点一览
 
@@ -174,7 +176,7 @@ async def get_dynamic_indicators(code: str):
 
 # 修复 1 个端点
 @router.get("/api/market/sector/{id}") 
-# 返回的 chain_map 用真实行业分类数据，移除伪产业链
+# 真实关系数据接入前 chain_map=[]，禁止从行情字段推断产业链
 ```
 
 ---

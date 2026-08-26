@@ -188,57 +188,21 @@ def _build_chain_map(
     stocks_df: pd.DataFrame,
     board_type: str,
 ) -> list[ChainStageResp]:
-    """从成分股数据构建简易产业链映射
+    """仅从可核验关系证据构建产业链映射。
 
-    按价格 + 涨幅分层：龙头层（排名前 20%）、中坚层（中间 60%）、基础层（后 20%）。
+    当前板块成分股数据只包含代码、名称、价格和涨跌幅等行情字段，不能证明供应链或
+    产业链的上下游关系。在真实关系数据源和对应契约获批前，安全返回空列表；不得用
+    涨幅、价格、市值或排名推断产业链位置。
 
     Args:
-        stocks_df: 板块成分股 DataFrame
+        stocks_df: 板块成分股 DataFrame（当前不含关系证据）
         board_type: "industry" / "concept"
 
     Returns:
-        产业链阶段列表
+        空列表，表示当前没有可核验的产业链关系数据
     """
-    if stocks_df.empty or len(stocks_df) < 6:
-        return []
-
-    # 按涨幅排序
-    sorted_df = stocks_df.sort_values("涨跌幅", ascending=False)
-    n = len(sorted_df)
-    top_n = max(n // 5, 2)
-    base_n = max(n // 5, 2)
-    mid_n = n - top_n - base_n
-
-    top_names = [safe_str(r["名称"]) for _, r in sorted_df.head(top_n).iterrows()]
-    base_names = [safe_str(r["名称"]) for _, r in sorted_df.tail(base_n).iterrows()]
-    mid_names = [
-        safe_str(r["名称"]) for _, r in sorted_df.iloc[top_n:top_n + mid_n].iterrows()
-    ]
-
-    stages: list[ChainStageResp] = [
-        ChainStageResp(
-            stage="领涨龙头",
-            description=f"涨幅前 {top_n} 只成分股",
-            nodes=[
-                ChainNodeResp(name="龙头股", companies=top_names[:5], is_bottleneck=False),
-            ],
-        ),
-        ChainStageResp(
-            stage="中坚力量",
-            description="涨幅居中的成分股",
-            nodes=[
-                ChainNodeResp(name="中坚股", companies=mid_names[:8], is_bottleneck=False),
-            ],
-        ),
-        ChainStageResp(
-            stage="基础层",
-            description=f"涨幅后 {base_n} 只成分股",
-            nodes=[
-                ChainNodeResp(name="基础股", companies=base_names[:5], is_bottleneck=True),
-            ],
-        ),
-    ]
-    return stages
+    _ = stocks_df, board_type
+    return []
 
 
 def _build_ai_analysis(

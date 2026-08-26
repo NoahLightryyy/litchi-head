@@ -109,7 +109,7 @@ last_updated: 2026-07-30 (K 线口径与 KR-5 展示计划批准)
 | **FD-004a** 🥇 | **前端金融类型** — 新增 `FinancialMetrics` / `ValuationMetrics` 类型定义到 `lib/types/stock.ts` | 无 | ✅ 已完成 |
 | **FD-004b** 🥇 | **FinancialPanel 组件** — 财务健康概览（估值比率四宫格+盈利能力+增长+财务健康+每股指标+运营效率+历史对比表），覆盖 loading/error/empty/data 四态 | FD-004a | ✅ 已完成 |
 | **FD-004c** 🥇 | **个股页新增财务 Tab** — 在 stock/[code] 5 Tab 基础上增加"财务分析"Tab 面板 | FD-004b | ✅ 已完成 |
-| **FD-004d** 🥈 | **ChainMap 注入真实数据** — `frontend/components/sector/chain-map.tsx` 从后端真实 API 获取产业链数据替代伪数据 | 后端 API 部 FD-003a | ~2h |
+| **FD-004d** 🔒 | **ChainMap 注入真实数据** — 后端 FD-003a 已安全返回空列表；真实产业链数据源与契约获批后再接入 | 后端真实关系 API 待决策 | ~2h |
 | **FD-004e** 🥈 | **板块页财务聚合** — sector/[id] 页面展示板块级财务汇总（行业平均 ROE/负债率等） | FD-004b + 后根部 FD-003e | ~2h |
 
 ### 产品定位新任务（PD 系列，2026-07-23 新增）
