@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from src.data.evidence import SourceStatus
 from src.data.intraday import IntradayBar, IntradayBarState
 from src.data.kline import MarketCode, market_code_for
 from src.data.kline_adjustment import AdjustedDailyBar, AdjustedKlineSeries
@@ -46,6 +47,35 @@ class KlineBusinessLayer(str, Enum):
     PROVISIONAL = "PROVISIONAL"
 
 
+class KlineRetryDisposition(str, Enum):
+    """Stable caller action for one incomplete business layer."""
+
+    RETRY_FRESH = "retry_fresh"
+    WAIT_FOR_CONDITION = "wait_for_condition"
+    OPERATOR_ACTION = "operator_action"
+
+
+class KlineSourceDiagnostic(BaseModel):
+    """Compact unusable-source diagnosis without partial market-data items."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    source_id: str = Field(min_length=1)
+    upstream_id: str = Field(min_length=1)
+    status: SourceStatus
+    error_code: str = Field(min_length=1)
+    error_message: str = Field(min_length=1)
+    fetched_at: datetime
+
+    @model_validator(mode="after")
+    def validate_unusable_source(self) -> "KlineSourceDiagnostic":
+        if self.status in {SourceStatus.SUCCESS_DATA, SourceStatus.SUCCESS_EMPTY}:
+            raise ValueError("source diagnostic must represent an unusable result")
+        if self.fetched_at.tzinfo is None or self.fetched_at.utcoffset() is None:
+            raise ValueError("source diagnostic timestamps must be timezone-aware")
+        return self
+
+
 class KlineLayerDiagnostic(BaseModel):
     """One layer's compact availability and source diagnosis."""
 
@@ -56,6 +86,8 @@ class KlineLayerDiagnostic(BaseModel):
     upstream_ids: tuple[str, ...] = ()
     error_code: str | None = None
     error_message: str | None = None
+    retry_disposition: KlineRetryDisposition | None = None
+    source_diagnostics: tuple[KlineSourceDiagnostic, ...] = ()
 
     @model_validator(mode="after")
     def validate_complete_sources(self) -> "KlineLayerDiagnostic":
@@ -66,6 +98,19 @@ class KlineLayerDiagnostic(BaseModel):
                 raise ValueError(
                     "complete layer diagnostic requires two distinct upstreams"
                 ) from error
+            if (
+                self.error_code is not None
+                or self.error_message is not None
+                or self.retry_disposition is not None
+                or self.source_diagnostics
+            ):
+                raise ValueError("complete layer diagnostic cannot carry failure details")
+        elif (
+            not self.error_code
+            or not self.error_message
+            or self.retry_disposition is None
+        ):
+            raise ValueError("incomplete layer diagnostic requires failure details")
         return self
 
 
@@ -433,13 +478,14 @@ KlineBusinessResult = Annotated[
     Field(discriminator="complete"),
 ]
 
-
 __all__ = [
     "KlineBusinessEnvelope",
     "KlineBusinessFailure",
     "KlineBusinessLayer",
     "KlineBusinessResult",
     "KlineLayerDiagnostic",
+    "KlineRetryDisposition",
+    "KlineSourceDiagnostic",
     "FinalMinuteBar",
     "LiveRawQuote",
     "DailyPromotionRecord",

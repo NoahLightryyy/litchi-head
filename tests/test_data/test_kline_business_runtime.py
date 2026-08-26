@@ -23,8 +23,16 @@ from src.data.intraday import (
 )
 from src.data.kline import MarketCode, RawDailyBar
 from src.data.kline_adjustment import AdjustedDailyBar, AdjustedKlineSeries
-from src.data.kline_business import TradingPhase
-from src.data.kline_business_runtime import assemble_complete_kline_business
+from src.data.kline_business import (
+    KlineBusinessFailure,
+    KlineBusinessLayer,
+    KlineRetryDisposition,
+    TradingPhase,
+)
+from src.data.kline_business_runtime import (
+    assemble_complete_kline_business,
+    assemble_kline_business,
+)
 from src.data.models import StockQuote
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -221,6 +229,53 @@ def _quote_evidence() -> EvidenceEnvelope:
     )
 
 
+def _incomplete_evidence(
+    evidence: EvidenceEnvelope,
+    *,
+    source_index: int = 0,
+    status: SourceStatus = SourceStatus.STALE,
+    error_code: str = "source_stale",
+    error_message: str = "Source evidence is stale",
+) -> EvidenceEnvelope:
+    source = evidence.source_results[source_index]
+    source_results = list(evidence.source_results)
+    source_results[source_index] = source.model_copy(
+        update={
+            "status": status,
+            "items": (
+                []
+                if status in {SourceStatus.FAILED, SourceStatus.UNSUPPORTED}
+                else source.items
+            ),
+            "error_code": error_code,
+            "error_message": error_message,
+        }
+    )
+    successful_upstreams = set(evidence.assessment.successful_upstream_ids)
+    successful_upstreams.discard(source.upstream_id)
+    successful_sources = set(evidence.assessment.successful_source_ids)
+    successful_sources.discard(source.source_id)
+    return evidence.model_copy(
+        update={
+            "complete": False,
+            "source_results": source_results,
+            "assessment": evidence.assessment.model_copy(
+                update={
+                    "complete": False,
+                    "successful_upstream_ids": successful_upstreams,
+                    "successful_source_ids": successful_sources,
+                    "failed_source_ids": (
+                        {source.source_id} if status is SourceStatus.FAILED else set()
+                    ),
+                    "unusable_source_ids": {source.source_id},
+                    "missing_required_upstream_ids": {source.upstream_id},
+                    "missing_independent_upstreams": 1,
+                }
+            ),
+        }
+    )
+
+
 def test_assembles_complete_runtime_evidence_without_promoting_open_minute() -> None:
     final_daily = _final_daily_series()
 
@@ -248,6 +303,346 @@ def test_assembles_complete_runtime_evidence_without_promoting_open_minute() -> 
     assert result.provisional_session_bar.close == Decimal("10.25")
     assert result.provisional_session_bar.cumulative_volume == 1_200_000
     assert result.provisional_session_bar.upstream_ids == ("eastmoney", "sina")
+
+
+def test_result_assembler_preserves_complete_runtime_success() -> None:
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=_quote_evidence(),
+    )
+
+    assert result.complete is True
+
+
+@pytest.mark.parametrize(
+    ("layer", "expected_incomplete"),
+    [
+        ("daily", {KlineBusinessLayer.FINAL_DAILY}),
+        ("intraday", {KlineBusinessLayer.FINAL_MINUTE}),
+        (
+            "quote",
+            {KlineBusinessLayer.LIVE_QUOTE, KlineBusinessLayer.PROVISIONAL},
+        ),
+    ],
+)
+def test_result_assembler_maps_three_runtime_failures_to_four_layers(
+    layer: str,
+    expected_incomplete: set[KlineBusinessLayer],
+) -> None:
+    evidence = {
+        "daily": _daily_evidence(),
+        "intraday": _intraday_evidence(),
+        "quote": _quote_evidence(),
+    }
+    evidence[layer] = _incomplete_evidence(
+        evidence[layer],
+        error_code=f"{layer}_stale",
+        error_message=f"{layer} evidence is stale",
+    )
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=evidence["daily"],
+        intraday_evidence=evidence["intraday"],
+        quote_evidence=evidence["quote"],
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert {
+        item.layer for item in result.layer_diagnostics if not item.complete
+    } == expected_incomplete
+    assert not hasattr(result, "final_daily_bars")
+    for diagnostic in result.layer_diagnostics:
+        if diagnostic.layer in expected_incomplete:
+            assert diagnostic.error_code == f"{layer}_stale"
+            assert diagnostic.retry_disposition is KlineRetryDisposition.RETRY_FRESH
+            assert len(diagnostic.source_diagnostics) == 1
+
+
+def test_result_assembler_preserves_all_source_failures_and_selects_conflict_first() -> None:
+    quote = _incomplete_evidence(
+        _quote_evidence(),
+        source_index=0,
+        status=SourceStatus.STALE,
+        error_code="quote_stale",
+        error_message="Eastmoney quote is stale",
+    )
+    quote = _incomplete_evidence(
+        quote,
+        source_index=1,
+        status=SourceStatus.CONFLICTED,
+        error_code="quote_price_conflict",
+        error_message="Sina quote conflicts",
+    )
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=quote,
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    live = next(
+        item for item in result.layer_diagnostics if item.layer is KlineBusinessLayer.LIVE_QUOTE
+    )
+    assert live.error_code == "quote_price_conflict"
+    assert [item.error_code for item in live.source_diagnostics] == [
+        "quote_stale",
+        "quote_price_conflict",
+    ]
+    assert result.error_codes == ("quote_price_conflict",)
+
+
+@pytest.mark.parametrize(
+    ("error_code", "status", "expected"),
+    [
+        (
+            "upstream_request_failed",
+            SourceStatus.FAILED,
+            KlineRetryDisposition.RETRY_FRESH,
+        ),
+        (
+            "market_not_in_continuous_auction",
+            SourceStatus.STALE,
+            KlineRetryDisposition.WAIT_FOR_CONDITION,
+        ),
+        (
+            "invalid_upstream_payload",
+            SourceStatus.FAILED,
+            KlineRetryDisposition.OPERATOR_ACTION,
+        ),
+    ],
+)
+def test_result_assembler_assigns_stable_retry_disposition(
+    error_code: str,
+    status: SourceStatus,
+    expected: KlineRetryDisposition,
+) -> None:
+    quote = _incomplete_evidence(
+        _quote_evidence(),
+        status=status,
+        error_code=error_code,
+        error_message="quote failure",
+    )
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=quote,
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    live = next(
+        item for item in result.layer_diagnostics if item.layer is KlineBusinessLayer.LIVE_QUOTE
+    )
+    assert live.retry_disposition is expected
+
+
+def test_result_assembler_returns_daily_failure_for_snapshot_lineage_mismatch() -> None:
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id="raw:000001:other-snapshot",
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=_quote_evidence(),
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    daily = next(
+        item for item in result.layer_diagnostics if item.layer is KlineBusinessLayer.FINAL_DAILY
+    )
+    assert daily.error_code == "daily_snapshot_lineage_mismatch"
+    assert daily.retry_disposition is KlineRetryDisposition.OPERATOR_ACTION
+
+
+def test_result_assembler_orders_multi_layer_errors_and_deduplicates_quote_cause() -> None:
+    daily = _incomplete_evidence(
+        _daily_evidence(),
+        error_code="kline_source_window_not_covered",
+        error_message="daily window is incomplete",
+    )
+    quote = _incomplete_evidence(
+        _quote_evidence(),
+        status=SourceStatus.FAILED,
+        error_code="invalid_upstream_payload",
+        error_message="quote payload is invalid",
+    )
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=daily,
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=quote,
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert result.error_codes == (
+        "kline_source_window_not_covered",
+        "invalid_upstream_payload",
+    )
+
+
+def test_result_assembler_keeps_miswired_capability_as_programming_error() -> None:
+    with pytest.raises(ValueError, match="runtime evidence capability"):
+        assemble_kline_business(
+            symbol="000001",
+            market=MarketCode.SZSE,
+            as_of=AS_OF,
+            trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+            final_daily_bars=_final_daily_series(),
+            daily_snapshot_id=DAILY_SNAPSHOT_ID,
+            daily_evidence=_quote_evidence(),
+            intraday_evidence=_intraday_evidence(),
+            quote_evidence=_quote_evidence(),
+        )
+
+def test_result_assembler_keeps_miswired_symbol_as_programming_error() -> None:
+    daily = _daily_evidence()
+    daily = daily.model_copy(
+        update={"request": daily.request.model_copy(update={"stock_code": "600000"})}
+    )
+
+    with pytest.raises(ValueError, match="runtime evidence symbol"):
+        assemble_kline_business(
+            symbol="000001",
+            market=MarketCode.SZSE,
+            as_of=AS_OF,
+            trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+            final_daily_bars=_final_daily_series(),
+            daily_snapshot_id=DAILY_SNAPSHOT_ID,
+            daily_evidence=daily,
+            intraday_evidence=_intraday_evidence(),
+            quote_evidence=_quote_evidence(),
+        )
+
+
+def test_result_assembler_maps_invalid_canonical_quote_to_both_derived_layers() -> None:
+    quote = _quote_evidence()
+    quote = quote.model_copy(update={"items": []})
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=quote,
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert result.error_codes == ("quote_cardinality_invalid",)
+    assert {
+        item.layer for item in result.layer_diagnostics if not item.complete
+    } == {KlineBusinessLayer.LIVE_QUOTE, KlineBusinessLayer.PROVISIONAL}
+    assert all(
+        item.retry_disposition is KlineRetryDisposition.OPERATOR_ACTION
+        for item in result.layer_diagnostics
+        if not item.complete
+    )
+
+
+def test_result_assembler_maps_naive_quote_timestamp_to_stable_failure() -> None:
+    quote = _quote_evidence()
+    canonical = quote.items[0]
+    assert isinstance(canonical, StockQuote)
+    quote = quote.model_copy(
+        update={
+            "items": [
+                canonical.model_copy(update={"fetched_at": datetime(2026, 8, 4, 10, 1)})
+            ]
+        }
+    )
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=_intraday_evidence(),
+        quote_evidence=quote,
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert result.error_codes == ("quote_timestamp_missing",)
+    assert all(
+        item.retry_disposition is KlineRetryDisposition.OPERATOR_ACTION
+        for item in result.layer_diagnostics
+        if not item.complete
+    )
+
+
+def test_result_assembler_maps_complete_but_cross_symbol_minute_to_failure() -> None:
+    intraday = _intraday_evidence()
+    intraday = intraday.model_copy(
+        update={
+            "items": [
+                item.model_copy(update={"code": "600000"})
+                if isinstance(item, IntradayBar)
+                else item
+                for item in intraday.items
+            ]
+        }
+    )
+
+    result = assemble_kline_business(
+        symbol="000001",
+        market=MarketCode.SZSE,
+        as_of=AS_OF,
+        trading_phase=TradingPhase.CONTINUOUS_AUCTION,
+        final_daily_bars=_final_daily_series(),
+        daily_snapshot_id=DAILY_SNAPSHOT_ID,
+        daily_evidence=_daily_evidence(),
+        intraday_evidence=intraday,
+        quote_evidence=_quote_evidence(),
+    )
+
+    assert isinstance(result, KlineBusinessFailure)
+    assert result.error_codes == ("intraday_identity_conflict",)
+    minute = next(
+        item
+        for item in result.layer_diagnostics
+        if item.layer is KlineBusinessLayer.FINAL_MINUTE
+    )
+    assert minute.retry_disposition is KlineRetryDisposition.OPERATOR_ACTION
 
 
 @pytest.mark.parametrize("layer", ["daily", "intraday", "quote"])
@@ -336,6 +731,8 @@ def test_data_package_exports_complete_runtime_assembler() -> None:
     from src import data
 
     assert data.assemble_complete_kline_business is assemble_complete_kline_business
+    assert data.assemble_kline_business is assemble_kline_business
+    assert data.KlineRetryDisposition is KlineRetryDisposition
 
 
 @pytest.mark.parametrize("cardinality", [0, 2])

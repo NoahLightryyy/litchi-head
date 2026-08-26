@@ -63,6 +63,7 @@ from src.data.evidence import (  # noqa: E402
     EvidenceCapability,
     EvidenceEnvelope,
     EvidenceRequest,
+    SourceStatus,
 )
 from src.data.evidence_service import DataEvidenceService  # noqa: E402
 from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote  # noqa: E402
@@ -81,6 +82,7 @@ from src.debate.models import (  # noqa: E402
     BiasReport,
     DebateInput,
     DebateResult,
+    EvidenceLimitation,
     IndependentReview,
     MirrorReport,
     PeerReviewRound,
@@ -103,6 +105,59 @@ from src.utils.llm import llm_service  # noqa: E402
 
 _MAX_HISTORY_FETCH = 20  # 查询历史决策的最大条数
 _DEFAULT_QUOTE_EVIDENCE_SERVICE = object()
+_BLOCKING_EVIDENCE_CODES = {
+    "quote_cardinality_invalid",
+    "quote_identity_conflict",
+    "quote_price_conflict",
+    "quote_suspect",
+    "quote_timestamp_conflict",
+    "quote_timestamp_in_future",
+    "quote_timestamp_missing",
+}
+
+
+def _must_block_reasoning(envelope: EvidenceEnvelope) -> bool:
+    """Block only corrupted or internally conflicting evidence, not mere gaps."""
+    return any(
+        result.status is SourceStatus.CONFLICTED
+        or result.error_code in _BLOCKING_EVIDENCE_CODES
+        for result in envelope.source_results
+    )
+
+
+def _evidence_limitation(envelope: EvidenceEnvelope) -> dict[str, object]:
+    assessment = envelope.assessment
+    missing = set(assessment.missing_required_upstream_ids)
+    source_statuses: dict[str, str] = {}
+    for result in envelope.source_results:
+        if result.status not in {SourceStatus.SUCCESS_DATA, SourceStatus.SUCCESS_EMPTY}:
+            missing.add(result.upstream_id)
+            source_statuses[result.source_id] = result.status.value
+    return {
+        "status": "limited",
+        "capability": envelope.request.capability.value,
+        "missing_upstream_ids": sorted(missing),
+        "missing_independent_upstreams": assessment.missing_independent_upstreams,
+        "source_statuses": dict(sorted(source_statuses.items())),
+        "collected_at": envelope.collected_at,
+    }
+
+
+def _format_evidence_limitation_notice(
+    limitations: list[dict[str, object]],
+) -> str:
+    capabilities = ", ".join(str(item["capability"]) for item in limitations)
+    missing_ids: set[str] = set()
+    for item in limitations:
+        raw_missing = item.get("missing_upstream_ids", [])
+        if isinstance(raw_missing, list):
+            missing_ids.update(str(upstream_id) for upstream_id in raw_missing)
+    missing = sorted(missing_ids)
+    missing_text = ", ".join(missing) if missing else "独立来源数量不足"
+    return (
+        f"⚠️ 证据不完整：{capabilities}；缺失或不可用上游：{missing_text}。\n"
+        "以下推理仅基于当前可用信息，结论必须连同本证据限制标注一起使用。"
+    )
 
 
 def _trim_market_data(market_data: dict) -> dict:
@@ -162,6 +217,7 @@ class DebateState(TypedDict):
     calibration_map: dict  # R4: agent_name → calibration_curve list
     mirror_report: dict  # DP-006: 序列化的 MirrorReport
     evidence_envelope: dict  # 当前失败或最终证据信封；不完整时用于显式终止
+    evidence_limitations: list[dict]  # 可继续推理的不完整证据标注
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
@@ -186,6 +242,7 @@ def collect_data_node(
     code = inp.get("stock_code", "")
     quote_evidence_envelope: EvidenceEnvelope | None = None
     news_evidence_envelope: EvidenceEnvelope | None = None
+    evidence_limitations: list[dict[str, object]] = []
 
     if quote_evidence_service is not None:
         quote_request = EvidenceRequest(
@@ -198,10 +255,14 @@ def collect_data_node(
             REALTIME_QUOTE_EVIDENCE_POLICY,
         )
         if not quote_evidence_envelope.complete:
-            return {
-                "evidence_envelope": quote_evidence_envelope.model_dump(mode="json"),
-                "errors": ["EVIDENCE_INCOMPLETE"],
-            }
+            if _must_block_reasoning(quote_evidence_envelope):
+                return {
+                    "evidence_envelope": quote_evidence_envelope.model_dump(mode="json"),
+                    "errors": ["EVIDENCE_INCOMPLETE"],
+                }
+            evidence_limitations.append(
+                _evidence_limitation(quote_evidence_envelope)
+            )
 
     if news_evidence_service is not None:
         end_at = datetime.now(UTC)
@@ -217,10 +278,14 @@ def collect_data_node(
             NEWS_EVIDENCE_POLICY,
         )
         if not news_evidence_envelope.complete:
-            return {
-                "evidence_envelope": news_evidence_envelope.model_dump(mode="json"),
-                "errors": ["EVIDENCE_INCOMPLETE"],
-            }
+            if _must_block_reasoning(news_evidence_envelope):
+                return {
+                    "evidence_envelope": news_evidence_envelope.model_dump(mode="json"),
+                    "errors": ["EVIDENCE_INCOMPLETE"],
+                }
+            evidence_limitations.append(
+                _evidence_limitation(news_evidence_envelope)
+            )
 
     quotes: list[StockQuote] = []
     klines: list[KLine] = []
@@ -300,8 +365,10 @@ def collect_data_node(
         key_indicators=key_indicators,
         sentiment=sentiment,
     )
+    if evidence_limitations:
+        brief = f"{_format_evidence_limitation_notice(evidence_limitations)}\n\n{brief}"
 
-    result = {
+    result: dict[str, object] = {
         "market_data": {
             "brief": brief,
             "industry": industry_name,
@@ -316,16 +383,23 @@ def collect_data_node(
     evidence_envelope = news_evidence_envelope or quote_evidence_envelope
     if evidence_envelope is not None:
         result["evidence_envelope"] = evidence_envelope.model_dump(mode="json")
+    if evidence_limitations:
+        result["evidence_limitations"] = evidence_limitations
     return result
 
 
 def _route_after_collection(state: DebateState) -> str:
-    """Stop the graph before any LLM when the evidence gate failed."""
+    """Continue on disclosed gaps; stop only corrupted/conflicted evidence."""
     return (
         "stop"
         if "EVIDENCE_INCOMPLETE" in state.get("errors", [])
         else "continue"
     )
+
+
+def _route_after_reasoning(state: DebateState) -> str:
+    """Allow labelled reasoning but never pass incomplete evidence into trading."""
+    return "stop" if state.get("evidence_limitations", []) else "risk"
 
 
 def _format_history_context(items: list[MemoryItem], stock_code: str) -> str:
@@ -1655,7 +1729,11 @@ class DebateOrchestrator:
                 "risk_round",
                 make_risk_round_node(officers),  # type: ignore[arg-type]
             )
-            graph.add_edge(after_aggregate, "risk_round")
+            graph.add_conditional_edges(
+                after_aggregate,
+                _route_after_reasoning,
+                {"risk": "risk_round", "stop": END},
+            )
 
             # T1 交易员层（可选，在风控和 PM 之间）
             if self.enable_trader:
@@ -1849,6 +1927,9 @@ class DebateOrchestrator:
                 }
                 for a in result.analyses
             ],
+            "evidence_limitations": [
+                item.model_dump(mode="json") for item in result.evidence_limitations
+            ],
         }
         if result.review_report is not None:
             decision["review_report"] = {
@@ -1944,6 +2025,7 @@ class DebateOrchestrator:
             "calibration_map": calibration_map,
             "mirror_report": {},
             "evidence_envelope": {},
+            "evidence_limitations": [],
         }
 
         final_state = await app.ainvoke(initial_state)
@@ -2018,6 +2100,10 @@ class DebateOrchestrator:
             except Exception as e:
                 logger.warning("MirrorReport 解析失败(结果构建): %s", e)
 
+        evidence_limitations = [
+            EvidenceLimitation.model_validate(item)
+            for item in final_state.get("evidence_limitations", [])
+        ]
         result = DebateResult(
             session_id=debate_input.session_id,
             stock_code=debate_input.stock_code,
@@ -2032,6 +2118,7 @@ class DebateOrchestrator:
             trader_round=trader_round_result,
             trade_recommendation=trade_rec,
             mirror_report=mirror_report_result,
+            evidence_limitations=evidence_limitations,
             total_latency_ms=round(total_latency, 0),
         )
 
@@ -2044,6 +2131,8 @@ class DebateOrchestrator:
 __all__ = [
     "DebateOrchestrator",
     "DebateState",
+    "_route_after_collection",
+    "_route_after_reasoning",
     "aggregate_node",
     "collect_data_node",
     "make_analyst_round_node",

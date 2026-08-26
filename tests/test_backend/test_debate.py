@@ -11,7 +11,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.data.evidence import (
     EvidenceAssessment,
@@ -40,6 +40,7 @@ class _MockDebateResult(BaseModel):
     summary: str = "辩论总结"
     consensus: str = "看多"
     confidence: float = 0.75
+    evidence_limitations: list[dict[str, object]] = Field(default_factory=list)
 
 
 class _MockOrchestrator:
@@ -63,6 +64,20 @@ class TestRunDebate:
 
     def test_run_debate_success(self, client):
         mock_orch = _MockOrchestrator()
+
+        async def _run_limited(debate_input: object) -> _MockDebateResult:
+            mock_orch.last_input = debate_input
+            return _MockDebateResult(
+                evidence_limitations=[
+                    {
+                        "status": "limited",
+                        "capability": "news",
+                        "missing_upstream_ids": ["sina"],
+                    }
+                ]
+            )
+
+        mock_orch.run = _run_limited  # type: ignore[method-assign]
         with patch("backend.routers.debate._get_orchestrator", return_value=mock_orch):
             resp = client.post(
                 "/api/debate/run",
@@ -73,6 +88,11 @@ class TestRunDebate:
         data = resp.json()["data"]
         assert data["status"] == "completed"
         assert data["session_id"].startswith("deb_")
+        result_resp = client.get(f"/api/debate/result/{data['session_id']}")
+        assert result_resp.status_code == 200
+        limitation = result_resp.json()["data"]["evidence_limitations"][0]
+        assert limitation["status"] == "limited"
+        assert limitation["missing_upstream_ids"] == ["sina"]
 
     def test_run_debate_without_question(self, client):
         """question 可选"""

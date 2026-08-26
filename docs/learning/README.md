@@ -80,6 +80,7 @@
 | 48 | 🆕 [PDF 表格与修订链：重复不是冲突，模糊相似也不是引用](48-pdf-table-idempotency-and-revision-linking.md) | 重复表格幂等、完整标题空白归一、修订版、差异化股本公式 |
 | 49 | 🆕 [四层行情信封：盘中可用，不等于已经收盘](49-four-layer-market-envelope.md) | 判别联合、深度冻结、动态/完成隔离、幂等收盘晋升 |
 | 50 | 🆕 [运行时证据怎样安全合流](50-runtime-evidence-assembly.md) | 先验完整性、能力接线、证券身份、FINAL 分钟过滤、RAW 动态条 |
+| 52 | 🆕 [证据不完整时怎样继续推理而不伪装完整](52-evidence-limited-reasoning.md) | EvidenceLimitation、限制披露、损坏阻断、研究与交易隔离 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

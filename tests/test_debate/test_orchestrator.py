@@ -19,12 +19,15 @@ from src.data.evidence import (
     EvidenceEnvelope,
     EvidencePolicy,
     EvidenceRequest,
+    SourceResult,
+    SourceStatus,
 )
-from src.debate.evidence_gate import EvidenceIncompleteError
 from src.debate.models import AgentAnalysis, DebateInput, DebateResult
 from src.debate.orchestrator import (
     DebateOrchestrator,
     DebateState,
+    _route_after_collection,
+    _route_after_reasoning,
     _trim_market_data,
     aggregate_node,
     collect_data_node,
@@ -457,7 +460,7 @@ class TestDebateOrchestratorRun:
     """DebateOrchestrator.run() 完整流程（涉及异步 patching，~3s/ea）"""
 
     @pytest.mark.asyncio
-    async def test_incomplete_news_evidence_stops_before_any_llm(
+    async def test_incomplete_news_evidence_continues_with_visible_limitation(
         self,
         mock_collector,
     ):
@@ -482,33 +485,29 @@ class TestDebateOrchestratorRun:
         )
         evidence_service = MagicMock()
         evidence_service.collect.return_value = envelope
-        analyst = AsyncMock()
-        master = AsyncMock()
-        orch = DebateOrchestrator(
-            data_collector=mock_collector,
+        state: DebateState = {
+            "session_id": "limited-news",
+            "debate_input": {"stock_code": "000001", "stock_name": "平安银行"},
+            "current_round": 0,
+            "analyses": {},
+            "market_data": {},
+            "vote_summary": {},
+            "errors": [],
+        }
+
+        result = collect_data_node(
+            state,
+            mock_collector,
             news_evidence_service=evidence_service,
-            quote_evidence_service=None,
         )
 
-        with (
-            patch(
-                "src.debate.orchestrator._run_single_analyst",
-                analyst,
-            ),
-            patch(
-                "src.debate.orchestrator._run_single_master",
-                master,
-            ),
-            pytest.raises(EvidenceIncompleteError) as exc_info,
-        ):
-            await orch.run(DebateInput(stock_code="000001", stock_name="平安银行"))
-
-        assert exc_info.value.envelope == envelope
-        analyst.assert_not_awaited()
-        master.assert_not_awaited()
+        assert _route_after_collection(result) == "continue"
+        assert result["evidence_limitations"][0]["capability"] == "news"
+        assert result["evidence_limitations"][0]["missing_upstream_ids"] == ["sina"]
+        assert "证据不完整" in result["market_data"]["brief"]
 
     @pytest.mark.asyncio
-    async def test_incomplete_quote_evidence_stops_before_any_llm(
+    async def test_incomplete_quote_evidence_continues_without_unverified_fallback(
         self,
         mock_collector,
     ):
@@ -533,30 +532,90 @@ class TestDebateOrchestratorRun:
         )
         evidence_service = MagicMock()
         evidence_service.collect.return_value = envelope
-        analyst = AsyncMock()
-        master = AsyncMock()
-        orch = DebateOrchestrator(
-            data_collector=mock_collector,
+        state: DebateState = {
+            "session_id": "limited-quote",
+            "debate_input": {"stock_code": "000001", "stock_name": "平安银行"},
+            "current_round": 0,
+            "analyses": {},
+            "market_data": {},
+            "vote_summary": {},
+            "errors": [],
+        }
+
+        result = collect_data_node(
+            state,
+            mock_collector,
             quote_evidence_service=evidence_service,
         )
 
-        with (
-            patch(
-                "src.debate.orchestrator._run_single_analyst",
-                analyst,
-            ),
-            patch(
-                "src.debate.orchestrator._run_single_master",
-                master,
-            ),
-            pytest.raises(EvidenceIncompleteError) as exc_info,
-        ):
-            await orch.run(DebateInput(stock_code="000001", stock_name="平安银行"))
-
-        assert exc_info.value.envelope == envelope
+        assert _route_after_collection(result) == "continue"
+        assert result["market_data"]["quote"] is None
+        assert result["evidence_limitations"][0]["capability"] == "realtime_quote"
         mock_collector.get_realtime_quotes.assert_not_called()
-        analyst.assert_not_awaited()
-        master.assert_not_awaited()
+
+    def test_conflicted_evidence_still_blocks_reasoning(self, mock_collector) -> None:
+        request = EvidenceRequest(
+            capability=EvidenceCapability.REALTIME_QUOTE,
+            stock_code="000001",
+        )
+        envelope = EvidenceEnvelope(
+            request=request,
+            policy=EvidencePolicy(
+                capability=EvidenceCapability.REALTIME_QUOTE,
+                min_independent_upstreams=2,
+            ),
+            source_results=[
+                SourceResult(
+                    source_id="eastmoney_quote",
+                    upstream_id="eastmoney",
+                    capability=EvidenceCapability.REALTIME_QUOTE,
+                    status=SourceStatus.CONFLICTED,
+                    error_code="quote_price_conflict",
+                    error_message="quote prices conflict",
+                )
+            ],
+            assessment=EvidenceAssessment(
+                capability=EvidenceCapability.REALTIME_QUOTE,
+                complete=False,
+                unusable_source_ids={"eastmoney_quote"},
+                missing_independent_upstreams=2,
+            ),
+            complete=False,
+        )
+        evidence_service = MagicMock()
+        evidence_service.collect.return_value = envelope
+        state: DebateState = {
+            "session_id": "conflicted-quote",
+            "debate_input": {"stock_code": "000001", "stock_name": "平安银行"},
+            "current_round": 0,
+            "analyses": {},
+            "market_data": {},
+            "vote_summary": {},
+            "errors": [],
+        }
+
+        result = collect_data_node(
+            state,
+            mock_collector,
+            quote_evidence_service=evidence_service,
+        )
+
+        assert _route_after_collection(result) == "stop"
+        assert result["errors"] == ["EVIDENCE_INCOMPLETE"]
+
+    def test_limited_evidence_allows_reasoning_but_skips_risk_and_trading(self) -> None:
+        state: DebateState = {
+            "session_id": "limited-risk",
+            "debate_input": {},
+            "current_round": 1,
+            "analyses": {},
+            "market_data": {},
+            "vote_summary": {},
+            "errors": [],
+            "evidence_limitations": [{"capability": "news"}],
+        }
+
+        assert _route_after_reasoning(state) == "stop"
 
     @pytest.fixture
     def mock_analyst_report(self):
@@ -614,6 +673,71 @@ class TestDebateOrchestratorRun:
             assert len(result.analyses) == 2
             assert result.vote_summary.total_votes == 2
             assert result.total_latency_ms >= 0
+
+    @pytest.mark.asyncio
+    async def test_limited_evidence_runs_llm_but_does_not_enter_trade_chain(
+        self,
+        mock_collector,
+        mock_analyst_report,
+    ) -> None:
+        request = EvidenceRequest(
+            capability=EvidenceCapability.NEWS,
+            stock_code="000001",
+        )
+        envelope = EvidenceEnvelope(
+            request=request,
+            policy=EvidencePolicy(
+                capability=EvidenceCapability.NEWS,
+                min_independent_upstreams=2,
+            ),
+            assessment=EvidenceAssessment(
+                capability=EvidenceCapability.NEWS,
+                complete=False,
+                missing_required_upstream_ids={"sina"},
+                missing_independent_upstreams=1,
+            ),
+            complete=False,
+        )
+        evidence_service = MagicMock()
+        evidence_service.collect.return_value = envelope
+        orch = DebateOrchestrator(
+            data_collector=mock_collector,
+            news_evidence_service=evidence_service,
+            quote_evidence_service=None,
+            skill_ids=["buffett"],
+            enable_risk=True,
+            enable_trader=True,
+        )
+        mock_analysis = AgentAnalysis(
+            agent_name="master.buffett",
+            skill_id="buffett",
+            skill_name="巴菲特",
+            rating="中性",
+            score=50,
+            summary="证据有限",
+            analysis="基于现有信息的有限分析",
+            confidence=0.4,
+        )
+
+        with patch(
+            "src.debate.orchestrator._run_single_analyst",
+            new_callable=AsyncMock,
+            return_value=mock_analyst_report,
+        ) as analyst, patch(
+            "src.debate.orchestrator._run_single_master",
+            new_callable=AsyncMock,
+            return_value=mock_analysis,
+        ) as master:
+            result = await orch.run(
+                DebateInput(stock_code="000001", stock_name="平安银行")
+            )
+
+        assert analyst.await_count > 0
+        assert master.await_count > 0
+        assert result.evidence_limitations[0].capability == "news"
+        assert result.risk_round is None
+        assert result.trader_round is None
+        assert result.trade_recommendation is None
 
     @pytest.mark.asyncio
     async def test_run_with_default_masters(self, mock_collector, mock_analyst_report):

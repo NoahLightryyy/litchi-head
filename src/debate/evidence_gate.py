@@ -1,10 +1,10 @@
-"""Fail-closed domain error for incomplete debate evidence."""
+"""Domain error for evidence that is corrupted or conflicting and cannot be used."""
 
 from src.data.evidence import EvidenceEnvelope
 
 
 class EvidenceIncompleteError(RuntimeError):
-    """Raised before LLM execution when required evidence is incomplete."""
+    """Raised before LLM execution when evidence is unsafe, not merely incomplete."""
 
     def __init__(
         self,

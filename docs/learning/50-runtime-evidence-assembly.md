@@ -36,6 +36,38 @@ KR-1/2 日线、分时和实时报价各自已经完成双源核验，但它们�
 当日动态 OHLCV 则来自双源核验后的 RAW `StockQuote`，单独构造成
 `ProvisionalSessionBar`。它能供盘中分析使用，但仍不能混进完成日线数组。
 
+## 多个来源同时失败时怎样归并
+
+KR-3B-2 在成功组装器之外新增 `assemble_kline_business()`。它返回判别联合：四层
+全部成功时返回 `KlineBusinessEnvelope`，任一层失败时返回
+`KlineBusinessFailure`，不会再把运行时失败压成无法展示的普通 `ValueError`。
+
+归并时要同时保留两种信息：
+
+- `KlineLayerDiagnostic.error_code` 是该层的稳定主错误码，供业务分支和 API 使用；
+- `source_diagnostics` 保存每个不可用来源的 `source_id`、真实 `upstream_id`、状态、
+  错误码、信息和采集时间，但不保存残缺行情条目。
+
+主错误不能依赖集合遍历顺序。项目固定按“冲突 → 陈旧 → 采集失败 → 不支持”选择，
+同级再按错误码和来源身份排序。全局错误码则按
+`FINAL_DAILY → FINAL_MINUTE → LIVE_QUOTE → PROVISIONAL` 排列并去重，因此同一报价
+故障虽然同时关闭实时价和动态日条，也只产生一个全局主码。
+
+重试也不是一个模糊布尔值：
+
+| 处置 | 含义 | 例子 |
+|:-----|:-----|:-----|
+| `retry_fresh` | 丢弃本次结果，重新采集后再试 | 网络抖动、短时陈旧、盘中源冲突 |
+| `wait_for_condition` | 等市场或覆盖条件变化，禁止紧循环 | 非连续竞价、缺独立来源、历史覆盖不足 |
+| `operator_action` | 自动重试无意义，需要修数据或接线 | 脏响应、身份错误、快照血缘冲突 |
+
+如果同一层同时出现多种处置，选择更保守的一档。这样上层不会因为其中一个网络错误可重试，
+就掩盖同时存在的脏响应或身份冲突。
+
+能力槽位或请求证券接错仍然抛编程契约异常。它们不是市场数据暂时不可用，若转换成普通
+业务失败会掩盖部署缺陷。相反，快照血缘不一致、canonical 报价数量错误和报价时间戳
+无效属于真实运行时完整性失败，会进入四层诊断。
+
 ## 自己试试
 
 1. 运行 `python -m pytest tests/test_data/test_kline_business_runtime.py -q`；
@@ -43,7 +75,11 @@ KR-1/2 日线、分时和实时报价各自已经完成双源核验，但它们�
    在读取条目前拒绝；
 3. 把 `quote_evidence` 接到 `daily_evidence` 参数，观察能力槽位校验；
 4. 查看成功结果，确认 10:01 的临时分钟没有进入 `final_minute_bars`。
+5. 让两个报价来源分别返回 `STALE` 和 `CONFLICTED`，确认逐源诊断都保留，但
+   `quote_price_conflict` 成为稳定主错误码。
 
 ---
 
 **上一篇：[49｜四层行情信封](49-four-layer-market-envelope.md)**
+
+**下一篇：[52｜证据不完整时怎样继续推理而不伪装完整](52-evidence-limited-reasoning.md)**

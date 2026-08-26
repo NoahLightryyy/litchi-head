@@ -146,6 +146,7 @@ def _failure_kwargs() -> dict[str, Any]:
                 "upstream_ids": ("eastmoney", "sina"),
                 "error_code": "quote_stale",
                 "error_message": "Realtime quote exceeded the freshness boundary",
+                "retry_disposition": "retry_fresh",
             },
             {
                 "layer": "PROVISIONAL",
@@ -351,6 +352,7 @@ def test_failure_result_requires_each_layer_diagnostic_exactly_once() -> None:
             "complete": False,
             "error_code": "quote_stale",
             "error_message": "Realtime quote exceeded the freshness boundary",
+            "retry_disposition": "retry_fresh",
         },
     )
 
@@ -358,8 +360,18 @@ def test_failure_result_requires_each_layer_diagnostic_exactly_once() -> None:
         kline_business.KlineBusinessFailure(**payload)
 
 
-@pytest.mark.parametrize("violation", ["wrong_error_codes", "missing_message", "all_complete"])
-def test_failure_result_requires_consistent_incomplete_diagnostics(violation: str) -> None:
+@pytest.mark.parametrize(
+    ("violation", "expected_message"),
+    [
+        ("wrong_error_codes", "failure diagnostics and error_codes must agree"),
+        ("missing_message", "incomplete layer diagnostic requires failure details"),
+        ("all_complete", "complete layer diagnostic cannot carry failure details"),
+    ],
+)
+def test_failure_result_requires_consistent_incomplete_diagnostics(
+    violation: str,
+    expected_message: str,
+) -> None:
     payload = _failure_kwargs()
     diagnostics = [dict(item) for item in payload["layer_diagnostics"]]
     if violation == "wrong_error_codes":
@@ -372,7 +384,7 @@ def test_failure_result_requires_consistent_incomplete_diagnostics(violation: st
 
     with pytest.raises(
         ValidationError,
-        match="failure diagnostics and error_codes must agree",
+        match=expected_message,
     ):
         kline_business.KlineBusinessFailure(**payload)
 
