@@ -2,17 +2,21 @@
 
 import { RefreshCw } from "lucide-react";
 import type { MacroBrief as MacroBriefType } from "@/lib/types/market";
+import type { MarketMeta } from "@/lib/types/market";
+import { MarketDataNotice } from "./market-data-notice";
 
 interface MacroBriefProps {
   brief: MacroBriefType | null;
   loading?: boolean;
   error?: boolean;
+  meta?: MarketMeta;
+  refreshError?: boolean;
   onRefresh?: () => void;
 }
 
 /** AI 宏观简报卡片 */
-export function MacroBrief({ brief, loading, error, onRefresh }: MacroBriefProps) {
-  if (error && !loading) {
+export function MacroBrief({ brief, loading, error, meta, refreshError, onRefresh }: MacroBriefProps) {
+  if (error && !loading && !brief) {
     return (
       <div className="rounded-lg border border-accent-red/20 bg-accent-red/5 p-4 text-center">
         <p className="text-sm text-text-muted mb-2">宏观简报生成失败</p>
@@ -24,6 +28,7 @@ export function MacroBrief({ brief, loading, error, onRefresh }: MacroBriefProps
   }
   return (
     <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
+      <MarketDataNotice meta={meta} refreshError={refreshError} />
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-text-primary">AI 宏观简报</h3>
         <span className="text-xs text-text-muted">自动生成 · 仅供参考</span>

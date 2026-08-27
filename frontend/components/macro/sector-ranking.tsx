@@ -1,19 +1,22 @@
 "use client";
 
-import type { SectorItem } from "@/lib/types/market";
+import type { MarketMeta, SectorItem } from "@/lib/types/market";
 import { formatChangePct, changeColor } from "@/lib/utils";
+import { MarketDataNotice } from "./market-data-notice";
 
 interface SectorRankingProps {
   sectors: SectorItem[];
   loading?: boolean;
   error?: boolean;
+  meta?: MarketMeta;
+  refreshError?: boolean;
   onRetry?: () => void;
   sortBy: string;
   onSortChange: (sort: string) => void;
 }
 
 /** 板块排行表格 */
-export function SectorRanking({ sectors, loading, error, onRetry, sortBy, onSortChange }: SectorRankingProps) {
+export function SectorRanking({ sectors, loading, error, meta, refreshError, onRetry, sortBy, onSortChange }: SectorRankingProps) {
   const heatLabels = { high: "🔥", medium: "📌", low: "—" } as const;
 
   if (loading) {
@@ -27,7 +30,7 @@ export function SectorRanking({ sectors, loading, error, onRetry, sortBy, onSort
     );
   }
 
-  if (error) {
+  if (error && !sectors.length) {
     return (
       <div className="rounded-lg border border-accent-red/20 bg-accent-red/5 p-4 text-center">
         <p className="text-sm text-text-muted mb-2">板块数据加载失败</p>
@@ -47,9 +50,11 @@ export function SectorRanking({ sectors, loading, error, onRetry, sortBy, onSort
   }
 
   return (
-    <div className="rounded-lg border border-bg-tertiary bg-bg-secondary overflow-hidden">
+    <>
+      <MarketDataNotice meta={meta} refreshError={refreshError} />
+      <div className="max-h-[32rem] overflow-auto rounded-lg border border-bg-tertiary bg-bg-secondary">
       <table className="w-full text-sm">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-bg-secondary">
           <tr className="border-b border-bg-tertiary text-text-muted text-xs uppercase tracking-wider">
             <th className="text-left px-4 py-3 font-medium">排名</th>
             <th className="text-left px-4 py-3 font-medium">板块</th>
@@ -71,7 +76,7 @@ export function SectorRanking({ sectors, loading, error, onRetry, sortBy, onSort
         <tbody>
           {sectors.map((s) => (
             <tr
-              key={s.id}
+              key={`${s.id}-${s.rank}`}
               className="border-b border-bg-tertiary last:border-0 hover:bg-bg-tertiary/50 cursor-pointer transition-colors"
               onClick={() => (window.location.href = `/sector/${s.id}`)}
             >
@@ -95,6 +100,7 @@ export function SectorRanking({ sectors, loading, error, onRetry, sortBy, onSort
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }

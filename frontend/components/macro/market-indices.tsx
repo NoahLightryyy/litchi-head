@@ -1,17 +1,20 @@
 "use client";
 
-import type { MarketIndex } from "@/lib/types/market";
+import type { MarketIndex, MarketMeta } from "@/lib/types/market";
 import { formatPrice } from "@/lib/utils";
+import { MarketDataNotice } from "./market-data-notice";
 
 interface MarketIndicesProps {
   indices: MarketIndex[];
   loading?: boolean;
   error?: boolean;
+  meta?: MarketMeta;
+  refreshError?: boolean;
   onRetry?: () => void;
 }
 
 /** 三大指数卡片 */
-export function MarketIndices({ indices, loading, error, onRetry }: MarketIndicesProps) {
+export function MarketIndices({ indices, loading, error, meta, refreshError, onRetry }: MarketIndicesProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-3 gap-4">
@@ -26,7 +29,7 @@ export function MarketIndices({ indices, loading, error, onRetry }: MarketIndice
     );
   }
 
-  if (error) {
+  if (error && !indices.length) {
     return (
       <div className="rounded-lg border border-accent-red/20 bg-accent-red/5 p-4 text-center">
         <p className="text-sm text-text-muted mb-2">指数数据加载失败</p>
@@ -48,11 +51,14 @@ export function MarketIndices({ indices, loading, error, onRetry }: MarketIndice
   }
 
   return (
-    <div className="grid grid-cols-3 gap-4">
-      {indices.map((idx) => (
-        <MarketIndexCard key={idx.code} index={idx} />
-      ))}
-    </div>
+    <>
+      <MarketDataNotice meta={meta} refreshError={refreshError} />
+      <div className="grid grid-cols-3 gap-4">
+        {indices.map((idx) => (
+          <MarketIndexCard key={idx.code} index={idx} />
+        ))}
+      </div>
+    </>
   );
 }
 

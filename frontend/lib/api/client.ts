@@ -16,7 +16,8 @@ export class ApiError extends Error {
 
 async function request<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
+  unwrapData: boolean = true,
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
 
@@ -37,11 +38,11 @@ async function request<T>(
         err.code || "UNKNOWN",
         err.message || `HTTP ${res.status}`,
         res.status,
-        err.detail
+        err.detail ?? body.meta
       );
     }
 
-    return body.data !== undefined ? body.data : body;
+    return unwrapData && body.data !== undefined ? body.data : body;
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError(
@@ -58,6 +59,13 @@ export const api = {
       ? "?" + new URLSearchParams(params).toString()
       : "";
     return request<T>(`${path}${query}`);
+  },
+
+  getRaw: <T>(path: string, params?: Record<string, string>) => {
+    const query = params
+      ? "?" + new URLSearchParams(params).toString()
+      : "";
+    return request<T>(`${path}${query}`, undefined, false);
   },
 
   post: <T>(path: string, data?: unknown) => {

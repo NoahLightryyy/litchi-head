@@ -7,6 +7,7 @@ import { useStockSearch } from "@/lib/hooks/use-stock";
 import { MarketIndices } from "@/components/macro/market-indices";
 import { SectorRanking } from "@/components/macro/sector-ranking";
 import { MacroBrief } from "@/components/macro/macro-brief";
+import { MarketDataNotice } from "@/components/macro/market-data-notice";
 
 /** 宏观总览主页面 */
 export default function MacroPage() {
@@ -14,10 +15,10 @@ export default function MacroPage() {
   const [sortBy, setSortBy] = useState("fund_flow");
 
   // ── 数据 ──
-  const { data: indices, isLoading: idxLoading, isError: idxError } = useMarketIndices();
-  const { data: sectors, isLoading: secLoading, isError: secError } = useSectors(sortBy);
-  const { data: brief, isLoading: briefLoading, isError: briefError, refetch } = useMacroBrief();
-  const { data: hotNews, isLoading: newsLoading } = useHotNews();
+  const indicesQuery = useMarketIndices();
+  const sectorsQuery = useSectors(sortBy);
+  const briefQuery = useMacroBrief();
+  const newsQuery = useHotNews();
   const { data: searchResults } = useStockSearch(searchQuery);
 
   const handleSortChange = useCallback((sort: string) => {
@@ -25,8 +26,8 @@ export default function MacroPage() {
   }, []);
 
   const handleRefreshBrief = useCallback(() => {
-    refetch();
-  }, [refetch]);
+    void briefQuery.refetch();
+  }, [briefQuery]);
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
@@ -63,7 +64,14 @@ export default function MacroPage() {
           <TrendingUp className="w-4 h-4 text-accent-blue" />
           <h2 className="text-sm font-semibold text-text-primary">三大指数</h2>
         </div>
-        <MarketIndices indices={indices ?? []} loading={idxLoading} error={idxError} />
+        <MarketIndices
+          indices={indicesQuery.data?.data ?? []}
+          loading={indicesQuery.isLoading}
+          error={indicesQuery.isError}
+          refreshError={indicesQuery.isError && !!indicesQuery.data}
+          meta={indicesQuery.data?.meta}
+          onRetry={() => void indicesQuery.refetch()}
+        />
       </section>
 
       {/* 两列布局：板块排行 + AI 简报 */}
@@ -76,9 +84,12 @@ export default function MacroPage() {
             <span className="text-xs text-text-muted ml-auto">按主力资金流向排序</span>
           </div>
           <SectorRanking
-            sectors={sectors ?? []}
-            loading={secLoading}
-            error={secError}
+            sectors={sectorsQuery.data?.data ?? []}
+            loading={sectorsQuery.isLoading}
+            error={sectorsQuery.isError}
+            refreshError={sectorsQuery.isError && !!sectorsQuery.data}
+            meta={sectorsQuery.data?.meta}
+            onRetry={() => void sectorsQuery.refetch()}
             sortBy={sortBy}
             onSortChange={handleSortChange}
           />
@@ -92,9 +103,11 @@ export default function MacroPage() {
             <span className="text-xs text-text-muted ml-auto">自动生成</span>
           </div>
           <MacroBrief
-            brief={brief ?? null}
-            loading={briefLoading}
-            error={briefError}
+            brief={briefQuery.data?.data ?? null}
+            loading={briefQuery.isLoading}
+            error={briefQuery.isError}
+            refreshError={briefQuery.isError && !!briefQuery.data}
+            meta={briefQuery.data?.meta}
             onRefresh={handleRefreshBrief}
           />
         </section>
@@ -108,15 +121,24 @@ export default function MacroPage() {
           <span className="text-xs text-text-muted ml-auto">实时市场动态</span>
         </div>
         <div className="rounded-lg border border-bg-tertiary bg-bg-secondary divide-y divide-bg-tertiary">
-          {newsLoading ? (
+          {newsQuery.isLoading ? (
             <div className="p-4 space-y-3">
               {[1,2,3].map((i) => (
                 <div key={i} className="h-4 bg-bg-tertiary rounded animate-pulse" />
               ))}
             </div>
-          ) : hotNews && hotNews.length > 0 ? (
-            <div className="max-h-64 overflow-y-auto">
-              {hotNews.map((item, idx) => (
+          ) : newsQuery.isError && !newsQuery.data ? (
+            <div className="p-4 text-center">
+              <p className="text-sm text-text-muted mb-2">热点快讯加载失败</p>
+              <button onClick={() => void newsQuery.refetch()} className="text-xs text-accent-blue hover:underline">重新加载</button>
+            </div>
+          ) : newsQuery.data && newsQuery.data.data.length > 0 ? (
+            <div>
+              <div className="px-4 pt-3">
+                <MarketDataNotice meta={newsQuery.data.meta} refreshError={newsQuery.isError} />
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+              {newsQuery.data.data.map((item, idx) => (
                 <a
                   key={idx}
                   href={item.url}
@@ -126,10 +148,11 @@ export default function MacroPage() {
                 >
                   <p className="text-xs text-text-primary leading-relaxed line-clamp-2">{item.title}</p>
                   <p className="text-[11px] text-text-muted mt-1">
-                    {item.source && `${item.source} · `}{item.date}
+                    {item.source}{item.date ? ` · ${item.date}` : ""}
                   </p>
                 </a>
               ))}
+              </div>
             </div>
           ) : (
             <div className="p-4">

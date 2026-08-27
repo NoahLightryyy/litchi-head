@@ -1,5 +1,26 @@
 /* ── 市场宏观类型 ── */
 
+export type MarketDataStatus = "success" | "partial" | "empty" | "stale";
+
+export interface MarketLimitation {
+  code: string;
+  message: string;
+}
+
+export interface MarketMeta {
+  status: MarketDataStatus;
+  cached: boolean;
+  latency_ms: number;
+  missing_codes: string[];
+  failed_sources: string[];
+  limitations: MarketLimitation[];
+}
+
+export interface MarketEnvelope<T> {
+  data: T;
+  meta: MarketMeta;
+}
+
 export interface MarketIndex {
   code: string;
   name: string;
@@ -70,7 +91,7 @@ export interface SectorStock {
 
 export interface HotNewsItem {
   title: string;
-  date: string;
+  date: string | null;
   source: string;
   url: string;
 }
