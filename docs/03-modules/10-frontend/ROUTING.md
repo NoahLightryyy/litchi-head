@@ -80,7 +80,7 @@
 
 ```typescript
 // Page 2: 板块排序
-?sort=fund_flow     // 默认：资金流向
+?sort=fund_flow     // 请求资金流排序；实际口径必须读取 meta.sort_applied
 ?sort=change_pct    // 涨跌幅
 ?sort=ai_rating     // AI 评级
 

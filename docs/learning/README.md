@@ -82,6 +82,7 @@
 | 50 | 🆕 [运行时证据怎样安全合流](50-runtime-evidence-assembly.md) | 先验完整性、能力接线、证券身份、FINAL 分钟过滤、RAW 动态条 |
 | 52 | 🆕 [证据不完整时怎样继续推理而不伪装完整](52-evidence-limited-reasoning.md) | EvidenceLimitation、限制披露、损坏阻断、研究与交易隔离 |
 | 54 | 🆕 [HTTP 200 不等于数据成功](54-truthful-market-api-status.md) | 市场 API 五态、失败关闭、陈旧缓存、空结果健康统计 |
+| 55 | 🆕 [多源汇总不是把两个数字取平均](55-multi-source-index-reconciliation.md) | 指数代码身份、并发采集、价时冲突、单源降级、逐源健康 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

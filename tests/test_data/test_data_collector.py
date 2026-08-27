@@ -24,6 +24,21 @@ class TestHealthStats:
         assert snapshot["quotes"]["empty"] == 1
         assert snapshot["__summary__"]["empty_endpoints"] == 1
 
+    def test_raw_upstream_error_is_not_exposed_in_snapshot(self):
+        stats = HealthStats()
+        raw = (
+            "ProxyError HTTPSConnectionPool(host='example.com'): "
+            "https://example.com/api?token=secret"
+        )
+
+        stats.record_call("quotes", 12.0, error=raw)
+
+        snapshot = stats.snapshot()
+        assert snapshot["quotes"]["last_error"] == "数据源请求失败"
+        assert snapshot["quotes"]["last_error_code"] == "DATA_SOURCE_CALL_FAILED"
+        assert "example.com" not in str(snapshot)
+        assert "token=secret" not in str(snapshot)
+
 # ── Tests: get_all_stocks ────────────────────────────────────────────
 
 

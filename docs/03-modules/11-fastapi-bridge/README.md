@@ -6,7 +6,7 @@
 
 | 功能 | 对接后端 | 说明 |
 |:-----|:---------|:-----|
-| 指数行情 | `src/data/collector.py` | 当前股票列表来源不能证明指数行情；缺失时返回 `empty/partial`，禁止零值占位 |
+| 指数行情 | `src/data/index_quote_runtime.py` | 东方财富 + 新浪指数专用直连；双源核验、单源降级、冲突失败关闭、30 秒已核验缓存 |
 | 板块排行 | `src/data/collector.py` | 行业/概念板块排行 + 资金流向 |
 | 板块详情 | `backend/routers/market.py` | 成分股行情；无可核验关系证据时 `chain_map=[]`，禁止用涨幅制造产业链 |
 | 个股行情 | `src/data/collector.py` | 实时行情单只过滤 |
@@ -52,6 +52,10 @@ uvicorn main:app --reload --port 8000
   零值伪装成功
 - **健康统计**：Provider 返回空业务结果记为 `empty`，不计入成功；健康端点因此返回
   `degraded`，避免“调用没抛异常”等同于“数据可用”
+- **诊断脱敏**：健康 API 只返回稳定错误码和固定安全文案；完整异常、上游 URL 与参数仅
+  进入后端日志
+- **未知不等于零**：当前板块排行来源没有主力资金流字段，`fund_flow=null` 并携带
+  `FUND_FLOW_UNAVAILABLE`；`sort_applied` 告诉消费者实际排序口径
 - **惰性导入**：避免 Windows 环境 torch 访问冲突（沿用 `src/debate/__init__.py` 模式）
 - **产业链完整性**：行情排名只能表达市场表现，不能证明上下游关系；真实关系数据源和
   契约获批前，板块详情保留 `chain_map` 字段但返回空列表

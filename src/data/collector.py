@@ -67,7 +67,7 @@ class HealthStats:
         self._success: defaultdict[str, int] = defaultdict(int)
         self._empty: defaultdict[str, int] = defaultdict(int)
         self._failures: defaultdict[str, int] = defaultdict(int)
-        self._last_error: dict[str, str] = {}
+        self._last_error_code: dict[str, str] = {}
         self._last_success_ts: dict[str, float] = {}
         self._latencies: dict[str, list[float]] = defaultdict(list)
         self._window_size = 100  # 最多保留近 100 次延迟
@@ -79,12 +79,13 @@ class HealthStats:
         error: str | None = None,
         *,
         empty: bool = False,
+        error_code: str | None = None,
     ) -> None:
         """记录一次调用结果"""
         self._total[endpoint] += 1
         if error:
             self._failures[endpoint] += 1
-            self._last_error[endpoint] = error
+            self._last_error_code[endpoint] = error_code or "DATA_SOURCE_CALL_FAILED"
         elif empty:
             self._empty[endpoint] += 1
         else:
@@ -113,7 +114,8 @@ class HealthStats:
                 "failures": fails,
                 "failure_rate": round(fails / total, 4) if total > 0 else 0.0,
                 "avg_latency_ms": round(sum(lat) / len(lat), 1) if lat else None,
-                "last_error": self._last_error.get(ep, None),
+                "last_error": "数据源请求失败" if fails else None,
+                "last_error_code": self._last_error_code.get(ep, None),
                 "last_success_ago_s": round(now - self._last_success_ts[ep], 1)
                     if ep in self._last_success_ts else None,
             }

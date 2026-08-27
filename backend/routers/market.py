@@ -20,12 +20,17 @@ from pydantic import BaseModel, Field
 
 from backend.async_utils import run_sync
 from src.data.collector import DataCollector
-from src.data.models import StockQuote as BackendQuote
+from src.data.index_quote_runtime import (
+    IndexLimitation,
+    IndexSourceDiagnostic,
+    get_index_quote_service,
+)
 from src.data.providers.base import safe_float, safe_str
 
 logger = logging.getLogger("backend.market")
 router = APIRouter(prefix="/api/market")
 collector = DataCollector()
+index_quote_service = get_index_quote_service()
 
 # ── 响应模型（匹配 frontend/lib/types/market.ts） ──────────────
 
@@ -37,6 +42,20 @@ class MarketLimitation(BaseModel):
 
     code: str
     message: str
+    index_code: str | None = None
+
+
+class MarketSourceDiagnostic(BaseModel):
+    index_code: str
+    source_id: str
+    upstream_id: str
+    status: Literal[
+        "success_data", "success_empty", "failed", "unsupported", "stale", "conflicted"
+    ]
+    latency_ms: int = Field(ge=0)
+    as_of: datetime | None = None
+    error_code: str | None = None
+    error_message: str | None = None
 
 
 class MarketMeta(BaseModel):
@@ -48,6 +67,9 @@ class MarketMeta(BaseModel):
     missing_codes: list[str] = Field(default_factory=list)
     failed_sources: list[str] = Field(default_factory=list)
     limitations: list[MarketLimitation] = Field(default_factory=list)
+    source_diagnostics: list[MarketSourceDiagnostic] = Field(default_factory=list)
+    sort_requested: str | None = None
+    sort_applied: str | None = None
 
 
 class MarketErrorBody(BaseModel):
@@ -67,6 +89,9 @@ class IndexQuoteResp(BaseModel):
     price: float = Field(gt=0.0)
     change: float = 0.0
     change_pct: float = 0.0
+    as_of: datetime
+    source_count: int = Field(ge=1)
+    cached: bool = False
 
 
 class SectorItemResp(BaseModel):
@@ -74,7 +99,7 @@ class SectorItemResp(BaseModel):
     id: str
     name: str
     change_pct: float = 0.0
-    fund_flow: float = 0.0
+    fund_flow: float | None = None
     heat: str = "medium"
     top_stocks: list[str] = Field(default_factory=list)
     rank: int = 0
@@ -86,7 +111,7 @@ class SectorStockResp(BaseModel):
     name: str
     price: float = 0.0
     change_pct: float = 0.0
-    fund_flow: float = 0.0
+    fund_flow: float | None = None
     ai_rating: str = "B"
 
 
@@ -109,7 +134,7 @@ class SectorDetailResp(BaseModel):
     id: str
     name: str
     change_pct: float = 0.0
-    fund_flow: float = 0.0
+    fund_flow: float | None = None
     heat: str = "medium"
     chain_map: list[ChainStageResp] = Field(default_factory=list)
     ai_analysis: str = ""
@@ -135,6 +160,11 @@ class SectorsEnvelope(BaseModel):
     meta: MarketMeta
 
 
+class SectorDetailEnvelope(BaseModel):
+    data: SectorDetailResp
+    meta: MarketMeta
+
+
 class MacroBriefEnvelope(BaseModel):
     data: MacroBriefResp | None
     meta: MarketMeta
@@ -153,6 +183,9 @@ def _market_meta(
     missing_codes: list[str] | None = None,
     failed_sources: list[str] | None = None,
     limitations: list[MarketLimitation] | None = None,
+    source_diagnostics: list[MarketSourceDiagnostic] | None = None,
+    sort_requested: str | None = None,
+    sort_applied: str | None = None,
 ) -> dict[str, object]:
     return MarketMeta(
         status=status,
@@ -161,6 +194,9 @@ def _market_meta(
         missing_codes=missing_codes or [],
         failed_sources=failed_sources or [],
         limitations=limitations or [],
+        source_diagnostics=source_diagnostics or [],
+        sort_requested=sort_requested,
+        sort_applied=sort_applied,
     ).model_dump()
 
 
@@ -169,7 +205,10 @@ def _market_failed(
     message: str,
     started_at: float,
     *,
+    missing_codes: list[str] | None = None,
     failed_sources: list[str] | None = None,
+    limitations: list[MarketLimitation] | None = None,
+    source_diagnostics: list[MarketSourceDiagnostic] | None = None,
 ) -> JSONResponse:
     return JSONResponse(
         status_code=503,
@@ -178,10 +217,23 @@ def _market_failed(
             meta=MarketMeta(
                 status="failed",
                 latency_ms=round((time.time() - started_at) * 1000),
+                missing_codes=missing_codes or [],
                 failed_sources=failed_sources or [],
+                limitations=limitations or [],
+                source_diagnostics=source_diagnostics or [],
             ),
-        ).model_dump(),
+        ).model_dump(mode="json"),
     )
+
+
+def _market_limitations(items: list[IndexLimitation]) -> list[MarketLimitation]:
+    return [MarketLimitation.model_validate(item.model_dump()) for item in items]
+
+
+def _market_source_diagnostics(
+    items: list[IndexSourceDiagnostic],
+) -> list[MarketSourceDiagnostic]:
+    return [MarketSourceDiagnostic.model_validate(item.model_dump()) for item in items]
 
 
 def _fetch_board_perf_df(board_type: str) -> pd.DataFrame:
@@ -339,27 +391,6 @@ def _detect_board_type(sector_id: str) -> str:
     return "concept"
 
 
-# ── 辅助函数 ──────────────────────────────────────────────────
-
-_INDEX_CODES: list[tuple[str, str]] = [
-    ("000001", "上证指数"),
-    ("399001", "深证成指"),
-    ("399006", "创业板指"),
-]
-
-
-def _pick_index(
-    quotes: list[BackendQuote], code: str, name: str,
-) -> IndexQuoteResp | None:
-    for q in quotes:
-        if q.code == code and q.price > 0:
-            return IndexQuoteResp(
-                code=q.code, name=name, price=q.price,
-                change=q.change, change_pct=q.change_pct,
-            )
-    return None
-
-
 # ── 路由 ──────────────────────────────────────────────────────
 
 
@@ -372,33 +403,35 @@ async def get_indices():
     """三大指数实时行情"""
     t0 = time.time()
     try:
-        quotes = await run_sync(collector.get_realtime_quotes, raise_on_error=True)
+        result = await run_sync(index_quote_service.collect)
     except Exception:
-        logger.exception("获取首页指数行情失败")
+        logger.exception("多源指数汇总发生未处理异常")
         return _market_failed(
             "MARKET_INDICES_FAILED", "指数行情暂时不可用", t0,
-            failed_sources=["realtime_quotes"],
+            failed_sources=["eastmoney", "sina"],
         )
-    indices: list[IndexQuoteResp] = []
-    missing_codes: list[str] = []
-    for code, name in _INDEX_CODES:
-        item = _pick_index(quotes, code, name)
-        if item is None:
-            missing_codes.append(code)
-        else:
-            indices.append(item)
-    cached = collector.cache_hit.get("all_quotes", False)
-    status: MarketDataStatus
-    if not indices:
-        status = "empty"
-    elif missing_codes:
-        status = "partial"
-    else:
-        status = "success"
+    limitations = _market_limitations(result.limitations)
+    diagnostics = _market_source_diagnostics(result.source_diagnostics)
+    if result.status == "failed":
+        return _market_failed(
+            result.error_code or "MARKET_INDICES_FAILED",
+            "指数双源校验失败",
+            t0,
+            missing_codes=result.missing_codes,
+            failed_sources=result.failed_sources,
+            limitations=limitations,
+            source_diagnostics=diagnostics,
+        )
     return {
-        "data": [i.model_dump() for i in indices],
+        "data": [item.model_dump() for item in result.quotes],
         "meta": _market_meta(
-            status, t0, cached=cached, missing_codes=missing_codes,
+            result.status,
+            t0,
+            cached=any(item.cached for item in result.quotes),
+            missing_codes=result.missing_codes,
+            failed_sources=result.failed_sources,
+            limitations=limitations,
+            source_diagnostics=diagnostics,
         ),
     }
 
@@ -413,6 +446,7 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
     t0 = time.time()
     items: list[SectorItemResp] = []
     failed_sources: list[str] = []
+    fund_flow_missing_sources: list[str] = []
 
     # 行业板块 — 直接调 akshare 获取完整 DataFrame
     try:
@@ -422,13 +456,19 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
         failed_sources.append("industry")
         df_ind = pd.DataFrame()
     if not df_ind.empty:
+        industry_has_fund_flow = "主力净流入-净额" in df_ind.columns
+        if not industry_has_fund_flow:
+            fund_flow_missing_sources.append("industry")
         for i, (_, row) in enumerate(df_ind.iterrows()):
             code = safe_str(row.get("板块代码", ""))
             name = safe_str(row.get("板块名称", ""))
             items.append(SectorItemResp(
                 id=code, name=name, rank=i + 1,
                 change_pct=safe_float(row.get("涨跌幅", 0.0)),
-                fund_flow=safe_float(row.get("主力净流入-净额", 0.0)),
+                fund_flow=(
+                    safe_float(row.get("主力净流入-净额"))
+                    if industry_has_fund_flow else None
+                ),
             ))
 
     # 概念板块
@@ -439,6 +479,9 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
         failed_sources.append("concept")
         df_con = pd.DataFrame()
     if not df_con.empty:
+        concept_has_fund_flow = "主力净流入-净额" in df_con.columns
+        if not concept_has_fund_flow:
+            fund_flow_missing_sources.append("concept")
         offset = len(items)
         for i, (_, row) in enumerate(df_con.iterrows()):
             code = safe_str(row.get("板块代码", ""))
@@ -446,7 +489,10 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
             items.append(SectorItemResp(
                 id=code, name=name, rank=offset + i + 1,
                 change_pct=safe_float(row.get("涨跌幅", 0.0)),
-                fund_flow=safe_float(row.get("主力净流入-净额", 0.0)),
+                fund_flow=(
+                    safe_float(row.get("主力净流入-净额"))
+                    if concept_has_fund_flow else None
+                ),
             ))
 
     if not items and failed_sources:
@@ -454,16 +500,43 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
             "MARKET_SECTORS_FAILED", "板块行情暂时不可用", t0,
             failed_sources=failed_sources,
         )
+    limitations: list[MarketLimitation] = []
+    if fund_flow_missing_sources:
+        limitations.append(MarketLimitation(
+            code="FUND_FLOW_UNAVAILABLE",
+            message=(
+                "当前板块排行来源未提供主力资金流字段，fund_flow 返回 null，"
+                "不得按资金流解释或排序"
+            ),
+        ))
+
+    sort_applied = "upstream_order"
+    if sort == "fund_flow" and items and all(item.fund_flow is not None for item in items):
+        items.sort(key=lambda item: item.fund_flow or 0.0, reverse=True)
+        sort_applied = "fund_flow"
+    elif sort == "change_pct" and items:
+        items.sort(key=lambda item: item.change_pct, reverse=True)
+        sort_applied = "change_pct"
+    for rank, item in enumerate(items, start=1):
+        item.rank = rank
+
     status: MarketDataStatus = "empty" if not items else (
-        "partial" if failed_sources else "success"
+        "partial" if failed_sources or limitations else "success"
     )
     return {
         "data": [i.model_dump() for i in items],
-        "meta": _market_meta(status, t0, failed_sources=failed_sources),
+        "meta": _market_meta(
+            status,
+            t0,
+            failed_sources=failed_sources,
+            limitations=limitations,
+            sort_requested=sort,
+            sort_applied=sort_applied,
+        ),
     }
 
 
-@router.get("/sector/{sector_id:str}")
+@router.get("/sector/{sector_id:str}", response_model=SectorDetailEnvelope)
 async def get_sector_detail(sector_id: str):
     """板块详情 — 含成分股 + 热度 + AI 分析 + 产业链映射"""
     t0 = time.time()
@@ -486,13 +559,14 @@ async def get_sector_detail(sector_id: str):
 
     # 板块涨跌幅 + 资金流
     change_pct = 0.0
-    fund_flow = 0.0
+    fund_flow: float | None = None
     if not board_perf_df.empty:
         matched = board_perf_df[board_perf_df["板块代码"].astype(str) == sector_id]
         if not matched.empty:
             row = matched.iloc[0]
             change_pct = safe_float(row.get("涨跌幅", 0.0))
-            fund_flow = safe_float(row.get("主力净流入-净额", 0.0))
+            if "主力净流入-净额" in board_perf_df.columns:
+                fund_flow = safe_float(row.get("主力净流入-净额"))
 
     # 成分股列表
     stocks: list[SectorStockResp] = []
@@ -518,9 +592,13 @@ async def get_sector_detail(sector_id: str):
         heat=heat, stocks=stocks,
         ai_analysis=ai_analysis, chain_map=chain_map,
     )
+    limitations = [MarketLimitation(
+        code="FUND_FLOW_UNAVAILABLE",
+        message="板块或成分股缺少已核验资金流字段，未知值返回 null",
+    )]
     return {
         "data": detail.model_dump(),
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": _market_meta("partial", t0, limitations=limitations),
     }
 
 
@@ -546,32 +624,39 @@ async def get_macro_brief():
     """AI 宏观简报"""
     t0 = time.time()
     try:
-        quotes = await run_sync(collector.get_realtime_quotes, raise_on_error=True)
+        result = await run_sync(index_quote_service.collect)
     except Exception:
-        logger.exception("获取宏观简报指数输入失败")
+        logger.exception("宏观简报多源指数汇总发生未处理异常")
         return _market_failed(
             "MARKET_BRIEF_FAILED", "宏观简报输入暂时不可用", t0,
-            failed_sources=["realtime_quotes"],
+            failed_sources=["eastmoney", "sina"],
         )
-    indices: list[IndexQuoteResp] = []
-    missing_codes: list[str] = []
-    for code, name in _INDEX_CODES:
-        item = _pick_index(quotes, code, name)
-        if item is None:
-            missing_codes.append(code)
-        else:
-            indices.append(item)
-    if not indices:
+    limitations = _market_limitations(result.limitations)
+    diagnostics = _market_source_diagnostics(result.source_diagnostics)
+    if result.status == "failed":
+        return _market_failed(
+            "MARKET_BRIEF_FAILED",
+            "宏观简报指数输入未通过双源校验",
+            t0,
+            missing_codes=result.missing_codes,
+            failed_sources=result.failed_sources,
+            limitations=limitations,
+            source_diagnostics=diagnostics,
+        )
+    if not result.quotes:
         return {
             "data": None,
             "meta": _market_meta(
-                "empty", t0,
-                cached=collector.cache_hit.get("all_quotes", False),
-                missing_codes=missing_codes,
+                result.status,
+                t0,
+                missing_codes=result.missing_codes,
+                failed_sources=result.failed_sources,
+                limitations=limitations,
+                source_diagnostics=diagnostics,
             ),
         }
     lines: list[str] = []
-    for i in indices:
+    for i in result.quotes:
         lines.append(f"  {i.name}: {i.price:.2f}（{i.change_pct:+.2f}%）")
 
     summary = " | ".join(lines)
@@ -579,14 +664,16 @@ async def get_macro_brief():
         summary=summary,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
     )
-    cached = collector.cache_hit.get("all_quotes", False)
     return {
         "data": brief.model_dump(),
         "meta": _market_meta(
-            "partial" if missing_codes else "success",
+            result.status,
             t0,
-            cached=cached,
-            missing_codes=missing_codes,
+            cached=any(item.cached for item in result.quotes),
+            missing_codes=result.missing_codes,
+            failed_sources=result.failed_sources,
+            limitations=limitations,
+            source_diagnostics=diagnostics,
         ),
     }
 

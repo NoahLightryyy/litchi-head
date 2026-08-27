@@ -11,7 +11,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import pytest
@@ -23,10 +25,56 @@ from backend.routers.market import (
     _calc_heat,
     _calc_rating,
 )
+from src.data.index_quote_runtime import (
+    IndexConsensusQuote,
+    IndexQuoteCollection,
+)
 from tests.test_backend.conftest import (
     make_board_perf_df,
     make_board_stocks_df,
 )
+
+SHANGHAI = ZoneInfo("Asia/Shanghai")
+INDEX_AS_OF = datetime(2026, 8, 27, 14, 11, 23, tzinfo=SHANGHAI)
+
+
+class StubIndexQuoteService:
+    def __init__(self, result: IndexQuoteCollection) -> None:
+        self.result = result
+
+    def collect(self) -> IndexQuoteCollection:
+        return self.result
+
+
+def make_index_collection(
+    *,
+    status: str = "success",
+    codes: tuple[str, ...] = ("000001", "399001", "399006"),
+    missing_codes: list[str] | None = None,
+    error_code: str | None = None,
+) -> IndexQuoteCollection:
+    names = {
+        "000001": "上证指数",
+        "399001": "深证成指",
+        "399006": "创业板指",
+    }
+    return IndexQuoteCollection(
+        status=status,
+        quotes=[
+            IndexConsensusQuote(
+                code=code,
+                name=names[code],
+                price=3200.0,
+                change=10.0,
+                change_pct=0.5,
+                as_of=INDEX_AS_OF,
+                source_count=2,
+            )
+            for code in codes
+        ],
+        missing_codes=missing_codes or [],
+        error_code=error_code,
+    )
 
 # ═══════════════════════════════════════════════════════════════════════
 # _calc_heat
@@ -189,8 +237,9 @@ class TestCalcRating:
 class TestGetIndices:
     """三大指数行情"""
 
-    def test_returns_indices(self, client, mock_collector):
-        with patch("backend.routers.market.collector", mock_collector):
+    def test_returns_indices(self, client):
+        service = StubIndexQuoteService(make_index_collection())
+        with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/indices")
 
         assert resp.status_code == 200
@@ -199,9 +248,12 @@ class TestGetIndices:
         codes = {item["code"] for item in data}
         assert codes == {"000001", "399001", "399006"}
         assert resp.json()["meta"]["status"] == "success"
+        assert all(item["source_count"] == 2 for item in data)
+        assert all(item["as_of"] for item in data)
 
-    def test_meta_fields(self, client, mock_collector):
-        with patch("backend.routers.market.collector", mock_collector):
+    def test_meta_fields(self, client):
+        service = StubIndexQuoteService(make_index_collection())
+        with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/indices")
 
         meta = resp.json()["meta"]
@@ -209,11 +261,10 @@ class TestGetIndices:
         assert meta["latency_ms"] >= 0
 
     def test_missing_all_indices_returns_explicit_empty_without_zero_quotes(
-        self, client, mock_collector,
+        self, client,
     ):
-        """现有来源没有指数时返回 empty，不制造三条零值行情。"""
-        mock_collector._quotes = []  # 空行情列表
-        with patch("backend.routers.market.collector", mock_collector):
+        service = StubIndexQuoteService(make_index_collection(status="empty", codes=()))
+        with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/indices")
 
         assert resp.status_code == 200
@@ -221,10 +272,14 @@ class TestGetIndices:
         assert resp.json()["meta"]["status"] == "empty"
 
     def test_missing_some_indices_returns_partial_without_placeholders(
-        self, client, mock_collector,
+        self, client,
     ):
-        mock_collector._quotes = mock_collector._quotes[:1]
-        with patch("backend.routers.market.collector", mock_collector):
+        service = StubIndexQuoteService(make_index_collection(
+            status="partial",
+            codes=("000001",),
+            missing_codes=["399001", "399006"],
+        ))
+        with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/indices")
 
         assert resp.status_code == 200
@@ -232,19 +287,18 @@ class TestGetIndices:
         assert resp.json()["meta"]["status"] == "partial"
         assert resp.json()["meta"]["missing_codes"] == ["399001", "399006"]
 
-    def test_indices_exception_returns_stable_failed_contract(self, client, mock_collector):
-        with (
-            patch("backend.routers.market.collector", mock_collector),
-            patch.object(
-                mock_collector,
-                "get_realtime_quotes",
-                side_effect=TimeoutError("quotes timeout"),
-            ),
-        ):
+    def test_indices_failed_collection_returns_stable_contract(self, client):
+        service = StubIndexQuoteService(make_index_collection(
+            status="failed",
+            codes=(),
+            missing_codes=["000001", "399001", "399006"],
+            error_code="MARKET_INDICES_CONFLICTED",
+        ))
+        with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/indices")
 
         assert resp.status_code == 503
-        assert resp.json()["error"]["code"] == "MARKET_INDICES_FAILED"
+        assert resp.json()["error"]["code"] == "MARKET_INDICES_CONFLICTED"
         assert resp.json()["meta"]["status"] == "failed"
 
 
@@ -289,6 +343,27 @@ class TestGetSectors:
         assert resp.status_code == 200
         assert resp.json()["data"] == []
         assert resp.json()["meta"]["status"] == "empty"
+
+    def test_missing_fund_flow_is_null_and_explicitly_limited(self, client):
+        current_schema = pd.DataFrame({
+            "板块代码": ["BK1556"],
+            "板块名称": ["行业板块"],
+            "涨跌幅": [8.74],
+        })
+        with (
+            patch("akshare.stock_board_industry_name_em", return_value=current_schema),
+            patch("akshare.stock_board_concept_name_em", return_value=pd.DataFrame()),
+        ):
+            resp = client.get("/api/market/sectors?sort=fund_flow")
+
+        assert resp.status_code == 200
+        assert resp.json()["data"][0]["fund_flow"] is None
+        assert resp.json()["meta"]["status"] == "partial"
+        assert resp.json()["meta"]["sort_requested"] == "fund_flow"
+        assert resp.json()["meta"]["sort_applied"] == "upstream_order"
+        assert {
+            item["code"] for item in resp.json()["meta"]["limitations"]
+        } == {"FUND_FLOW_UNAVAILABLE"}
 
     def test_one_board_source_timeout_returns_partial(self, client):
         con_df = make_board_perf_df()
@@ -372,6 +447,25 @@ class TestGetSectorDetail:
         assert data["chain_map"] == []
         assert "ai_analysis" in data
         assert "heat" in data
+        assert data["fund_flow"] == 500_000_000.0
+        assert all(stock["fund_flow"] is None for stock in data["stocks"])
+        assert resp.json()["meta"]["status"] == "partial"
+        assert resp.json()["meta"]["limitations"][0]["code"] == "FUND_FLOW_UNAVAILABLE"
+
+    def test_missing_detail_fund_flow_is_null(self, client, mock_collector):
+        """板块详情来源缺少资金流时返回未知值，而不是伪造 0.0。"""
+        stocks_df = make_board_stocks_df()
+        perf_df = make_board_perf_df().drop(columns=["主力净流入-净额"])
+        with (
+            patch("backend.routers.market.collector", mock_collector),
+            patch("akshare.stock_board_industry_cons_em", return_value=stocks_df),
+            patch("akshare.stock_board_industry_name_em", return_value=perf_df),
+        ):
+            resp = client.get("/api/market/sector/BK001")
+
+        assert resp.status_code == 200
+        assert resp.json()["data"]["fund_flow"] is None
+        assert resp.json()["meta"]["status"] == "partial"
 
     def test_concept_board(self, client, mock_collector):
         """概念板块也能正常获取"""
@@ -432,8 +526,9 @@ class TestGetSectorDetail:
 class TestGetMacroBrief:
     """AI 宏观简报"""
 
-    def test_returns_brief(self, client, mock_collector):
-        with patch("backend.routers.market.collector", mock_collector):
+    def test_returns_brief(self, client):
+        service = StubIndexQuoteService(make_index_collection())
+        with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/brief")
 
         assert resp.status_code == 200
@@ -442,18 +537,19 @@ class TestGetMacroBrief:
         assert "generated_at" in data
         assert "上证指数" in data["summary"]
 
-    def test_empty_quotes_returns_empty_without_success_object(self, client, mock_collector):
+    def test_empty_quotes_returns_empty_without_success_object(self, client):
         """无指数行情时显式 empty，不返回看似成功的“暂无数据”简报。"""
-        mock_collector._quotes = []
-        with patch("backend.routers.market.collector", mock_collector):
+        service = StubIndexQuoteService(make_index_collection(status="empty", codes=()))
+        with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/brief")
 
         assert resp.status_code == 200
         assert resp.json()["data"] is None
         assert resp.json()["meta"]["status"] == "empty"
 
-    def test_meta_timing(self, client, mock_collector):
-        with patch("backend.routers.market.collector", mock_collector):
+    def test_meta_timing(self, client):
+        service = StubIndexQuoteService(make_index_collection())
+        with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/brief")
 
         meta = resp.json()["meta"]
@@ -598,10 +694,18 @@ class TestHotNews:
 
 def test_homepage_market_openapi_freezes_status_and_failed_response(client):
     schema = client.get("/openapi.json").json()
+    components = schema["components"]["schemas"]
     statuses = schema["components"]["schemas"]["MarketMeta"]["properties"][
         "status"
     ]["enum"]
     assert statuses == ["success", "partial", "empty", "stale", "failed"]
+    assert {
+        "source_diagnostics", "sort_requested", "sort_applied",
+    } <= components["MarketMeta"]["properties"].keys()
+    assert {
+        "as_of", "source_count", "cached",
+    } <= components["IndexQuoteResp"]["properties"].keys()
+    assert "anyOf" in components["SectorItemResp"]["properties"]["fund_flow"]
 
     for path in (
         "/api/market/indices",
