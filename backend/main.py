@@ -177,4 +177,10 @@ async def data_source_health():
     """
     from src.data.collector import get_health_stats  # noqa: PLC0415
 
-    return {"status": "ok", "stats": get_health_stats().snapshot()}
+    stats = get_health_stats().snapshot()
+    summary = stats.get("__summary__", {})
+    degraded = isinstance(summary, dict) and (
+        int(summary.get("failing_endpoints", 0)) > 0
+        or int(summary.get("empty_endpoints", 0)) > 0
+    )
+    return {"status": "degraded" if degraded else "ok", "stats": stats}

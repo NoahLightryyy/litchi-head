@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
@@ -342,6 +343,17 @@ class AnalystReport(BaseModel):
     latency_ms: float = 0.0
 
 
+class EvidenceLimitation(BaseModel):
+    """Structured disclosure attached when reasoning uses incomplete evidence."""
+
+    status: Literal["limited"] = "limited"
+    capability: str
+    missing_upstream_ids: list[str] = Field(default_factory=list)
+    missing_independent_upstreams: int = 0
+    source_statuses: dict[str, str] = Field(default_factory=dict)
+    collected_at: datetime
+
+
 class DebateResult(BaseModel):
     """辩论最终结果
 
@@ -371,6 +383,7 @@ class DebateResult(BaseModel):
     trader_round: dict | None = None  # 序列化的 TraderRoundResult (T1)
     trade_recommendation: dict | None = None  # 序列化的 TradeRecommendation
     mirror_report: MirrorReport | None = None  # DP-006: 镜子反思报告
+    evidence_limitations: list[EvidenceLimitation] = Field(default_factory=list)
     total_latency_ms: float = 0.0
 
     def to_summary_dict(self) -> dict[str, Any]:
@@ -398,6 +411,10 @@ class DebateResult(BaseModel):
             },
             "总耗时(ms)": round(self.total_latency_ms, 0),
         }
+        if self.evidence_limitations:
+            result["证据限制"] = [
+                item.model_dump(mode="json") for item in self.evidence_limitations
+            ]
         if self.review_round is not None:
             result["交叉审阅"] = len(self.review_round) > 0
         if self.review_report is not None:
@@ -499,6 +516,7 @@ __all__ = [
     "BiasReport",
     "DebateInput",
     "DebateResult",
+    "EvidenceLimitation",
     "IndependentReview",
     "MirrorEntry",
     "MirrorReport",

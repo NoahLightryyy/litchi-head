@@ -1,10 +1,12 @@
 ---
 department: AI Agent 架构部
 codebase: src/agents/ + src/core/
-last_updated: 2026-07-30 (K 线口径与 Agent 语义约束批准)
+last_updated: 2026-08-26 (生产封口协调会：SAFE-1/PRICE-1 下发)
 ---
 
 # 🤖 AI Agent 架构部工作交接
+
+> 跨部门优先级与上下游交付以[后端主管总工作表](../00-cross-cutting/BACKEND-SUPERVISOR-WORKLIST.md)为准。
 
 ## 当前状态
 
@@ -56,7 +58,7 @@ last_updated: 2026-07-30 (K 线口径与 Agent 语义约束批准)
 | 1 🟡 | TD-003 MessageRouter 持久化（`save_snapshot/load_snapshot`） | 无 |
 | 2 🟡 | TD-050 XiaoZhiAgent 补 LLM 超时/异常/非法返回测试 | 无 |
 | 3 🟢 | TD-006 EvidenceItem 添加 `validate_chain()` 方法 | 无 |
-| 4 🔥 | KR-4 提示词与结构化输出约束：区分 RAW 成交事实、点时前复权技术结构、实时事实与动态估算 | KR-3B-1 成功组装已完成，等待 KR-3B-2 失败诊断。AI 不直接读取累计快照、条款事件或证据仓 |
+| 4 🔥 | KR-4 提示词与结构化输出约束：区分 RAW 成交事实、点时前复权技术结构、实时事实与动态估算 | KR-3B-2 失败契约已冻结；等待用户确认是否继续 KR-4。AI 不直接读取累计快照、条款事件或证据仓 |
 
 ### 盘中分析约束（2026-07-30 确认）
 
@@ -100,6 +102,20 @@ last_updated: 2026-07-30 (K 线口径与 Agent 语义约束批准)
 
 ---
 
+## 2026-08-26 协调会任务下发
+
+**主责指标**：SAFE-1 下游安全、PRICE-1 价格坐标。
+
+| 任务要求 | 部门验收口径 |
+|:---------|:-------------|
+| 约束四层数据语义 | `PROVISIONAL` 只能表述为盘中形成中；正式日线结论只引用 `FINAL_DAILY` |
+| 区分研究坐标与成交坐标 | 复权价只描述技术结构；当前价、入场/止损/止盈只引用 `LIVE_QUOTE/RAW` |
+| 结构化输出保留证据上下文 | 输出含 `as_of`、调整口径、因子版本、信封 ID 和证据限制/阻断原因 |
+| 不承担失败仲裁 | 缺失或冲突由编排器在 Agent 启动前阻断，Agent 不猜测、不补全、不选源 |
+
+**依赖闸门**：KR-3B-2 已冻结，KR-4 尚待用户转段确认；当前可审计提示词并准备语义
+违规测试，但不得提前改写输入契约。
+
 ## 决策 baseline / 影子验证责任（TD-074）
 
 完整口径见 [跨部门唯一协议](../../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)。
@@ -117,3 +133,13 @@ Agent 必须输出可冻结的版本身份和结构化预测；不能查看 base
 | `src/core/protocol.py` | — | 通信协议（MessageRouter, AgentMessage） |
 | `docs/06-departments/03-ai-agents/ROLE.md` | — | 👤 AI Agent 架构部角色定义 |
 | `docs/06-departments/03-ai-agents/STANDARDS.md` | — | 📐 AI Agent 架构部技术规范 |
+
+## 前端总清单分工（FW）
+
+> 总状态见[前端总工作清单](../../03-modules/10-frontend/WORKLIST.md)。
+
+| 协调项 | 本部门细分责任 | 验收证据 |
+|:-------|:---------------|:---------|
+| FW-012/021 | Agent 输出明确区分 FINAL/PROVISIONAL、事实/估算和 RAW/复权语义 | 提示词与结构化输出不产生“已收盘”“可成交”等错误断言 |
+| FW-050 | 产出镜子/行为比较所需结构化解释，保持建议与用户行为分离 | 不根据后验结果改写原建议；数据不足时明确限制 |
+| FW-060 | 暴露模型、Prompt、配置和置信限制供效果证据追踪 | 同一冻结输入可追溯，不以模型自信替代真实胜率 |

@@ -73,7 +73,7 @@
 1. ✅ 板块排行 — `ak.stock_board_industry_name_em()` 直接获取涨跌幅+主力净流入
 2. ✅ 成分股列表 — `ak.stock_board_industry_cons_em(symbol)` 获取真实个股行情
 3. ✅ heat — 成分股涨跌比计算（≥60%→high, 40-60%→medium, <40%→low）
-4. ✅ chain_map — 涨幅分层（龙头层前20%/中坚层中60%/基础层后20%）
+4. ✅ chain_map 安全封口 — 2026-08-26 删除涨幅分层伪关系；真实关系证据获批前返回空列表
 5. ✅ ai_analysis — 从成分股数量/涨跌比/平均涨跌幅自动生成格式化分析
 6. ✅ ai_rating — 涨跌幅→A(≥5%)/B+(≥2%)/B(≥0)/C(≥-3)/D
 

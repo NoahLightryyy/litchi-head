@@ -11,6 +11,7 @@
 8. FallbackSource TD-032 自动恢复主源逻辑
 """
 
+import pytest
 
 from src.data.collector import DataCollector
 
@@ -267,14 +268,14 @@ class TestAKShareErrorHandling:
         result = source.get_all_stocks()
         assert result == []
 
-    def test_get_realtime_quotes_returns_empty_on_error(self, mocker):
+    def test_get_realtime_quotes_propagates_error_to_collector(self, mocker):
         import akshare as ak
 
         from src.data.providers.akshare import AKShareSource
         mocker.patch.object(ak, "stock_zh_a_spot_em", side_effect=ConnectionError("网络错误"))
         source = AKShareSource()
-        result = source.get_realtime_quotes()
-        assert result == []
+        with pytest.raises(ConnectionError):
+            source.get_realtime_quotes()
 
     def test_get_klines_returns_empty_on_error(self, mocker):
         import akshare as ak

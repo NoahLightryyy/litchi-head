@@ -69,7 +69,9 @@ class AKShareSource:
             return [_row_to_quote(row) for _, row in df.iterrows()]
         except Exception:
             logger.exception("akshare stock_zh_a_spot_em 失败")
-            return []
+            # 由 DataCollector 决定兼容性降级或向严格 API 透传；Provider 层不能把
+            # 网络/字段异常伪装成“正常但无行情”。
+            raise
 
     # ── K 线数据 ─────────────────────────────────────────────────────
 

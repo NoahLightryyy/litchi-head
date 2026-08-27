@@ -7,7 +7,22 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
+from src.data.collector import HealthStats
 from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote
+
+
+class TestHealthStats:
+    def test_empty_business_result_is_not_counted_as_success(self):
+        stats = HealthStats()
+
+        stats.record_call("quotes", 12.0, empty=True)
+
+        snapshot = stats.snapshot()
+        assert snapshot["quotes"]["success"] == 0
+        assert snapshot["quotes"]["empty"] == 1
+        assert snapshot["__summary__"]["empty_endpoints"] == 1
 
 # ── Tests: get_all_stocks ────────────────────────────────────────────
 
@@ -56,6 +71,10 @@ class TestGetRealtimeQuotes:
         result = failing_collector.get_realtime_quotes()
         assert result == []
 
+    def test_network_error_can_be_propagated_for_truthful_api(self, failing_collector):
+        with pytest.raises(ConnectionError):
+            failing_collector.get_realtime_quotes(raise_on_error=True)
+
 
 # ── Tests: get_klines ────────────────────────────────────────────────
 
@@ -101,6 +120,19 @@ class TestGetBoards:
     def test_concept_boards_returns_empty(self, mock_empty_cache):
         result = mock_empty_cache.get_concept_boards()
         assert result == []
+
+    def test_empty_provider_result_is_visible_in_health(
+        self, mock_empty_cache, monkeypatch,
+    ):
+        stats = HealthStats()
+        monkeypatch.setattr("src.data.collector._health_stats", stats)
+
+        result = mock_empty_cache.get_concept_boards()
+
+        assert result == []
+        snapshot = stats.snapshot()
+        assert snapshot["concept_boards"]["success"] == 0
+        assert snapshot["concept_boards"]["empty"] == 1
 
     def test_industry_boards_network_error(self, failing_collector):
         result = failing_collector.get_industry_boards()

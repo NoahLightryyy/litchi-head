@@ -6,8 +6,9 @@
 
 | 功能 | 对接后端 | 说明 |
 |:-----|:---------|:-----|
-| 指数行情 | `src/data/collector.py` | 上证/深证/创业板实时行情 |
+| 指数行情 | `src/data/collector.py` | 当前股票列表来源不能证明指数行情；缺失时返回 `empty/partial`，禁止零值占位 |
 | 板块排行 | `src/data/collector.py` | 行业/概念板块排行 + 资金流向 |
+| 板块详情 | `backend/routers/market.py` | 成分股行情；无可核验关系证据时 `chain_map=[]`，禁止用涨幅制造产业链 |
 | 个股行情 | `src/data/collector.py` | 实时行情单只过滤 |
 | K 线数据 | `src/data/collector.py` | 日/周/月 K 线 |
 | 个股新闻 | `src/data/collector.py` | 新闻列表 |
@@ -46,4 +47,11 @@ uvicorn main:app --reload --port 8000
 - **CORS**：允许 `localhost:3000` 跨域访问
 - **缓存头**：返回 `meta.cached` 和 `latency_ms` 供前端展示
 - **错误转换**：将 Python 异常统一转换为 `{ error: { code, message } }` 格式
+- **首页市场状态**：`success/partial/empty/stale` 使用 HTTP 200；无可用缓存的来源失败或
+  字段损坏使用 HTTP 503 + `failed`。所有状态都由 Pydantic/OpenAPI 固定，不以空字段或
+  零值伪装成功
+- **健康统计**：Provider 返回空业务结果记为 `empty`，不计入成功；健康端点因此返回
+  `degraded`，避免“调用没抛异常”等同于“数据可用”
 - **惰性导入**：避免 Windows 环境 torch 访问冲突（沿用 `src/debate/__init__.py` 模式）
+- **产业链完整性**：行情排名只能表达市场表现，不能证明上下游关系；真实关系数据源和
+  契约获批前，板块详情保留 `chain_map` 字段但返回空列表

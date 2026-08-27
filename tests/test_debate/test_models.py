@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 
 from src.debate.models import (
     AgentAnalysis,
     DebateInput,
     DebateResult,
+    EvidenceLimitation,
     VoteSummary,
 )
 
@@ -253,3 +255,25 @@ class TestDebateResult:
         loaded = DebateResult(**json.loads(json_str))
         assert loaded.stock_code == "000001"
         assert loaded.analyses[0].skill_id == "buffett"
+
+    def test_incomplete_evidence_is_visible_in_result_and_summary(self) -> None:
+        limitation = EvidenceLimitation(
+            capability="news",
+            missing_upstream_ids=["sina"],
+            missing_independent_upstreams=1,
+            source_statuses={"sina_news": "failed"},
+            collected_at=datetime(2026, 8, 26, tzinfo=UTC),
+        )
+        result = DebateResult(
+            session_id="limited",
+            stock_code="000001",
+            stock_name="平安银行",
+            question="是否值得投资",
+            evidence_limitations=[limitation],
+        )
+
+        assert result.evidence_limitations[0].status == "limited"
+        assert result.model_dump(mode="json")["evidence_limitations"][0][
+            "missing_upstream_ids"
+        ] == ["sina"]
+        assert result.to_summary_dict()["证据限制"][0]["capability"] == "news"

@@ -10,10 +10,12 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime
+from typing import Literal
 
 import akshare as ak
 import pandas as pd
 from fastapi import APIRouter, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from backend.async_utils import run_sync
@@ -27,12 +29,42 @@ collector = DataCollector()
 
 # ── 响应模型（匹配 frontend/lib/types/market.ts） ──────────────
 
+MarketDataStatus = Literal["success", "partial", "empty", "stale", "failed"]
+
+
+class MarketLimitation(BaseModel):
+    """可用响应仍存在的事实限制。"""
+
+    code: str
+    message: str
+
+
+class MarketMeta(BaseModel):
+    """首页市场接口统一状态元数据。"""
+
+    status: MarketDataStatus
+    cached: bool = False
+    latency_ms: int = 0
+    missing_codes: list[str] = Field(default_factory=list)
+    failed_sources: list[str] = Field(default_factory=list)
+    limitations: list[MarketLimitation] = Field(default_factory=list)
+
+
+class MarketErrorBody(BaseModel):
+    code: str
+    message: str
+
+
+class MarketErrorResponse(BaseModel):
+    error: MarketErrorBody
+    meta: MarketMeta
+
 
 class IndexQuoteResp(BaseModel):
     """三大指数行情（匹配 MarketIndex 类型）"""
     code: str
     name: str
-    price: float = 0.0
+    price: float = Field(gt=0.0)
     change: float = 0.0
     change_pct: float = 0.0
 
@@ -86,16 +118,70 @@ class SectorDetailResp(BaseModel):
 
 class MacroBriefResp(BaseModel):
     """AI 宏观简报（匹配 MacroBrief 类型）"""
-    summary: str = "暂无数据"
+    summary: str = Field(min_length=1)
     generated_at: str = ""
     market_style: str = ""
     risk_tips: list[str] = Field(default_factory=list)
     hot_topics: list[str] = Field(default_factory=list)
 
 
+class IndicesEnvelope(BaseModel):
+    data: list[IndexQuoteResp]
+    meta: MarketMeta
+
+
+class SectorsEnvelope(BaseModel):
+    data: list[SectorItemResp]
+    meta: MarketMeta
+
+
+class MacroBriefEnvelope(BaseModel):
+    data: MacroBriefResp | None
+    meta: MarketMeta
+
+
 # ── 板块增强辅助函数 ──────────────────────────────────────────
 
 _PD_FLOAT = float | None  # noqa: F841 — 类型别名
+
+
+def _market_meta(
+    status: MarketDataStatus,
+    started_at: float,
+    *,
+    cached: bool = False,
+    missing_codes: list[str] | None = None,
+    failed_sources: list[str] | None = None,
+    limitations: list[MarketLimitation] | None = None,
+) -> dict[str, object]:
+    return MarketMeta(
+        status=status,
+        cached=cached,
+        latency_ms=round((time.time() - started_at) * 1000),
+        missing_codes=missing_codes or [],
+        failed_sources=failed_sources or [],
+        limitations=limitations or [],
+    ).model_dump()
+
+
+def _market_failed(
+    code: str,
+    message: str,
+    started_at: float,
+    *,
+    failed_sources: list[str] | None = None,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content=MarketErrorResponse(
+            error=MarketErrorBody(code=code, message=message),
+            meta=MarketMeta(
+                status="failed",
+                latency_ms=round((time.time() - started_at) * 1000),
+                failed_sources=failed_sources or [],
+            ),
+        ).model_dump(),
+    )
 
 
 def _fetch_board_perf_df(board_type: str) -> pd.DataFrame:
@@ -108,15 +194,11 @@ def _fetch_board_perf_df(board_type: str) -> pd.DataFrame:
         board_type: "industry" 或 "concept"
 
     Returns:
-        DataFrame（失败时返回空 DataFrame）
+        上游原始 DataFrame；异常由路由转换为稳定失败契约
     """
-    try:
-        if board_type == "industry":
-            return ak.stock_board_industry_name_em()
-        return ak.stock_board_concept_name_em()
-    except Exception:
-        logger.exception("获取板块行情失败: board_type=%s", board_type)
-        return pd.DataFrame()
+    if board_type == "industry":
+        return ak.stock_board_industry_name_em()
+    return ak.stock_board_concept_name_em()
 
 
 def _fetch_board_stocks_df(sector_id: str, board_type: str) -> pd.DataFrame:
@@ -188,57 +270,21 @@ def _build_chain_map(
     stocks_df: pd.DataFrame,
     board_type: str,
 ) -> list[ChainStageResp]:
-    """从成分股数据构建简易产业链映射
+    """仅从可核验关系证据构建产业链映射。
 
-    按价格 + 涨幅分层：龙头层（排名前 20%）、中坚层（中间 60%）、基础层（后 20%）。
+    当前板块成分股数据只包含代码、名称、价格和涨跌幅等行情字段，不能证明供应链或
+    产业链的上下游关系。在真实关系数据源和对应契约获批前，安全返回空列表；不得用
+    涨幅、价格、市值或排名推断产业链位置。
 
     Args:
-        stocks_df: 板块成分股 DataFrame
+        stocks_df: 板块成分股 DataFrame（当前不含关系证据）
         board_type: "industry" / "concept"
 
     Returns:
-        产业链阶段列表
+        空列表，表示当前没有可核验的产业链关系数据
     """
-    if stocks_df.empty or len(stocks_df) < 6:
-        return []
-
-    # 按涨幅排序
-    sorted_df = stocks_df.sort_values("涨跌幅", ascending=False)
-    n = len(sorted_df)
-    top_n = max(n // 5, 2)
-    base_n = max(n // 5, 2)
-    mid_n = n - top_n - base_n
-
-    top_names = [safe_str(r["名称"]) for _, r in sorted_df.head(top_n).iterrows()]
-    base_names = [safe_str(r["名称"]) for _, r in sorted_df.tail(base_n).iterrows()]
-    mid_names = [
-        safe_str(r["名称"]) for _, r in sorted_df.iloc[top_n:top_n + mid_n].iterrows()
-    ]
-
-    stages: list[ChainStageResp] = [
-        ChainStageResp(
-            stage="领涨龙头",
-            description=f"涨幅前 {top_n} 只成分股",
-            nodes=[
-                ChainNodeResp(name="龙头股", companies=top_names[:5], is_bottleneck=False),
-            ],
-        ),
-        ChainStageResp(
-            stage="中坚力量",
-            description="涨幅居中的成分股",
-            nodes=[
-                ChainNodeResp(name="中坚股", companies=mid_names[:8], is_bottleneck=False),
-            ],
-        ),
-        ChainStageResp(
-            stage="基础层",
-            description=f"涨幅后 {base_n} 只成分股",
-            nodes=[
-                ChainNodeResp(name="基础股", companies=base_names[:5], is_bottleneck=True),
-            ],
-        ),
-    ]
-    return stages
+    _ = stocks_df, board_type
+    return []
 
 
 def _build_ai_analysis(
@@ -302,41 +348,79 @@ _INDEX_CODES: list[tuple[str, str]] = [
 ]
 
 
-def _pick_index(quotes: list[BackendQuote], code: str, name: str) -> IndexQuoteResp:
+def _pick_index(
+    quotes: list[BackendQuote], code: str, name: str,
+) -> IndexQuoteResp | None:
     for q in quotes:
-        if q.code == code:
+        if q.code == code and q.price > 0:
             return IndexQuoteResp(
                 code=q.code, name=name, price=q.price,
                 change=q.change, change_pct=q.change_pct,
             )
-    return IndexQuoteResp(code=code, name=name)
+    return None
 
 
 # ── 路由 ──────────────────────────────────────────────────────
 
 
-@router.get("/indices")
+@router.get(
+    "/indices",
+    response_model=IndicesEnvelope,
+    responses={503: {"model": MarketErrorResponse}},
+)
 async def get_indices():
     """三大指数实时行情"""
     t0 = time.time()
-    quotes = await run_sync(collector.get_realtime_quotes)
-    indices = [_pick_index(quotes, code, name) for code, name in _INDEX_CODES]
+    try:
+        quotes = await run_sync(collector.get_realtime_quotes, raise_on_error=True)
+    except Exception:
+        logger.exception("获取首页指数行情失败")
+        return _market_failed(
+            "MARKET_INDICES_FAILED", "指数行情暂时不可用", t0,
+            failed_sources=["realtime_quotes"],
+        )
+    indices: list[IndexQuoteResp] = []
+    missing_codes: list[str] = []
+    for code, name in _INDEX_CODES:
+        item = _pick_index(quotes, code, name)
+        if item is None:
+            missing_codes.append(code)
+        else:
+            indices.append(item)
     cached = collector.cache_hit.get("all_quotes", False)
-    latency = round((time.time() - t0) * 1000)
+    status: MarketDataStatus
+    if not indices:
+        status = "empty"
+    elif missing_codes:
+        status = "partial"
+    else:
+        status = "success"
     return {
         "data": [i.model_dump() for i in indices],
-        "meta": {"cached": cached, "latency_ms": latency},
+        "meta": _market_meta(
+            status, t0, cached=cached, missing_codes=missing_codes,
+        ),
     }
 
 
-@router.get("/sectors")
+@router.get(
+    "/sectors",
+    response_model=SectorsEnvelope,
+    responses={503: {"model": MarketErrorResponse}},
+)
 async def get_sectors(sort: str = Query("fund_flow", description="排序维度")):
     """板块排行（行业 + 概念），含真实涨跌幅和资金流向"""
     t0 = time.time()
     items: list[SectorItemResp] = []
+    failed_sources: list[str] = []
 
     # 行业板块 — 直接调 akshare 获取完整 DataFrame
-    df_ind = await run_sync(_fetch_board_perf_df, "industry")
+    try:
+        df_ind = await run_sync(_fetch_board_perf_df, "industry")
+    except Exception:
+        logger.exception("获取行业板块行情失败")
+        failed_sources.append("industry")
+        df_ind = pd.DataFrame()
     if not df_ind.empty:
         for i, (_, row) in enumerate(df_ind.iterrows()):
             code = safe_str(row.get("板块代码", ""))
@@ -348,7 +432,12 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
             ))
 
     # 概念板块
-    df_con = await run_sync(_fetch_board_perf_df, "concept")
+    try:
+        df_con = await run_sync(_fetch_board_perf_df, "concept")
+    except Exception:
+        logger.exception("获取概念板块行情失败")
+        failed_sources.append("concept")
+        df_con = pd.DataFrame()
     if not df_con.empty:
         offset = len(items)
         for i, (_, row) in enumerate(df_con.iterrows()):
@@ -360,9 +449,17 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
                 fund_flow=safe_float(row.get("主力净流入-净额", 0.0)),
             ))
 
+    if not items and failed_sources:
+        return _market_failed(
+            "MARKET_SECTORS_FAILED", "板块行情暂时不可用", t0,
+            failed_sources=failed_sources,
+        )
+    status: MarketDataStatus = "empty" if not items else (
+        "partial" if failed_sources else "success"
+    )
     return {
         "data": [i.model_dump() for i in items],
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": _market_meta(status, t0, failed_sources=failed_sources),
     }
 
 
@@ -440,43 +537,107 @@ def _calc_rating(change_pct: float) -> str:
     return "D"
 
 
-@router.get("/brief")
+@router.get(
+    "/brief",
+    response_model=MacroBriefEnvelope,
+    responses={503: {"model": MarketErrorResponse}},
+)
 async def get_macro_brief():
     """AI 宏观简报"""
     t0 = time.time()
-    quotes = await run_sync(collector.get_realtime_quotes)
-    indices = [_pick_index(quotes, code, name) for code, name in _INDEX_CODES]
+    try:
+        quotes = await run_sync(collector.get_realtime_quotes, raise_on_error=True)
+    except Exception:
+        logger.exception("获取宏观简报指数输入失败")
+        return _market_failed(
+            "MARKET_BRIEF_FAILED", "宏观简报输入暂时不可用", t0,
+            failed_sources=["realtime_quotes"],
+        )
+    indices: list[IndexQuoteResp] = []
+    missing_codes: list[str] = []
+    for code, name in _INDEX_CODES:
+        item = _pick_index(quotes, code, name)
+        if item is None:
+            missing_codes.append(code)
+        else:
+            indices.append(item)
+    if not indices:
+        return {
+            "data": None,
+            "meta": _market_meta(
+                "empty", t0,
+                cached=collector.cache_hit.get("all_quotes", False),
+                missing_codes=missing_codes,
+            ),
+        }
     lines: list[str] = []
     for i in indices:
-        if i.price > 0:
-            lines.append(f"  {i.name}: {i.price:.2f}（{i.change_pct:+.2f}%）")
+        lines.append(f"  {i.name}: {i.price:.2f}（{i.change_pct:+.2f}%）")
 
-    summary = "暂无数据" if not lines else " | ".join(lines)
+    summary = " | ".join(lines)
     brief = MacroBriefResp(
         summary=summary,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
     )
     cached = collector.cache_hit.get("all_quotes", False)
-    latency = round((time.time() - t0) * 1000)
     return {
         "data": brief.model_dump(),
-        "meta": {"cached": cached, "latency_ms": latency},
+        "meta": _market_meta(
+            "partial" if missing_codes else "success",
+            t0,
+            cached=cached,
+            missing_codes=missing_codes,
+        ),
     }
 
 
 class HotNewsItemResp(BaseModel):
     """热点快讯条目"""
-    title: str
-    date: str
-    source: str = ""
+    title: str = Field(min_length=1)
+    date: str | None = None
+    source: str = Field(min_length=1)
     url: str = ""
+
+
+class HotNewsEnvelope(BaseModel):
+    data: list[HotNewsItemResp]
+    meta: MarketMeta
 
 
 _HOT_NEWS_CACHE: dict[str, object] = {}
 _HOT_NEWS_TTL = 120  # 2 分钟
+_MARKET_DATA_STATUSES: tuple[MarketDataStatus, ...] = (
+    "success",
+    "partial",
+    "empty",
+    "stale",
+    "failed",
+)
 
 
-@router.get("/hot-news")
+def _first_text(row: pd.Series, fields: tuple[str, ...]) -> str:
+    for field in fields:
+        value = safe_str(row.get(field, ""))
+        if value:
+            return value
+    return ""
+
+
+def _cached_hot_news_status(value: object) -> MarketDataStatus:
+    return value if value in _MARKET_DATA_STATUSES else "success"
+
+
+def _cached_hot_news_limitations(value: object) -> list[MarketLimitation]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, MarketLimitation)]
+
+
+@router.get(
+    "/hot-news",
+    response_model=HotNewsEnvelope,
+    responses={503: {"model": MarketErrorResponse}},
+)
 async def get_hot_news():
     """热点快讯 —— 全市场新闻聚合"""
     t0 = time.time()
@@ -486,48 +647,95 @@ async def get_hot_news():
     cached = _HOT_NEWS_CACHE.get("data")
     cached_at = _HOT_NEWS_CACHE.get("ts", 0.0)
     if (
-        cached is not None
+        isinstance(cached, list)
         and isinstance(cached_at, (int, float))
         and (now - cached_at) < _HOT_NEWS_TTL
     ):
         return {
             "data": cached,
-            "meta": {"cached": True, "latency_ms": round((time.time() - t0) * 1000)},
+            "meta": _market_meta(
+                _cached_hot_news_status(_HOT_NEWS_CACHE.get("status")),
+                t0,
+                cached=True,
+                limitations=_cached_hot_news_limitations(
+                    _HOT_NEWS_CACHE.get("limitations"),
+                ),
+            ),
         }
 
     try:
         df: pd.DataFrame = await run_sync(ak.stock_news_main_cx)
-        items: list[dict[str, str]] = []
+        if df.empty:
+            return {"data": [], "meta": _market_meta("empty", t0)}
+        title_fields = ("title", "summary", "标题", "新闻标题")
+        if not any(field in df.columns for field in title_fields):
+            logger.error("热点新闻字段损坏: columns=%s", list(df.columns))
+            return _market_failed(
+                "HOT_NEWS_SCHEMA_INVALID", "热点新闻字段暂时不兼容", t0,
+                failed_sources=["caixin"],
+            )
+        items: list[dict[str, object]] = []
+        missing_published_at = False
+        skipped_items = 0
         for _, row in df.head(30).iterrows():
+            title = _first_text(row, title_fields)
+            url = _first_text(row, ("url", "链接", "新闻链接"))
+            if not title:
+                skipped_items += 1
+                continue
+            published_at = _first_text(
+                row, ("date", "time", "datetime", "发布时间", "发布日期"),
+            ) or None
+            if published_at is None:
+                missing_published_at = True
             items.append(HotNewsItemResp(
-                title=safe_str(row.get("title", "")),
-                date=safe_str(row.get("date", "")),
-                source=safe_str(row.get("source", "")),
-                url=safe_str(row.get("url", "")),
+                title=title,
+                date=published_at,
+                source=_first_text(row, ("source", "来源")) or "财新数据通",
+                url=url,
             ).model_dump())
+        if not items:
+            return _market_failed(
+                "HOT_NEWS_SCHEMA_INVALID", "热点新闻没有可用标题", t0,
+                failed_sources=["caixin"],
+            )
+        limitations: list[MarketLimitation] = []
+        if missing_published_at:
+            limitations.append(MarketLimitation(
+                code="PUBLISHED_AT_MISSING",
+                message="当前来源未提供发布时间，未使用抓取时间冒充发布时间",
+            ))
+        if skipped_items:
+            limitations.append(MarketLimitation(
+                code="INVALID_ITEMS_SKIPPED",
+                message=f"{skipped_items} 条记录缺少标题，已跳过",
+            ))
+        status: MarketDataStatus = "partial" if limitations else "success"
         _HOT_NEWS_CACHE["data"] = items
         _HOT_NEWS_CACHE["ts"] = now
+        _HOT_NEWS_CACHE["status"] = status
+        _HOT_NEWS_CACHE["limitations"] = limitations
         return {
             "data": items,
-            "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+            "meta": _market_meta(status, t0, limitations=limitations),
         }
     except Exception as e:
         logger.exception("热点快讯获取失败: %s", e)
         # 有缓存则返回过期缓存
-        if cached is not None:
+        if isinstance(cached, list) and cached:
             return {
                 "data": cached,
-                "meta": {
-                    "cached": True,
-                    "latency_ms": round((time.time() - t0) * 1000),
-                    "stale": True,
-                },
+                "meta": _market_meta(
+                    "stale",
+                    t0,
+                    cached=True,
+                    limitations=[MarketLimitation(
+                        code="UPSTREAM_FAILED",
+                        message="当前来源失败，返回过期缓存",
+                    )],
+                ),
             }
-        return {
-            "data": [],
-            "meta": {
-                "cached": False,
-                "latency_ms": round((time.time() - t0) * 1000),
-                "error": str(e),
-            },
-        }
+        return _market_failed(
+            "HOT_NEWS_FAILED", "热点新闻暂时不可用", t0,
+            failed_sources=["caixin"],
+        )

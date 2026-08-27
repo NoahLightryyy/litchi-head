@@ -10,6 +10,7 @@
 | 你在干嘛 | 读这个 | 行数 |
 |:---------|:-------|:----:|
 | 🚀 **开新会话**、判断部门、加载角色 | [workflow/STARTUP.md](workflow/STARTUP.md) | ~200 |
+| 🌳 **多窗口/跨端问题**、worktree、主管归属、联合关闭 | [workflow/CONCURRENT-DEVELOPMENT.md](workflow/CONCURRENT-DEVELOPMENT.md) | ~150 |
 | 🔁 **自动推进一轮 Batch Loop** | [LOOP.md](LOOP.md) | ~120 |
 | 🔨 **日常开发**、代码规范、Agent 编排 | [workflow/DEVELOPMENT.md](workflow/DEVELOPMENT.md) | ~360 |
 | ✅ **会话收尾**、**强制闸门**、写日志、管债务、更新文档 | [workflow/CLOSING.md](workflow/CLOSING.md) | ~250 |
@@ -30,8 +31,8 @@
         ├─ 🔨 正常开发 → workflow/DEVELOPMENT.md
         │     （功能步骤 → 文档同步 → 代码质量 → 交付闸门）
         │
-        ├─ ⚠️ 遇到问题 → workflow/EMERGENCIES.md
-        │     （审视清单 → 阻塞 → 上下文耗尽）
+        ├─ ⚠️ 遇到问题 → 单端问题看 workflow/EMERGENCIES.md
+        │     跨端问题看 workflow/CONCURRENT-DEVELOPMENT.md
         │
         └─ ✅ 功能完成/会话结束 → workflow/CLOSING.md
               （§1 强制闸门 → §2 完整收尾 → 日志/债务/看板/提交）
@@ -60,12 +61,13 @@
 | [HANDOVER.md](HANDOVER.md) | 全局交接仪表盘（项目身份卡 + 各部门状态 + 跨部门优先级） |
 | [HANDOVER_TIP.md](HANDOVER_TIP.md) | ⚡ 快速交接卡（扫一眼就够） |
 | [LOOP.md](LOOP.md) | Codex Batch Loop 自动化协议 |
+| [workflow/CONCURRENT-DEVELOPMENT.md](workflow/CONCURRENT-DEVELOPMENT.md) | 多窗口隔离、跨端问题主管制与联合验收 |
 | [debt/ROUTER.md](debt/ROUTER.md) | 技术债务路由索引 |
 | [ENVIRONMENT.md](ENVIRONMENT.md) | 双 Key 体系 + 模型快慢分离配置 |
 | 🔄 [CI 治理体系](ci/README.md) | CI 标准、处理工作流、本地检查、根因知识库 |
 
 ---
 
-> **文档版本**：v2.0 — 按阶段拆分为 4 份聚焦文档
+> **文档版本**：v2.1 — 增加多窗口隔离与跨端问题联合闭环
 > **创建日期**：2026-06-05
-> **最近更新**：2026-06-21 — 拆分为 STARTUP / DEVELOPMENT / CLOSING / EMERGENCIES 四模块
+> **最近更新**：2026-08-26 — 增加 CONCURRENT-DEVELOPMENT 入口

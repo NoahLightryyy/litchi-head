@@ -65,18 +65,28 @@ class HealthStats:
     def __init__(self) -> None:
         self._total: defaultdict[str, int] = defaultdict(int)
         self._success: defaultdict[str, int] = defaultdict(int)
+        self._empty: defaultdict[str, int] = defaultdict(int)
         self._failures: defaultdict[str, int] = defaultdict(int)
         self._last_error: dict[str, str] = {}
         self._last_success_ts: dict[str, float] = {}
         self._latencies: dict[str, list[float]] = defaultdict(list)
         self._window_size = 100  # 最多保留近 100 次延迟
 
-    def record_call(self, endpoint: str, duration_ms: float, error: str | None = None) -> None:
+    def record_call(
+        self,
+        endpoint: str,
+        duration_ms: float,
+        error: str | None = None,
+        *,
+        empty: bool = False,
+    ) -> None:
         """记录一次调用结果"""
         self._total[endpoint] += 1
         if error:
             self._failures[endpoint] += 1
             self._last_error[endpoint] = error
+        elif empty:
+            self._empty[endpoint] += 1
         else:
             self._success[endpoint] += 1
             self._last_success_ts[endpoint] = time.time()
@@ -99,6 +109,7 @@ class HealthStats:
             result[ep] = {
                 "total_calls": total,
                 "success": self._success.get(ep, 0),
+                "empty": self._empty.get(ep, 0),
                 "failures": fails,
                 "failure_rate": round(fails / total, 4) if total > 0 else 0.0,
                 "avg_latency_ms": round(sum(lat) / len(lat), 1) if lat else None,
@@ -110,12 +121,21 @@ class HealthStats:
         # 全局汇总
         total_calls = sum(self._total.values())
         total_fails = sum(self._failures.values())
+        total_empty = sum(self._empty.values())
         result["__summary__"] = {
             "total_calls": total_calls,
             "total_failures": total_fails,
+            "total_empty": total_empty,
             "overall_failure_rate": round(total_fails / total_calls, 4) if total_calls > 0 else 0.0,
-            "healthy_endpoints": sum(1 for ep in endpoints if self._failures.get(ep, 0) == 0),
+            "healthy_endpoints": sum(
+                1 for ep in endpoints
+                if self._success.get(ep, 0) > 0 and self._failures.get(ep, 0) == 0
+            ),
             "failing_endpoints": sum(1 for ep in endpoints if self._failures.get(ep, 0) > 0),
+            "empty_endpoints": sum(
+                1 for ep in endpoints
+                if self._empty.get(ep, 0) > 0 and self._success.get(ep, 0) == 0
+            ),
         }
         return result
 
@@ -183,7 +203,9 @@ class DataCollector:
         try:
             result = self._source.get_all_stocks()
             self.cache.set("all_stocks", result, ttl=TTL_STOCKS)
-            _health_stats.record_call("all_stocks", (time.time() - t0) * 1000)
+            _health_stats.record_call(
+                "all_stocks", (time.time() - t0) * 1000, empty=not result,
+            )
             return result
         except Exception as e:
             _health_stats.record_call("all_stocks", (time.time() - t0) * 1000, error=str(e))
@@ -192,7 +214,7 @@ class DataCollector:
 
     # ── 实时行情 ─────────────────────────────────────────────────────
 
-    def get_realtime_quotes(self) -> list[StockQuote]:
+    def get_realtime_quotes(self, *, raise_on_error: bool = False) -> list[StockQuote]:
         """获取全市场实时行情
 
         Cache TTL: 30 秒
@@ -208,11 +230,15 @@ class DataCollector:
         try:
             result = self._source.get_realtime_quotes()
             self.cache.set("all_quotes", result, ttl=TTL_QUOTES)
-            _health_stats.record_call("quotes", (time.time() - t0) * 1000)
+            _health_stats.record_call(
+                "quotes", (time.time() - t0) * 1000, empty=not result,
+            )
             return result
         except Exception as e:
             _health_stats.record_call("quotes", (time.time() - t0) * 1000, error=str(e))
             logger.exception("获取实时行情失败")
+            if raise_on_error:
+                raise
             return []
 
     def get_realtime_quote(self, code: str) -> StockQuote | None:
@@ -269,7 +295,9 @@ class DataCollector:
             )
             ttl = TTL_KLINES_DAILY if period == "daily" else 60
             self.cache.set(cache_key, result, ttl=ttl)
-            _health_stats.record_call(f"kline:{period}", (time.time() - t0) * 1000)
+            _health_stats.record_call(
+                f"kline:{period}", (time.time() - t0) * 1000, empty=not result,
+            )
             return result
         except Exception as e:
             _health_stats.record_call(f"kline:{period}", (time.time() - t0) * 1000, error=str(e))
@@ -298,7 +326,9 @@ class DataCollector:
         try:
             result = self._source.get_news(code)
             self.cache.set(cache_key, result, ttl=TTL_NEWS)
-            _health_stats.record_call("news", (time.time() - t0) * 1000)
+            _health_stats.record_call(
+                "news", (time.time() - t0) * 1000, empty=not result,
+            )
             return result
         except Exception as e:
             _health_stats.record_call("news", (time.time() - t0) * 1000, error=str(e))
@@ -323,7 +353,9 @@ class DataCollector:
         try:
             result = self._source.get_industry_boards()
             self.cache.set("industry_boards", result, ttl=TTL_BOARDS)
-            _health_stats.record_call("industry_boards", (time.time() - t0) * 1000)
+            _health_stats.record_call(
+                "industry_boards", (time.time() - t0) * 1000, empty=not result,
+            )
             return result
         except Exception as e:
             _health_stats.record_call("industry_boards", (time.time() - t0) * 1000, error=str(e))
@@ -346,7 +378,9 @@ class DataCollector:
         try:
             result = self._source.get_concept_boards()
             self.cache.set("concept_boards", result, ttl=TTL_BOARDS)
-            _health_stats.record_call("concept_boards", (time.time() - t0) * 1000)
+            _health_stats.record_call(
+                "concept_boards", (time.time() - t0) * 1000, empty=not result,
+            )
             return result
         except Exception as e:
             _health_stats.record_call("concept_boards", (time.time() - t0) * 1000, error=str(e))
@@ -375,7 +409,9 @@ class DataCollector:
         try:
             result = self._source.get_capital_flow(code)
             self.cache.set(cache_key, result, ttl=TTL_CAPITAL_FLOW)
-            _health_stats.record_call("capital_flow", (time.time() - t0) * 1000)
+            _health_stats.record_call(
+                "capital_flow", (time.time() - t0) * 1000, empty=not result,
+            )
             return result
         except Exception as e:
             _health_stats.record_call("capital_flow", (time.time() - t0) * 1000, error=str(e))
@@ -404,7 +440,9 @@ class DataCollector:
         try:
             result = self._source.get_financials(code)
             self.cache.set(cache_key, result, ttl=TTL_FINANCIALS)
-            _health_stats.record_call("financials", (time.time() - t0) * 1000)
+            _health_stats.record_call(
+                "financials", (time.time() - t0) * 1000, empty=not result,
+            )
             return result
         except Exception as e:
             _health_stats.record_call("financials", (time.time() - t0) * 1000, error=str(e))
@@ -436,12 +474,16 @@ class DataCollector:
         try:
             financials = self.get_financials(code)
             if not financials:
-                _health_stats.record_call("valuation", (time.time() - t0) * 1000)
+                _health_stats.record_call(
+                    "valuation", (time.time() - t0) * 1000, empty=True,
+                )
                 return None
 
             quote = self.get_realtime_quote(code)
             if quote is None or quote.price <= 0:
-                _health_stats.record_call("valuation", (time.time() - t0) * 1000)
+                _health_stats.record_call(
+                    "valuation", (time.time() - t0) * 1000, empty=True,
+                )
                 return None
 
             latest = financials[0]  # 最新一期
@@ -498,7 +540,9 @@ class DataCollector:
             result = self._source.get_stock_industry(code)
             if result:
                 self.cache.set(cache_key, result, ttl=TTL_INDUSTRY)
-            _health_stats.record_call("stock_industry", (time.time() - t0) * 1000)
+            _health_stats.record_call(
+                "stock_industry", (time.time() - t0) * 1000, empty=not result,
+            )
             return result
         except Exception as e:
             _health_stats.record_call("stock_industry", (time.time() - t0) * 1000, error=str(e))

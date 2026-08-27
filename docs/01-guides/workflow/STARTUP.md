@@ -263,4 +263,5 @@ docs/06-departments/{id}/
 ---
 
 > 启动完成 → 进入 [DEVELOPMENT.md](DEVELOPMENT.md) 开始日常开发
+> 多窗口或跨端问题 → 进入 [CONCURRENT-DEVELOPMENT.md](CONCURRENT-DEVELOPMENT.md) 建立隔离与唯一主管
 > 会话结束 → 转 [CLOSING.md](CLOSING.md) 执行收尾

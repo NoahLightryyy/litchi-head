@@ -17,8 +17,6 @@ import pandas as pd
 import pytest
 
 from backend.routers.market import (
-    ChainNodeResp,
-    ChainStageResp,
     _build_ai_analysis,
     _build_chain_map,
     _build_top_stocks,
@@ -98,16 +96,12 @@ class TestBuildTopStocks:
 
 
 class TestBuildChainMap:
-    """产业链映射"""
+    """产业链映射必须只来自可核验关系证据。"""
 
-    def test_normal_industry(self):
-        """行业板块 → 3 层结构"""
+    def test_market_ranking_fields_cannot_create_chain_relationships(self):
+        """涨跌幅、价格等行情字段不能被解释成上下游关系。"""
         df = make_board_stocks_df()
-        result = _build_chain_map(df, board_type="industry")
-        assert len(result) == 3
-        assert result[0].stage == "领涨龙头"
-        assert result[1].stage == "中坚力量"
-        assert result[2].stage == "基础层"
+        assert _build_chain_map(df, board_type="industry") == []
 
     def test_empty_df_returns_empty(self):
         assert _build_chain_map(pd.DataFrame(), "industry") == []
@@ -119,16 +113,10 @@ class TestBuildChainMap:
         )
         assert _build_chain_map(df, "industry") == []
 
-    def test_chain_node_types(self):
-        """每层节点格式正确"""
+    def test_concept_market_fields_also_cannot_create_chain_relationships(self):
+        """概念板块同样不能依据行情排名制造产业链节点。"""
         df = make_board_stocks_df()
-        result = _build_chain_map(df, "concept")
-        for stage in result:
-            assert isinstance(stage, ChainStageResp)
-            assert stage.stage
-            for node in stage.nodes:
-                assert isinstance(node, ChainNodeResp)
-                assert node.companies
+        assert _build_chain_map(df, "concept") == []
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -210,6 +198,7 @@ class TestGetIndices:
         assert len(data) == 3
         codes = {item["code"] for item in data}
         assert codes == {"000001", "399001", "399006"}
+        assert resp.json()["meta"]["status"] == "success"
 
     def test_meta_fields(self, client, mock_collector):
         with patch("backend.routers.market.collector", mock_collector):
@@ -219,17 +208,44 @@ class TestGetIndices:
         assert "latency_ms" in meta
         assert meta["latency_ms"] >= 0
 
-    def test_missing_index_fills_default(self, client, mock_collector):
-        """缺失的指数用空值填充"""
+    def test_missing_all_indices_returns_explicit_empty_without_zero_quotes(
+        self, client, mock_collector,
+    ):
+        """现有来源没有指数时返回 empty，不制造三条零值行情。"""
         mock_collector._quotes = []  # 空行情列表
         with patch("backend.routers.market.collector", mock_collector):
             resp = client.get("/api/market/indices")
 
         assert resp.status_code == 200
-        data = resp.json()["data"]
-        assert len(data) == 3
-        # 所有指数 price=0.0
-        assert all(item["price"] == 0.0 for item in data)
+        assert resp.json()["data"] == []
+        assert resp.json()["meta"]["status"] == "empty"
+
+    def test_missing_some_indices_returns_partial_without_placeholders(
+        self, client, mock_collector,
+    ):
+        mock_collector._quotes = mock_collector._quotes[:1]
+        with patch("backend.routers.market.collector", mock_collector):
+            resp = client.get("/api/market/indices")
+
+        assert resp.status_code == 200
+        assert [item["code"] for item in resp.json()["data"]] == ["000001"]
+        assert resp.json()["meta"]["status"] == "partial"
+        assert resp.json()["meta"]["missing_codes"] == ["399001", "399006"]
+
+    def test_indices_exception_returns_stable_failed_contract(self, client, mock_collector):
+        with (
+            patch("backend.routers.market.collector", mock_collector),
+            patch.object(
+                mock_collector,
+                "get_realtime_quotes",
+                side_effect=TimeoutError("quotes timeout"),
+            ),
+        ):
+            resp = client.get("/api/market/indices")
+
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == "MARKET_INDICES_FAILED"
+        assert resp.json()["meta"]["status"] == "failed"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -260,6 +276,7 @@ class TestGetSectors:
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert len(data) == 3  # 2 industry + 1 concept
+        assert resp.json()["meta"]["status"] == "success"
 
     def test_empty_boards(self, client):
         """无板块数据时返回空列表"""
@@ -271,6 +288,31 @@ class TestGetSectors:
 
         assert resp.status_code == 200
         assert resp.json()["data"] == []
+        assert resp.json()["meta"]["status"] == "empty"
+
+    def test_one_board_source_timeout_returns_partial(self, client):
+        con_df = make_board_perf_df()
+        with (
+            patch("akshare.stock_board_industry_name_em", side_effect=TimeoutError("timeout")),
+            patch("akshare.stock_board_concept_name_em", return_value=con_df),
+        ):
+            resp = client.get("/api/market/sectors")
+
+        assert resp.status_code == 200
+        assert resp.json()["data"]
+        assert resp.json()["meta"]["status"] == "partial"
+        assert resp.json()["meta"]["failed_sources"] == ["industry"]
+
+    def test_all_board_sources_timeout_returns_failed(self, client):
+        with (
+            patch("akshare.stock_board_industry_name_em", side_effect=TimeoutError("timeout")),
+            patch("akshare.stock_board_concept_name_em", side_effect=TimeoutError("timeout")),
+        ):
+            resp = client.get("/api/market/sectors")
+
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == "MARKET_SECTORS_FAILED"
+        assert resp.json()["meta"]["status"] == "failed"
 
     def test_sector_has_required_fields(self, client):
         """每个板块包含所有必要字段"""
@@ -327,6 +369,7 @@ class TestGetSectorDetail:
         assert data["name"] == "银行"
         assert "stocks" in data
         assert "chain_map" in data
+        assert data["chain_map"] == []
         assert "ai_analysis" in data
         assert "heat" in data
 
@@ -399,14 +442,15 @@ class TestGetMacroBrief:
         assert "generated_at" in data
         assert "上证指数" in data["summary"]
 
-    def test_empty_quotes(self, client, mock_collector):
-        """无行情数据时显示'暂无数据'"""
+    def test_empty_quotes_returns_empty_without_success_object(self, client, mock_collector):
+        """无指数行情时显式 empty，不返回看似成功的“暂无数据”简报。"""
         mock_collector._quotes = []
         with patch("backend.routers.market.collector", mock_collector):
             resp = client.get("/api/market/brief")
 
         assert resp.status_code == 200
-        assert resp.json()["data"]["summary"] == "暂无数据"
+        assert resp.json()["data"] is None
+        assert resp.json()["meta"]["status"] == "empty"
 
     def test_meta_timing(self, client, mock_collector):
         with patch("backend.routers.market.collector", mock_collector):
@@ -443,6 +487,30 @@ class TestHotNews:
         data = resp.json()["data"]
         assert len(data) == 2
         assert data[0]["title"] == "新闻1"
+        assert resp.json()["meta"]["status"] == "success"
+
+    def test_current_caixin_schema_is_partial_not_empty_success(self, client):
+        """2026-08-26 实测字段 tag/summary/url 可恢复标题，但发布时间不可伪造。"""
+        mock_df = pd.DataFrame({
+            "tag": ["市场动态"],
+            "summary": ["联储官员发表最新讲话"],
+            "url": ["https://database.caixin.com/2026-08-26/example.html"],
+        })
+        with (
+            patch("backend.routers.market._HOT_NEWS_CACHE", {}),
+            patch("akshare.stock_news_main_cx", return_value=mock_df),
+        ):
+            resp = client.get("/api/market/hot-news")
+
+        assert resp.status_code == 200
+        assert resp.json()["meta"]["status"] == "partial"
+        assert resp.json()["data"] == [{
+            "title": "联储官员发表最新讲话",
+            "date": None,
+            "source": "财新数据通",
+            "url": "https://database.caixin.com/2026-08-26/example.html",
+        }]
+        assert resp.json()["meta"]["limitations"][0]["code"] == "PUBLISHED_AT_MISSING"
 
     def test_hot_news_fields(self, client):
         """每条新闻含必要字段"""
@@ -474,6 +542,7 @@ class TestHotNews:
 
         assert resp.status_code == 200
         assert resp.json()["data"] == []
+        assert resp.json()["meta"]["status"] == "empty"
 
     def test_error_fallback_to_stale_cache(self, client):
         """API 异常时返回过期缓存（如果有）
@@ -499,16 +568,47 @@ class TestHotNews:
         data = resp.json()["data"]
         assert len(data) == 1
         assert data[0]["title"] == "过期新闻"
-        assert resp.json()["meta"].get("stale") is True
+        assert resp.json()["meta"]["status"] == "stale"
 
-    def test_error_no_cache_returns_empty(self, client):
-        """API 异常且无缓存时返回空列表"""
+    def test_error_no_cache_returns_failed(self, client):
+        """API 异常且无缓存时不得伪装成成功空列表。"""
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
             patch("akshare.stock_news_main_cx", side_effect=RuntimeError("API异常")),
         ):
             resp = client.get("/api/market/hot-news")
 
-        assert resp.status_code == 200
-        assert resp.json()["data"] == []
-        assert "error" in resp.json()["meta"]
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == "HOT_NEWS_FAILED"
+        assert resp.json()["meta"]["status"] == "failed"
+
+    def test_nonempty_unknown_schema_returns_failed(self, client):
+        with (
+            patch("backend.routers.market._HOT_NEWS_CACHE", {}),
+            patch(
+                "akshare.stock_news_main_cx",
+                return_value=pd.DataFrame({"unknown": ["value"]}),
+            ),
+        ):
+            resp = client.get("/api/market/hot-news")
+
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == "HOT_NEWS_SCHEMA_INVALID"
+
+
+def test_homepage_market_openapi_freezes_status_and_failed_response(client):
+    schema = client.get("/openapi.json").json()
+    statuses = schema["components"]["schemas"]["MarketMeta"]["properties"][
+        "status"
+    ]["enum"]
+    assert statuses == ["success", "partial", "empty", "stale", "failed"]
+
+    for path in (
+        "/api/market/indices",
+        "/api/market/sectors",
+        "/api/market/brief",
+        "/api/market/hot-news",
+    ):
+        responses = schema["paths"][path]["get"]["responses"]
+        assert "200" in responses
+        assert "503" in responses
