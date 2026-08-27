@@ -3,16 +3,12 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   type BackendState,
-  type DiagnoseStatus,
+  type DiagnoseResult,
   classifyBackendProbe,
+  normalizeDataSourceDiagnostics,
 } from "@/lib/backend-health";
 
 /* ── 后端连接状态 ── */
-interface DiagnoseResult {
-  status: DiagnoseStatus;
-  checks: Record<string, { status: string; error?: string; message?: string }>;
-}
-
 const POLL_INTERVAL = 15_000;
 const INITIAL_RETRIES = 5;   // up to ~10s of initial retries
 const RETRY_DELAY = 2_000;
@@ -34,14 +30,17 @@ async function probeBackend(): Promise<BackendProbe> {
   }
 
   try {
-    const diagnoseRes = await fetch(`${BASE_URL}/api/health/diagnose`, {
+    const diagnoseRes = await fetch(`${BASE_URL}/api/health/data-source`, {
       signal: AbortSignal.timeout(5000),
     });
     if (!diagnoseRes.ok) {
       throw new Error("diagnose failed");
     }
 
-    const diagnose: DiagnoseResult = await diagnoseRes.json();
+    const diagnose = normalizeDataSourceDiagnostics(await diagnoseRes.json());
+    if (diagnose === null) {
+      throw new Error("diagnose contract mismatch");
+    }
     const classification = classifyBackendProbe(true, diagnose.status);
     return { ...classification, diagnose };
   } catch {

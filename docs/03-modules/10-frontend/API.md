@@ -30,6 +30,17 @@ Content-Type: application/json
 | GET | `/api/market/sectors` | 板块排行列表 |
 | GET | `/api/market/sector/{id}` | 板块详情 + 产业链分析 |
 
+### 健康状态
+
+| 方法 | 路径 | 说明 |
+|:----|:-----|:-----|
+| GET | `/api/health` | 后端进程与基础任务连通性 |
+| GET | `/api/health/data-source` | 数据源调用次数、失败率、延迟与最近错误 |
+
+前端必须分别判断“后端连通”和“数据源诊断”。诊断响应经运行时校验后再转换为
+`healthy/degraded`；接口缺失或契约不兼容时只能显示诊断不可用，不能误报后端断开。
+当前统计中的请求成功不等于取得非空业务数据，见 TD-080。
+
 ### 个股
 
 | 方法 | 路径 | 说明 |

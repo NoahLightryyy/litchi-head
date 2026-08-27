@@ -81,6 +81,7 @@
 | 49 | 🆕 [四层行情信封：盘中可用，不等于已经收盘](49-four-layer-market-envelope.md) | 判别联合、深度冻结、动态/完成隔离、幂等收盘晋升 |
 | 50 | 🆕 [运行时证据怎样安全合流](50-runtime-evidence-assembly.md) | 先验完整性、能力接线、证券身份、FINAL 分钟过滤、RAW 动态条 |
 | 51 | 🆕 [前端来源透明：单源可用不等于多源核验](51-intraday-source-transparency.md) | 分时四态、真实曲线、逐源诊断与不阻断降级 |
+| 52 | 🆕 [健康检查分层：连得上不等于有数据](52-layered-health-contract.md) | `/api/health`、`/api/health/data-source` 与运行时适配 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 
