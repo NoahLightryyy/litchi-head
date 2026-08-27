@@ -59,6 +59,25 @@ class TestDataSourceHealth:
         # 至少应包含 endpoint 统计
         assert isinstance(stats, dict)
 
+    def test_empty_only_endpoint_degrades_health(self, client):
+        snapshot = {
+            "quotes": {"success": 0, "failures": 0, "empty": 2},
+            "__summary__": {
+                "total_calls": 2,
+                "total_failures": 0,
+                "total_empty": 2,
+                "healthy_endpoints": 0,
+                "failing_endpoints": 0,
+                "empty_endpoints": 1,
+            },
+        }
+        with patch("src.data.collector.get_health_stats") as get_stats:
+            get_stats.return_value.snapshot.return_value = snapshot
+            resp = client.get("/api/health/data-source")
+
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "degraded"
+
 
 class TestNotFound:
     """不存在的路由"""

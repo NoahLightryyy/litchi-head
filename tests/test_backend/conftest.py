@@ -260,7 +260,7 @@ class MockCollector:
         ]
         self._valuation: ValuationMetrics | None = make_mock_valuation(stock_code="000001")
 
-    def get_realtime_quotes(self) -> list[StockQuote]:
+    def get_realtime_quotes(self, *, raise_on_error: bool = False) -> list[StockQuote]:
         return self._quotes
 
     def get_realtime_quote(self, code: str) -> StockQuote | None:

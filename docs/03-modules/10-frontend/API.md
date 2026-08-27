@@ -12,12 +12,28 @@ Content-Type: application/json
 
 **通用响应格式**：
 ```typescript
-// 成功
-{ "data": T, "meta": { "cached": boolean, "latency_ms": number } }
+// 可消费响应（HTTP 200）
+{ "data": T | null, "meta": {
+  "status": "success" | "partial" | "empty" | "stale",
+  "cached": boolean,
+  "latency_ms": number,
+  "missing_codes": string[],
+  "failed_sources": string[],
+  "limitations": { "code": string, "message": string }[]
+} }
 
-// 错误
-{ "error": { "code": string, "message": string, "detail": any } }
+// 市场数据不可用（HTTP 503）
+{ "error": { "code": string, "message": string }, "meta": {
+  "status": "failed", "cached": false, "latency_ms": number,
+  "missing_codes": string[], "failed_sources": string[], "limitations": []
+} }
 ```
+
+市场首页四个接口使用上述稳定状态：`success` 表示要求的数据均可用；`partial` 表示仍有
+可消费数据但存在明确缺口；`empty` 表示上游正常返回但没有可用业务数据；`stale` 表示
+上游失败后返回了可用的过期缓存；`failed` 只出现在 503 错误信封。零值指数、空标题新闻
+和无数据简报不得冒充成功。`partial/empty/stale` 是否重试由消费者按页面场景决定；503
+可以重试，但不得自动改写为零值。
 
 ## 接口索引
 
@@ -28,6 +44,7 @@ Content-Type: application/json
 | GET | `/api/market/indices` | 三大指数行情 |
 | GET | `/api/market/brief` | AI 宏观简报（LLM 生成） |
 | GET | `/api/market/sectors` | 板块排行列表 |
+| GET | `/api/market/hot-news` | 财新热点新闻；缺发布时间时返回 `partial` |
 | GET | `/api/market/sector/{id}` | 板块详情；真实关系证据未接入时 `chain_map=[]` |
 
 ### 个股
@@ -94,9 +111,26 @@ Content-Type: application/json
     "top_stocks": ["宁德时代", "阳光电源"], // 领涨个股
     "rank": 1,                         // 排名
   }],
-  "meta": { "cached": true, "latency_ms": 125, "total": 86 }
+  "meta": {
+    "status": "success", "cached": false, "latency_ms": 125,
+    "missing_codes": [], "failed_sources": [], "limitations": []
+  }
 }
 ```
+
+行业和概念来源之一失败但另一来源仍有数据时返回 HTTP 200 + `partial`，并在
+`failed_sources` 标出失败来源；两者都失败且没有缓存时返回 HTTP 503 +
+`MARKET_SECTORS_FAILED`。两者都正常但均为空时返回 HTTP 200 + `empty`。
+
+### 首页市场接口补充语义
+
+- `/api/market/indices`：仅返回价格大于零且真实匹配到的指数；缺少部分指数为
+  `partial`，全部缺少为 `empty`，不再构造 `0.00` 占位项。
+- `/api/market/brief`：无可用指数时 `data=null`、状态 `empty`，不再返回“暂无数据”
+  形式的成功简报。
+- `/api/market/hot-news`：当前来源 `summary` 映射为 `title`；来源未提供发布时间时
+  `date=null` 且状态 `partial`，限制码为 `PUBLISHED_AT_MISSING`。字段结构损坏或无缓存
+  的上游失败返回 503；有旧缓存时返回 `stale`。
 
 ### GET /api/market/sector/{id}
 
