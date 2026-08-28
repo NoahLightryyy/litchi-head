@@ -11,12 +11,11 @@ interface SectorRankingProps {
   meta?: MarketMeta;
   refreshError?: boolean;
   onRetry?: () => void;
-  sortBy: string;
   onSortChange: (sort: string) => void;
 }
 
 /** 板块排行表格 */
-export function SectorRanking({ sectors, loading, error, meta, refreshError, onRetry, sortBy, onSortChange }: SectorRankingProps) {
+export function SectorRanking({ sectors, loading, error, meta, refreshError, onRetry, onSortChange }: SectorRankingProps) {
   const heatLabels = { high: "🔥", medium: "📌", low: "—" } as const;
 
   if (loading) {
@@ -62,13 +61,13 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
               className="text-right px-4 py-3 font-medium cursor-pointer hover:text-text-primary"
               onClick={() => onSortChange("change_pct")}
             >
-              涨跌幅 {sortBy === "change_pct" ? "↓" : ""}
+              涨跌幅 {meta?.sort_applied === "change_pct" ? "↓" : ""}
             </th>
             <th
               className="text-right px-4 py-3 font-medium cursor-pointer hover:text-text-primary"
               onClick={() => onSortChange("fund_flow")}
             >
-              主力净流入(亿) {sortBy === "fund_flow" ? "↓" : ""}
+              主力净流入(亿) {meta?.sort_applied === "fund_flow" ? "↓" : ""}
             </th>
             <th className="text-right px-4 py-3 font-medium">热度</th>
           </tr>
@@ -92,8 +91,8 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
               <td className={`px-4 py-3 text-right font-number ${changeColor(s.change_pct)}`}>
                 {formatChangePct(s.change_pct)}
               </td>
-              <td className={`px-4 py-3 text-right font-number ${s.fund_flow >= 0 ? "text-accent-green" : "text-accent-red"}`}>
-                {s.fund_flow >= 0 ? "+" : ""}{s.fund_flow.toFixed(1)}
+              <td className={`px-4 py-3 text-right font-number ${s.fund_flow === null ? "text-text-muted" : s.fund_flow >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+                {s.fund_flow === null ? "—" : `${s.fund_flow >= 0 ? "+" : ""}${s.fund_flow.toFixed(1)}`}
               </td>
               <td className="px-4 py-3 text-right">{heatLabels[s.heat]}</td>
             </tr>

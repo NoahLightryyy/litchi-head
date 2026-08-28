@@ -53,8 +53,8 @@ export function StockList({ stocks, loading }: StockListProps) {
               <td className={`px-3 py-2.5 text-right font-number ${s.change_pct >= 0 ? "text-accent-green" : "text-accent-red"}`}>
                 {s.change_pct >= 0 ? "+" : ""}{s.change_pct.toFixed(2)}%
               </td>
-              <td className={`px-3 py-2.5 text-right font-number ${s.fund_flow >= 0 ? "text-accent-green" : "text-accent-red"}`}>
-                {s.fund_flow >= 0 ? "+" : ""}{s.fund_flow.toFixed(1)}
+              <td className={`px-3 py-2.5 text-right font-number ${s.fund_flow === null ? "text-text-muted" : s.fund_flow >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+                {s.fund_flow === null ? "—" : `${s.fund_flow >= 0 ? "+" : ""}${s.fund_flow.toFixed(1)}`}
               </td>
               <td className="px-3 py-2.5 text-right">
                 <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${ratingColors[s.ai_rating] || "bg-bg-tertiary text-text-muted"}`}>

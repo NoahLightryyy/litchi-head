@@ -8,12 +8,14 @@ import { SectorHeader } from "@/components/sector/sector-header";
 import { ChainMap } from "@/components/sector/chain-map";
 import { ChainAnalysis } from "@/components/sector/chain-analysis";
 import { StockList } from "@/components/sector/stock-list";
+import { MarketDataNotice } from "@/components/macro/market-data-notice";
 
 /** 板块详情 / 产业链分析页 */
 export default function SectorPage() {
   const params = useParams();
   const sectorId = params.id as string;
-  const { data: sector, isLoading, error } = useSectorDetail(sectorId);
+  const { data: sectorEnvelope, isLoading, error } = useSectorDetail(sectorId);
+  const sector = sectorEnvelope?.data;
 
   // ── 加载态 ──
   if (isLoading) {
@@ -68,6 +70,7 @@ export default function SectorPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+      <MarketDataNotice meta={sectorEnvelope.meta} />
       {/* 面包屑 */}
       <div className="flex items-center gap-2 text-sm">
         <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">

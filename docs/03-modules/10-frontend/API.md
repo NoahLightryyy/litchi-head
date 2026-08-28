@@ -47,6 +47,10 @@ Content-Type: application/json
 类型。`partial` 必须带缺失代码、失败来源或限制说明；`empty` 不得带可消费数据；
 `stale` 必须设置 `cached=true`；指数 `price<=0`、新闻空标题及其他状态矛盾均视为契约
 错误并进入错误态。已有数据后台刷新失败时可以保留，但必须常驻披露刷新失败。
+指数项还必须校验带时区的 `as_of`、`source_count>=1` 和条目级 `cached`；`success` 的每项
+必须至少双源且非缓存，`stale` 的每项必须明确为缓存。板块存在 `fund_flow=null` 时必须
+同时披露 `FUND_FLOW_UNAVAILABLE`，且 `sort_applied` 不得为 `fund_flow`。板块详情同样通过
+完整信封消费限制信息，不得只解包 `data` 后丢失事实边界。
 
 ## 接口索引
 

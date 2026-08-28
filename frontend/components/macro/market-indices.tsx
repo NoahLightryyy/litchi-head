@@ -64,6 +64,15 @@ export function MarketIndices({ indices, loading, error, meta, refreshError, onR
 
 function MarketIndexCard({ index }: { index: MarketIndex }) {
   const isUp = index.change_pct >= 0;
+  const dataTime = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date(index.as_of));
   return (
     <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4 hover:border-bg-elevated transition-colors">
       <div className="flex items-center justify-between mb-2">
@@ -74,6 +83,11 @@ function MarketIndexCard({ index }: { index: MarketIndex }) {
       </div>
       <div className="text-lg font-number text-text-primary">{formatPrice(index.price)}</div>
       <div className="text-sm text-text-secondary mt-1">{index.name}</div>
+      <div className="mt-2 flex flex-wrap gap-x-2 text-[11px] text-text-muted">
+        <span>数据时间 {dataTime}</span>
+        <span>{index.source_count >= 2 ? `${index.source_count} 源一致` : "单源可用"}</span>
+        {index.cached && <span>缓存</span>}
+      </div>
     </div>
   );
 }

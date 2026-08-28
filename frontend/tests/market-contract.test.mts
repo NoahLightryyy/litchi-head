@@ -6,6 +6,7 @@ import {
   parseHotNewsEnvelope,
   parseIndicesEnvelope,
   parseMacroBriefEnvelope,
+  parseSectorDetailEnvelope,
   parseSectorsEnvelope,
 } from "../lib/market-contract.ts";
 
@@ -16,40 +17,57 @@ const baseMeta = {
   missing_codes: [],
   failed_sources: [],
   limitations: [],
+  source_diagnostics: [],
+  sort_requested: null,
+  sort_applied: null,
+} as const;
+
+const verifiedIndex = {
+  code: "000001",
+  name: "上证指数",
+  price: 3912.52,
+  change: 23.08,
+  change_pct: 0.59,
+  as_of: "2026-08-28T10:15:30+08:00",
+  source_count: 2,
+  cached: false,
 } as const;
 
 test("消费者接受后端冻结的 success 与 partial 指数信封", () => {
-  const success = {
-    data: [
-      { code: "000001", name: "上证指数", price: 3912.52, change: 23.08, change_pct: 0.59 },
-    ],
-    meta: baseMeta,
-  };
+  const success = { data: [verifiedIndex], meta: baseMeta };
   assert.deepEqual(parseIndicesEnvelope(success), success);
 
   const partial = {
-    data: success.data,
-    meta: {
-      ...baseMeta,
-      status: "partial",
-      missing_codes: ["399001", "399006"],
-    },
+    data: [{ ...verifiedIndex, source_count: 1 }],
+    meta: { ...baseMeta, status: "partial", missing_codes: ["399001", "399006"] },
   };
   assert.deepEqual(parseIndicesEnvelope(partial), partial);
 });
 
 test("消费者拒绝 0.00 指数和状态数据矛盾", () => {
   assert.throws(
-    () => parseIndicesEnvelope({
-      data: [{ code: "000001", name: "上证指数", price: 0, change: 0, change_pct: 0 }],
-      meta: baseMeta,
-    }),
+    () => parseIndicesEnvelope({ data: [{ ...verifiedIndex, price: 0 }], meta: baseMeta }),
+    MarketContractError,
+  );
+  assert.throws(() => parseIndicesEnvelope({ data: [], meta: baseMeta }), MarketContractError);
+});
+
+test("指数校验时间、来源数量及 success/stale 语义", () => {
+  assert.throws(
+    () => parseIndicesEnvelope({ data: [{ ...verifiedIndex, source_count: 1 }], meta: baseMeta }),
     MarketContractError,
   );
   assert.throws(
-    () => parseIndicesEnvelope({ data: [], meta: baseMeta }),
+    () => parseIndicesEnvelope({
+      data: [{ ...verifiedIndex, as_of: "2026-08-28T10:15:30" }], meta: baseMeta,
+    }),
     MarketContractError,
   );
+  const stale = {
+    data: [{ ...verifiedIndex, cached: true }],
+    meta: { ...baseMeta, status: "stale", cached: true },
+  };
+  assert.deepEqual(parseIndicesEnvelope(stale), stale);
 });
 
 test("empty 信封必须没有可消费数据", () => {
@@ -73,11 +91,63 @@ test("板块 partial 必须披露失败来源", () => {
       id: "BK0001", name: "证券", change_pct: 3.01, fund_flow: 74.22,
       heat: "medium", top_stocks: [], rank: 1,
     }],
-    meta: { ...baseMeta, status: "partial", failed_sources: ["concept"] },
+    meta: {
+      ...baseMeta, status: "partial", failed_sources: ["concept"],
+      sort_requested: "fund_flow", sort_applied: "fund_flow",
+    },
   };
   assert.deepEqual(parseSectorsEnvelope(value), value);
   assert.throws(
     () => parseSectorsEnvelope({ ...value, meta: { ...value.meta, failed_sources: [] } }),
+    MarketContractError,
+  );
+});
+
+test("资金流未知必须保持 null 并披露实际排序口径", () => {
+  const value = {
+    data: [{
+      id: "BK0001", name: "证券", change_pct: 3.01, fund_flow: null,
+      heat: "medium", top_stocks: [], rank: 1,
+    }],
+    meta: {
+      ...baseMeta,
+      status: "partial",
+      limitations: [{
+        code: "FUND_FLOW_UNAVAILABLE", message: "当前来源未提供资金流", index_code: null,
+      }],
+      sort_requested: "fund_flow",
+      sort_applied: "upstream_order",
+    },
+  };
+  assert.deepEqual(parseSectorsEnvelope(value), value);
+  assert.throws(
+    () => parseSectorsEnvelope({ ...value, meta: { ...value.meta, sort_applied: "fund_flow" } }),
+    MarketContractError,
+  );
+});
+
+test("板块详情接受 nullable 资金流且要求限制说明", () => {
+  const detail = {
+    id: "BK0001", name: "证券", change_pct: 1.2, fund_flow: null, heat: "medium",
+    chain_map: [], ai_analysis: "",
+    stocks: [{
+      code: "600000", name: "浦发银行", price: 10.2, change_pct: 0.3,
+      fund_flow: null, ai_rating: "B",
+    }],
+  };
+  const envelope = {
+    data: detail,
+    meta: {
+      ...baseMeta,
+      status: "partial",
+      limitations: [{
+        code: "FUND_FLOW_UNAVAILABLE", message: "未知值返回 null", index_code: null,
+      }],
+    },
+  };
+  assert.deepEqual(parseSectorDetailEnvelope(envelope), envelope);
+  assert.throws(
+    () => parseSectorDetailEnvelope({ ...envelope, meta: { ...envelope.meta, limitations: [] } }),
     MarketContractError,
   );
 });
@@ -88,22 +158,18 @@ test("新闻允许缺发布时间但拒绝空标题，并校验 stale 缓存", (
     meta: {
       ...baseMeta,
       status: "partial",
-      limitations: [{ code: "PUBLISHED_AT_MISSING", message: "上游未提供发布时间" }],
+      limitations: [{
+        code: "PUBLISHED_AT_MISSING", message: "上游未提供发布时间", index_code: null,
+      }],
     },
   };
   assert.deepEqual(parseHotNewsEnvelope(partial), partial);
   assert.throws(
-    () => parseHotNewsEnvelope({
-      ...partial,
-      data: [{ ...partial.data[0], title: "" }],
-    }),
+    () => parseHotNewsEnvelope({ ...partial, data: [{ ...partial.data[0], title: "" }] }),
     MarketContractError,
   );
   assert.throws(
-    () => parseHotNewsEnvelope({
-      ...partial,
-      meta: { ...partial.meta, status: "stale", cached: false },
-    }),
+    () => parseHotNewsEnvelope({ ...partial, meta: { ...partial.meta, status: "stale", cached: false } }),
     MarketContractError,
   );
 });

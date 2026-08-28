@@ -3,7 +3,7 @@
 interface SectorHeaderProps {
   name: string;
   changePct: number;
-  fundFlow: number;
+  fundFlow: number | null;
   heat: "high" | "medium" | "low";
 }
 
@@ -20,8 +20,8 @@ export function SectorHeader({ name, changePct, fundFlow, heat }: SectorHeaderPr
       </span>
       <span className="text-sm text-text-secondary">
         主力净流入{" "}
-        <span className={`font-number ${fundFlow >= 0 ? "text-accent-green" : "text-accent-red"}`}>
-          {fundFlow >= 0 ? "+" : ""}{fundFlow.toFixed(1)}亿
+        <span className={`font-number ${fundFlow === null ? "text-text-muted" : fundFlow >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+          {fundFlow === null ? "暂无数据" : `${fundFlow >= 0 ? "+" : ""}${fundFlow.toFixed(1)}亿`}
         </span>
       </span>
       <span className={`px-2 py-0.5 rounded text-xs font-medium ${heatColors[heat]}`}>

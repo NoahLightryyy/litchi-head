@@ -39,8 +39,9 @@ class MarketMeta(BaseModel):
     limitations: list[MarketLimitation] = []
 ```
 
-同一文件中的 `_pick_index()` 在没有真实匹配或价格不大于零时返回 `None`，路由再据此
-生成 `partial/empty`，而不是造一个价格为零的指数。
+`src/data/index_quote_runtime.py` 并发汇总两路指数专用接口；身份、价格或时间冲突时拒绝
+对应条目，只允许单源明确降级，且只有双源共识结果才能进入短时缓存。路由把这些事实
+转换为 `partial/stale/failed`，不会造一个价格为零的指数。
 
 打开 `src/data/collector.py`：
 
@@ -57,8 +58,9 @@ else:
 
 打开 `frontend/lib/market-contract.ts`：前端不会因为 TypeScript 类型声明就盲信网络响应，
 而是在运行时检查状态、缓存标记、缺口说明和实际数据是否一致。例如指数价格必须大于零，
-`empty` 必须真的没有可消费数据，`stale` 必须明确来自缓存。校验失败进入错误态，不会把
-未知或旧版信封渲染成行情。
+必须携带有时区的数据时间与来源数量；`empty` 必须真的没有可消费数据；`stale` 必须明确
+来自缓存；板块资金流未知时必须为 `null` 且不能声称已按资金流排序。校验失败进入错误态，
+不会把未知或旧版信封渲染成行情。
 
 ---
 

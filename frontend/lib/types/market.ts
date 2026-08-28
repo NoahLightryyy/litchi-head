@@ -5,6 +5,26 @@ export type MarketDataStatus = "success" | "partial" | "empty" | "stale";
 export interface MarketLimitation {
   code: string;
   message: string;
+  index_code: string | null;
+}
+
+export type MarketSourceStatus =
+  | "success_data"
+  | "success_empty"
+  | "failed"
+  | "unsupported"
+  | "stale"
+  | "conflicted";
+
+export interface MarketSourceDiagnostic {
+  index_code: string;
+  source_id: string;
+  upstream_id: string;
+  status: MarketSourceStatus;
+  latency_ms: number;
+  as_of: string | null;
+  error_code: string | null;
+  error_message: string | null;
 }
 
 export interface MarketMeta {
@@ -14,6 +34,9 @@ export interface MarketMeta {
   missing_codes: string[];
   failed_sources: string[];
   limitations: MarketLimitation[];
+  source_diagnostics: MarketSourceDiagnostic[];
+  sort_requested: string | null;
+  sort_applied: string | null;
 }
 
 export interface MarketEnvelope<T> {
@@ -27,13 +50,16 @@ export interface MarketIndex {
   price: number;
   change: number;
   change_pct: number;
+  as_of: string;
+  source_count: number;
+  cached: boolean;
 }
 
 export interface SectorItem {
   id: string;
   name: string;
   change_pct: number;
-  fund_flow: number;
+  fund_flow: number | null;
   heat: "high" | "medium" | "low";
   top_stocks: string[];
   rank: number;
@@ -71,7 +97,7 @@ export interface SectorDetail {
   id: string;
   name: string;
   change_pct: number;
-  fund_flow: number;
+  fund_flow: number | null;
   heat: "high" | "medium" | "low";
   chain_map: ChainStage[];
   ai_analysis: string;
@@ -83,7 +109,7 @@ export interface SectorStock {
   name: string;
   price: number;
   change_pct: number;
-  fund_flow: number;
+  fund_flow: number | null;
   ai_rating: string;
 }
 

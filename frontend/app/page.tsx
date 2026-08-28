@@ -81,7 +81,17 @@ export default function MacroPage() {
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="w-4 h-4 text-accent-blue" />
             <h2 className="text-sm font-semibold text-text-primary">板块排行榜</h2>
-            <span className="text-xs text-text-muted ml-auto">按主力资金流向排序</span>
+            <span className="text-xs text-text-muted ml-auto">
+              {sectorsQuery.isError && !sectorsQuery.data
+                ? "排序口径不可用"
+                : sectorsQuery.data?.meta.sort_applied === "fund_flow"
+                ? "按主力资金流向排序"
+                : sectorsQuery.data?.meta.sort_applied === "change_pct"
+                  ? "按涨跌幅排序"
+                  : sectorsQuery.data
+                    ? "按数据源顺序"
+                    : "排序口径加载中"}
+            </span>
           </div>
           <SectorRanking
             sectors={sectorsQuery.data?.data ?? []}
@@ -90,7 +100,6 @@ export default function MacroPage() {
             refreshError={sectorsQuery.isError && !!sectorsQuery.data}
             meta={sectorsQuery.data?.meta}
             onRetry={() => void sectorsQuery.refetch()}
-            sortBy={sortBy}
             onSortChange={handleSortChange}
           />
         </section>

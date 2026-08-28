@@ -4,6 +4,7 @@ import {
   parseHotNewsEnvelope,
   parseIndicesEnvelope,
   parseMacroBriefEnvelope,
+  parseSectorDetailEnvelope,
   parseSectorsEnvelope,
 } from "@/lib/market-contract";
 
@@ -23,8 +24,8 @@ export async function fetchSectors(sort: string = "fund_flow"): Promise<MarketEn
 }
 
 /** 板块详情 + 产业链分析 */
-export async function fetchSectorDetail(sectorId: string): Promise<SectorDetail> {
-  return api.get(`/market/sector/${sectorId}`);
+export async function fetchSectorDetail(sectorId: string): Promise<MarketEnvelope<SectorDetail>> {
+  return parseSectorDetailEnvelope(await api.getRaw(`/market/sector/${sectorId}`));
 }
 
 /** 热点快讯 */
