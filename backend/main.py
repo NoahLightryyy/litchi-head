@@ -14,10 +14,12 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager, suppress
+from typing import Literal
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from slowapi.errors import RateLimitExceeded
 
 from backend.limiter import limiter
@@ -25,6 +27,33 @@ from backend.routers import debate, evidence, financials, market, retro, stocks,
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(name)-24s  %(message)s")
 logger = logging.getLogger("backend")
+
+
+class DataSourceEndpointHealth(BaseModel):
+    total_calls: int = Field(ge=0)
+    success: int = Field(ge=0)
+    empty: int = Field(ge=0)
+    failures: int = Field(ge=0)
+    failure_rate: float = Field(ge=0.0, le=1.0)
+    avg_latency_ms: float | None = Field(default=None, ge=0.0)
+    last_error: str | None = None
+    last_error_code: str | None = None
+    last_success_ago_s: float | None = Field(default=None, ge=0.0)
+
+
+class DataSourceHealthSummary(BaseModel):
+    total_calls: int = Field(ge=0)
+    total_failures: int = Field(ge=0)
+    total_empty: int = Field(ge=0)
+    overall_failure_rate: float = Field(ge=0.0, le=1.0)
+    healthy_endpoints: int = Field(ge=0)
+    failing_endpoints: int = Field(ge=0)
+    empty_endpoints: int = Field(ge=0)
+
+
+class DataSourceHealthResponse(BaseModel):
+    status: Literal["ok", "degraded"]
+    stats: dict[str, DataSourceEndpointHealth | DataSourceHealthSummary]
 
 
 # ── 全局错误响应格式 ──────────────────────────────────────────
@@ -168,7 +197,7 @@ async def health():
     }
 
 
-@app.get("/api/health/data-source")
+@app.get("/api/health/data-source", response_model=DataSourceHealthResponse)
 async def data_source_health():
     """数据源健康统计
 

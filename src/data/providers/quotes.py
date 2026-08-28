@@ -57,13 +57,42 @@ def _eastmoney_secid(code: str) -> str:
     return f"{market}.{code}"
 
 
+_INDEX_SYMBOLS = {
+    "000001": ("1.000001", "sh000001"),
+    "399001": ("0.399001", "sz399001"),
+    "399006": ("0.399006", "sz399006"),
+}
+
+
+def _eastmoney_index_secid(code: str) -> str:
+    try:
+        return _INDEX_SYMBOLS[code][0]
+    except KeyError as exc:
+        raise ValueError(f"unsupported market index code: {code}") from exc
+
+
+def _sina_index_symbol(code: str) -> str:
+    try:
+        return _INDEX_SYMBOLS[code][1]
+    except KeyError as exc:
+        raise ValueError(f"unsupported market index code: {code}") from exc
+
+
 def _default_eastmoney_fetcher(code: str) -> Mapping[str, Any]:
+    return _fetch_eastmoney(_eastmoney_secid(code))
+
+
+def _default_eastmoney_index_fetcher(code: str) -> Mapping[str, Any]:
+    return _fetch_eastmoney(_eastmoney_index_secid(code))
+
+
+def _fetch_eastmoney(secid: str) -> Mapping[str, Any]:
     import httpx
 
     response = httpx.get(
         EASTMONEY_QUOTE_URL,
         params={
-            "secid": _eastmoney_secid(code),
+            "secid": secid,
             "fields": "f57,f58,f43,f44,f45,f46,f47,f48,f60,f86,f169,f170",
         },
         headers={"User-Agent": USER_AGENT},
@@ -78,9 +107,16 @@ def _default_eastmoney_fetcher(code: str) -> Mapping[str, Any]:
 
 
 def _default_sina_fetcher(code: str) -> str:
+    return _fetch_sina(f"{_market_prefix(code)}{code}")
+
+
+def _default_sina_index_fetcher(code: str) -> str:
+    return _fetch_sina(_sina_index_symbol(code))
+
+
+def _fetch_sina(symbol: str) -> str:
     import httpx
 
-    symbol = f"{_market_prefix(code)}{code}"
     response = httpx.get(
         SINA_QUOTE_URL.format(symbol=symbol),
         headers={
@@ -113,13 +149,14 @@ def _integer(value: object, field: str) -> int:
 def _failed_result(
     descriptor: SourceDescriptor,
     *,
+    capability: EvidenceCapability,
     error_code: str,
     exc: Exception,
 ) -> SourceResult[StockQuote]:
     return SourceResult(
         source_id=descriptor.source_id,
         upstream_id=descriptor.upstream_id,
-        capability=EvidenceCapability.REALTIME_QUOTE,
+        capability=capability,
         status=SourceStatus.FAILED,
         error_code=error_code,
         error_message=str(exc).strip() or exc.__class__.__name__,
@@ -135,6 +172,7 @@ class EastmoneyQuoteSource:
         display_name="东方财富实时行情直连",
         capabilities={EvidenceCapability.REALTIME_QUOTE},
     )
+    capability = EvidenceCapability.REALTIME_QUOTE
 
     def __init__(
         self,
@@ -144,7 +182,7 @@ class EastmoneyQuoteSource:
         self._fetcher = fetcher
 
     def fetch(self, request: EvidenceRequest) -> SourceResult[StockQuote]:
-        if request.capability is not EvidenceCapability.REALTIME_QUOTE:
+        if request.capability is not self.capability:
             return SourceResult(
                 source_id=self.descriptor.source_id,
                 upstream_id=self.descriptor.upstream_id,
@@ -189,6 +227,7 @@ class EastmoneyQuoteSource:
             logger.warning("Eastmoney quote request failed: %s", exc)
             return _failed_result(
                 self.descriptor,
+                capability=request.capability,
                 error_code="upstream_request_failed",
                 exc=exc,
             )
@@ -196,6 +235,7 @@ class EastmoneyQuoteSource:
             logger.exception("Eastmoney quote payload is invalid")
             return _failed_result(
                 self.descriptor,
+                capability=request.capability,
                 error_code="invalid_upstream_payload",
                 exc=exc,
             )
@@ -232,6 +272,7 @@ class SinaQuoteSource:
         display_name="新浪实时行情直连",
         capabilities={EvidenceCapability.REALTIME_QUOTE},
     )
+    capability = EvidenceCapability.REALTIME_QUOTE
 
     def __init__(
         self,
@@ -241,7 +282,7 @@ class SinaQuoteSource:
         self._fetcher = fetcher
 
     def fetch(self, request: EvidenceRequest) -> SourceResult[StockQuote]:
-        if request.capability is not EvidenceCapability.REALTIME_QUOTE:
+        if request.capability is not self.capability:
             return SourceResult(
                 source_id=self.descriptor.source_id,
                 upstream_id=self.descriptor.upstream_id,
@@ -257,7 +298,7 @@ class SinaQuoteSource:
                     str(exc).strip() or exc.__class__.__name__
                 ) from exc
             response_symbol, fields = _sina_row(raw)
-            expected_symbol = f"{_market_prefix(request.stock_code)}{request.stock_code}"
+            expected_symbol = self._expected_symbol(request.stock_code)
             if response_symbol != expected_symbol:
                 raise ValueError("Sina quote identity does not match request")
             name = fields[0].strip()
@@ -289,6 +330,7 @@ class SinaQuoteSource:
             logger.warning("Sina quote request failed: %s", exc)
             return _failed_result(
                 self.descriptor,
+                capability=request.capability,
                 error_code="upstream_request_failed",
                 exc=exc,
             )
@@ -296,6 +338,7 @@ class SinaQuoteSource:
             logger.exception("Sina quote payload is invalid")
             return _failed_result(
                 self.descriptor,
+                capability=request.capability,
                 error_code="invalid_upstream_payload",
                 exc=exc,
             )
@@ -308,8 +351,56 @@ class SinaQuoteSource:
             items=[quote],
         )
 
+    @staticmethod
+    def _expected_symbol(code: str) -> str:
+        return f"{_market_prefix(code)}{code}"
+
+
+class EastmoneyIndexQuoteSource(EastmoneyQuoteSource):
+    """Direct Eastmoney adapter for the three homepage market indices."""
+
+    descriptor = SourceDescriptor(
+        source_id="direct-eastmoney-index",
+        upstream_id="eastmoney",
+        display_name="东方财富指数行情直连",
+        capabilities={EvidenceCapability.MARKET_INDEX},
+    )
+    capability = EvidenceCapability.MARKET_INDEX
+
+    def __init__(
+        self,
+        *,
+        fetcher: EastmoneyQuoteFetcher = _default_eastmoney_index_fetcher,
+    ) -> None:
+        super().__init__(fetcher=fetcher)
+
+
+class SinaIndexQuoteSource(SinaQuoteSource):
+    """Direct Sina adapter for the three homepage market indices."""
+
+    descriptor = SourceDescriptor(
+        source_id="direct-sina-index",
+        upstream_id="sina",
+        display_name="新浪指数行情直连",
+        capabilities={EvidenceCapability.MARKET_INDEX},
+    )
+    capability = EvidenceCapability.MARKET_INDEX
+
+    def __init__(
+        self,
+        *,
+        fetcher: SinaQuoteFetcher = _default_sina_index_fetcher,
+    ) -> None:
+        super().__init__(fetcher=fetcher)
+
+    @staticmethod
+    def _expected_symbol(code: str) -> str:
+        return _sina_index_symbol(code)
+
 
 __all__ = [
+    "EastmoneyIndexQuoteSource",
     "EastmoneyQuoteSource",
+    "SinaIndexQuoteSource",
     "SinaQuoteSource",
 ]

@@ -15,6 +15,7 @@ class EvidenceCapability(str, Enum):
     """数据源可以声明支持的证据类别。"""
 
     REALTIME_QUOTE = "realtime_quote"
+    MARKET_INDEX = "market_index"
     INTRADAY = "intraday"
     KLINE = "kline"
     CUMULATIVE_QFQ_FACTOR = "cumulative_qfq_factor"

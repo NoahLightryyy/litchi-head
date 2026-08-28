@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-08-26 (生产封口协调会：EVI-1/TRACE-1 下发)
+last_updated: 2026-08-27 (首页指数双源汇总与健康脱敏)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -20,11 +20,12 @@ last_updated: 2026-08-26 (生产封口协调会：EVI-1/TRACE-1 下发)
 | DataEvidenceService | ✅ | 多通道并发采集、异常显式化、同 upstream 条目去重、统一 EvidenceEnvelope |
 | 新闻双源证据 | ✅ | 东方财富个股搜索 + 新浪财经快讯；完整时间窗不足显式 STALE |
 | 实时行情双源证据 | ✅ | 东方财富 + 新浪直连；时间、价格与交易阶段一致性门禁 |
+| 首页指数双源证据 | 🧪 | 东方财富 + 新浪指数专用代码；并发、0.01 点/3 秒核验、单源降级、冲突关闭、30 秒缓存 |
 | L1 分时战况 | ✅ 二期底座 | 双源分钟对账；腾讯历史影子回填；正式20日基线只读双源完整日 |
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
 | 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
-| HealthStats 健康监控 | ✅ | 成功率/延迟/错误统计，/api/health 暴露 |
+| HealthStats 健康监控 | 🧪 | 逐源成功/空/失败/延迟；API 仅暴露安全错误码和固定文案，原始异常只进日志 |
 | 数据源审计 | ✅ | DATA_SOURCE_AUDIT.md 覆盖 10+ 平台 |
 
 ### 测试

@@ -1,4 +1,4 @@
-# 55 健康检查分层：连得上不等于有数据
+# 56 健康检查分层：连得上不等于有数据
 
 ## 一句话
 
@@ -35,4 +35,4 @@ const degraded =
 
 ---
 
-**上一篇：[HTTP 200 不等于数据成功](54-truthful-market-api-status.md)**
+**上一篇：[55｜多源汇总不是把两个数字取平均](55-multi-source-index-reconciliation.md)**

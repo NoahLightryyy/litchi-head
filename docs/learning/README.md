@@ -83,7 +83,8 @@
 | 51 | 🆕 [前端来源透明：单源可用不等于多源核验](51-intraday-source-transparency.md) | 分时四态、真实曲线、逐源诊断与不阻断降级 |
 | 52 | 🆕 [证据不完整时怎样继续推理而不伪装完整](52-evidence-limited-reasoning.md) | EvidenceLimitation、限制披露、损坏阻断、研究与交易隔离 |
 | 54 | 🆕 [HTTP 200 不等于数据成功](54-truthful-market-api-status.md) | 市场 API 五态、失败关闭、陈旧缓存、空结果健康统计 |
-| 55 | 🆕 [健康检查分层：连得上不等于有数据](55-layered-health-contract.md) | `/api/health`、`/api/health/data-source` 与运行时适配 |
+| 55 | 🆕 [多源汇总不是把两个数字取平均](55-multi-source-index-reconciliation.md) | 指数代码身份、并发采集、价时冲突、单源降级、逐源健康 |
+| 56 | 🆕 [健康检查分层：连得上不等于有数据](56-layered-health-contract.md) | `/api/health`、`/api/health/data-source` 与运行时适配 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

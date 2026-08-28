@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from src.data.collector import HealthStats
+
 
 class TestHealth:
     """健康检查 GET /api/health"""
@@ -61,11 +63,18 @@ class TestDataSourceHealth:
 
     def test_empty_only_endpoint_degrades_health(self, client):
         snapshot = {
-            "quotes": {"success": 0, "failures": 0, "empty": 2},
+            "quotes": {
+                "total_calls": 2,
+                "success": 0,
+                "failures": 0,
+                "empty": 2,
+                "failure_rate": 0.0,
+            },
             "__summary__": {
                 "total_calls": 2,
                 "total_failures": 0,
                 "total_empty": 2,
+                "overall_failure_rate": 0.0,
                 "healthy_endpoints": 0,
                 "failing_endpoints": 0,
                 "empty_endpoints": 1,
@@ -77,6 +86,32 @@ class TestDataSourceHealth:
 
         assert resp.status_code == 200
         assert resp.json()["status"] == "degraded"
+
+    def test_raw_provider_error_is_never_returned_to_frontend(self, client):
+        stats = HealthStats()
+        stats.record_call(
+            "quotes",
+            10.0,
+            error=(
+                "ProxyError HTTPSConnectionPool(host='example.com') "
+                "https://example.com/api?token=secret"
+            ),
+        )
+        with patch("src.data.collector.get_health_stats", return_value=stats):
+            resp = client.get("/api/health/data-source")
+
+        body = resp.json()
+        assert body["stats"]["quotes"]["last_error"] == "数据源请求失败"
+        assert body["stats"]["quotes"]["last_error_code"] == "DATA_SOURCE_CALL_FAILED"
+        assert "example.com" not in resp.text
+        assert "token=secret" not in resp.text
+
+    def test_openapi_freezes_safe_health_response(self, client):
+        schema = client.get("/openapi.json").json()
+        response = schema["paths"]["/api/health/data-source"]["get"]["responses"]["200"]
+        assert response["content"]["application/json"]["schema"]["$ref"].endswith(
+            "/DataSourceHealthResponse"
+        )
 
 
 class TestNotFound:

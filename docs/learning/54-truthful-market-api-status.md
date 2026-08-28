@@ -85,4 +85,4 @@ else:
 
 **上一篇：[52｜证据不完整时怎样继续推理而不伪装完整](52-evidence-limited-reasoning.md)**
 
-**下一篇：** 待续
+**下一篇：[55｜多源汇总不是把两个数字取平均](55-multi-source-index-reconciliation.md)**

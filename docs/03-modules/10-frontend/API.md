@@ -19,7 +19,15 @@ Content-Type: application/json
   "latency_ms": number,
   "missing_codes": string[],
   "failed_sources": string[],
-  "limitations": { "code": string, "message": string }[]
+  "limitations": { "code": string, "message": string, "index_code": string | null }[],
+  "source_diagnostics": {
+    "index_code": string, "source_id": string, "upstream_id": string,
+    "status": "success_data" | "success_empty" | "failed" | "stale" | "conflicted",
+    "latency_ms": number, "as_of": string | null,
+    "error_code": string | null, "error_message": string | null
+  }[],
+  "sort_requested": string | null,
+  "sort_applied": string | null
 } }
 
 // 市场数据不可用（HTTP 503）
@@ -131,7 +139,7 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 
 ### GET /api/market/sectors
 
-板块排行列表，按资金流向排序。
+板块排行列表。当前行业/概念排行来源不提供主力资金流字段，因此不得宣称按资金流排序。
 
 **响应**：
 ```typescript
@@ -140,14 +148,22 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
     "id": "BK0579",                    // 板块代码
     "name": "电力设备",                 // 板块名称
     "change_pct": 2.34,                // 涨跌幅 %
-    "fund_flow": 12.5,                 // 主力净流入（亿）
+    "fund_flow": null,                 // 来源缺字段时必须为 null，不得用 0.0 冒充
     "heat": "high",                    // 热度（high/medium/low）
     "top_stocks": ["宁德时代", "阳光电源"], // 领涨个股
     "rank": 1,                         // 排名
   }],
   "meta": {
     "status": "success", "cached": false, "latency_ms": 125,
-    "missing_codes": [], "failed_sources": [], "limitations": []
+    "missing_codes": [], "failed_sources": [],
+    "limitations": [{
+      "code": "FUND_FLOW_UNAVAILABLE",
+      "message": "当前板块排行来源未提供主力资金流字段，fund_flow 返回 null，不得按资金流解释或排序",
+      "index_code": null
+    }],
+    "source_diagnostics": [],
+    "sort_requested": "fund_flow",
+    "sort_applied": "upstream_order"
   }
 }
 ```
@@ -155,16 +171,30 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 行业和概念来源之一失败但另一来源仍有数据时返回 HTTP 200 + `partial`，并在
 `failed_sources` 标出失败来源；两者都失败且没有缓存时返回 HTTP 503 +
 `MARKET_SECTORS_FAILED`。两者都正常但均为空时返回 HTTP 200 + `empty`。
+当任一返回条目缺少资金流字段时，条目 `fund_flow=null`、状态至少为 `partial`，限制码
+`FUND_FLOW_UNAVAILABLE`；`sort_applied=upstream_order` 表示保持来源顺序，消费者必须据此
+移除“按资金流排序”的表述。只有所有条目都有真实资金流且实际完成排序时，
+`sort_applied=fund_flow`。
 
 ### 首页市场接口补充语义
 
-- `/api/market/indices`：仅返回价格大于零且真实匹配到的指数；缺少部分指数为
-  `partial`，全部缺少为 `empty`，不再构造 `0.00` 占位项。
+- `/api/market/indices`：东方财富与新浪两路指数专用接口并发采集。每项返回 `as_of`、
+  `source_count` 和 `cached`；双源价格差不超过 0.01 点且时间差不超过 3 秒时为完整数据，
+  单源可用为 `partial + INDEX_SINGLE_SOURCE`，冲突项不输出。三项全部冲突返回 503 +
+  `MARKET_INDICES_CONFLICTED`，双源全失败且无缓存返回 `MARKET_INDICES_FAILED`。最近 30 秒
+  已核验缓存仅在双源失败时可作为 `stale` 返回；禁止构造 `0.00` 占位项。
 - `/api/market/brief`：无可用指数时 `data=null`、状态 `empty`，不再返回“暂无数据”
   形式的成功简报。
 - `/api/market/hot-news`：当前来源 `summary` 映射为 `title`；来源未提供发布时间时
   `date=null` 且状态 `partial`，限制码为 `PUBLISHED_AT_MISSING`。字段结构损坏或无缓存
   的上游失败返回 503；有旧缓存时返回 `stale`。
+
+### GET /api/health/data-source
+
+健康响应由 `DataSourceHealthResponse` 固定。每个 endpoint 只暴露计数、失败率、平均延迟、
+最后成功距今秒数，以及安全的 `last_error`/`last_error_code`。`last_error` 只能是固定用户
+文案“数据源请求失败”，不得包含异常类、URL、查询参数、Token 或代理详情；原始异常只写
+后端日志。指数来源分别以 `market_index:eastmoney` 和 `market_index:sina` 统计。
 
 ### GET /api/market/sector/{id}
 
@@ -181,11 +211,14 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
     "ai_analysis": "基于成分股行情生成的市场表现摘要，不包含产业链关系推断。",
     "stocks": [
       { "code": "300750", "name": "宁德时代", "price": 256.80,
-        "change_pct": 2.34, "fund_flow": 2.1, "ai_rating": "A+" }
+        "change_pct": 2.34, "fund_flow": null, "ai_rating": "A+" }
     ]
   }
 }
 ```
+
+板块详情沿用同一未知值纪律：板块或成分股资金流缺少已核验字段/单位时返回 `null`，
+`meta.status=partial` 并携带 `FUND_FLOW_UNAVAILABLE`，不得使用 0.0 占位。
 
 ### POST /api/debate/run
 
