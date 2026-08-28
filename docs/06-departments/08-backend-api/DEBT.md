@@ -14,17 +14,6 @@ department: 后端 API 部
 |:---|:-----|:------:|:----|:----|
 | TD-054 | CORS 地址硬编码 | 🟢 low | 可部署性 | 📋 待评估 |
 | TD-068 | 重型辩论无 durable queue、全局背压与恢复 | 🟡 moderate | 运行时稳定 | 🔧 原型验证中 |
-| TD-077 | 首页市场数据失败伪装成功 | 🔴 critical | 数据契约 | 🧪 多源/脱敏/未知值契约待前端验收 |
-
-### TD-077 首页市场数据失败伪装成功
-
-`/api/market/indices`、`sectors`、`brief`、`hot-news` 已统一冻结
-`success/partial/empty/stale/failed` 状态与 503 错误信封，并由 OpenAPI 和错误路径测试
-覆盖。空业务结果不再进入健康统计的 success 计数。剩余能力缺口是：现有股票列表
-Provider 不提供三大指数行情的问题已在用户批准后改为东方财富 + 新浪指数专用直连；
-双源一致、单源降级、冲突、全失败和 30 秒缓存均有契约测试。健康原始异常泄露和板块
-资金流缺字段伪装为 0.0 也已修复。当前等待前端消费 `source_diagnostics`、`as_of`、
-`source_count`、`fund_flow=null`、`sort_applied` 与安全健康错误字段后联合关闭。
 
 ### TD-068 重型辩论无 durable queue、全局背压与恢复
 
@@ -69,3 +58,4 @@ checkpointer，durable queue、全局背压和 1/3/5 并发门禁仍未完成。
 | TD-024 | 数据源调用无超时 | 2026-06-17 | async_utils.py 15s 超时 |
 | TD-036 | backend 路由测试全覆盖 | 2026-07-27 | 176 测试（含 retro/main/hot-news/utils）+ indicators 100% |
 | FD-003a | 涨幅排名伪装成产业链关系 | 2026-08-26 | 删除伪造分层；无可核验关系证据时 `chain_map=[]`，真实能力保留为数据源/契约决策 |
+| TD-077 | 首页市场数据失败伪装成功 | 2026-08-28 | 后端 `5b4fc3a` 与前端 `40d7fcf` 经 `87187ac` 合流；五态、双源、nullable 资金流、诊断脱敏和浏览器故障态验收通过 |
