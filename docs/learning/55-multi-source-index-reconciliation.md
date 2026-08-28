@@ -71,4 +71,4 @@ URL 与查询参数由调用点日志保存，不进入前端横幅。
 
 **上一篇：[54｜HTTP 200 不等于数据成功](54-truthful-market-api-status.md)**
 
-**下一篇：** 待续
+**下一篇：[56｜线程安全不是“用了 GIL 就行”](56-atomic-health-snapshot.md)**

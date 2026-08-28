@@ -18,6 +18,7 @@
 import logging
 import time
 from collections import defaultdict
+from threading import RLock
 
 from src.data.cache import DataCache
 from src.data.models import (
@@ -59,10 +60,12 @@ class HealthStats:
     跟踪每个 endpoint（如 "all_stocks"、"quotes"、"kline"）的调用情况。
     所有 DataCollector 方法通过 _track() 自动记录。
 
-    Thread-safe: 因 GIL，Counter 自增和列表追加在当前环境下安全。
+    ``record_call()`` 与 ``snapshot()`` 共享可重入锁，保证一次记录和一次快照都只暴露
+    完整状态；不得依赖 GIL 推断复合更新具有原子性。
     """
 
     def __init__(self) -> None:
+        self._lock = RLock()
         self._total: defaultdict[str, int] = defaultdict(int)
         self._success: defaultdict[str, int] = defaultdict(int)
         self._empty: defaultdict[str, int] = defaultdict(int)
@@ -82,23 +85,29 @@ class HealthStats:
         error_code: str | None = None,
     ) -> None:
         """记录一次调用结果"""
-        self._total[endpoint] += 1
-        if error:
-            self._failures[endpoint] += 1
-            self._last_error_code[endpoint] = error_code or "DATA_SOURCE_CALL_FAILED"
-        elif empty:
-            self._empty[endpoint] += 1
-        else:
-            self._success[endpoint] += 1
-            self._last_success_ts[endpoint] = time.time()
+        with self._lock:
+            self._total[endpoint] += 1
+            if error:
+                self._failures[endpoint] += 1
+                self._last_error_code[endpoint] = error_code or "DATA_SOURCE_CALL_FAILED"
+            elif empty:
+                self._empty[endpoint] += 1
+            else:
+                self._success[endpoint] += 1
+                self._last_success_ts[endpoint] = time.time()
 
-        bucket = self._latencies[endpoint]
-        bucket.append(duration_ms)
-        if len(bucket) > self._window_size:
-            bucket.pop(0)
+            bucket = self._latencies[endpoint]
+            bucket.append(duration_ms)
+            if len(bucket) > self._window_size:
+                bucket.pop(0)
 
     def snapshot(self) -> dict[str, object]:
         """返回当前快照（用于 HTTP 暴露）"""
+        with self._lock:
+            return self._snapshot_locked()
+
+    def _snapshot_locked(self) -> dict[str, object]:
+        """在持有 ``_lock`` 时构造内部一致的健康快照。"""
         now = time.time()
         result: dict[str, object] = {}
         endpoints = sorted(set(self._total) | set(self._success) | set(self._failures))

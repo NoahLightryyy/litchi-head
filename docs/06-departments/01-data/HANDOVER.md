@@ -1,7 +1,7 @@
 ---
 department: 数据管道部
 codebase: src/data/
-last_updated: 2026-08-27 (首页指数双源汇总与健康脱敏)
+last_updated: 2026-08-28 (TD-080 HealthStats 原子记录与快照)
 ---
 
 # 🗄️ 数据管道部工作交接
@@ -25,7 +25,7 @@ last_updated: 2026-08-27 (首页指数双源汇总与健康脱敏)
 | DataCollector 封装 | ✅ | 6 类数据，API 向后兼容 |
 | 数据缓存（DataCache） | ✅ | 内存 TTL，各类型独立过期时间 |
 | 数据模型（10 个 Pydantic） | ✅ | StockQuote / KLine / NewsItem / BoardInfo / CapitalFlowItem / FinancialMetrics / MarketBrief / BriefSection / ValuationMetrics |
-| HealthStats 健康监控 | 🧪 | 逐源成功/空/失败/延迟；API 仅暴露安全错误码和固定文案，原始异常只进日志 |
+| HealthStats 健康监控 | 🧪 | 逐源成功/空/失败/延迟；记录与快照共享锁保证内部一致；API 仅暴露安全错误码和固定文案 |
 | 数据源审计 | ✅ | DATA_SOURCE_AUDIT.md 覆盖 10+ 平台 |
 
 ### 测试
