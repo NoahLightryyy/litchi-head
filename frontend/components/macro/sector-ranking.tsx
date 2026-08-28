@@ -1,7 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import type { MarketMeta, SectorItem } from "@/lib/types/market";
 import { formatChangePct, changeColor } from "@/lib/utils";
+import {
+  DEFAULT_VISIBLE_SECTOR_COUNT,
+  hiddenSectorCount,
+  visibleSectorItems,
+} from "@/lib/sector-ranking-view";
 import { MarketDataNotice } from "./market-data-notice";
 
 interface SectorRankingProps {
@@ -17,14 +23,24 @@ interface SectorRankingProps {
 /** 板块排行表格 */
 export function SectorRanking({ sectors, loading, error, meta, refreshError, onRetry, onSortChange }: SectorRankingProps) {
   const heatLabels = { high: "🔥", medium: "📌", low: "—" } as const;
+  const [expanded, setExpanded] = useState(false);
+  const visibleSectors = visibleSectorItems(sectors, expanded);
+  const hiddenCount = hiddenSectorCount(sectors, expanded);
+
+  const handleSortChange = (sort: string) => {
+    setExpanded(false);
+    onSortChange(sort);
+  };
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-bg-tertiary bg-bg-secondary overflow-hidden animate-pulse">
-        <div className="h-10 bg-bg-tertiary" />
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-12 bg-bg-tertiary/50 border-t border-bg-tertiary" />
-        ))}
+      <div className="rounded-lg border border-bg-tertiary bg-bg-secondary overflow-hidden" aria-live="polite">
+        <div className="px-4 py-3 text-xs text-text-muted">正在获取板块排行…</div>
+        <div className="animate-pulse">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-12 bg-bg-tertiary/50 border-t border-bg-tertiary" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -59,13 +75,13 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
             <th className="text-left px-4 py-3 font-medium">板块</th>
             <th
               className="text-right px-4 py-3 font-medium cursor-pointer hover:text-text-primary"
-              onClick={() => onSortChange("change_pct")}
+              onClick={() => handleSortChange("change_pct")}
             >
               涨跌幅 {meta?.sort_applied === "change_pct" ? "↓" : ""}
             </th>
             <th
               className="text-right px-4 py-3 font-medium cursor-pointer hover:text-text-primary"
-              onClick={() => onSortChange("fund_flow")}
+              onClick={() => handleSortChange("fund_flow")}
             >
               主力净流入(亿) {meta?.sort_applied === "fund_flow" ? "↓" : ""}
             </th>
@@ -73,7 +89,7 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
           </tr>
         </thead>
         <tbody>
-          {sectors.map((s) => (
+          {visibleSectors.map((s) => (
             <tr
               key={`${s.id}-${s.rank}`}
               className="border-b border-bg-tertiary last:border-0 hover:bg-bg-tertiary/50 cursor-pointer transition-colors"
@@ -99,6 +115,19 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
           ))}
         </tbody>
       </table>
+      {sectors.length > DEFAULT_VISIBLE_SECTOR_COUNT && (
+        <div className="sticky bottom-0 border-t border-bg-tertiary bg-bg-secondary/95 px-4 py-2 text-center backdrop-blur">
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            className="text-xs text-accent-blue hover:underline"
+          >
+            {expanded
+              ? `收起，仅显示前 ${DEFAULT_VISIBLE_SECTOR_COUNT} 个`
+              : `展开其余 ${hiddenCount} 个板块`}
+          </button>
+        </div>
+      )}
       </div>
     </>
   );

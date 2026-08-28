@@ -19,8 +19,11 @@ export async function fetchMacroBrief(): Promise<MarketEnvelope<MacroBrief | nul
 }
 
 /** 板块排行 */
-export async function fetchSectors(sort: string = "fund_flow"): Promise<MarketEnvelope<SectorItem[]>> {
-  return parseSectorsEnvelope(await api.getRaw("/market/sectors", { sort }));
+export async function fetchSectors(
+  sort: string = "fund_flow",
+  signal?: AbortSignal,
+): Promise<MarketEnvelope<SectorItem[]>> {
+  return parseSectorsEnvelope(await api.getRaw("/market/sectors", { sort }, { signal }));
 }
 
 /** 板块详情 + 产业链分析 */

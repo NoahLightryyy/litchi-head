@@ -61,11 +61,11 @@ export const api = {
     return request<T>(`${path}${query}`);
   },
 
-  getRaw: <T>(path: string, params?: Record<string, string>) => {
+  getRaw: <T>(path: string, params?: Record<string, string>, options?: RequestInit) => {
     const query = params
       ? "?" + new URLSearchParams(params).toString()
       : "";
-    return request<T>(`${path}${query}`, undefined, false);
+    return request<T>(`${path}${query}`, options, false);
   },
 
   post: <T>(path: string, data?: unknown) => {

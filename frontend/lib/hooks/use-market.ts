@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchMarketIndices, fetchSectors, fetchMacroBrief, fetchSectorDetail, fetchHotNews } from "@/lib/api/market";
 
+const SECTOR_REQUEST_TIMEOUT_MS = 18_000;
+
 /* ── 三大指数 ── */
 export function useMarketIndices() {
   return useQuery({
@@ -27,7 +29,11 @@ export function useMacroBrief() {
 export function useSectors(sort: string = "fund_flow") {
   return useQuery({
     queryKey: ["market", "sectors", sort],
-    queryFn: () => fetchSectors(sort),
+    queryFn: ({ signal }) => fetchSectors(
+      sort,
+      AbortSignal.any([signal, AbortSignal.timeout(SECTOR_REQUEST_TIMEOUT_MS)]),
+    ),
+    retry: false,
     refetchInterval: 60_000,      // 1 分钟刷新
     staleTime: 30_000,
   });
