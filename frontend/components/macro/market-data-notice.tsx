@@ -1,4 +1,5 @@
 import type { MarketMeta } from "@/lib/types/market";
+import { marketNoticeFacts } from "@/lib/market-notice";
 
 interface MarketDataNoticeProps {
   meta?: MarketMeta;
@@ -6,18 +7,7 @@ interface MarketDataNoticeProps {
 }
 
 export function MarketDataNotice({ meta, refreshError }: MarketDataNoticeProps) {
-  const facts: string[] = [];
-  if (refreshError) facts.push("刷新失败，保留上次数据");
-  if (meta?.status === "stale") facts.push("当前显示缓存数据");
-  if (meta?.missing_codes.length) {
-    facts.push(`缺少代码：${meta.missing_codes.join("、")}`);
-  }
-  if (meta?.failed_sources.length) {
-    facts.push(`失败来源：${meta.failed_sources.join("、")}`);
-  }
-  for (const limitation of meta?.limitations ?? []) {
-    facts.push(limitation.message);
-  }
+  const facts = marketNoticeFacts(meta, refreshError);
   if (facts.length === 0) return null;
 
   return (
