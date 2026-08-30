@@ -8,6 +8,10 @@ interface ChainMapProps {
 
 /** 产业链地图：上游 → 中游 → 下游，关键节点标记瓶颈 */
 export function ChainMap({ stages }: ChainMapProps) {
+  if (stages.length === 0) {
+    return <p className="text-sm text-text-muted text-center py-8">暂无产业链数据</p>;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {stages.map((stage, i) => (

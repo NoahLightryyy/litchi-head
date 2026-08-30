@@ -9,23 +9,30 @@ import { ChainMap } from "@/components/sector/chain-map";
 import { ChainAnalysis } from "@/components/sector/chain-analysis";
 import { StockList } from "@/components/sector/stock-list";
 import { MarketDataNotice } from "@/components/macro/market-data-notice";
+import { resolveSectorDetailViewMode } from "@/lib/sector-detail-view";
 
 /** 板块详情 / 产业链分析页 */
 export default function SectorPage() {
   const params = useParams();
   const sectorId = params.id as string;
-  const { data: sectorEnvelope, isLoading, error } = useSectorDetail(sectorId);
+  const { data: sectorEnvelope, isLoading, isError } = useSectorDetail(sectorId);
   const sector = sectorEnvelope?.data;
+  const viewMode = resolveSectorDetailViewMode({ sector, isLoading, isError });
 
   // ── 加载态 ──
-  if (isLoading) {
+  if (viewMode === "loading") {
     return (
-      <div className="flex flex-col gap-6 max-w-7xl mx-auto animate-pulse">
+      <div
+        className="flex flex-col gap-6 max-w-7xl mx-auto animate-pulse"
+        role="status"
+        aria-busy="true"
+        aria-label="板块详情加载中"
+      >
         <div className="h-4 w-40 bg-bg-tertiary rounded" />
         <div className="h-8 w-60 bg-bg-tertiary rounded" />
-        <div className="grid grid-cols-5 gap-6">
-          <div className="col-span-3 h-80 bg-bg-tertiary rounded" />
-          <div className="col-span-2 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3 h-80 bg-bg-tertiary rounded" />
+          <div className="lg:col-span-2 space-y-4">
             <div className="h-32 bg-bg-tertiary rounded" />
             <div className="h-48 bg-bg-tertiary rounded" />
           </div>
@@ -35,7 +42,8 @@ export default function SectorPage() {
   }
 
   // ── 错误/空态 ──
-  if (error || !sector) {
+  if (viewMode === "error" || viewMode === "empty") {
+    const requestFailed = viewMode === "error";
     return (
       <div className="flex flex-col gap-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-2 text-sm">
@@ -45,10 +53,17 @@ export default function SectorPage() {
           <span className="text-text-muted">/</span>
           <span className="text-text-muted">板块未找到</span>
         </div>
-        <div className="p-8 rounded-lg border border-bg-tertiary bg-bg-secondary text-center">
+        <div
+          className="p-8 rounded-lg border border-bg-tertiary bg-bg-secondary text-center"
+          role={requestFailed ? "alert" : "status"}
+        >
           <div className="text-4xl mb-4">📡</div>
-          <p className="text-sm text-text-muted mb-2">板块数据加载失败</p>
-          <p className="text-xs text-text-muted mb-4">数据源可能暂时不可用，请稍后重试</p>
+          <p className="text-sm text-text-muted mb-2">
+            {requestFailed ? "板块数据加载失败" : "板块未找到"}
+          </p>
+          {requestFailed && (
+            <p className="text-xs text-text-muted mb-4">数据源可能暂时不可用，请稍后重试</p>
+          )}
           <div className="flex items-center justify-center gap-3">
             <Link
               href="/"
@@ -56,16 +71,22 @@ export default function SectorPage() {
             >
               返回宏观总览
             </Link>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 transition-colors"
-            >
-              重新加载
-            </button>
+            {requestFailed && (
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 transition-colors"
+              >
+                重新加载
+              </button>
+            )}
           </div>
         </div>
       </div>
     );
+  }
+
+  if (!sectorEnvelope || !sector) {
+    throw new Error("板块详情状态解析异常");
   }
 
   return (
@@ -81,7 +102,7 @@ export default function SectorPage() {
       </div>
 
       {/* 板块头部 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <SectorHeader
           name={sector.name}
           changePct={sector.change_pct}
@@ -97,9 +118,9 @@ export default function SectorPage() {
       </div>
 
       {/* 两列布局 */}
-      <div className="grid grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* 左列：产业链地图 (3/5) */}
-        <div className="col-span-3">
+        <div className="lg:col-span-3">
           <div className="flex items-center gap-2 mb-3">
             <Network className="w-4 h-4 text-accent-blue" />
             <h2 className="text-sm font-semibold text-text-primary">产业链地图</h2>
@@ -111,7 +132,7 @@ export default function SectorPage() {
         </div>
 
         {/* 右列：个股排行 + AI 分析 (2/5) */}
-        <div className="col-span-2 flex flex-col gap-4">
+        <div className="lg:col-span-2 flex flex-col gap-4">
           {/* AI 产业链分析 */}
           <div>
             <div className="flex items-center gap-2 mb-3">

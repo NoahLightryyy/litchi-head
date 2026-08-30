@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { SectorStock } from "@/lib/types/market";
 
 interface StockListProps {
@@ -15,6 +16,14 @@ export function StockList({ stocks, loading }: StockListProps) {
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-12 bg-bg-tertiary/50 border-b border-bg-tertiary animate-pulse" />
         ))}
+      </div>
+    );
+  }
+
+  if (stocks.length === 0) {
+    return (
+      <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-8 text-center">
+        <p className="text-sm text-text-muted">暂无板块个股</p>
       </div>
     );
   }
@@ -39,16 +48,16 @@ export function StockList({ stocks, loading }: StockListProps) {
         </thead>
         <tbody>
           {stocks.map((s) => (
-            <tr
-              key={s.code}
-              className="border-b border-bg-tertiary last:border-0 hover:bg-bg-tertiary/50 cursor-pointer transition-colors"
-              onClick={() => (window.location.href = `/stock/${s.code}`)}
-            >
+            <tr key={s.code} className="border-b border-bg-tertiary last:border-0 hover:bg-bg-tertiary/50 transition-colors">
               <td className="px-3 py-2.5">
-                <div className="flex flex-col">
+                <Link
+                  href={`/stock/${s.code}`}
+                  className="flex flex-col rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                  aria-label={`查看 ${s.name}（${s.code}）的个股决策`}
+                >
                   <span className="text-text-primary font-medium">{s.name}</span>
                   <span className="text-xs text-text-muted">{s.code}</span>
-                </div>
+                </Link>
               </td>
               <td className={`px-3 py-2.5 text-right font-number ${s.change_pct >= 0 ? "text-accent-green" : "text-accent-red"}`}>
                 {s.change_pct >= 0 ? "+" : ""}{s.change_pct.toFixed(2)}%
