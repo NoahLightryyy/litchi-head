@@ -7,6 +7,7 @@
 
 | 文档 | 说明 |
 |:-----|:-----|
+| [WORKLIST.md](WORKLIST.md) | FW 系列唯一总清单、部门分工、状态与接手顺序 |
 | [SPEC.md](SPEC.md) | 完整功能规格、组件树、数据流 |
 | [ROUTING.md](ROUTING.md) | 路由设计、参数约定、导航逻辑 |
 | [COMPONENTS.md](COMPONENTS.md) | 组件体系、UI 规范、最佳实践 |

@@ -58,11 +58,11 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **远程仓库** | GitHub (`origin`)，Gitee (`gitee`) 作为备份 |
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
-| **最新功能批次** | KR-3B-1 成功运行时组装完成；下一原子 KR-3B-2 四层失败诊断归并 |
-| **全量测试** | 1706 collected；1683 passed / 4 skipped / 19 deselected；4/4 闸门通过 ✅ |
+| **最新功能批次** | 前端首页市场消费者与板块排行体验收口；总状态见 `docs/03-modules/10-frontend/WORKLIST.md` |
+| **全量测试** | 1754 collected；1731 passed / 4 skipped / 19 deselected；5/5 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
-| **CI 状态** | ✅ Run #72 全绿（frontend + Python 3.12/3.13）；本地全量闸门 4/4 通过 |
+| **CI 状态** | 本次远端 CI 待推送后触发；本地全量闸门 5/5 通过 ✅ |
 
 ---
 
@@ -142,7 +142,13 @@ docs/06-departments/02-debate-engine/DEBT.md
 
 ---
 
-## ▶️ 下次会话启动点（2026-07-30）
+## ▶️ 下次会话启动点（全局主体基线 2026-07-30；前端覆盖 2026-08-30）
+
+> **2026-08-30 前端窗口覆盖说明**：若接手前端工作，优先读取
+> [前端总工作清单](../03-modules/10-frontend/WORKLIST.md)和
+> [前端部交接](../06-departments/09-frontend/HANDOVER.md)。当前独立 worktree 为
+> `C:\Users\ASUS\Desktop\litchi-head-frontend`，分支为 `codex/frontend-integration`；
+> 不要按下方旧日期的后端启动点覆盖前端任务上下文。
 
 1. 新浪新闻元数据已进入 SQLite WAL 滚动缓存，默认每 5 分钟采集、保留 3 天；
 2. 东方财富实时源与新浪滚动源通过同一接口并发聚合；

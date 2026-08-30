@@ -1,7 +1,7 @@
 ---
 department: 前端部
 codebase: frontend/
-last_updated: 2026-08-28 (首页板块排行限时加载与折叠展示完成)
+last_updated: 2026-08-30 (前端集成分支可推送交接)
 ---
 
 # 🎨 前端部工作交接
@@ -33,7 +33,7 @@ last_updated: 2026-08-28 (首页板块排行限时加载与折叠展示完成)
 | 前端 mock 数据 | ✅ 零造假 |
 | 前端纯函数测试 | ✅ 31 项通过（含首页五态、指数来源、nullable 资金流、板块折叠、分时与上海时区） |
 | ESLint | ✅ Next.js Core Web Vitals + TypeScript，零警告阻塞 |
-| 项目级 `scripts/check.py --full` | ✅ 5/5；1730 passed / 5 skipped / 19 deselected |
+| 项目级 `scripts/check.py --full` | ✅ 5/5；1731 passed / 4 skipped / 19 deselected |
 
 ### 关键架构决策
 
@@ -68,6 +68,38 @@ last_updated: 2026-08-28 (首页板块排行限时加载与折叠展示完成)
 ---
 
 ## 下一步优先级
+
+### 当前分支与接手入口（2026-08-30）
+
+- 独立 worktree：`C:\Users\ASUS\Desktop\litchi-head-frontend`；
+- 分支：`codex/frontend-integration`；远端目标：`origin/codex/frontend-integration`；
+- 关键提交链：后端冻结 `5b4fc3a` → 合流 `87187ac` → 消费者 `40d7fcf` →
+  提示降噪 `6a1fcd7` → 板块有限等待/折叠 `1dbbfe7`；
+- 当前交付尚未合并 `main`；后续应通过评审合并，
+  不要在其他窗口直接 cherry-pick 未核验的局部提交；
+- 唯一已知联调阻塞：TD-081。行业/概念来源都超时时，后端串行等待最坏约 30 秒；
+  前端已在 18 秒结束等待并显示手动重试，不造板块数据。
+
+接手命令：
+
+```powershell
+Set-Location C:\Users\ASUS\Desktop\litchi-head-frontend
+git fetch origin --prune
+git status -sb
+python scripts/check.py --full
+pnpm --dir frontend build
+```
+
+总状态和各部门责任只在[前端总工作清单](../../03-modules/10-frontend/WORKLIST.md)维护。
+
+### 前端总清单分工（FW）
+
+| 总清单项 | 本部门细分责任 | 交付闸门 |
+|:---------|:---------------|:---------|
+| FW-001、FW-010/011 | 维护总表，完成组件五态、离线、可访问性和真实浏览器证据 | 不保留第二套状态表；页面事实与测试/浏览器证据一致 |
+| FW-012、FW-020～023 | 严格消费请求身份、四层信封、晋升、健康和重试语义 | 未冻结字段标 `🔒 待上游`；旧结果不冒充当前请求 |
+| FW-030 | 消费生成的 TypeScript 类型并处理迁移 | schema 漂移必须在 CI 阶段失败，不留运行时猜测 |
+| FW-040～060 | 展示真实产业链、反馈和效果证据及其限制 | 无 mock、无未来信息、无成功样本偏差、无效果暗示 |
 
 ### 后续质量与集成
 
