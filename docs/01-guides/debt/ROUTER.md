@@ -9,7 +9,7 @@
 
 | 部门 | 债务清单 | 开放债务数 |
 |:-----|:---------|:----------:|
-| 🔄 [跨部门](../../06-departments/00-cross-cutting/DEBT.md) | 影响全代码库的债务 | **5+5** |
+| 🔄 [跨部门](../../06-departments/00-cross-cutting/DEBT.md) | 影响全代码库的债务 | **10** |
 | 🗄️ [数据管道部](../../06-departments/01-data/DEBT.md) | Provider / Collector / 数据模型 | **5** |
 | 🎯 [辩论引擎部](../../06-departments/02-debate-engine/DEBT.md) | 编排器 / 信任度 / 反射 | **3** |
 | 🤖 [AI Agent 架构部](../../06-departments/03-ai-agents/DEBT.md) | BaseAgent / MasterAgent / 协议 | **3** |
@@ -17,18 +17,18 @@
 | 🛡️ [风控管理部](../../06-departments/05-risk-management/DEBT.md) | 风控编排 / 风险画像 | **0** |
 | 💹 [交易执行部](../../06-departments/06-trading/DEBT.md) | 交易模型 / 桥接 | **0** |
 | 🔬 [回测研究部](../../06-departments/07-backtesting/DEBT.md) | 回测引擎 / 绩效指标 | **0** |
-| 🌐 [后端 API 部](../../06-departments/08-backend-api/DEBT.md) | 路由 / 技术指标 | **3** |
+| 🌐 [后端 API 部](../../06-departments/08-backend-api/DEBT.md) | 路由 / 技术指标 | **2** |
 | 🎨 [前端部](../../06-departments/09-frontend/DEBT.md) | 组件 / 类型 / 构建 | **1** |
-| ⚙️ [基础设施部](../../06-departments/10-infrastructure/DEBT.md) | LLM / Config / CostTracker | **7** |
+| ⚙️ [基础设施部](../../06-departments/10-infrastructure/DEBT.md) | LLM / Config / CostTracker | **5** |
 
-**总计：34 条开放债务（紧急指数待下次自动重算 — 🔴 TD-061/TD-074 关键级）**
+**总计：31 条开放表项（30 个唯一 TD；紧急指数待下次自动重算 — 🔴 TD-061/TD-074 关键级）**
 
 ---
 
 ## 仪表盘
 
 ```
-开放债务: 34 条    已关闭: 40 条
+开放债务: 31 条表项    已关闭: 45 条表项
 紧急指数: 待重算
 ```
 
@@ -37,18 +37,18 @@
 | 严重度 | 数量 | 说明 |
 |:------:|:----:|:------|
 | 🔴 Critical | 2 | 结果参数回调引擎、决策 baseline/影子验证缺失 |
-| 🟡 Moderate | 19 | 测试、功能缺失、性能、持久化、数据降级与契约 |
-| 🟢 Low | 13 | 代码质量、依赖维护与小修复 |
+| 🟡 Moderate | 17 | 测试、功能缺失、性能、持久化、数据降级与契约 |
+| 🟢 Low | 12 | 代码质量、依赖维护与小修复 |
 
 ### 按部门分布
 
 ```
-基础设施部: 7 条 ← 最多（LLM/config/依赖维护）
-跨部门:     5+5 条 ← 全代码库级
+跨部门:     10 条 ← 全代码库级
+基础设施部: 5 条（LLM/config/依赖维护）
 数据管道部: 5 条
 AI Agent 部:3 条
 辩论引擎部: 3 条
-后端 API 部:3 条
+后端 API 部:2 条
 前端部:     1 条
 记忆系统部: 2 条
 风控部:     0 条 ✅

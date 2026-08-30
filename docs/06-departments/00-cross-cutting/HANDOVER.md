@@ -1,6 +1,6 @@
 ---
 department: 跨部门
-last_updated: 2026-08-28 (TD-077 / XI-004～006 前后端联合关闭)
+last_updated: 2026-08-30 (BW-052 / TD-080 后端交接收尾)
 ---
 
 # 🔄 跨部门状态总览
@@ -26,11 +26,11 @@ last_updated: 2026-08-28 (TD-077 / XI-004～006 前后端联合关闭)
 
 | 指标 | 当前值 |
 |:-----|:------:|
-| 全量测试 | 1725 collected；1702 passed、4 skipped、19 deselected ✅ |
+| 全量测试 | 1754 collected；1731 passed、4 skipped、19 deselected ✅ |
 | Pyright (src/) | 0 errors ✅ |
 | Pyright (backend/) | 0 errors ✅ |
 | Ruff | All checks passed ✅ |
-| 技术债务开放 | 32 条 |
+| 技术债务开放 | 31 条表项（30 个唯一 TD；历史重复编号按部门表保留） |
 | 紧急指数 | 5.6/10 |
 
 ## 跨部门协作现状
