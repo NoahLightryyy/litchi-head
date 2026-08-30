@@ -62,7 +62,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **全量测试** | 1754 collected；1731 passed / 4 skipped / 19 deselected；5/5 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
-| **CI 状态** | 本次远端 CI 待推送后触发；本地全量闸门 5/5 通过 ✅ |
+| **CI 状态** | 工作流仅在 `main` push 或面向 `main` 的 PR 触发；本集成分支单独推送不触发；本地全量闸门 5/5 通过 ✅ |
 
 ---
 
