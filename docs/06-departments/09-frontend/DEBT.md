@@ -18,6 +18,7 @@ department: 前端部
 
 | ID | 标题 | 修复日期 | 修复说明 |
 |:---|:-----|:--------|:---------|
+| TD-083 | 无层级全局reset覆盖间距工具类 | 2026-09-04 | reset移入base层，真实DOM确认main留白0→24px |
 | TD-025 | 前端无全局 Error Boundary | 2026-06-17 | error.tsx + not-found.tsx |
 | TD-026 | 骨架屏永不消失 | 2026-06-17 | page.tsx 四态分离 |
 | TD-027 | 前端无离线检测 | 2026-06-17 | useOnlineStatus() + 离线横幅 |
@@ -28,3 +29,20 @@ department: 前端部
 | TD-033 | capital-flow-panel.tsx `.reverse()` 变异数组 | 2026-08-21 | 当前实现使用 `slice(-10)`，不再就地反转来源数组；引用同步清理 |
 | TD-077 | Next.js 16 已移除 `next lint` | 2026-08-21 | 迁移 ESLint 9 flat config；本地检查与 GitHub CI 均设为零警告阻塞门禁 |
 | TD-080 | 健康统计未区分请求成功与有效业务数据 | 2026-08-27 | 后端 `HealthStats` 新增 empty 统计，空业务结果使数据源健康状态降级；前端继续按诊断契约展示 |
+
+
+### TD-083 全局reset覆盖页面间距（当轮关闭）
+
+| 属性 | 值 |
+|------|-----|
+| **分类** | `implementation` `severity:low` `module:frontend/styles` `impact:可读性` |
+| **发现日期** | 2026-09-04 |
+| **发现人** | 用户截图与AI浏览器计算样式检查 |
+| **状态** | ✅ 已关闭 |
+| **本金估算** | 当轮完成 |
+| **日利息** | 页面和卡片拥挤，工具类声明与实际布局不一致 |
+| **实盘影响** | 降低数据扫读和操作可辨识度，不改变行情数值 |
+| **触发场景** | Tailwind utilities层遇到无层级的全局padding/margin reset |
+| **用户能发现吗** | 能看到拥挤，但无法知道是层级覆盖造成 |
+
+**描述**：main声明p-6但computed padding为0。全局reset进入base层后恢复24px；保留既有主题、数值与排序语义。

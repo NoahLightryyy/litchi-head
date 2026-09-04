@@ -89,3 +89,12 @@ export function resolveSectorDetailViewMode({ sector, isLoading, isError }) {
 **上一篇：[健康检查分层：连得上不等于有数据](56-layered-health-contract.md)**
 
 **下一篇：[58｜同步上游并发](58-bounded-sync-upstream-concurrency.md)**
+
+
+## 首页大列表与样式层（2026-09-04）
+
+`sector-ranking.tsx` 首屏渲染10条，按钮每次增加10条，并显示“显示N/总数”。排序与收起重置可见数量和表格滚动位置，不修改上游排序或补造行。`sector-ranking-view.ts` 的涨跌条按全榜最大绝对涨跌幅共享比例，零在中线；数值始终保留，颜色不是唯一信息。
+
+全局 `* { padding: 0; margin: 0 }` 若不放入CSS层，会盖过Tailwind在utilities层中的间距。`globals.css` 将reset放入 `@layer base`，浏览器main的p-6从0恢复24px。
+
+自己试试：用1000条明确标记的测试数据挂载组件，检查10→20→10行、键盘收起与scrollTop=0；然后检查main的computed padding。测试数据不能放进真实行情接口。独立验收页退出后删除，并清理其Next开发类型缓存，防止生产构建继续引用已删除的测试路由。

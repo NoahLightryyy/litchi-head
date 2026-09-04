@@ -24,10 +24,12 @@
   --chart-volume: rgba(47, 101, 85, 0.18);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html,
