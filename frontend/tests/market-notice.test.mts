@@ -16,6 +16,17 @@ const baseMeta: MarketMeta = {
   sort_applied: null,
 };
 
+test("冲突来源不冒充请求失败，混合失败保留两类事实", () => {
+  const diagnostics: MarketMeta["source_diagnostics"] = ["sina", "eastmoney"].map((upstream_id) => ({
+    index_code: "000001", source_id: upstream_id, upstream_id, status: "conflicted",
+    latency_ms: 1, as_of: null, error_code: "index_quote_conflict", error_message: "来源数据冲突",
+  }));
+  const meta = { ...baseMeta, failed_sources: ["sina", "eastmoney"], source_diagnostics: diagnostics };
+  assert.deepEqual(marketNoticeFacts(meta), ["冲突来源：sina、eastmoney"]);
+  diagnostics.push({ ...diagnostics[0], index_code: "399001", status: "failed" });
+  assert.deepEqual(marketNoticeFacts(meta), ["失败来源：sina", "冲突来源：sina、eastmoney"]);
+});
+
 test("单源指数详情由卡片披露，不重复生成技术告警横条", () => {
   const facts = marketNoticeFacts({
     ...baseMeta,

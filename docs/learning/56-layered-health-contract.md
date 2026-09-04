@@ -41,4 +41,8 @@ const degraded = value.status !== "ok" || summary.failing_endpoints > 0
 
 **上一篇：[55｜多源汇总不是把两个数字取平均](55-multi-source-index-reconciliation.md)**
 
-**下一篇：[57｜同步上游并发：协程取消不等于线程停止](57-bounded-sync-upstream-concurrency.md)**
+**下一篇：[57｜可访问的数据视图](57-accessible-stateful-data-view.md)**
+
+## 前端恢复消费（2026-09-04）
+
+`frontend/lib/backend-health.ts` 严格消费 current_status；历史 failures 保留也不会让 healthy 继续告警。未知状态返回诊断不可用。消费者测试覆盖恢复、空结果和混合来源。指数卡消费 display_source，冲突提示与请求失败分开，不遮挡有效单源数据。

@@ -30,15 +30,29 @@ const verifiedIndex = {
   change_pct: 0.59,
   as_of: "2026-08-28T10:15:30+08:00",
   source_count: 2,
+  display_source: null,
   cached: false,
 } as const;
+
+test("价时冲突的有效单源报价继续展示并保留来源；拒绝缺失或错误的来源字段", () => {
+  const data = ["000001", "399001", "399006"].map((code) => ({
+    ...verifiedIndex, code, source_count: 1, display_source: code === "399001" ? "eastmoney" : "sina",
+  }));
+  const meta = { ...baseMeta, status: "partial", limitations: data.map((item) => ({
+    code: "INDEX_TIMESTAMP_CONFLICT", index_code: item.code, message: "来源数据冲突",
+  })) };
+  assert.deepEqual(parseIndicesEnvelope({ data, meta }), { data, meta });
+  for (const display_source of [undefined, null, 3, ""]) {
+    assert.throws(() => parseIndicesEnvelope({ data: [{ ...data[0], display_source }], meta }), MarketContractError);
+  }
+});
 
 test("消费者接受后端冻结的 success 与 partial 指数信封", () => {
   const success = { data: [verifiedIndex], meta: baseMeta };
   assert.deepEqual(parseIndicesEnvelope(success), success);
 
   const partial = {
-    data: [{ ...verifiedIndex, source_count: 1 }],
+    data: [{ ...verifiedIndex, source_count: 1, display_source: "sina" }],
     meta: { ...baseMeta, status: "partial", missing_codes: ["399001", "399006"] },
   };
   assert.deepEqual(parseIndicesEnvelope(partial), partial);
@@ -54,7 +68,7 @@ test("消费者拒绝 0.00 指数和状态数据矛盾", () => {
 
 test("指数校验时间、来源数量及 success/stale 语义", () => {
   assert.throws(
-    () => parseIndicesEnvelope({ data: [{ ...verifiedIndex, source_count: 1 }], meta: baseMeta }),
+    () => parseIndicesEnvelope({ data: [{ ...verifiedIndex, source_count: 1, display_source: "sina" }], meta: baseMeta }),
     MarketContractError,
   );
   assert.throws(

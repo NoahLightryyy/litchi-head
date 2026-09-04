@@ -146,6 +146,8 @@ function isMarketIndex(value: unknown): value is MarketIndex {
     isTimestamp(value.as_of) &&
     isNonNegativeInteger(value.source_count) &&
     value.source_count >= 1 &&
+    (value.display_source === null || isNonEmptyString(value.display_source)) &&
+    (value.source_count === 1 ? isNonEmptyString(value.display_source) : value.display_source === null) &&
     typeof value.cached === "boolean"
   );
 }

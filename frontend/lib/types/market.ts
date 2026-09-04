@@ -52,6 +52,7 @@ export interface MarketIndex {
   change_pct: number;
   as_of: string;
   source_count: number;
+  display_source: string | null;
   cached: boolean;
 }
 

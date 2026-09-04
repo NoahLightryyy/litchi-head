@@ -1,4 +1,4 @@
-# 57 同步上游并发：协程取消不等于线程停止
+# 58 同步上游并发：协程取消不等于线程停止
 
 ## 一句话
 
@@ -69,4 +69,4 @@ for call_id, task in tasks.items():
 
 ---
 
-**上一篇：[56｜健康检查分层：连得上不等于有数据](56-layered-health-contract.md)**
+**上一篇：[57｜可访问的数据视图](57-accessible-stateful-data-view.md)**

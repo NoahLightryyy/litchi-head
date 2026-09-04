@@ -19,7 +19,10 @@ export function marketNoticeFacts(
 
   // 单源指数已经在各指数卡片内轻量披露，不重复展示技术来源告警。
   if (meta?.failed_sources.length && !onlySingleSourceLimitations) {
-    facts.push(`失败来源：${meta.failed_sources.join("、")}`);
+    const conflicts = new Set(meta.source_diagnostics.filter((item) => item.status === "conflicted").map((item) => item.upstream_id));
+    const failed = meta.failed_sources.filter((source) => !conflicts.has(source) || meta.source_diagnostics.some((item) => item.upstream_id === source && item.status === "failed"));
+    if (failed.length) facts.push(`失败来源：${failed.join("、")}`);
+    if (conflicts.size) facts.push(`冲突来源：${[...conflicts].join("、")}`);
   }
   for (const limitation of visibleLimitations) {
     facts.push(limitation.message);

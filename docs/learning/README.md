@@ -85,8 +85,8 @@
 | 54 | 🆕 [HTTP 200 不等于数据成功](54-truthful-market-api-status.md) | 市场 API 五态、失败关闭、陈旧缓存、空结果健康统计 |
 | 55 | 🆕 [多源汇总不是把两个数字取平均](55-multi-source-index-reconciliation.md) | 指数代码身份、并发采集、价时冲突、单源降级、逐源健康 |
 | 56 | 🆕 [健康检查分层：连得上不等于有数据](56-layered-health-contract.md) | `/api/health`、`/api/health/data-source` 与运行时适配 |
-| 57 | 🆕 [同步上游并发：协程取消不等于线程停止](57-bounded-sync-upstream-concurrency.md) | 板块共享截止、稳定归并与固定线程占用 |
 | 57 | 🆕 [可访问的数据视图：状态准确还不够，操作也必须可达](57-accessible-stateful-data-view.md) | 板块详情四态、空态、键盘链接与响应式布局 |
+| 58 | 🆕 [同步上游并发：协程取消不等于线程停止](58-bounded-sync-upstream-concurrency.md) | 板块共享截止、稳定归并与固定线程占用 |
 
 > **卡片持续增加中** —— 每次开发新功能，新的学习卡片就会出现在这里。
 

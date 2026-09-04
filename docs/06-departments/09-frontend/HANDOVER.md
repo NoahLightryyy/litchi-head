@@ -250,3 +250,7 @@ frontend/components/
 | `frontend/components/stock/financial-panel.tsx` | 🆕 | 🏛️ 财务分析面板（财务指标+估值比率+历史对比表） |
 | `docs/06-departments/09-frontend/ROLE.md` | — | 👤 前端部角色定义 |
 | `docs/06-departments/09-frontend/STANDARDS.md` | — | 📐 前端部技术规范 |
+
+## 2026-09-04 当前预览
+
+当前服务从 C:/Users/ASUS/.codex/worktrees/frontend-preview-recovery/litchi-head 启动，分支 codex/frontend-preview-recovery，已集成20211fe与5d89d7d并消费current_status/display_source。3000使用生产构建；8000为配套后端。37项前端测试、类型、ESLint、构建与scripts/check.py通过。新浪恢复误报已解除。板块快照方案待用户确认，后端任务01a06c27-3c35-7e73-8cf6-7103c061faec继续负责。不要再启动旧前端目录的配套后端冒充当前集成版。

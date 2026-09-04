@@ -55,14 +55,16 @@ export function MarketIndices({ indices, loading, error, meta, refreshError, onR
       <MarketDataNotice meta={meta} refreshError={refreshError} />
       <div className="grid grid-cols-3 gap-4">
         {indices.map((idx) => (
-          <MarketIndexCard key={idx.code} index={idx} />
+          <MarketIndexCard key={idx.code} index={idx} conflicted={meta?.limitations.some(
+            (item) => item.index_code === idx.code && ["INDEX_PRICE_CONFLICT", "INDEX_TIMESTAMP_CONFLICT"].includes(item.code),
+          )} />
         ))}
       </div>
     </>
   );
 }
 
-function MarketIndexCard({ index }: { index: MarketIndex }) {
+function MarketIndexCard({ index, conflicted }: { index: MarketIndex; conflicted?: boolean }) {
   const isUp = index.change_pct >= 0;
   const dataTime = new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Shanghai",
@@ -85,7 +87,8 @@ function MarketIndexCard({ index }: { index: MarketIndex }) {
       <div className="text-sm text-text-secondary mt-1">{index.name}</div>
       <div className="mt-2 flex flex-wrap gap-x-2 text-[11px] text-text-muted">
         <span>数据时间 {dataTime}</span>
-        <span>{index.source_count >= 2 ? `${index.source_count} 源一致` : "单源可用"}</span>
+        <span>{conflicted ? "来源冲突" : index.source_count >= 2 ? `${index.source_count} 源一致` : "单源可用"}</span>
+        {index.display_source && <span>{({ sina: "新浪", eastmoney: "东方财富" } as Record<string, string>)[index.display_source] ?? index.display_source}</span>}
         {index.cached && <span>缓存</span>}
       </div>
     </div>

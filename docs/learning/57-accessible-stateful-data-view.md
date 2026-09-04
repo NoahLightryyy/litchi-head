@@ -88,4 +88,4 @@ export function resolveSectorDetailViewMode({ sector, isLoading, isError }) {
 
 **上一篇：[健康检查分层：连得上不等于有数据](56-layered-health-contract.md)**
 
-**下一篇：待补充**
+**下一篇：[58｜同步上游并发](58-bounded-sync-upstream-concurrency.md)**

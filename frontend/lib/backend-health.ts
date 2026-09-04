@@ -30,13 +30,15 @@ function isNonNegativeInteger(value: unknown): value is number {
 
 /** Converts the documented /api/health/data-source payload into the UI contract. */
 export function normalizeDataSourceDiagnostics(value: unknown): DiagnoseResult | null {
-  if (!isRecord(value) || !isRecord(value.stats)) return null;
+  if (!isRecord(value) || !isRecord(value.stats) ||
+    (value.status !== "ok" && value.status !== "degraded")) return null;
 
   const summary = value.stats.__summary__;
   if (
     !isRecord(summary) ||
     !isNonNegativeInteger(summary.total_failures) ||
-    !isNonNegativeInteger(summary.failing_endpoints)
+    !isNonNegativeInteger(summary.failing_endpoints) ||
+    !isNonNegativeInteger(summary.empty_endpoints)
   ) {
     return null;
   }
@@ -44,13 +46,14 @@ export function normalizeDataSourceDiagnostics(value: unknown): DiagnoseResult |
   const checks: Record<string, DiagnoseCheck> = {};
   for (const [name, rawCheck] of Object.entries(value.stats)) {
     if (name === "__summary__") continue;
-    if (!isRecord(rawCheck) || !isNonNegativeInteger(rawCheck.failures)) {
+    if (!isRecord(rawCheck) || !isNonNegativeInteger(rawCheck.failures) ||
+      (rawCheck.current_status !== "healthy" && rawCheck.current_status !== "failed" && rawCheck.current_status !== "empty")) {
       return null;
     }
 
-    if (rawCheck.failures > 0) {
+    if (rawCheck.current_status !== "healthy") {
       checks[name] = {
-        status: "fail",
+        status: rawCheck.current_status === "empty" ? "warn" : "fail",
         ...(typeof rawCheck.last_error === "string"
           ? { error: rawCheck.last_error }
           : {}),
@@ -62,8 +65,9 @@ export function normalizeDataSourceDiagnostics(value: unknown): DiagnoseResult |
 
   const degraded =
     value.status !== "ok" ||
-    summary.total_failures > 0 ||
-    summary.failing_endpoints > 0;
+    summary.failing_endpoints > 0 ||
+    summary.empty_endpoints > 0 ||
+    Object.values(checks).some((check) => check.status !== "pass");
   return {
     status: degraded ? "degraded" : "healthy",
     checks,
