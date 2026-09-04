@@ -46,3 +46,15 @@ const degraded = value.status !== "ok" || summary.failing_endpoints > 0
 ## 前端恢复消费（2026-09-04）
 
 `frontend/lib/backend-health.ts` 严格消费 current_status；历史 failures 保留也不会让 healthy 继续告警。未知状态返回诊断不可用。消费者测试覆盖恢复、空结果和混合来源。指数卡消费 display_source，冲突提示与请求失败分开，不遮挡有效单源数据。
+
+
+
+## 延伸：快照缓存不等于实时数据
+
+候选 `src/data/providers/eastmoney_boards.py` 将 `as_of`（上游数据时间）、
+`fetched_at`（完整采集时间）、`cached`（本次是否复用本地缓存）分别保存。
+可能延迟的东方财富快照始终标记 `possibly_delayed=true`；缓存命中更快不代表报价更新。
+只有页数/总量/唯一代码检查通过的完整数据才进入30秒缓存，过期后网络失败不返回旧缓存。
+
+自己试试：运行 `pytest tests/test_data/test_eastmoney_boards.py -q`，对照缓存边界测试的
+29.9秒和30秒，观察缓存命中与失败传播的差别。该候选尚未接入正式路由，等待时间口径批准。
