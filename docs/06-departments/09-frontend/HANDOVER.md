@@ -1,7 +1,7 @@
 ---
 department: 前端部
 codebase: frontend/
-last_updated: 2026-08-30 (前端集成分支可推送交接)
+last_updated: 2026-09-04 (TD-081 后端冻结待集成复验)
 ---
 
 # 🎨 前端部工作交接
@@ -33,7 +33,7 @@ last_updated: 2026-08-30 (前端集成分支可推送交接)
 | 前端 mock 数据 | ✅ 零造假 |
 | 前端纯函数测试 | ✅ 34 项通过（含首页五态、板块详情四态、指数来源、nullable 资金流、板块折叠、分时与上海时区） |
 | ESLint | ✅ Next.js Core Web Vitals + TypeScript，零警告阻塞 |
-| 项目级 `scripts/check.py --full` | ✅ 5/5；1731 passed / 4 skipped / 19 deselected |
+| 项目级 `scripts/check.py --full` | ✅ 5/5；1739 passed / 4 skipped / 19 deselected |
 
 ### 关键架构决策
 
@@ -77,8 +77,9 @@ last_updated: 2026-08-30 (前端集成分支可推送交接)
   提示降噪 `6a1fcd7` → 板块有限等待/折叠 `1dbbfe7`；
 - 当前交付尚未合并 `main`；后续应通过评审合并，
   不要在其他窗口直接 cherry-pick 未核验的局部提交；
-- 唯一已知联调阻塞：TD-081。行业/概念来源都超时时，后端串行等待最坏约 30 秒；
-  前端已在 18 秒结束等待并显示手动重试，不造板块数据。
+- TD-081 后端已冻结：列表双路共享 15 秒截止；详情超时/上游失败返回结构化 503。
+  前端继续保留 18 秒有限等待、`role=alert` 失败态和手动重试，不改文案、不猜新字段；
+  待合入冻结提交后重跑消费者与真实浏览器验收。
 
 接手命令：
 

@@ -36,3 +36,5 @@ const degraded =
 ---
 
 **上一篇：[55｜多源汇总不是把两个数字取平均](55-multi-source-index-reconciliation.md)**
+
+**下一篇：[57｜同步上游并发：协程取消不等于线程停止](57-bounded-sync-upstream-concurrency.md)**

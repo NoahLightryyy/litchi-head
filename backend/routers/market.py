@@ -7,9 +7,12 @@ TD-020: 板块数据增强层 —— heat/chain_map/ai_analysis 接入真实数�
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime
+from functools import partial
 from typing import Literal
 
 import akshare as ak
@@ -18,7 +21,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from backend.async_utils import run_sync
+from backend.async_utils import DATA_TIMEOUT, BoundedSyncRunner, run_sync
 from src.data.collector import DataCollector
 from src.data.index_quote_runtime import (
     IndexLimitation,
@@ -31,6 +34,10 @@ logger = logging.getLogger("backend.market")
 router = APIRouter(prefix="/api/market")
 collector = DataCollector()
 index_quote_service = get_index_quote_service()
+_sector_source_runner = BoundedSyncRunner(
+    max_workers=2,
+    thread_name_prefix="market-sector-source",
+)
 
 # ── 响应模型（匹配 frontend/lib/types/market.ts） ──────────────
 
@@ -79,6 +86,21 @@ class MarketErrorBody(BaseModel):
 
 class MarketErrorResponse(BaseModel):
     error: MarketErrorBody
+    meta: MarketMeta
+
+
+class SectorDetailErrorBody(BaseModel):
+    code: Literal[
+        "MARKET_SECTOR_DETAIL_TIMEOUT",
+        "MARKET_SECTOR_DETAIL_FAILED",
+    ]
+    message: str
+    retryable: Literal[True] = True
+    retry_mode: Literal["client_controlled"] = "client_controlled"
+
+
+class SectorDetailErrorResponse(BaseModel):
+    error: SectorDetailErrorBody
     meta: MarketMeta
 
 
@@ -226,6 +248,30 @@ def _market_failed(
     )
 
 
+def _sector_detail_failed(
+    code: Literal[
+        "MARKET_SECTOR_DETAIL_TIMEOUT",
+        "MARKET_SECTOR_DETAIL_FAILED",
+    ],
+    message: str,
+    started_at: float,
+    *,
+    failed_sources: list[str],
+) -> JSONResponse:
+    """Return the frozen fail-closed contract for sector details."""
+    return JSONResponse(
+        status_code=503,
+        content=SectorDetailErrorResponse(
+            error=SectorDetailErrorBody(code=code, message=message),
+            meta=MarketMeta(
+                status="failed",
+                latency_ms=round((time.time() - started_at) * 1000),
+                failed_sources=failed_sources,
+            ),
+        ).model_dump(mode="json"),
+    )
+
+
 def _market_limitations(items: list[IndexLimitation]) -> list[MarketLimitation]:
     return [MarketLimitation.model_validate(item.model_dump()) for item in items]
 
@@ -253,6 +299,71 @@ def _fetch_board_perf_df(board_type: str) -> pd.DataFrame:
     return ak.stock_board_concept_name_em()
 
 
+BoardCallFailure = Literal["timeout", "failed"]
+
+
+async def _fetch_board_dataframes(
+    calls: dict[str, Callable[[], pd.DataFrame]],
+    *,
+    timeout: float,
+) -> tuple[dict[str, pd.DataFrame], dict[str, BoardCallFailure]]:
+    """Run board DataFrame calls concurrently under one aggregate deadline."""
+    tasks = {
+        call_id: asyncio.create_task(
+            _sector_source_runner.run(call),
+            name=f"market-board-{call_id}",
+        )
+        for call_id, call in calls.items()
+    }
+    try:
+        done, pending = await asyncio.wait(tasks.values(), timeout=timeout)
+    except asyncio.CancelledError:
+        for task in tasks.values():
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks.values(), return_exceptions=True)
+        raise
+    if pending:
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    frames: dict[str, pd.DataFrame] = {}
+    failures: dict[str, BoardCallFailure] = {}
+    for call_id, task in tasks.items():
+        if task not in done:
+            logger.error("获取板块上游超时: call=%s timeout=%ss", call_id, timeout)
+            failures[call_id] = "timeout"
+            frames[call_id] = pd.DataFrame()
+            continue
+        try:
+            frames[call_id] = task.result()
+        except TimeoutError:
+            logger.exception("板块上游返回超时: call=%s", call_id)
+            failures[call_id] = "timeout"
+            frames[call_id] = pd.DataFrame()
+        except Exception:
+            logger.exception("获取板块上游失败: call=%s", call_id)
+            failures[call_id] = "failed"
+            frames[call_id] = pd.DataFrame()
+    return frames, failures
+
+
+async def _fetch_board_perf_sources(
+    *,
+    timeout: float,
+) -> tuple[dict[str, pd.DataFrame], list[str]]:
+    """Fetch industry and concept rankings with stable source ordering."""
+    frames, failures = await _fetch_board_dataframes(
+        {
+            "industry": partial(_fetch_board_perf_df, "industry"),
+            "concept": partial(_fetch_board_perf_df, "concept"),
+        },
+        timeout=timeout,
+    )
+    return frames, list(failures)
+
+
 def _fetch_board_stocks_df(sector_id: str, board_type: str) -> pd.DataFrame:
     """获取板块成分股行情
 
@@ -263,13 +374,9 @@ def _fetch_board_stocks_df(sector_id: str, board_type: str) -> pd.DataFrame:
     Returns:
         DataFrame（列：代码, 名称, 现价, 涨跌幅, 主力净流入）
     """
-    try:
-        if board_type == "industry":
-            return ak.stock_board_industry_cons_em(symbol=sector_id)
-        return ak.stock_board_concept_cons_em(symbol=sector_id)
-    except Exception:
-        logger.exception("获取板块成分股失败: sector_id=%s", sector_id)
-        return pd.DataFrame()
+    if board_type == "industry":
+        return ak.stock_board_industry_cons_em(symbol=sector_id)
+    return ak.stock_board_concept_cons_em(symbol=sector_id)
 
 
 def _calc_heat(
@@ -445,16 +552,13 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
     """板块排行（行业 + 概念），含真实涨跌幅和资金流向"""
     t0 = time.time()
     items: list[SectorItemResp] = []
-    failed_sources: list[str] = []
     fund_flow_missing_sources: list[str] = []
+    board_frames, failed_sources = await _fetch_board_perf_sources(
+        timeout=DATA_TIMEOUT,
+    )
 
     # 行业板块 — 直接调 akshare 获取完整 DataFrame
-    try:
-        df_ind = await run_sync(_fetch_board_perf_df, "industry")
-    except Exception:
-        logger.exception("获取行业板块行情失败")
-        failed_sources.append("industry")
-        df_ind = pd.DataFrame()
+    df_ind = board_frames["industry"]
     if not df_ind.empty:
         industry_has_fund_flow = "主力净流入-净额" in df_ind.columns
         if not industry_has_fund_flow:
@@ -472,12 +576,7 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
             ))
 
     # 概念板块
-    try:
-        df_con = await run_sync(_fetch_board_perf_df, "concept")
-    except Exception:
-        logger.exception("获取概念板块行情失败")
-        failed_sources.append("concept")
-        df_con = pd.DataFrame()
+    df_con = board_frames["concept"]
     if not df_con.empty:
         concept_has_fund_flow = "主力净流入-净额" in df_con.columns
         if not concept_has_fund_flow:
@@ -536,15 +635,61 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
     }
 
 
-@router.get("/sector/{sector_id:str}", response_model=SectorDetailEnvelope)
+@router.get(
+    "/sector/{sector_id:str}",
+    response_model=SectorDetailEnvelope,
+    responses={503: {"model": SectorDetailErrorResponse}},
+)
 async def get_sector_detail(sector_id: str):
     """板块详情 — 含成分股 + 热度 + AI 分析 + 产业链映射"""
     t0 = time.time()
 
-    # 判断板块类型并获取成分股
-    board_type = await run_sync(_detect_board_type, sector_id)
-    stocks_df = await run_sync(_fetch_board_stocks_df, sector_id, board_type)
-    board_perf_df = await run_sync(_fetch_board_perf_df, board_type)
+    # 判断板块类型，并在同一个总预算内并发获取成分股与板块行情。
+    board_type: str | None = None
+    try:
+        async with asyncio.timeout(DATA_TIMEOUT):
+            board_type = await _sector_source_runner.run(_detect_board_type, sector_id)
+            frames, failures = await _fetch_board_dataframes(
+                {
+                    "stocks": partial(_fetch_board_stocks_df, sector_id, board_type),
+                    "performance": partial(_fetch_board_perf_df, board_type),
+                },
+                timeout=DATA_TIMEOUT,
+            )
+    except TimeoutError:
+        logger.exception("板块详情聚合超时: sector_id=%s", sector_id)
+        return _sector_detail_failed(
+            "MARKET_SECTOR_DETAIL_TIMEOUT",
+            "板块详情上游超时",
+            t0,
+            failed_sources=[board_type or "industry"],
+        )
+    except Exception:
+        logger.exception("板块详情上游失败: sector_id=%s", sector_id)
+        return _sector_detail_failed(
+            "MARKET_SECTOR_DETAIL_FAILED",
+            "板块详情暂时不可用",
+            t0,
+            failed_sources=[board_type or "industry"],
+        )
+    if failures:
+        failure_code = (
+            "MARKET_SECTOR_DETAIL_TIMEOUT"
+            if "timeout" in failures.values()
+            else "MARKET_SECTOR_DETAIL_FAILED"
+        )
+        return _sector_detail_failed(
+            failure_code,
+            (
+                "板块详情上游超时"
+                if failure_code == "MARKET_SECTOR_DETAIL_TIMEOUT"
+                else "板块详情暂时不可用"
+            ),
+            t0,
+            failed_sources=[board_type],
+        )
+    stocks_df = frames["stocks"]
+    board_perf_df = frames["performance"]
 
     # 板块基本信息
     board_name = sector_id

@@ -59,7 +59,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | **默认分支** | `main` |
 | **CI** | GitHub Actions（Ruff + Pyright + Pytest on 3.12/3.13） |
 | **最新功能批次** | 前端首页市场消费者与板块排行体验收口；总状态见 `docs/03-modules/10-frontend/WORKLIST.md` |
-| **全量测试** | 1754 collected；1731 passed / 4 skipped / 19 deselected；5/5 闸门通过 ✅ |
+| **全量测试** | 1762 collected；1739 passed / 4 skipped / 19 deselected；5/5 闸门通过 ✅ |
 | **设计哲学** | 🏛️ [DESIGN_PHILOSOPHY.md](../00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行蓝图；[PRODUCT-POSITIONING.md](../99-archive/PRODUCT-POSITIONING.md) — 2026-07-23 产品定位定论 |
 | **Pyright** | src/ 0 errors, backend/ 0 errors ✅ |
 | **CI 状态** | 工作流仅在 `main` push 或面向 `main` 的 PR 触发；本集成分支单独推送不触发；本地全量闸门 5/5 通过 ✅ |

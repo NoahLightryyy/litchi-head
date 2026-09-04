@@ -123,3 +123,42 @@ class TestRunSync:
 
         with pytest.raises(asyncio.TimeoutError):
             await run_sync(slow)
+
+
+class TestBoundedSyncRunner:
+    """专用线程池限制取消后仍在运行的同步工作。"""
+
+    async def test_cancelled_waiters_do_not_exceed_worker_limit(self):
+        from threading import Event, Lock
+
+        from backend.async_utils import BoundedSyncRunner
+
+        runner = BoundedSyncRunner(max_workers=2, thread_name_prefix="bounded-test")
+        release = Event()
+        two_workers_started = Event()
+        lock = Lock()
+        running = 0
+        peak_running = 0
+
+        def blocking_call() -> None:
+            nonlocal running, peak_running
+            with lock:
+                running += 1
+                peak_running = max(peak_running, running)
+                if running == 2:
+                    two_workers_started.set()
+            release.wait(timeout=1.0)
+            with lock:
+                running -= 1
+
+        first_wave = [asyncio.create_task(runner.run(blocking_call)) for _ in range(2)]
+        assert await asyncio.to_thread(two_workers_started.wait, 0.5)
+        queued = asyncio.create_task(runner.run(blocking_call))
+        await asyncio.sleep(0)
+        queued.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await queued
+        release.set()
+        await asyncio.gather(*first_wave)
+
+        assert peak_running == 2

@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -389,6 +390,87 @@ class TestGetSectors:
         assert resp.json()["error"]["code"] == "MARKET_SECTORS_FAILED"
         assert resp.json()["meta"]["status"] == "failed"
 
+    def test_board_sources_share_one_deadline_and_keep_failed_order(self, client):
+        """双路阻塞并发等待，不能把两个截止时间串成约 2 倍。"""
+        from threading import Event
+
+        release = Event()
+        industry_started = Event()
+        concept_started = Event()
+
+        def block_industry() -> pd.DataFrame:
+            industry_started.set()
+            release.wait(timeout=1.0)
+            return pd.DataFrame()
+
+        def block_concept() -> pd.DataFrame:
+            concept_started.set()
+            release.wait(timeout=1.0)
+            return pd.DataFrame()
+
+        started_at = time.monotonic()
+        try:
+            with (
+                patch(
+                    "akshare.stock_board_industry_name_em",
+                    side_effect=block_industry,
+                ) as industry_source,
+                patch(
+                    "akshare.stock_board_concept_name_em",
+                    side_effect=block_concept,
+                ) as concept_source,
+                patch("backend.routers.market.DATA_TIMEOUT", 0.15),
+            ):
+                resp = client.get("/api/market/sectors")
+                first_elapsed = time.monotonic() - started_at
+                retry_resp = client.get("/api/market/sectors")
+        finally:
+            release.set()
+
+        assert industry_started.is_set()
+        assert concept_started.is_set()
+        assert first_elapsed < 0.28
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == "MARKET_SECTORS_FAILED"
+        assert resp.json()["meta"]["failed_sources"] == ["industry", "concept"]
+        assert retry_resp.status_code == 503
+        assert industry_source.call_count == 1
+        assert concept_source.call_count == 1
+
+    def test_successful_board_survives_other_source_deadline(self, client):
+        """一条来源成功、另一条超时时仍保持既有 partial 失败关闭语义。"""
+        from threading import Event
+
+        release = Event()
+        concept_started = Event()
+
+        def block_concept() -> pd.DataFrame:
+            concept_started.set()
+            release.wait(timeout=1.0)
+            return pd.DataFrame()
+
+        try:
+            with (
+                patch(
+                    "akshare.stock_board_industry_name_em",
+                    return_value=make_board_perf_df(),
+                ),
+                patch(
+                    "akshare.stock_board_concept_name_em",
+                    side_effect=block_concept,
+                ),
+                patch("backend.routers.market.DATA_TIMEOUT", 0.1),
+            ):
+                resp = client.get("/api/market/sectors")
+        finally:
+            release.set()
+
+        assert concept_started.is_set()
+        assert resp.status_code == 200
+        assert resp.json()["data"]
+        assert resp.json()["meta"]["status"] == "partial"
+        assert resp.json()["meta"]["failed_sources"] == ["concept"]
+
     def test_sector_has_required_fields(self, client):
         """每个板块包含所有必要字段"""
         df = make_board_perf_df()
@@ -516,6 +598,80 @@ class TestGetSectorDetail:
         stocks = resp.json()["data"]["stocks"]
         assert all("ai_rating" in s for s in stocks)
         assert any(s["ai_rating"] != "B" for s in stocks)  # 有涨跌幅差异
+
+    def test_timeout_returns_structured_retryable_503(self, client, mock_collector):
+        """真实浏览器发现的板块行情超时必须失败关闭，不能泄漏为 500。"""
+        from threading import Event
+
+        release = Event()
+
+        def block_performance() -> pd.DataFrame:
+            release.wait(timeout=1.0)
+            return pd.DataFrame()
+
+        try:
+            with (
+                patch("backend.routers.market.collector", mock_collector),
+                patch(
+                    "akshare.stock_board_industry_cons_em",
+                    return_value=make_board_stocks_df(),
+                ),
+                patch(
+                    "akshare.stock_board_industry_name_em",
+                    side_effect=block_performance,
+                ),
+                patch("backend.routers.market.DATA_TIMEOUT", 0.1),
+            ):
+                resp = client.get("/api/market/sector/BK001")
+        finally:
+            release.set()
+
+        assert resp.status_code == 503
+        assert resp.json()["error"] == {
+            "code": "MARKET_SECTOR_DETAIL_TIMEOUT",
+            "message": "板块详情上游超时",
+            "retryable": True,
+            "retry_mode": "client_controlled",
+        }
+        assert resp.json()["meta"]["status"] == "failed"
+        assert resp.json()["meta"]["failed_sources"] == ["industry"]
+
+    @pytest.mark.parametrize("upstream", ["stocks", "performance"])
+    @pytest.mark.parametrize("timed_out", [False, True])
+    def test_upstream_failure_returns_structured_retryable_503(
+        self,
+        client,
+        mock_collector,
+        upstream,
+        timed_out,
+    ):
+        error = TimeoutError("timeout") if timed_out else RuntimeError("upstream failed")
+        with (
+            patch("backend.routers.market.collector", mock_collector),
+            patch(
+                "akshare.stock_board_industry_cons_em",
+                return_value=make_board_stocks_df(),
+                side_effect=error if upstream == "stocks" else None,
+            ),
+            patch(
+                "akshare.stock_board_industry_name_em",
+                return_value=make_board_perf_df(),
+                side_effect=error if upstream == "performance" else None,
+            ),
+        ):
+            resp = client.get("/api/market/sector/BK001")
+
+        assert resp.status_code == 503
+        assert resp.json()["error"] == {
+            "code": (
+                "MARKET_SECTOR_DETAIL_TIMEOUT" if timed_out else "MARKET_SECTOR_DETAIL_FAILED"
+            ),
+            "message": "板块详情上游超时" if timed_out else "板块详情暂时不可用",
+            "retryable": True,
+            "retry_mode": "client_controlled",
+        }
+        assert resp.json()["meta"]["status"] == "failed"
+        assert resp.json()["meta"]["failed_sources"] == ["industry"]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -716,3 +872,15 @@ def test_homepage_market_openapi_freezes_status_and_failed_response(client):
         responses = schema["paths"][path]["get"]["responses"]
         assert "200" in responses
         assert "503" in responses
+
+    detail_responses = schema["paths"]["/api/market/sector/{sector_id}"]["get"][
+        "responses"
+    ]
+    assert "503" in detail_responses
+    detail_error = components["SectorDetailErrorBody"]["properties"]
+    assert detail_error["code"]["enum"] == [
+        "MARKET_SECTOR_DETAIL_TIMEOUT",
+        "MARKET_SECTOR_DETAIL_FAILED",
+    ]
+    assert detail_error["retryable"]["const"] is True
+    assert detail_error["retry_mode"]["const"] == "client_controlled"

@@ -1,7 +1,7 @@
 ---
 department: 后端 API 部
 codebase: backend/
-last_updated: 2026-08-28 (BW-020 / TD-077 前后端联合验收关闭)
+last_updated: 2026-09-04 (TD-081 后端冻结，待前端集成复验)
 ---
 
 # 🌐 后端 API 部工作交接
@@ -20,7 +20,7 @@ last_updated: 2026-08-28 (BW-020 / TD-077 前后端联合验收关闭)
 | debate 路由（3 endpoint） | 🟡 | 功能可用；持久 session 原型已验证，但路由仍在内存、请求内同步执行 |
 | trust 路由（2 endpoint） | ✅ | 信任度报告/排行榜 |
 | 技术指标（indicators.py） | ✅ | MA/RSI/MACD/布林带纯 Python |
-| 异步超时控制（async_utils.py） | ✅ | `run_sync()` 15s 超时封装 |
+| 异步超时控制（async_utils.py） | ✅ | `run_sync()` 15s 超时；板块聚合共享截止并由 2 线程专用执行器限制取消后残留 |
 | 健康监控（/api/health） | ✅ | 空结果触发 degraded；原始异常脱敏；指数逐源统计；浏览器无底层异常泄露 |
 | evidence 路由（3 endpoint） | ✅ | 新闻、实时行情、L1 分时战况；逐源状态与完整性评估 |
 
@@ -28,16 +28,16 @@ last_updated: 2026-08-28 (BW-020 / TD-077 前后端联合验收关闭)
 
 | 测试集 | 测试数 |
 |:-------|:------:|
-| test_market.py（6 端点 + 辅助函数 + hot-news） | 45 |
+| test_market.py（6 端点 + 辅助函数 + hot-news） | 61 |
 | test_stocks.py（8 端点 + financials/valuation/indicators） | 28 |
 | test_debate.py（3 端点 + session 生命周期 + 限流） | 13 |
 | test_trust.py（2 端点 + 映射逻辑） | 10 |
 | test_retro.py（6 端点：records/summary/action/outcome/refresh/delete） | 26 |
 | test_indicators.py（技术指标 100% 覆盖） | 43 |
-| test_main.py + lifespan（health + 异常处理） | 9 |
-| test_utils_backend.py（config 环境变量 + async_utils 超时） | 7 |
+| test_main.py + lifespan（health + 异常处理） | 12 |
+| test_utils_backend.py（config 环境变量 + async_utils 超时） | 8 |
 | test_evidence.py（新闻/行情/分时聚合、股票代码和时间范围校验） | 9 |
-| **backend 合计（含 indicators）** | **190** |
+| **backend 合计（含 indicators）** | **210** |
 
 ### 关键架构决策
 
@@ -48,7 +48,12 @@ last_updated: 2026-08-28 (BW-020 / TD-077 前后端联合验收关闭)
   冲突失败关闭和 30 秒已核验缓存均结构化暴露
 - **未知值与脱敏**：板块来源缺资金流时 `fund_flow=null`，健康响应不包含原始异常、URL
   或参数
-- **异步桥接**：所有同步数据采集调用通过 `run_sync(timeout=15)` 封装
+- **异步桥接**：普通同步采集通过 `run_sync()` 封装（`DATA_TIMEOUT=15s`）；板块使用下述有界执行器
+- **板块聚合调度**：行业/概念同时启动并共享 15 秒截止；详情的类型识别、成分股和
+  行情也共享总预算。同步调用无法强杀，但专用 2 线程执行器限制重复超时的后台占用
+- **板块详情失败契约**：聚合超时返回 HTTP 503 + `MARKET_SECTOR_DETAIL_TIMEOUT`；
+  其他上游异常返回 HTTP 503 + `MARKET_SECTOR_DETAIL_FAILED`；两者均明确
+  `retryable=true, retry_mode=client_controlled`；后端不重试，不改变前端既有重试策略
 - **CORS 环境变量化**：从 `BACKEND_CORS_ORIGINS` 读取，硬编码默认值仅用于开发
 - **ADR-012 session 原型**：版本化信封 + SQLite WAL + 哈希恢复门禁；
   PostgreSQL 同信封重启恢复通过；真实 LLM 结果和最小 LangGraph 节点续跑已验证，
@@ -62,6 +67,7 @@ last_updated: 2026-08-28 (BW-020 / TD-077 前后端联合验收关闭)
 |:---|:-----|:------:|:----:|
 | TD-054 | CORS 地址硬编码（需改环境变量） | 🟢 | 10min |
 | TD-068 | 重型辩论无 durable queue、全局背压与恢复 | 🟡 | 2d |
+| TD-081 | 后端列表/详情修复完成，待集成分支浏览器联合验收 | 🟡 | 后端已完成 |
 
 ## 已关闭
 

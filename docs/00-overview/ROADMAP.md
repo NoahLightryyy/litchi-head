@@ -8,8 +8,8 @@
 ## 快速统计
 
 ```
-总 Python 测试数 │ 1706 collected；1683 passed / 4 skipped / 19 deselected
-技术债务         │ 74 条总记 / 40 条已关闭 / 34 条开放
+总 Python 测试数 │ 1762 collected；1739 passed / 4 skipped / 19 deselected
+技术债务         │ 76 条总记 / 42 条已关闭 / 34 条开放
 紧急指数         │ 5.6/10（TD-061 Critical；数据底座处于实施门禁）
 当前阶段         │ 🟡 Phase R 数据底座加固 — L1分时影子回填/正式基线底座完成；待20日暖机并推进K线
 前端进度         │ 全部 Tab 面板就绪（技术指标/资金流向/AI 辩论/信任度）+ 暗色主题打磨 + pnpm build ✅
