@@ -14,23 +14,27 @@
 
 ## 项目里的真实代码
 
-打开 `frontend/lib/backend-health.ts`：
+打开 `src/data/collector.py`：`begin_batch()` 在上游请求前分配序号，
+`record_batch()` 持锁一次性记录三指数结果，再按失败、空数据、成功的优先级归并当前健康。
+晚到旧批仍计入历史，但不能覆盖更新批的当前状态；`snapshot()` 持同一锁读取一致快照。
+
+前端消费目标（`frontend/lib/backend-health.ts` 待集成任务落实）：
 
 ```typescript
-const degraded =
-  value.status !== "ok" ||
-  summary.total_failures > 0 ||
-  summary.failing_endpoints > 0;
+const degraded = value.status !== "ok" || summary.failing_endpoints > 0
+  || summary.empty_endpoints > 0;
+// 单项只读 current_status；禁止用 failures / total_failures 的历史值判断当前故障。
 ```
 
-`normalizeDataSourceDiagnostics()` 还会拒绝缺少汇总字段、失败计数类型错误等未知响应，避免
-后端契约漂移后前端继续显示绿色。
+失败后恢复不能删除历史，也不能让历史累计值永久维持红灯。一个来源承担多个指数时，
+后两个成功更不能抹掉第一个失败。测试见 `tests/test_data/test_health_recovery.py` 和
+`tests/test_data/test_index_quote_runtime.py`。当前状态是最后一次完成的观察，不是实时可达保证。
 
 ## 自己试试（5 分钟）
 
 1. 访问 `/api/health`，确认它只证明后端进程在线。
 2. 访问 `/api/health/data-source`，把 `failing_endpoints` 临时改为 1 写进单元测试。
-3. 运行 `pnpm --dir frontend test`，观察状态转换为 `degraded`。
+3. 运行 `pytest tests/test_data/test_health_recovery.py -q`，观察失败后恢复仍保留 failures。
 4. 思考题：HTTP 200 但 `data: []` 应该算传输成功还是业务可用？
 
 ---

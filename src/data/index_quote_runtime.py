@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
-from src.data.collector import HealthStats, get_health_stats
+from src.data.collector import HealthObservation, HealthStats, get_health_stats
 from src.data.evidence import (
     EvidenceCapability,
     EvidenceRequest,
@@ -69,6 +69,7 @@ class IndexConsensusQuote(BaseModel):
     as_of: datetime
     source_count: int = Field(ge=1)
     cached: bool = False
+    display_source: str | None = None
 
 
 class IndexQuoteCollection(BaseModel):
@@ -117,7 +118,9 @@ class IndexQuoteService:
         if now.tzinfo is None:
             raise ValueError("now_provider must return a timezone-aware datetime")
 
+        generation = self._health_stats.begin_batch()
         collected = self._collect_all()
+        observations: list[HealthObservation] = []
         quotes: list[IndexConsensusQuote] = []
         missing_codes: list[str] = []
         limitations: list[IndexLimitation] = []
@@ -128,6 +131,19 @@ class IndexQuoteService:
 
         for code, name in INDEX_DEFINITIONS:
             timed = collected[code]
+            for item in timed:
+                result = item.result
+                if result.status is SourceStatus.SUCCESS_DATA:
+                    quote = result.items[0] if len(result.items) == 1 else None
+                    if (
+                        quote is None or quote.code != code or quote.price <= 0
+                        or quote.fetched_at is None or quote.fetched_at.tzinfo is None
+                    ):
+                        item.result = result.model_copy(update={
+                            "status": SourceStatus.FAILED,
+                            "error_code": "index_quote_invalid",
+                            "error_message": "指数来源身份、价格或时间无效",
+                        })
             reconciled, code_limitations, conflicted = self._reconcile_pair(
                 code, name, timed,
             )
@@ -142,10 +158,10 @@ class IndexQuoteService:
                         "error_code": "index_quote_conflict",
                         "error_message": "指数来源价格或时间不一致",
                     })
-                if result.status in {SourceStatus.FAILED, SourceStatus.CONFLICTED}:
+                if result.status not in {SourceStatus.SUCCESS_DATA, SourceStatus.SUCCESS_EMPTY}:
                     failed_upstreams.add(result.upstream_id)
                     any_failure = True
-                self._record_health(result, item.latency_ms)
+                observations.append(self._health_observation(result, item.latency_ms))
                 quote = result.items[0] if result.items else None
                 diagnostics.append(IndexSourceDiagnostic(
                     index_code=code,
@@ -195,6 +211,7 @@ class IndexQuoteService:
             status = "success"
             error_code = None
 
+        self._health_stats.record_batch(generation, observations)
         return IndexQuoteCollection(
             status=status,
             quotes=quotes,
@@ -279,14 +296,14 @@ class IndexQuoteService:
             aware_timestamps = [item for item in timestamps if item is not None]
             skew = max(aware_timestamps) - min(aware_timestamps)
             if skew.total_seconds() > INDEX_TIMESTAMP_TOLERANCE_SECONDS:
-                return None, [IndexLimitation(
+                return IndexQuoteService._display_quote(successful, name), [IndexLimitation(
                     code="INDEX_TIMESTAMP_CONFLICT",
                     index_code=code,
                     message=f"{name} 双源时间差超过 3 秒",
                 )], True
             prices = [item.price for item in quotes]
             if max(prices) - min(prices) > INDEX_PRICE_TOLERANCE + 1e-9:
-                return None, [IndexLimitation(
+                return IndexQuoteService._display_quote(successful, name), [IndexLimitation(
                     code="INDEX_PRICE_CONFLICT",
                     index_code=code,
                     message=f"{name} 双源价格差超过 0.01 点",
@@ -327,6 +344,7 @@ class IndexQuoteService:
                 change_pct=quote.change_pct,
                 as_of=quote.fetched_at,
                 source_count=1,
+                display_source=successful[0].upstream_id,
             ), [IndexLimitation(
                 code="INDEX_SINGLE_SOURCE",
                 index_code=code,
@@ -353,21 +371,35 @@ class IndexQuoteService:
             item.result.status is SourceStatus.FAILED for item in timed
         )
 
-    def _record_health(self, result: SourceResult[StockQuote], latency_ms: int) -> None:
+    @staticmethod
+    def _display_quote(
+        successful: list[SourceResult[StockQuote]], name: str,
+    ) -> IndexConsensusQuote:
+        """Display the latest individually valid source; never claim consensus."""
+        source = max(successful, key=lambda item: (
+            item.items[0].fetched_at or datetime.min.replace(tzinfo=SHANGHAI),
+            item.upstream_id,
+        ))
+        quote = source.items[0]
+        assert quote.fetched_at is not None
+        return IndexConsensusQuote(
+            code=quote.code, name=name, price=quote.price, change=quote.change,
+            change_pct=quote.change_pct, as_of=quote.fetched_at,
+            source_count=1, display_source=source.upstream_id,
+        )
+
+    @staticmethod
+    def _health_observation(
+        result: SourceResult[StockQuote], latency_ms: int,
+    ) -> HealthObservation:
         endpoint = f"market_index:{result.upstream_id}"
-        if result.status in {SourceStatus.FAILED, SourceStatus.CONFLICTED}:
-            self._health_stats.record_call(
-                endpoint,
-                latency_ms,
-                error=result.error_code or result.status.value,
-                error_code=result.error_code or result.status.value,
-            )
-        else:
-            self._health_stats.record_call(
-                endpoint,
-                latency_ms,
-                empty=result.status is SourceStatus.SUCCESS_EMPTY,
-            )
+        healthy = result.status is SourceStatus.SUCCESS_DATA and bool(result.items)
+        empty = result.status is SourceStatus.SUCCESS_EMPTY
+        return HealthObservation(
+            endpoint=endpoint, duration_ms=latency_ms,
+            status="healthy" if healthy else "empty" if empty else "failed",
+            error_code=None if healthy or empty else result.error_code or result.status.value,
+        )
 
     @staticmethod
     def _safe_error_message(result: SourceResult[StockQuote]) -> str | None:

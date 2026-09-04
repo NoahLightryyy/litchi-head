@@ -18,6 +18,10 @@
 import logging
 import time
 from collections import defaultdict
+from threading import RLock
+from typing import Literal
+
+from pydantic import BaseModel
 
 from src.data.cache import DataCache
 from src.data.models import (
@@ -53,13 +57,23 @@ TTL_INDUSTRY = 86400    # 行业分类：1 天（不会天天变）
 # ── 健康监控 ────────────────────────────────────────────────────────
 
 
+class HealthObservation(BaseModel):
+    """One completed source observation; batches publish current health atomically."""
+
+    endpoint: str
+    duration_ms: float
+    status: Literal["healthy", "failed", "empty"]
+    error_code: str | None = None
+
+
 class HealthStats:
     """数据源健康统计
 
     跟踪每个 endpoint（如 "all_stocks"、"quotes"、"kline"）的调用情况。
     所有 DataCollector 方法通过 _track() 自动记录。
 
-    Thread-safe: 因 GIL，Counter 自增和列表追加在当前环境下安全。
+    Counters and snapshots are protected by a lock; late batches retain history
+    without overwriting a newer completed batch's current state.
     """
 
     def __init__(self) -> None:
@@ -71,6 +85,52 @@ class HealthStats:
         self._last_success_ts: dict[str, float] = {}
         self._latencies: dict[str, list[float]] = defaultdict(list)
         self._window_size = 100  # 最多保留近 100 次延迟
+        self._lock = RLock()
+        self._generation = 0
+        self._published: dict[str, int] = {}
+        self._current: dict[str, str] = {}
+
+    def begin_batch(self) -> int:
+        """Allocate ordering before starting upstream work."""
+        with self._lock:
+            self._generation += 1
+            return self._generation
+
+    def record_batch(self, generation: int, observations: list[HealthObservation]) -> None:
+        """Publish a complete batch, with failed > empty > healthy per endpoint."""
+        with self._lock:
+            grouped: dict[str, list[HealthObservation]] = defaultdict(list)
+            for item in observations:
+                ep = item.endpoint
+                grouped[ep].append(item)
+                self._total[ep] += 1
+                if item.status == "failed":
+                    self._failures[ep] += 1
+                elif item.status == "empty":
+                    self._empty[ep] += 1
+                else:
+                    self._success[ep] += 1
+                    self._last_success_ts[ep] = time.time()
+                self._latencies[ep].append(item.duration_ms)
+                self._latencies[ep] = self._latencies[ep][-self._window_size:]
+            for ep, items in grouped.items():
+                if generation <= self._published.get(ep, -1):
+                    continue
+                self._published[ep] = generation
+                failures = [item for item in items if item.status == "failed"]
+                self._current[ep] = (
+                    "failed" if failures else
+                    "empty" if any(item.status == "empty" for item in items) else "healthy"
+                )
+                if failures:
+                    # Conflict wins over transport errors regardless of completion order.
+                    codes = {item.error_code or "DATA_SOURCE_CALL_FAILED" for item in failures}
+                    self._last_error_code[ep] = (
+                        "index_quote_conflict"
+                        if "index_quote_conflict" in codes else sorted(codes)[0]
+                    )
+                else:
+                    self._last_error_code.pop(ep, None)
 
     def record_call(
         self,
@@ -82,23 +142,19 @@ class HealthStats:
         error_code: str | None = None,
     ) -> None:
         """记录一次调用结果"""
-        self._total[endpoint] += 1
-        if error:
-            self._failures[endpoint] += 1
-            self._last_error_code[endpoint] = error_code or "DATA_SOURCE_CALL_FAILED"
-        elif empty:
-            self._empty[endpoint] += 1
-        else:
-            self._success[endpoint] += 1
-            self._last_success_ts[endpoint] = time.time()
-
-        bucket = self._latencies[endpoint]
-        bucket.append(duration_ms)
-        if len(bucket) > self._window_size:
-            bucket.pop(0)
+        self.record_batch(self.begin_batch(), [HealthObservation(
+            endpoint=endpoint,
+            duration_ms=duration_ms,
+            status="failed" if error else "empty" if empty else "healthy",
+            error_code=(error_code or "DATA_SOURCE_CALL_FAILED") if error else None,
+        )])
 
     def snapshot(self) -> dict[str, object]:
         """返回当前快照（用于 HTTP 暴露）"""
+        with self._lock:
+            return self._snapshot_locked()
+
+    def _snapshot_locked(self) -> dict[str, object]:
         now = time.time()
         result: dict[str, object] = {}
         endpoints = sorted(set(self._total) | set(self._success) | set(self._failures))
@@ -114,7 +170,12 @@ class HealthStats:
                 "failures": fails,
                 "failure_rate": round(fails / total, 4) if total > 0 else 0.0,
                 "avg_latency_ms": round(sum(lat) / len(lat), 1) if lat else None,
-                "last_error": "数据源请求失败" if fails else None,
+                "current_status": self._current[ep],
+                "last_error": (
+                    "来源数据冲突" if self._last_error_code.get(ep) == "index_quote_conflict"
+                    else "数据源请求失败" if self._current[ep] == "failed"
+                    else "数据源返回空数据" if self._current[ep] == "empty" else None
+                ),
                 "last_error_code": self._last_error_code.get(ep, None),
                 "last_success_ago_s": round(now - self._last_success_ts[ep], 1)
                     if ep in self._last_success_ts else None,
@@ -131,12 +192,12 @@ class HealthStats:
             "overall_failure_rate": round(total_fails / total_calls, 4) if total_calls > 0 else 0.0,
             "healthy_endpoints": sum(
                 1 for ep in endpoints
-                if self._success.get(ep, 0) > 0 and self._failures.get(ep, 0) == 0
+                if self._current[ep] == "healthy"
             ),
-            "failing_endpoints": sum(1 for ep in endpoints if self._failures.get(ep, 0) > 0),
+            "failing_endpoints": sum(1 for ep in endpoints if self._current[ep] == "failed"),
             "empty_endpoints": sum(
                 1 for ep in endpoints
-                if self._empty.get(ep, 0) > 0 and self._success.get(ep, 0) == 0
+                if self._current[ep] == "empty"
             ),
         }
         return result

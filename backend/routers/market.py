@@ -114,6 +114,7 @@ class IndexQuoteResp(BaseModel):
     as_of: datetime
     source_count: int = Field(ge=1)
     cached: bool = False
+    display_source: str | None = None
 
 
 class SectorItemResp(BaseModel):

@@ -22,7 +22,8 @@
 `source_id/upstream_id/status/latency/as_of/error_code`。
 
 两源价格差不超过 0.01 点且时间差不超过 3 秒才形成完整共识；单源可用时保留真实数据并
-标注 `INDEX_SINGLE_SOURCE`；冲突项不输出；双源失败只能使用 30 秒内曾通过双源校验的
+标注 `INDEX_SINGLE_SOURCE`；2026-09-04 起首页冲突也展示一个有效来源并旁注冲突，
+不声称验证通过；双源失败只能使用 30 秒内曾通过双源校验的
 缓存。缓存不是第三个来源，也不能覆盖当前冲突。
 
 ---
@@ -33,15 +34,16 @@
 
 ```python
 if max(prices) - min(prices) > INDEX_PRICE_TOLERANCE + 1e-9:
-    return None, [IndexLimitation(
+    return IndexQuoteService._display_quote(successful, name), [IndexLimitation(
         code="INDEX_PRICE_CONFLICT",
         index_code=code,
         message=f"{name} 双源价格差超过 0.01 点",
     )], True
 ```
 
-这里返回 `None` 而不是平均值，因为冲突意味着“当前不知道哪个来源正确”。其他指数仍可
-作为 `partial` 返回；如果三项都冲突，整个接口以 503 失败关闭。
+这里选择时间最新的有效单源（同时间按 upstream_id 字典序最大值确定），并返回
+`source_count=1` 与 `display_source`，不会平均、不会写入双源缓存。即使三项都存在
+价时冲突，仍以 HTTP 200 `partial` 展示并旁注；正式 AI 决策门禁不受首页显示策略影响。
 
 打开 `src/data/collector.py`：健康快照只暴露固定安全文案和稳定错误码。原始 ProxyError、
 URL 与查询参数由调用点日志保存，不进入前端横幅。
@@ -55,7 +57,7 @@ URL 与查询参数由调用点日志保存，不进入前端横幅。
 | 正常时调用 | 只调主源 | 两源并发 |
 | 能否发现主源错误值 | 不能 | 可以比较价时与身份 |
 | 单源失败 | 切备用但不披露完整性 | 返回 `partial` 和逐源诊断 |
-| 两源冲突 | 通常选主源 | 冲突项失败关闭 |
+| 两源冲突 | 通常选主源 | 有效单源展示，旁注冲突 |
 | 健康观察 | 一个聚合状态 | 按 upstream 独立统计 |
 
 ---
@@ -63,7 +65,7 @@ URL 与查询参数由调用点日志保存，不进入前端横幅。
 ## 自己试试（5 分钟）
 
 1. 运行 `pytest tests/test_data/test_index_quote_runtime.py -q`；
-2. 找到 `test_one_index_conflict_is_omitted_while_other_indices_remain_partial`；
+2. 找到 `test_one_index_conflict_is_displayed_with_explicit_limitation`；
 3. 把新浪价格从 `3943.55` 改为 `3943.54`，观察它从冲突变成完整共识；
 4. 再把两源都改成失败，确认仅 30 秒内的已核验缓存能返回 `stale`。
 

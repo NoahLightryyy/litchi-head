@@ -49,7 +49,8 @@ class TestDataSourceHealth:
     """数据源健康统计 GET /api/health/data-source"""
 
     def test_returns_stats(self, client):
-        resp = client.get("/api/health/data-source")
+        with patch("src.data.collector.get_health_stats", return_value=HealthStats()):
+            resp = client.get("/api/health/data-source")
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "ok"
@@ -64,6 +65,7 @@ class TestDataSourceHealth:
     def test_empty_only_endpoint_degrades_health(self, client):
         snapshot = {
             "quotes": {
+                "current_status": "empty",
                 "total_calls": 2,
                 "success": 0,
                 "failures": 0,
@@ -106,8 +108,23 @@ class TestDataSourceHealth:
         assert "example.com" not in resp.text
         assert "token=secret" not in resp.text
 
+    def test_history_does_not_degrade_recovered_endpoint(self, client):
+        stats = HealthStats()
+        stats.record_call("quotes", 1, error="failure")
+        stats.record_call("quotes", 1)
+        with patch("src.data.collector.get_health_stats", return_value=stats):
+            body = client.get("/api/health/data-source").json()
+        assert body["status"] == "ok"
+        assert body["stats"]["quotes"]["current_status"] == "healthy"
+        assert body["stats"]["quotes"]["failures"] == 1
+        assert body["stats"]["quotes"]["last_error"] is None
+
     def test_openapi_freezes_safe_health_response(self, client):
         schema = client.get("/openapi.json").json()
+        endpoint = schema["components"]["schemas"]["DataSourceEndpointHealth"]
+        assert "current_status" in endpoint["required"]
+        assert endpoint["properties"]["current_status"]["enum"] == ["healthy", "failed", "empty"]
+        assert "display_source" in schema["components"]["schemas"]["IndexQuoteResp"]["properties"]
         response = schema["paths"]["/api/health/data-source"]["get"]["responses"]["200"]
         assert response["content"]["application/json"]["schema"]["$ref"].endswith(
             "/DataSourceHealthResponse"

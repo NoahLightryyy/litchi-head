@@ -184,8 +184,12 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 
 - `/api/market/indices`：东方财富与新浪两路指数专用接口并发采集。每项返回 `as_of`、
   `source_count` 和 `cached`；双源价格差不超过 0.01 点且时间差不超过 3 秒时为完整数据，
-  单源可用为 `partial + INDEX_SINGLE_SOURCE`，冲突项不输出。三项全部冲突返回 503 +
-  `MARKET_INDICES_CONFLICTED`，双源全失败且无缓存返回 `MARKET_INDICES_FAILED`。最近 30 秒
+  单源可用为 `partial + INDEX_SINGLE_SOURCE`。2026-09-04 用户批准：首页只要一个来源有效就展示；
+  双源价时冲突也返回 HTTP 200 `partial`，选择时间最新的单源（同时间按 upstream_id 字典序最大值确定），
+  `source_count=1`、`display_source` 标明所用 upstream，旁注 `INDEX_PRICE_CONFLICT` 或
+  `INDEX_TIMESTAMP_CONFLICT`；不是双源共识。身份、价格或时间本身无效的源不能参与展示。
+  全部无有效数据且失败时仍返回 `MARKET_INDICES_FAILED`；保留 `MARKET_INDICES_CONFLICTED`
+  兼容错误码，但有效单源之间的价时冲突不再触发该码。最近 30 秒
   已核验缓存仅在双源失败时可作为 `stale` 返回；禁止构造 `0.00` 占位项。
 - `/api/market/brief`：无可用指数时 `data=null`、状态 `empty`，不再返回“暂无数据”
   形式的成功简报。
@@ -196,9 +200,15 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 ### GET /api/health/data-source
 
 健康响应由 `DataSourceHealthResponse` 固定。每个 endpoint 只暴露计数、失败率、平均延迟、
-最后成功距今秒数，以及安全的 `last_error`/`last_error_code`。`last_error` 只能是固定用户
-文案“数据源请求失败”，不得包含异常类、URL、查询参数、Token 或代理详情；原始异常只写
-后端日志。指数来源分别以 `market_index:eastmoney` 和 `market_index:sina` 统计。
+最后成功距今秒数，以及安全的 `last_error`/`last_error_code`。新增必填
+`current_status: healthy | failed | empty`；计数、失败率是进程生命周期历史，不能驱动当前告警。
+`last_error` 是当前安全文案：请求失败“数据源请求失败”、冲突“来源数据冲突”、
+空结果“数据源返回空数据”；成功清空 last_error/last_error_code，保留历史计数。不得
+包含原始异常、URL、Token 或代理详情。指数来源分别以 `market_index:eastmoney` 和
+`market_index:sina` 统计；同来源三指数整批原子发布，failed > empty > healthy，按批次
+启动顺序防止旧批晚到覆盖新批。状态代表最后完成的批次，未完成请求不先清错；健康查询
+不发上游请求、不自行重试、不改变进程健康 HTTP 状态。详情见
+[健康恢复与展示集成说明](../../06-departments/08-backend-api/HEALTH-RECOVERY-INTEGRATION.md)。
 
 ### GET /api/market/sector/{id}
 

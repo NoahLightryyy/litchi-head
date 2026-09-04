@@ -30,6 +30,7 @@ logger = logging.getLogger("backend")
 
 
 class DataSourceEndpointHealth(BaseModel):
+    current_status: Literal["healthy", "failed", "empty"]
     total_calls: int = Field(ge=0)
     success: int = Field(ge=0)
     empty: int = Field(ge=0)

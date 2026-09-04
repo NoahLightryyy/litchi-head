@@ -1,7 +1,10 @@
 """Homepage market-index multi-source aggregation contract."""
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+from threading import Event
 from typing import Any
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from src.data.collector import HealthStats
@@ -207,7 +210,7 @@ def test_one_failed_source_returns_partial_with_usable_quotes() -> None:
     assert {item.code for item in result.limitations} == {"INDEX_SINGLE_SOURCE"}
 
 
-def test_one_index_conflict_is_omitted_while_other_indices_remain_partial() -> None:
+def test_one_index_conflict_is_displayed_with_explicit_limitation() -> None:
     result = _service(
         _source("eastmoney-index", "eastmoney"),
         _source(
@@ -218,8 +221,11 @@ def test_one_index_conflict_is_omitted_while_other_indices_remain_partial() -> N
     ).collect()
 
     assert result.status == "partial"
-    assert [item.code for item in result.quotes] == ["000001", "399006"]
-    assert result.missing_codes == ["399001"]
+    assert [item.code for item in result.quotes] == list(INDEX_CODES)
+    assert result.quotes[1].source_count == 1
+    assert result.quotes[1].display_source == "sina"
+    assert result.quotes[1].price == 3943.55
+    assert result.missing_codes == []
     assert any(item.code == "INDEX_PRICE_CONFLICT" for item in result.limitations)
     conflicted = [
         item for item in result.source_diagnostics
@@ -228,7 +234,7 @@ def test_one_index_conflict_is_omitted_while_other_indices_remain_partial() -> N
     assert {item.status for item in conflicted} == {SourceStatus.CONFLICTED}
 
 
-def test_all_indices_conflicted_fail_closed() -> None:
+def test_all_indices_conflicted_still_display_individually_valid_source() -> None:
     result = _service(
         _source("eastmoney-index", "eastmoney"),
         _source(
@@ -238,9 +244,11 @@ def test_all_indices_conflicted_fail_closed() -> None:
         ),
     ).collect()
 
-    assert result.status == "failed"
-    assert result.error_code == "MARKET_INDICES_CONFLICTED"
-    assert result.quotes == []
+    assert result.status == "partial"
+    assert result.error_code is None
+    assert len(result.quotes) == 3
+    assert all(item.source_count == 1 for item in result.quotes)
+    assert result.failed_sources == ["eastmoney", "sina"]
 
 
 def test_recent_accepted_cache_is_stale_when_both_sources_fail() -> None:
@@ -301,3 +309,97 @@ def test_source_health_records_failure_separately_from_success() -> None:
     snapshot = stats.snapshot()
     assert snapshot["market_index:eastmoney"]["success"] == 3
     assert snapshot["market_index:sina"]["failures"] == 3
+
+
+def test_mixed_source_health_recovers_only_after_complete_successful_batch() -> None:
+    stats = HealthStats()
+    eastmoney = _source("eastmoney-index", "eastmoney")
+    sina = _source("sina-index", "sina", price_by_code={"000001": 4000})
+    service = _service(eastmoney, sina, health_stats=stats)
+    service.collect()
+    snapshot = stats.snapshot()
+    assert snapshot["market_index:sina"]["current_status"] == "failed"
+    assert snapshot["market_index:sina"]["last_error"] == "来源数据冲突"
+    # Two later successful indices must not clear the first index's conflict.
+    assert snapshot["market_index:sina"]["success"] == 2
+    sina._results = _source("sina-index", "sina")._results
+    service.collect()
+    snapshot = stats.snapshot()
+    assert snapshot["market_index:sina"]["failures"] == 1
+    assert snapshot["market_index:sina"]["current_status"] == "healthy"
+    assert snapshot["market_index:sina"]["last_error_code"] is None
+    assert snapshot["__summary__"]["failing_endpoints"] == 0
+
+
+def test_partial_empty_source_is_not_healthy_but_peer_quotes_are_displayed() -> None:
+    stats = HealthStats()
+    service = _service(
+        _source("eastmoney-index", "eastmoney"),
+        _source("sina-index", "sina", status_by_code={"000001": SourceStatus.SUCCESS_EMPTY}),
+        health_stats=stats,
+    )
+    result = service.collect()
+    assert len(result.quotes) == 3
+    assert result.status == "partial"
+    assert stats.snapshot()["market_index:sina"]["current_status"] == "empty"
+
+
+def test_invalid_peer_cannot_hide_valid_single_source_quote() -> None:
+    eastmoney = _source("eastmoney-index", "eastmoney")
+    eastmoney._results["000001"].items[0].fetched_at = None
+    result = _service(eastmoney, _source("sina-index", "sina")).collect()
+    assert len(result.quotes) == 3
+    assert result.quotes[0].display_source == "sina"
+    assert result.quotes[0].source_count == 1
+    assert result.source_diagnostics[0].error_code == "index_quote_invalid"
+
+
+def test_time_conflict_displays_latest_source_without_caching_consensus() -> None:
+    eastmoney = _source("eastmoney-index", "eastmoney")
+    sina = _source("sina-index", "sina")
+    for result in sina._results.values():
+        result.items[0].fetched_at = NOW + timedelta(seconds=4)
+    service = _service(eastmoney, sina)
+    result = service.collect()
+    assert result.status == "partial"
+    assert all(quote.display_source == "sina" for quote in result.quotes)
+    assert all(quote.source_count == 1 for quote in result.quotes)
+    assert service._cache == {}
+    assert {item.code for item in result.limitations} == {"INDEX_TIMESTAMP_CONFLICT"}
+
+
+def test_overlapping_index_collections_publish_by_start_order() -> None:
+    stats = HealthStats()
+    service = _service(
+        _source("eastmoney-index", "eastmoney"), _source("sina-index", "sina"),
+        health_stats=stats,
+    )
+    failed = {code: SourceStatus.FAILED for code in INDEX_CODES}
+    old_data = _service(
+        _source("eastmoney-index", "eastmoney", status_by_code=failed),
+        _source("sina-index", "sina", status_by_code=failed),
+    )._collect_all()
+    new_data = service._collect_all()
+    entered = Event()
+    release = Event()
+
+    def fetch():
+        if not entered.is_set():
+            entered.set()
+            assert release.wait(3)
+            return old_data
+        return new_data
+
+    with patch.object(service, "_collect_all", side_effect=fetch):
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            old = pool.submit(service.collect)
+            try:
+                assert entered.wait(3)
+                assert service.collect().status == "success"
+            finally:
+                release.set()
+            old.result(timeout=3)
+    snapshot = stats.snapshot()
+    assert snapshot["__summary__"]["failing_endpoints"] == 0
+    assert snapshot["__summary__"]["total_failures"] == 6
+    assert snapshot["market_index:sina"]["current_status"] == "healthy"
