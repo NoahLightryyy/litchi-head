@@ -155,6 +155,10 @@ function isMarketIndex(value: unknown): value is MarketIndex {
 function isSector(value: unknown): value is SectorItem {
   return (
     isRecord(value) &&
+    (value.category === "industry" || value.category === "concept") &&
+    (value.as_of === null || isTimestamp(value.as_of)) &&
+    value.source === "eastmoney" &&
+    typeof value.snapshot_may_be_delayed === "boolean" &&
     isNonEmptyString(value.id) &&
     isNonEmptyString(value.name) &&
     isFiniteNumber(value.change_pct) &&

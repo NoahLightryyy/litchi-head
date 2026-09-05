@@ -104,6 +104,7 @@ test("板块 partial 必须披露失败来源", () => {
     data: [{
       id: "BK0001", name: "证券", change_pct: 3.01, fund_flow: 74.22,
       heat: "medium", top_stocks: [], rank: 1,
+      category: "industry", as_of: "2026-09-04T15:39:32+08:00", source: "eastmoney", snapshot_may_be_delayed: true,
     }],
     meta: {
       ...baseMeta, status: "partial", failed_sources: ["concept"],
@@ -122,6 +123,7 @@ test("资金流未知必须保持 null 并披露实际排序口径", () => {
     data: [{
       id: "BK0001", name: "证券", change_pct: 3.01, fund_flow: null,
       heat: "medium", top_stocks: [], rank: 1,
+      category: "industry", as_of: "2026-09-04T15:39:32+08:00", source: "eastmoney", snapshot_may_be_delayed: true,
     }],
     meta: {
       ...baseMeta,
@@ -186,4 +188,28 @@ test("新闻允许缺发布时间但拒绝空标题，并校验 stale 缓存", (
     () => parseHotNewsEnvelope({ ...partial, meta: { ...partial.meta, status: "stale", cached: false } }),
     MarketContractError,
   );
+});
+
+
+test("快照 partial 保留榜单，并严格校验来源、分类及带时区时间", () => {
+  const item = {
+    id: "BK0001", name: "证券", change_pct: 3.01, fund_flow: 74.22,
+    heat: "medium", top_stocks: [], rank: 1,
+    category: "industry", as_of: "2026-09-04T15:39:32+08:00",
+    source: "eastmoney", snapshot_may_be_delayed: true,
+  };
+  const value = {
+    data: [item],
+    meta: { ...baseMeta, status: "partial", sort_requested: "fund_flow", sort_applied: "fund_flow",
+      limitations: [{ code: "BOARD_SNAPSHOT_MAY_BE_DELAYED", message: "东方财富快照，可能延迟", index_code: null }] },
+  };
+  assert.deepEqual(parseSectorsEnvelope(value), value);
+  assert.equal(parseSectorsEnvelope(value).data[0].fund_flow, 74.22);
+  for (const change of [
+    { category: "unknown" }, { category: undefined }, { source: "unknown" },
+    { as_of: "2026-09-04T15:39:32" }, { snapshot_may_be_delayed: "true" },
+  ]) {
+    assert.throws(() => parseSectorsEnvelope({ ...value, data: [{ ...item, ...change }] }), MarketContractError);
+  }
+  assert.equal(parseSectorsEnvelope({ ...value, data: [{ ...item, category: "concept", as_of: null }] }).data[0].category, "concept");
 });

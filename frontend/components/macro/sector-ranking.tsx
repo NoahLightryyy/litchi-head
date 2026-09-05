@@ -112,7 +112,8 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
                 <div className="flex flex-col">
                   <Link href={`/sector/${s.id}`} className="text-text-primary font-medium hover:underline focus-visible:outline-2 focus-visible:outline-accent-blue">{s.name}</Link>
                   <span className="text-xs text-text-muted">
-                    {s.top_stocks.slice(0, 2).join(" · ")}
+                    {s.category === "industry" ? "行业" : "概念"}
+                    {s.top_stocks.length > 0 && ` · ${s.top_stocks.slice(0, 2).join(" · ")}`}
                   </span>
                 </div>
               </td>

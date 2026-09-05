@@ -98,3 +98,7 @@ export function resolveSectorDetailViewMode({ sector, isLoading, isError }) {
 全局 `* { padding: 0; margin: 0 }` 若不放入CSS层，会盖过Tailwind在utilities层中的间距。`globals.css` 将reset放入 `@layer base`，浏览器main的p-6从0恢复24px。
 
 自己试试：用1000条明确标记的测试数据挂载组件，检查10→20→10行、键盘收起与scrollTop=0；然后检查main的computed padding。测试数据不能放进真实行情接口。独立验收页退出后删除，并清理其Next开发类型缓存，防止生产构建继续引用已删除的测试路由。
+
+## 真实快照接线（2026-09-05）
+
+接口返回partial不代表没有数据：保留data并披露limitations。`market-contract.ts`校验category、带时区as_of、source和延迟标志，`sector-ranking.tsx`仅按后端category显示行业/概念。上游f62为元，后端HTTP固定亿元，前端只格式化；重复除1e8与忘记转换同样危险。真实浏览器验收必须覆盖10→20→10、实际排序和时间旁注，不能用合成组件测试代替端到端恢复。

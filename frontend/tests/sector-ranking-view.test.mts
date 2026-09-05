@@ -17,6 +17,10 @@ const sectors: SectorItem[] = Array.from({ length: 15 }, (_, index) => ({
   heat: "medium",
   top_stocks: [],
   rank: index + 1,
+  category: "industry",
+  as_of: "2026-09-04T15:39:32+08:00",
+  source: "eastmoney",
+  snapshot_may_be_delayed: true,
 }));
 
 test("板块排行默认只显示前 10 个并折叠其余项", () => {
