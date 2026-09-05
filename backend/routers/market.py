@@ -29,6 +29,7 @@ from src.data.index_quote_runtime import (
     get_index_quote_service,
 )
 from src.data.providers.base import safe_float, safe_str
+from src.data.providers.eastmoney_boards import BoardKind, BoardSnapshot, board_snapshots
 
 logger = logging.getLogger("backend.market")
 router = APIRouter(prefix="/api/market")
@@ -122,10 +123,14 @@ class SectorItemResp(BaseModel):
     id: str
     name: str
     change_pct: float = 0.0
-    fund_flow: float | None = None
+    fund_flow: float | None = Field(default=None, description="主力净流入，单位亿元")
     heat: str = "medium"
     top_stocks: list[str] = Field(default_factory=list)
     rank: int = 0
+    category: Literal["industry", "concept"]
+    as_of: datetime | None = None
+    source: Literal["eastmoney"] = "eastmoney"
+    snapshot_may_be_delayed: bool = False
 
 
 class SectorStockResp(BaseModel):
@@ -300,6 +305,46 @@ def _fetch_board_perf_df(board_type: str) -> pd.DataFrame:
     return ak.stock_board_concept_name_em()
 
 
+def _board_snapshot_frame(kind: BoardKind) -> pd.DataFrame:
+    """Adapt the frozen snapshot model to this router's internal tabular pipeline."""
+    snapshot: BoardSnapshot = board_snapshots.fetch(kind)
+    frame = pd.DataFrame([
+        {
+            "板块代码": quote.code,
+            "板块名称": quote.name,
+            "涨跌幅": quote.change_pct,
+            "主力净流入-净额": (
+                quote.fund_flow / 100_000_000 if quote.fund_flow is not None else None
+            ),
+            "数据时间": quote.as_of,
+        }
+        for quote in snapshot.quotes
+    ])
+    frame.attrs.update({
+        "audited_snapshot": True,
+        "cached": snapshot.cached,
+        "fetched_at": snapshot.fetched_at,
+        "possibly_delayed": snapshot.possibly_delayed,
+        "source": snapshot.source,
+    })
+    return frame
+
+
+def _fetch_industry_board_snapshot() -> pd.DataFrame:
+    return _board_snapshot_frame("industry")
+
+
+def _fetch_concept_board_snapshot() -> pd.DataFrame:
+    return _board_snapshot_frame("concept")
+
+
+def _nullable_board_number(value: object) -> float | None:
+    missing = pd.isna(value)
+    if isinstance(missing, bool) and missing:
+        return None
+    return safe_float(value)
+
+
 BoardCallFailure = Literal["timeout", "failed"]
 
 
@@ -357,8 +402,8 @@ async def _fetch_board_perf_sources(
     """Fetch industry and concept rankings with stable source ordering."""
     frames, failures = await _fetch_board_dataframes(
         {
-            "industry": partial(_fetch_board_perf_df, "industry"),
-            "concept": partial(_fetch_board_perf_df, "concept"),
+            "industry": _fetch_industry_board_snapshot,
+            "concept": _fetch_concept_board_snapshot,
         },
         timeout=timeout,
     )
@@ -558,41 +603,69 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
         timeout=DATA_TIMEOUT,
     )
 
-    # 行业板块 — 直接调 akshare 获取完整 DataFrame
+    audited_kinds: set[str] = set()
+    snapshot_times: list[datetime] = []
+    snapshot_cached = False
+
+    # 行业板块
     df_ind = board_frames["industry"]
     if not df_ind.empty:
+        if df_ind.attrs.get("audited_snapshot") is True:
+            audited_kinds.add("industry")
+            snapshot_cached = snapshot_cached or df_ind.attrs.get("cached") is True
         industry_has_fund_flow = "主力净流入-净额" in df_ind.columns
-        if not industry_has_fund_flow:
+        if (
+            not industry_has_fund_flow
+            or bool(df_ind["主力净流入-净额"].isna().to_numpy().any())
+        ):
             fund_flow_missing_sources.append("industry")
         for i, (_, row) in enumerate(df_ind.iterrows()):
             code = safe_str(row.get("板块代码", ""))
             name = safe_str(row.get("板块名称", ""))
+            as_of = row.get("数据时间")
+            if isinstance(as_of, datetime):
+                snapshot_times.append(as_of)
             items.append(SectorItemResp(
                 id=code, name=name, rank=i + 1,
                 change_pct=safe_float(row.get("涨跌幅", 0.0)),
                 fund_flow=(
-                    safe_float(row.get("主力净流入-净额"))
+                    _nullable_board_number(row.get("主力净流入-净额"))
                     if industry_has_fund_flow else None
                 ),
+                category="industry",
+                as_of=as_of if isinstance(as_of, datetime) else None,
+                snapshot_may_be_delayed=df_ind.attrs.get("possibly_delayed") is True,
             ))
 
     # 概念板块
     df_con = board_frames["concept"]
     if not df_con.empty:
+        if df_con.attrs.get("audited_snapshot") is True:
+            audited_kinds.add("concept")
+            snapshot_cached = snapshot_cached or df_con.attrs.get("cached") is True
         concept_has_fund_flow = "主力净流入-净额" in df_con.columns
-        if not concept_has_fund_flow:
+        if (
+            not concept_has_fund_flow
+            or bool(df_con["主力净流入-净额"].isna().to_numpy().any())
+        ):
             fund_flow_missing_sources.append("concept")
         offset = len(items)
         for i, (_, row) in enumerate(df_con.iterrows()):
             code = safe_str(row.get("板块代码", ""))
             name = safe_str(row.get("板块名称", ""))
+            as_of = row.get("数据时间")
+            if isinstance(as_of, datetime):
+                snapshot_times.append(as_of)
             items.append(SectorItemResp(
                 id=code, name=name, rank=offset + i + 1,
                 change_pct=safe_float(row.get("涨跌幅", 0.0)),
                 fund_flow=(
-                    safe_float(row.get("主力净流入-净额"))
+                    _nullable_board_number(row.get("主力净流入-净额"))
                     if concept_has_fund_flow else None
                 ),
+                category="concept",
+                as_of=as_of if isinstance(as_of, datetime) else None,
+                snapshot_may_be_delayed=df_con.attrs.get("possibly_delayed") is True,
             ))
 
     if not items and failed_sources:
@@ -601,6 +674,24 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
             failed_sources=failed_sources,
         )
     limitations: list[MarketLimitation] = []
+    if audited_kinds:
+        as_of_min = min(snapshot_times).isoformat() if snapshot_times else "未知"
+        as_of_max = max(snapshot_times).isoformat() if snapshot_times else "未知"
+        time_range = as_of_min if as_of_min == as_of_max else f"{as_of_min} 至 {as_of_max}"
+        limitations.append(MarketLimitation(
+            code="BOARD_SNAPSHOT_MAY_BE_DELAYED",
+            message=f"当前显示东方财富快照，可能延迟；数据时间 {time_range}",
+        ))
+    if "industry" in audited_kinds:
+        limitations.append(MarketLimitation(
+            code="BOARD_INDUSTRY_LEVELS_MIXED",
+            message="行业结果包含东财一级、二级、三级行业，当前未按层级筛选",
+        ))
+        if not any(item.id == "BK1362" for item in items if item.category == "industry"):
+            limitations.append(MarketLimitation(
+                code="BOARD_CATALOG_QUOTE_MISSING",
+                message="官方目录中的三级行业 BK1362 其他多元金融当前无报价，未补零",
+            ))
     if fund_flow_missing_sources:
         limitations.append(MarketLimitation(
             code="FUND_FLOW_UNAVAILABLE",
@@ -628,6 +719,7 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
         "meta": _market_meta(
             status,
             t0,
+            cached=snapshot_cached,
             failed_sources=failed_sources,
             limitations=limitations,
             sort_requested=sort,

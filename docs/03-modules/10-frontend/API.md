@@ -175,6 +175,20 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 行业和概念来源之一失败但另一来源仍有数据时返回 HTTP 200 + `partial`，并在
 `failed_sources` 标出失败来源；两者都失败且没有缓存时返回 HTTP 503 +
 `MARKET_SECTORS_FAILED`。两者都正常但均为空时返回 HTTP 200 + `empty`。
+2026-09-05 起，板块列表使用东方财富同源快照节点（仅首页展示，不增加独立来源数）。
+每个 `SectorItem` 新增并始终序列化：
+
+- `category: "industry" | "concept"`：来自已审计查询分类；
+- `as_of: string | null`：上游板块时间；正式快照为带时区时间，null 只保留兼容测试边界；
+- `source: "eastmoney"`；
+- `snapshot_may_be_delayed: boolean`：正式快照恒为 true，消费者必须展示时间/延迟提醒。
+
+正式快照以 `partial` 返回，并带 `BOARD_SNAPSHOT_MAY_BE_DELAYED`；行业总口径混合东财
+一/二/三级，带 `BOARD_INDUSTRY_LEVELS_MIXED`，不得把496项宣传为同级行业。
+官方目录 BK1362 无行情时带 `BOARD_CATALOG_QUOTE_MISSING`，不得补零。默认不加层级筛选，
+`sort_requested/sort_applied` 及既有资金流/null语义不变。缓存命中由 `meta.cached=true` 表示，
+条目 `as_of` 仍是原始上游时间，不改成缓存读取时间。
+
 当任一返回条目缺少资金流字段时，条目 `fund_flow=null`、状态至少为 `partial`，限制码
 `FUND_FLOW_UNAVAILABLE`；`sort_applied=upstream_order` 表示保持来源顺序，消费者必须据此
 移除“按资金流排序”的表述。只有所有条目都有真实资金流且实际完成排序时，
@@ -304,3 +318,7 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 ws://localhost:8000/ws/quotes?codes=000001,300750
 → { "code": "300750", "price": 256.80, "change_pct": 2.34, "timestamp": "2026-06-16T10:30:00Z" }
 ```
+
+`BoardQuoteSnapshot.fund_flow` 保存东方财富 f62 原始元值；HTTP `SectorItem.fund_flow` 固定为亿元，
+只在后端快照转响应时除以1e8。前端直接按亿元显示，不得再次除；任一条缺失均为null并触发
+`FUND_FLOW_UNAVAILABLE`，`sort_applied=upstream_order`，不能按资金流排序。

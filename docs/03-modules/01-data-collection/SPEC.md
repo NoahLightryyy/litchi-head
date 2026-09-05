@@ -216,3 +216,19 @@ akshare.stock_financial_analysis_indicator(code)
 ```
 
 > **关联文档**：[RESEARCH.md](RESEARCH.md) — 调研背景
+
+
+## 首页板块快照（2026-09-05）
+
+`src/data/providers/eastmoney_boards.py` 是东方财富同源板块快照适配器，仅供首页展示。
+行业请求保持原口径 `m:90 t:2 f:!50`/`fid=f3`，概念为 `m:90 t:3 f:!50`/`fid=f12`；完整分页、
+市场90、BK身份、非空名称、有限数值和带时区as_of全部通过才返回冻结Pydantic快照。
+
+结果可能延迟，必须暴露原始 `as_of`、`source=eastmoney`、`possibly_delayed=true`；
+完整成功可缓存30秒，过期后失败不续用旧缓存。496行业混合31一级、128二级、337三级，
+不得视为同级；官方目录缺报价BK1362不得补0。该来源不计作新的独立供应商，也不进入
+正式AI、风控或交易证据门禁。HTTP消费契约见[前端API说明](../10-frontend/API.md)。
+
+`BoardQuoteSnapshot.fund_flow` 保存东方财富 f62 原始元值；HTTP `SectorItem.fund_flow` 固定为亿元，
+只在后端快照转响应时除以1e8。前端直接按亿元显示，不得再次除；任一条缺失均为null并触发
+`FUND_FLOW_UNAVAILABLE`，`sort_applied=upstream_order`，不能按资金流排序。

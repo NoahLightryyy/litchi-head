@@ -26,6 +26,7 @@ def test_complete_pages_preserve_identity_values_and_timestamp() -> None:
         assert request.url.host == "push2delay.eastmoney.com"
         assert request.url.params["fs"] == "m:90 t:2 f:!50"
         assert request.url.params["fltt"] == "2"
+        assert request.url.params["fid"] == "f3"
         assert request.extensions["timeout"]["read"] <= 3
         if len(calls) == 1:
             return reply([row(i) for i in range(100)], 101)

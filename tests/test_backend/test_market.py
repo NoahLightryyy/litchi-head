@@ -30,6 +30,10 @@ from src.data.index_quote_runtime import (
     IndexConsensusQuote,
     IndexQuoteCollection,
 )
+from src.data.providers.eastmoney_boards import (
+    BoardQuoteSnapshot,
+    BoardSnapshot,
+)
 from tests.test_backend.conftest import (
     make_board_perf_df,
     make_board_stocks_df,
@@ -76,6 +80,7 @@ def make_index_collection(
         missing_codes=missing_codes or [],
         error_code=error_code,
     )
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # _calc_heat
@@ -157,9 +162,7 @@ class TestBuildChainMap:
 
     def test_less_than_6_stocks_returns_empty(self):
         """成分股不足 6 只 → 无法分层"""
-        df = pd.DataFrame(
-            {"名称": [f"S{i}" for i in range(5)], "涨跌幅": [1.0] * 5}
-        )
+        df = pd.DataFrame({"名称": [f"S{i}" for i in range(5)], "涨跌幅": [1.0] * 5})
         assert _build_chain_map(df, "industry") == []
 
     def test_concept_market_fields_also_cannot_create_chain_relationships(self):
@@ -262,7 +265,8 @@ class TestGetIndices:
         assert meta["latency_ms"] >= 0
 
     def test_missing_all_indices_returns_explicit_empty_without_zero_quotes(
-        self, client,
+        self,
+        client,
     ):
         service = StubIndexQuoteService(make_index_collection(status="empty", codes=()))
         with patch("backend.routers.market.index_quote_service", service):
@@ -273,13 +277,16 @@ class TestGetIndices:
         assert resp.json()["meta"]["status"] == "empty"
 
     def test_missing_some_indices_returns_partial_without_placeholders(
-        self, client,
+        self,
+        client,
     ):
-        service = StubIndexQuoteService(make_index_collection(
-            status="partial",
-            codes=("000001",),
-            missing_codes=["399001", "399006"],
-        ))
+        service = StubIndexQuoteService(
+            make_index_collection(
+                status="partial",
+                codes=("000001",),
+                missing_codes=["399001", "399006"],
+            )
+        )
         with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/indices")
 
@@ -289,12 +296,14 @@ class TestGetIndices:
         assert resp.json()["meta"]["missing_codes"] == ["399001", "399006"]
 
     def test_indices_failed_collection_returns_stable_contract(self, client):
-        service = StubIndexQuoteService(make_index_collection(
-            status="failed",
-            codes=(),
-            missing_codes=["000001", "399001", "399006"],
-            error_code="MARKET_INDICES_CONFLICTED",
-        ))
+        service = StubIndexQuoteService(
+            make_index_collection(
+                status="failed",
+                codes=(),
+                missing_codes=["000001", "399001", "399006"],
+                error_code="MARKET_INDICES_CONFLICTED",
+            )
+        )
         with patch("backend.routers.market.index_quote_service", service):
             resp = client.get("/api/market/indices")
 
@@ -317,14 +326,16 @@ class TestGetSectors:
         con_df = make_board_perf_df(
             rows=[
                 {
-                    "板块代码": "BK010", "板块名称": "人工智能",
-                    "涨跌幅": 2.0, "主力净流入-净额": 1_000_000_000.0,
+                    "板块代码": "BK010",
+                    "板块名称": "人工智能",
+                    "涨跌幅": 2.0,
+                    "主力净流入-净额": 1_000_000_000.0,
                 },
             ]
         )
         with (
-            patch("akshare.stock_board_industry_name_em", return_value=ind_df),
-            patch("akshare.stock_board_concept_name_em", return_value=con_df),
+            patch("backend.routers.market._fetch_industry_board_snapshot", return_value=ind_df),
+            patch("backend.routers.market._fetch_concept_board_snapshot", return_value=con_df),
         ):
             resp = client.get("/api/market/sectors")
 
@@ -333,11 +344,110 @@ class TestGetSectors:
         assert len(data) == 3  # 2 industry + 1 concept
         assert resp.json()["meta"]["status"] == "success"
 
+    def test_audited_snapshots_expose_category_time_delay_and_catalog_gap(self, client):
+        as_of = datetime(2026, 9, 4, 15, 39, 32, tzinfo=SHANGHAI)
+        snapshots = {
+            "industry": BoardSnapshot(
+                kind="industry",
+                fetched_at=as_of,
+                cached=False,
+                quotes=(
+                    BoardQuoteSnapshot(
+                        code="BK0001",
+                        name="一级行业",
+                        change_pct=1.2,
+                        fund_flow=300_000_000.0,
+                        as_of=as_of,
+                    ),
+                ),
+            ),
+            "concept": BoardSnapshot(
+                kind="concept",
+                fetched_at=as_of,
+                cached=True,
+                quotes=(
+                    BoardQuoteSnapshot(
+                        code="BK0002",
+                        name="概念板块",
+                        change_pct=-0.3,
+                        fund_flow=100_000_000.0,
+                        as_of=as_of,
+                    ),
+                ),
+            ),
+        }
+        with patch.object(
+            __import__("backend.routers.market", fromlist=["board_snapshots"]).board_snapshots,
+            "fetch",
+            side_effect=lambda kind: snapshots[kind],
+        ):
+            resp = client.get("/api/market/sectors?sort=fund_flow")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["meta"]["status"] == "partial"
+        assert body["meta"]["cached"] is True
+        assert body["meta"]["sort_applied"] == "fund_flow"
+        assert [item["id"] for item in body["data"]] == ["BK0001", "BK0002"]
+        assert body["data"][0] == {
+            "id": "BK0001",
+            "name": "一级行业",
+            "change_pct": 1.2,
+            "fund_flow": 3.0,
+            "heat": "medium",
+            "top_stocks": [],
+            "rank": 1,
+            "category": "industry",
+            "as_of": "2026-09-04T15:39:32+08:00",
+            "source": "eastmoney",
+            "snapshot_may_be_delayed": True,
+        }
+        assert {item["code"] for item in body["meta"]["limitations"]} == {
+            "BOARD_SNAPSHOT_MAY_BE_DELAYED",
+            "BOARD_INDUSTRY_LEVELS_MIXED",
+            "BOARD_CATALOG_QUOTE_MISSING",
+        }
+        assert "2026-09-04T15:39:32+08:00" in body["meta"]["limitations"][0]["message"]
+
+    def test_audited_null_fund_flow_remains_null_and_blocks_fund_sort(self, client):
+        as_of = datetime(2026, 9, 4, 15, 39, 32, tzinfo=SHANGHAI)
+        snapshots = {
+            "industry": BoardSnapshot(
+                kind="industry",
+                fetched_at=as_of,
+                quotes=(
+                    BoardQuoteSnapshot(
+                        code="BK0001",
+                        name="缺资金行业",
+                        change_pct=1.2,
+                        fund_flow=None,
+                        as_of=as_of,
+                    ),
+                ),
+            ),
+            "concept": BoardSnapshot(kind="concept", fetched_at=as_of, quotes=()),
+        }
+        market = __import__("backend.routers.market", fromlist=["board_snapshots"])
+        with patch.object(
+            market.board_snapshots,
+            "fetch",
+            side_effect=lambda kind: snapshots[kind],
+        ):
+            body = client.get("/api/market/sectors?sort=fund_flow").json()
+
+        assert body["data"][0]["fund_flow"] is None
+        assert body["meta"]["sort_applied"] == "upstream_order"
+        assert "FUND_FLOW_UNAVAILABLE" in {item["code"] for item in body["meta"]["limitations"]}
+
     def test_empty_boards(self, client):
         """无板块数据时返回空列表"""
         with (
-            patch("akshare.stock_board_industry_name_em", return_value=pd.DataFrame()),
-            patch("akshare.stock_board_concept_name_em", return_value=pd.DataFrame()),
+            patch(
+                "backend.routers.market._fetch_industry_board_snapshot", return_value=pd.DataFrame()
+            ),
+            patch(
+                "backend.routers.market._fetch_concept_board_snapshot", return_value=pd.DataFrame()
+            ),
         ):
             resp = client.get("/api/market/sectors")
 
@@ -346,14 +456,20 @@ class TestGetSectors:
         assert resp.json()["meta"]["status"] == "empty"
 
     def test_missing_fund_flow_is_null_and_explicitly_limited(self, client):
-        current_schema = pd.DataFrame({
-            "板块代码": ["BK1556"],
-            "板块名称": ["行业板块"],
-            "涨跌幅": [8.74],
-        })
+        current_schema = pd.DataFrame(
+            {
+                "板块代码": ["BK1556"],
+                "板块名称": ["行业板块"],
+                "涨跌幅": [8.74],
+            }
+        )
         with (
-            patch("akshare.stock_board_industry_name_em", return_value=current_schema),
-            patch("akshare.stock_board_concept_name_em", return_value=pd.DataFrame()),
+            patch(
+                "backend.routers.market._fetch_industry_board_snapshot", return_value=current_schema
+            ),
+            patch(
+                "backend.routers.market._fetch_concept_board_snapshot", return_value=pd.DataFrame()
+            ),
         ):
             resp = client.get("/api/market/sectors?sort=fund_flow")
 
@@ -362,15 +478,18 @@ class TestGetSectors:
         assert resp.json()["meta"]["status"] == "partial"
         assert resp.json()["meta"]["sort_requested"] == "fund_flow"
         assert resp.json()["meta"]["sort_applied"] == "upstream_order"
-        assert {
-            item["code"] for item in resp.json()["meta"]["limitations"]
-        } == {"FUND_FLOW_UNAVAILABLE"}
+        assert {item["code"] for item in resp.json()["meta"]["limitations"]} == {
+            "FUND_FLOW_UNAVAILABLE"
+        }
 
     def test_one_board_source_timeout_returns_partial(self, client):
         con_df = make_board_perf_df()
         with (
-            patch("akshare.stock_board_industry_name_em", side_effect=TimeoutError("timeout")),
-            patch("akshare.stock_board_concept_name_em", return_value=con_df),
+            patch(
+                "backend.routers.market._fetch_industry_board_snapshot",
+                side_effect=TimeoutError("timeout"),
+            ),
+            patch("backend.routers.market._fetch_concept_board_snapshot", return_value=con_df),
         ):
             resp = client.get("/api/market/sectors")
 
@@ -381,8 +500,14 @@ class TestGetSectors:
 
     def test_all_board_sources_timeout_returns_failed(self, client):
         with (
-            patch("akshare.stock_board_industry_name_em", side_effect=TimeoutError("timeout")),
-            patch("akshare.stock_board_concept_name_em", side_effect=TimeoutError("timeout")),
+            patch(
+                "backend.routers.market._fetch_industry_board_snapshot",
+                side_effect=TimeoutError("timeout"),
+            ),
+            patch(
+                "backend.routers.market._fetch_concept_board_snapshot",
+                side_effect=TimeoutError("timeout"),
+            ),
         ):
             resp = client.get("/api/market/sectors")
 
@@ -412,11 +537,11 @@ class TestGetSectors:
         try:
             with (
                 patch(
-                    "akshare.stock_board_industry_name_em",
+                    "backend.routers.market._fetch_industry_board_snapshot",
                     side_effect=block_industry,
                 ) as industry_source,
                 patch(
-                    "akshare.stock_board_concept_name_em",
+                    "backend.routers.market._fetch_concept_board_snapshot",
                     side_effect=block_concept,
                 ) as concept_source,
                 patch("backend.routers.market.DATA_TIMEOUT", 0.15),
@@ -452,11 +577,11 @@ class TestGetSectors:
         try:
             with (
                 patch(
-                    "akshare.stock_board_industry_name_em",
+                    "backend.routers.market._fetch_industry_board_snapshot",
                     return_value=make_board_perf_df(),
                 ),
                 patch(
-                    "akshare.stock_board_concept_name_em",
+                    "backend.routers.market._fetch_concept_board_snapshot",
                     side_effect=block_concept,
                 ),
                 patch("backend.routers.market.DATA_TIMEOUT", 0.1),
@@ -475,8 +600,10 @@ class TestGetSectors:
         """每个板块包含所有必要字段"""
         df = make_board_perf_df()
         with (
-            patch("akshare.stock_board_industry_name_em", return_value=df),
-            patch("akshare.stock_board_concept_name_em", return_value=pd.DataFrame()),
+            patch("backend.routers.market._fetch_industry_board_snapshot", return_value=df),
+            patch(
+                "backend.routers.market._fetch_concept_board_snapshot", return_value=pd.DataFrame()
+            ),
         ):
             resp = client.get("/api/market/sectors")
 
@@ -492,8 +619,10 @@ class TestGetSectors:
         """排名从 1 开始递增"""
         ind_df = make_board_perf_df()
         with (
-            patch("akshare.stock_board_industry_name_em", return_value=ind_df),
-            patch("akshare.stock_board_concept_name_em", return_value=pd.DataFrame()),
+            patch("backend.routers.market._fetch_industry_board_snapshot", return_value=ind_df),
+            patch(
+                "backend.routers.market._fetch_concept_board_snapshot", return_value=pd.DataFrame()
+            ),
         ):
             resp = client.get("/api/market/sectors")
 
@@ -553,10 +682,14 @@ class TestGetSectorDetail:
         """概念板块也能正常获取"""
         stocks_df = make_board_stocks_df()
         perf_df = make_board_perf_df(
-            rows=[{
-                "板块代码": "BK010", "板块名称": "人工智能",
-                "涨跌幅": 2.0, "主力净流入-净额": 1_000_000_000.0,
-            }]
+            rows=[
+                {
+                    "板块代码": "BK010",
+                    "板块名称": "人工智能",
+                    "涨跌幅": 2.0,
+                    "主力净流入-净额": 1_000_000_000.0,
+                }
+            ]
         )
         with (
             patch("backend.routers.market.collector", mock_collector),
@@ -723,12 +856,14 @@ class TestHotNews:
 
     def test_returns_hot_news(self, client):
         """正常返回热点新闻列表"""
-        mock_df = pd.DataFrame({
-            "title": ["新闻1", "新闻2"],
-            "date": ["2024-01-02", "2024-01-02"],
-            "source": ["源1", "源2"],
-            "url": ["http://url1", "http://url2"],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "title": ["新闻1", "新闻2"],
+                "date": ["2024-01-02", "2024-01-02"],
+                "source": ["源1", "源2"],
+                "url": ["http://url1", "http://url2"],
+            }
+        )
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
             patch("akshare.stock_news_main_cx", return_value=mock_df),
@@ -743,11 +878,13 @@ class TestHotNews:
 
     def test_current_caixin_schema_is_partial_not_empty_success(self, client):
         """2026-08-26 实测字段 tag/summary/url 可恢复标题，但发布时间不可伪造。"""
-        mock_df = pd.DataFrame({
-            "tag": ["市场动态"],
-            "summary": ["联储官员发表最新讲话"],
-            "url": ["https://database.caixin.com/2026-08-26/example.html"],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "tag": ["市场动态"],
+                "summary": ["联储官员发表最新讲话"],
+                "url": ["https://database.caixin.com/2026-08-26/example.html"],
+            }
+        )
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
             patch("akshare.stock_news_main_cx", return_value=mock_df),
@@ -756,22 +893,26 @@ class TestHotNews:
 
         assert resp.status_code == 200
         assert resp.json()["meta"]["status"] == "partial"
-        assert resp.json()["data"] == [{
-            "title": "联储官员发表最新讲话",
-            "date": None,
-            "source": "财新数据通",
-            "url": "https://database.caixin.com/2026-08-26/example.html",
-        }]
+        assert resp.json()["data"] == [
+            {
+                "title": "联储官员发表最新讲话",
+                "date": None,
+                "source": "财新数据通",
+                "url": "https://database.caixin.com/2026-08-26/example.html",
+            }
+        ]
         assert resp.json()["meta"]["limitations"][0]["code"] == "PUBLISHED_AT_MISSING"
 
     def test_hot_news_fields(self, client):
         """每条新闻含必要字段"""
-        mock_df = pd.DataFrame({
-            "title": ["测试新闻"],
-            "date": ["2024-01-02"],
-            "source": ["测试源"],
-            "url": ["http://example.com"],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "title": ["测试新闻"],
+                "date": ["2024-01-02"],
+                "source": ["测试源"],
+                "url": ["http://example.com"],
+            }
+        )
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
             patch("akshare.stock_news_main_cx", return_value=mock_df),
@@ -851,17 +992,25 @@ class TestHotNews:
 def test_homepage_market_openapi_freezes_status_and_failed_response(client):
     schema = client.get("/openapi.json").json()
     components = schema["components"]["schemas"]
-    statuses = schema["components"]["schemas"]["MarketMeta"]["properties"][
-        "status"
-    ]["enum"]
+    statuses = schema["components"]["schemas"]["MarketMeta"]["properties"]["status"]["enum"]
     assert statuses == ["success", "partial", "empty", "stale", "failed"]
     assert {
-        "source_diagnostics", "sort_requested", "sort_applied",
+        "source_diagnostics",
+        "sort_requested",
+        "sort_applied",
     } <= components["MarketMeta"]["properties"].keys()
     assert {
-        "as_of", "source_count", "cached",
+        "as_of",
+        "source_count",
+        "cached",
     } <= components["IndexQuoteResp"]["properties"].keys()
-    assert "anyOf" in components["SectorItemResp"]["properties"]["fund_flow"]
+    sector = components["SectorItemResp"]
+    assert "anyOf" in sector["properties"]["fund_flow"]
+    assert sector["properties"]["fund_flow"]["description"] == "主力净流入，单位亿元"
+    assert sector["properties"]["category"]["enum"] == ["industry", "concept"]
+    assert "anyOf" in sector["properties"]["as_of"]
+    assert sector["properties"]["source"]["const"] == "eastmoney"
+    assert sector["properties"]["snapshot_may_be_delayed"]["type"] == "boolean"
 
     for path in (
         "/api/market/indices",
@@ -873,9 +1022,7 @@ def test_homepage_market_openapi_freezes_status_and_failed_response(client):
         assert "200" in responses
         assert "503" in responses
 
-    detail_responses = schema["paths"]["/api/market/sector/{sector_id}"]["get"][
-        "responses"
-    ]
+    detail_responses = schema["paths"]["/api/market/sector/{sector_id}"]["get"]["responses"]
     assert "503" in detail_responses
     detail_error = components["SectorDetailErrorBody"]["properties"]
     assert detail_error["code"]["enum"] == [
