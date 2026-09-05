@@ -29,6 +29,7 @@ from src.data.index_quote_runtime import (
     get_index_quote_service,
 )
 from src.data.providers.base import safe_float, safe_str
+from src.data.providers.caixin_news import fetch_caixin_news
 from src.data.providers.eastmoney_boards import BoardKind, BoardSnapshot, board_snapshots
 
 logger = logging.getLogger("backend.market")
@@ -989,7 +990,7 @@ async def get_hot_news():
         }
 
     try:
-        df: pd.DataFrame = await run_sync(ak.stock_news_main_cx)
+        df: pd.DataFrame = await run_sync(fetch_caixin_news)
         if df.empty:
             return {"data": [], "meta": _market_meta("empty", t0)}
         title_fields = ("title", "summary", "标题", "新闻标题")

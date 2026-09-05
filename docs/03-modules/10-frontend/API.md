@@ -322,3 +322,5 @@ ws://localhost:8000/ws/quotes?codes=000001,300750
 `BoardQuoteSnapshot.fund_flow` 保存东方财富 f62 原始元值；HTTP `SectorItem.fund_flow` 固定为亿元，
 只在后端快照转响应时除以1e8。前端直接按亿元显示，不得再次除；任一条缺失均为null并触发
 `FUND_FLOW_UNAVAILABLE`，`sort_applied=upstream_order`，不能按资金流排序。
+
+2026-09-05：hot-news的date保留财新公开API原始time（Unix秒），以Asia/Shanghai的ISO8601字符串返回；非法/缺失保持null，不使用抓取时刻。API契约不变。

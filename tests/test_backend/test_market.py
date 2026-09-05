@@ -854,6 +854,22 @@ class TestGetMacroBrief:
 class TestHotNews:
     """热点快讯"""
 
+    def test_caixin_publication_time_reaches_http(self, client):
+        import httpx
+
+        response = httpx.Response(
+            200, request=httpx.Request("GET", "https://cxdata.caixin.com"),
+            json={"data": {"data": [{"summary": "原摘要", "time": 1788569539}]}},
+        )
+        with (
+            patch("backend.routers.market._HOT_NEWS_CACHE", {}),
+            patch("src.data.providers.caixin_news.httpx.get", return_value=response),
+        ):
+            body = client.get("/api/market/hot-news").json()
+        assert body["data"][0]["date"] == "2026-09-05T08:52:19+08:00"
+        assert body["meta"]["status"] == "success"
+        assert body["meta"]["limitations"] == []
+
     def test_returns_hot_news(self, client):
         """正常返回热点新闻列表"""
         mock_df = pd.DataFrame(
@@ -866,7 +882,7 @@ class TestHotNews:
         )
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
-            patch("akshare.stock_news_main_cx", return_value=mock_df),
+            patch("backend.routers.market.fetch_caixin_news", return_value=mock_df),
         ):
             resp = client.get("/api/market/hot-news")
 
@@ -887,7 +903,7 @@ class TestHotNews:
         )
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
-            patch("akshare.stock_news_main_cx", return_value=mock_df),
+            patch("backend.routers.market.fetch_caixin_news", return_value=mock_df),
         ):
             resp = client.get("/api/market/hot-news")
 
@@ -915,7 +931,7 @@ class TestHotNews:
         )
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
-            patch("akshare.stock_news_main_cx", return_value=mock_df),
+            patch("backend.routers.market.fetch_caixin_news", return_value=mock_df),
         ):
             resp = client.get("/api/market/hot-news")
 
@@ -929,7 +945,7 @@ class TestHotNews:
         """空 DataFrame 返回空列表"""
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
-            patch("akshare.stock_news_main_cx", return_value=pd.DataFrame()),
+            patch("backend.routers.market.fetch_caixin_news", return_value=pd.DataFrame()),
         ):
             resp = client.get("/api/market/hot-news")
 
@@ -954,7 +970,7 @@ class TestHotNews:
         ]
         _HOT_NEWS_CACHE["ts"] = time.time() - 300  # 5 分钟前->过期
 
-        with patch("akshare.stock_news_main_cx", side_effect=RuntimeError("API异常")):
+        with patch("backend.routers.market.fetch_caixin_news", side_effect=RuntimeError("API异常")):
             resp = client.get("/api/market/hot-news")
 
         assert resp.status_code == 200
@@ -967,7 +983,7 @@ class TestHotNews:
         """API 异常且无缓存时不得伪装成成功空列表。"""
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
-            patch("akshare.stock_news_main_cx", side_effect=RuntimeError("API异常")),
+            patch("backend.routers.market.fetch_caixin_news", side_effect=RuntimeError("API异常")),
         ):
             resp = client.get("/api/market/hot-news")
 
@@ -979,7 +995,7 @@ class TestHotNews:
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
             patch(
-                "akshare.stock_news_main_cx",
+                "backend.routers.market.fetch_caixin_news",
                 return_value=pd.DataFrame({"unknown": ["value"]}),
             ),
         ):
