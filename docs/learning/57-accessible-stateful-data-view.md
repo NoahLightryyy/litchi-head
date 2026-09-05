@@ -102,3 +102,7 @@ export function resolveSectorDetailViewMode({ sector, isLoading, isError }) {
 ## 真实快照接线（2026-09-05）
 
 接口返回partial不代表没有数据：保留data并披露limitations。`market-contract.ts`校验category、带时区as_of、source和延迟标志，`sector-ranking.tsx`仅按后端category显示行业/概念。上游f62为元，后端HTTP固定亿元，前端只格式化；重复除1e8与忘记转换同样危险。真实浏览器验收必须覆盖10→20→10、实际排序和时间旁注，不能用合成组件测试代替端到端恢复。
+
+## 分页替代追加（2026-09-05）
+
+`sectorPage`先过滤全榜再切片，每页10条，页数至少1且请求页码夹紧。搜索不能只搜当前10条，否则远处板块会被误判不存在；刷新导致条目数变少时，夹紧页码避免空白尾页。搜索/排序回第一页，页内保持上游rank。自己试试：跳尾页，搜索bk1629，再清空；确认搜索结果与页码都正确。

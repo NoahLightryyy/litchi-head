@@ -5,9 +5,7 @@ import Link from "next/link";
 import type { MarketMeta, SectorItem } from "@/lib/types/market";
 import { formatChangePct, changeColor } from "@/lib/utils";
 import {
-  DEFAULT_VISIBLE_SECTOR_COUNT,
-  hiddenSectorCount,
-  visibleSectorItems,
+  sectorPage,
   sectorChangeScale,
 } from "@/lib/sector-ranking-view";
 import { MarketDataNotice } from "./market-data-notice";
@@ -25,19 +23,21 @@ interface SectorRankingProps {
 /** 板块排行表格 */
 export function SectorRanking({ sectors, loading, error, meta, refreshError, onRetry, onSortChange }: SectorRankingProps) {
   const heatLabels = { high: "🔥", medium: "📌", low: "—" } as const;
-  const [visibleCount, setVisibleCount] = useState(DEFAULT_VISIBLE_SECTOR_COUNT);
-  const visibleSectors = visibleSectorItems(sectors, visibleCount);
-  const hiddenCount = hiddenSectorCount(sectors, visibleCount);
+  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState("");
+  const [jump, setJump] = useState("");
+  const view = sectorPage(sectors, query, page);
   const changeScale = sectorChangeScale(sectors);
   const tableContainer = useRef<HTMLDivElement>(null);
 
-  const collapse = () => {
-    setVisibleCount(DEFAULT_VISIBLE_SECTOR_COUNT);
+  const goToPage = (next: number) => {
+    setPage(sectorPage(sectors, query, next).page);
+    setJump("");
     tableContainer.current?.scrollTo({ top: 0 });
   };
 
   const handleSortChange = (sort: string) => {
-    collapse();
+    goToPage(1);
     onSortChange(sort);
   };
 
@@ -77,8 +77,13 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
     <>
       <MarketDataNotice meta={meta} refreshError={refreshError} />
       <div className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-text-muted">
-        <span role="status">显示 {visibleSectors.length} / {sectors.length} 个板块</span>
-        <span>涨跌幅条以 0 为中线，同一比例</span>
+        <label className="flex items-center gap-2">
+          搜索板块
+          <input type="search" aria-label="搜索板块名称或代码" placeholder="名称或代码" value={query}
+            onChange={(event) => { setQuery(event.target.value); goToPage(1); }}
+            className="w-44 rounded border border-bg-tertiary bg-bg-secondary px-3 py-2 text-text-primary" />
+        </label>
+        <span role="status">显示 {view.start}–{view.end} / {view.total} 个板块{query.trim() && `（全榜 ${sectors.length} 个）`}</span>
       </div>
       <div ref={tableContainer} className="max-h-[32rem] overflow-auto rounded-lg border border-bg-tertiary bg-bg-secondary">
       <table className="w-full min-w-[34rem] text-sm" aria-label="板块排行榜">
@@ -102,7 +107,7 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
           </tr>
         </thead>
         <tbody>
-          {visibleSectors.map((s) => (
+          {view.items.map((s) => (
             <tr
               key={`${s.id}-${s.rank}`}
               className="border-b border-bg-tertiary last:border-0 hover:bg-bg-tertiary/50 cursor-pointer transition-colors"
@@ -135,19 +140,25 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
           ))}
         </tbody>
       </table>
-      {sectors.length > DEFAULT_VISIBLE_SECTOR_COUNT && (
-        <div className="sticky bottom-0 flex justify-center gap-4 border-t border-bg-tertiary bg-bg-secondary/95 px-4 py-3 text-center backdrop-blur">
-          {hiddenCount > 0 && <button
-            type="button"
-            onClick={() => setVisibleCount((value) => Math.min(sectors.length, value + DEFAULT_VISIBLE_SECTOR_COUNT))}
-            className="text-xs text-accent-blue hover:underline"
-          >
-            再显示 {Math.min(hiddenCount, DEFAULT_VISIBLE_SECTOR_COUNT)} 个（剩余 {hiddenCount} 个）
-          </button>}
-          {visibleCount > DEFAULT_VISIBLE_SECTOR_COUNT && <button type="button" onClick={collapse} className="text-xs text-accent-blue hover:underline">收起，仅显示前 {DEFAULT_VISIBLE_SECTOR_COUNT} 个</button>}
-        </div>
-      )}
       </div>
+      {view.total === 0 && <p className="py-4 text-center text-sm text-text-muted" role="status">未找到匹配的板块，请更换名称或代码</p>}
+      <nav aria-label="板块分页" className="flex flex-wrap items-center justify-center gap-2 rounded-b-lg border border-bg-tertiary bg-bg-secondary px-3 py-3 text-xs">
+        {[
+          { label: "首页", target: 1, disabled: view.page === 1 },
+          { label: "上一页", target: view.page - 1, disabled: view.page === 1 },
+          { label: "下一页", target: view.page + 1, disabled: view.page === view.pageCount },
+          { label: "尾页", target: view.pageCount, disabled: view.page === view.pageCount },
+        ].map(({ label, target, disabled }) => <button key={label} type="button" disabled={disabled}
+          onClick={() => goToPage(target)} className="rounded border border-bg-tertiary px-3 py-2 text-accent-blue hover:bg-bg-tertiary disabled:cursor-not-allowed disabled:opacity-40">{label}</button>)}
+        <span aria-live="polite">第 {view.page} / {view.pageCount} 页</span>
+        <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); if (jump.trim()) goToPage(Number(jump)); }}>
+          <label className="flex items-center gap-2">跳至
+            <input aria-label="跳转页码" type="number" min={1} max={view.pageCount} step={1} value={jump}
+              onChange={(event) => setJump(event.target.value)} className="w-16 rounded border border-bg-tertiary bg-bg-primary px-2 py-2" />页
+          </label>
+          <button type="submit" disabled={!jump.trim() || !view.total} className="rounded border border-bg-tertiary px-3 py-2 text-accent-blue disabled:opacity-40">跳转</button>
+        </form>
+      </nav>
     </>
   );
 }
