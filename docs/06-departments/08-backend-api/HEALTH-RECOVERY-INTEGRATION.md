@@ -231,4 +231,15 @@ HTTP分类/层级字段，也没有改变API原排序参数或默认顺序。等
 单位冻结补充：Provider 的f62保留元，HTTP `fund_flow`统一除以1e8后返回亿元。
 前端按亿元直接格式化，禁止二次换算。任一快照条目为null都触发FUND_FLOW_UNAVAILABLE并停止资金流排序。
 
+## 第四轮：板块详情同源恢复（2026-09-06）
+
+`/api/market/sector/{id}` 不再调用旧AKShare板块类型探测、行情列表和成分股入口。
+后端先在行业/概念审计目录中确认BK身份，再从同一快照节点按100条完整分页取成分股；
+板块与个股f62均只在HTTP适配层除以1e8，单位为亿元。延迟和准确时间范围通过
+`BOARD_SNAPSHOT_MAY_BE_DELAYED` 标注，不阻塞行情展示。
+
+独立18085端口：BK1629 AI应用HTTP200 partial，282只、0.475秒；BK0475银行Ⅱ
+HTTP200 partial，42只、0.134秒；BK9999在双目录完整后返回HTTP404/empty，0.032秒。
+未操作3000/8000。真实关系证据仍未接入，`chain_map=[]`并标注`CHAIN_MAP_UNAVAILABLE`。
+
 生产请求保留原上游顺序字段：行业fid=f3、概念fid=f12；HTTP的fund_flow/change_pct排序行为不变。

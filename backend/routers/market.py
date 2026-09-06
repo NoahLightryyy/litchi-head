@@ -12,7 +12,6 @@ import logging
 import time
 from collections.abc import Callable
 from datetime import datetime
-from functools import partial
 from typing import Literal
 
 import akshare as ak
@@ -30,7 +29,12 @@ from src.data.index_quote_runtime import (
 )
 from src.data.providers.base import safe_float, safe_str
 from src.data.providers.caixin_news import fetch_caixin_news
-from src.data.providers.eastmoney_boards import BoardKind, BoardSnapshot, board_snapshots
+from src.data.providers.eastmoney_boards import (
+    BoardKind,
+    BoardMembersSnapshot,
+    BoardSnapshot,
+    board_snapshots,
+)
 
 logger = logging.getLogger("backend.market")
 router = APIRouter(prefix="/api/market")
@@ -140,7 +144,7 @@ class SectorStockResp(BaseModel):
     name: str
     price: float = 0.0
     change_pct: float = 0.0
-    fund_flow: float | None = None
+    fund_flow: float | None = Field(default=None, description="主力净流入，单位亿元")
     ai_rating: str = "B"
 
 
@@ -163,7 +167,7 @@ class SectorDetailResp(BaseModel):
     id: str
     name: str
     change_pct: float = 0.0
-    fund_flow: float | None = None
+    fund_flow: float | None = Field(default=None, description="主力净流入，单位亿元")
     heat: str = "medium"
     chain_map: list[ChainStageResp] = Field(default_factory=list)
     ai_analysis: str = ""
@@ -289,23 +293,6 @@ def _market_source_diagnostics(
     return [MarketSourceDiagnostic.model_validate(item.model_dump()) for item in items]
 
 
-def _fetch_board_perf_df(board_type: str) -> pd.DataFrame:
-    """获取板块行情 DataFrame（涨跌幅 + 主力净流入）
-
-    列样例：
-      板块代码, 板块名称, 涨跌幅, 主力净流入-净额, ...
-
-    Args:
-        board_type: "industry" 或 "concept"
-
-    Returns:
-        上游原始 DataFrame；异常由路由转换为稳定失败契约
-    """
-    if board_type == "industry":
-        return ak.stock_board_industry_name_em()
-    return ak.stock_board_concept_name_em()
-
-
 def _board_snapshot_frame(kind: BoardKind) -> pd.DataFrame:
     """Adapt the frozen snapshot model to this router's internal tabular pipeline."""
     snapshot: BoardSnapshot = board_snapshots.fetch(kind)
@@ -337,6 +324,31 @@ def _fetch_industry_board_snapshot() -> pd.DataFrame:
 
 def _fetch_concept_board_snapshot() -> pd.DataFrame:
     return _board_snapshot_frame("concept")
+
+
+def _fetch_board_members_snapshot(sector_id: str, kind: BoardKind) -> pd.DataFrame:
+    snapshot: BoardMembersSnapshot = board_snapshots.fetch_members(sector_id, kind)
+    frame = pd.DataFrame([
+        {
+            "代码": member.code,
+            "名称": member.name,
+            "现价": member.price,
+            "涨跌幅": member.change_pct,
+            "主力净流入": (
+                member.fund_flow / 100_000_000 if member.fund_flow is not None else None
+            ),
+            "数据时间": member.as_of,
+        }
+        for member in snapshot.members
+    ])
+    frame.attrs.update({
+        "audited_snapshot": True,
+        "cached": snapshot.cached,
+        "fetched_at": snapshot.fetched_at,
+        "possibly_delayed": snapshot.possibly_delayed,
+        "source": snapshot.source,
+    })
+    return frame
 
 
 def _nullable_board_number(value: object) -> float | None:
@@ -409,21 +421,6 @@ async def _fetch_board_perf_sources(
         timeout=timeout,
     )
     return frames, list(failures)
-
-
-def _fetch_board_stocks_df(sector_id: str, board_type: str) -> pd.DataFrame:
-    """获取板块成分股行情
-
-    Args:
-        sector_id: BK 代码
-        board_type: "industry" 或 "concept"
-
-    Returns:
-        DataFrame（列：代码, 名称, 现价, 涨跌幅, 主力净流入）
-    """
-    if board_type == "industry":
-        return ak.stock_board_industry_cons_em(symbol=sector_id)
-    return ak.stock_board_concept_cons_em(symbol=sector_id)
 
 
 def _calc_heat(
@@ -535,14 +532,6 @@ def _build_ai_analysis(
     lines.append("")
     lines.append("*数据来源：东方财富 / akshare*")
     return "\n".join(lines)
-
-
-def _detect_board_type(sector_id: str) -> str:
-    """判断板块类型（行业 / 概念）"""
-    industry = collector.get_industry_boards()
-    if any(b.code == sector_id for b in industry):
-        return "industry"
-    return "concept"
 
 
 # ── 路由 ──────────────────────────────────────────────────────
@@ -732,23 +721,63 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
 @router.get(
     "/sector/{sector_id:str}",
     response_model=SectorDetailEnvelope,
-    responses={503: {"model": SectorDetailErrorResponse}},
+    responses={
+        404: {"model": MarketErrorResponse},
+        503: {"model": SectorDetailErrorResponse},
+    },
 )
 async def get_sector_detail(sector_id: str):
     """板块详情 — 含成分股 + 热度 + AI 分析 + 产业链映射"""
     t0 = time.time()
-
-    # 判断板块类型，并在同一个总预算内并发获取成分股与板块行情。
-    board_type: str | None = None
+    board_type: BoardKind | None = None
     try:
         async with asyncio.timeout(DATA_TIMEOUT):
-            board_type = await _sector_source_runner.run(_detect_board_type, sector_id)
-            frames, failures = await _fetch_board_dataframes(
+            board_frames, board_failures = await _fetch_board_dataframes(
                 {
-                    "stocks": partial(_fetch_board_stocks_df, sector_id, board_type),
-                    "performance": partial(_fetch_board_perf_df, board_type),
+                    "industry": _fetch_industry_board_snapshot,
+                    "concept": _fetch_concept_board_snapshot,
                 },
                 timeout=DATA_TIMEOUT,
+            )
+            matches: list[tuple[BoardKind, pd.Series]] = []
+            for kind in ("industry", "concept"):
+                frame = board_frames[kind]
+                if frame.empty:
+                    continue
+                matched = frame[frame["板块代码"].astype(str) == sector_id]
+                if not matched.empty:
+                    matches.append((kind, matched.iloc[0]))
+            if not matches:
+                if board_failures:
+                    failure_code = (
+                        "MARKET_SECTOR_DETAIL_TIMEOUT"
+                        if "timeout" in board_failures.values()
+                        else "MARKET_SECTOR_DETAIL_FAILED"
+                    )
+                    return _sector_detail_failed(
+                        failure_code,
+                        "板块详情上游超时" if failure_code.endswith("TIMEOUT")
+                        else "板块详情暂时不可用",
+                        t0,
+                        failed_sources=list(board_failures),
+                    )
+                return JSONResponse(
+                    status_code=404,
+                    content=MarketErrorResponse(
+                        error=MarketErrorBody(
+                            code="MARKET_SECTOR_NOT_FOUND", message="未找到该板块",
+                        ),
+                        meta=MarketMeta(
+                            status="empty",
+                            latency_ms=round((time.time() - t0) * 1000),
+                        ),
+                    ).model_dump(mode="json"),
+                )
+            if len(matches) != 1:
+                raise ValueError("board identity appears in multiple categories")
+            board_type, board_row = matches[0]
+            stocks_df = await _sector_source_runner.run(
+                _fetch_board_members_snapshot, sector_id, board_type,
             )
     except TimeoutError:
         logger.exception("板块详情聚合超时: sector_id=%s", sector_id)
@@ -766,57 +795,33 @@ async def get_sector_detail(sector_id: str):
             t0,
             failed_sources=[board_type or "industry"],
         )
-    if failures:
-        failure_code = (
-            "MARKET_SECTOR_DETAIL_TIMEOUT"
-            if "timeout" in failures.values()
-            else "MARKET_SECTOR_DETAIL_FAILED"
-        )
-        return _sector_detail_failed(
-            failure_code,
-            (
-                "板块详情上游超时"
-                if failure_code == "MARKET_SECTOR_DETAIL_TIMEOUT"
-                else "板块详情暂时不可用"
-            ),
-            t0,
-            failed_sources=[board_type],
-        )
-    stocks_df = frames["stocks"]
-    board_perf_df = frames["performance"]
-
-    # 板块基本信息
-    board_name = sector_id
-    if not board_perf_df.empty:
-        matched = board_perf_df[board_perf_df["板块代码"].astype(str) == sector_id]
-        if not matched.empty:
-            row = matched.iloc[0]
-            board_name = safe_str(row.get("板块名称", sector_id))
+    assert board_type is not None
+    board_name = safe_str(board_row.get("板块名称", sector_id))
+    board_as_of = board_row.get("数据时间")
 
     # 热度
     heat = _calc_heat(stocks_df)
 
     # 板块涨跌幅 + 资金流
-    change_pct = 0.0
-    fund_flow: float | None = None
-    if not board_perf_df.empty:
-        matched = board_perf_df[board_perf_df["板块代码"].astype(str) == sector_id]
-        if not matched.empty:
-            row = matched.iloc[0]
-            change_pct = safe_float(row.get("涨跌幅", 0.0))
-            if "主力净流入-净额" in board_perf_df.columns:
-                fund_flow = safe_float(row.get("主力净流入-净额"))
+    change_pct = safe_float(board_row.get("涨跌幅", 0.0))
+    fund_flow = _nullable_board_number(board_row.get("主力净流入-净额"))
 
     # 成分股列表
     stocks: list[SectorStockResp] = []
+    omitted_quote_count = 0
     if not stocks_df.empty:
         for _, row in stocks_df.iterrows():
+            price = _nullable_board_number(row.get("现价"))
+            stock_change = _nullable_board_number(row.get("涨跌幅"))
+            if price is None or stock_change is None:
+                omitted_quote_count += 1
+                continue
             stocks.append(SectorStockResp(
                 code=safe_str(row.get("代码", "")),
                 name=safe_str(row.get("名称", "")),
-                price=safe_float(row.get("现价", 0.0)),
-                change_pct=safe_float(row.get("涨跌幅", 0.0)),
-                ai_rating=_calc_rating(safe_float(row.get("涨跌幅", 0.0))),
+                price=price, change_pct=stock_change,
+                fund_flow=_nullable_board_number(row.get("主力净流入")),
+                ai_rating=_calc_rating(stock_change),
             ))
 
     # AI 分析
@@ -831,13 +836,50 @@ async def get_sector_detail(sector_id: str):
         heat=heat, stocks=stocks,
         ai_analysis=ai_analysis, chain_map=chain_map,
     )
-    limitations = [MarketLimitation(
-        code="FUND_FLOW_UNAVAILABLE",
-        message="板块或成分股缺少已核验资金流字段，未知值返回 null",
-    )]
+    stock_time_values = stocks_df["数据时间"].tolist() if "数据时间" in stocks_df else []
+    snapshot_times = [
+        value for value in [board_as_of, *stock_time_values] if isinstance(value, datetime)
+    ]
+    as_of_min = min(snapshot_times).isoformat() if snapshot_times else "未知"
+    as_of_max = max(snapshot_times).isoformat() if snapshot_times else "未知"
+    time_range = as_of_min if as_of_min == as_of_max else f"{as_of_min} 至 {as_of_max}"
+    limitations = [
+        MarketLimitation(
+            code="BOARD_SNAPSHOT_MAY_BE_DELAYED",
+            message=f"当前显示东方财富快照，可能延迟；数据时间 {time_range}",
+        ),
+        MarketLimitation(
+            code="CHAIN_MAP_UNAVAILABLE",
+            message="当前没有可核验的产业链关系数据，产业链映射留空",
+        ),
+    ]
+    stock_fund_flow_missing = (
+        not stocks_df.empty
+        and ("主力净流入" not in stocks_df.columns
+             or bool(stocks_df["主力净流入"].isna().to_numpy().any()))
+    )
+    if fund_flow is None or stock_fund_flow_missing:
+        limitations.append(MarketLimitation(
+            code="FUND_FLOW_UNAVAILABLE",
+            message="板块或部分成分股资金流未知，未知值返回 null",
+        ))
+    if omitted_quote_count:
+        limitations.append(MarketLimitation(
+            code="MEMBER_QUOTE_UNAVAILABLE",
+            message=f"{omitted_quote_count}只成分股缺少价格或涨跌幅，未用0补值且未展示",
+        ))
+    if stocks_df.empty:
+        limitations.append(MarketLimitation(
+            code="BOARD_MEMBERS_EMPTY", message="当前板块没有可用成分股行情",
+        ))
     return {
         "data": detail.model_dump(),
-        "meta": _market_meta("partial", t0, limitations=limitations),
+        "meta": _market_meta(
+            "partial", t0,
+            cached=(board_frames[board_type].attrs.get("cached") is True
+                    or stocks_df.attrs.get("cached") is True),
+            limitations=limitations,
+        ),
     }
 
 

@@ -6,6 +6,7 @@ Its potential delay must remain visible; it is not a realtime consensus source.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Callable
 from datetime import datetime
@@ -46,6 +47,29 @@ class BoardSnapshot(BaseModel):
     possibly_delayed: Literal[True] = True
 
 
+class BoardMemberSnapshot(BaseModel):
+    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+
+    code: str = Field(pattern=r"^\d{6}$")
+    name: str = Field(min_length=1)
+    price: float | None
+    change_pct: float | None
+    fund_flow: float | None
+    as_of: datetime
+
+
+class BoardMembersSnapshot(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    board_code: str = Field(pattern=r"^BK\d{4}$")
+    kind: BoardKind
+    members: tuple[BoardMemberSnapshot, ...]
+    fetched_at: datetime
+    cached: bool = False
+    source: Literal["eastmoney"] = "eastmoney"
+    possibly_delayed: Literal[True] = True
+
+
 def _number(value: object, *, nullable: bool = False) -> float | None:
     if nullable and (value is None or value == "-"):
         return None
@@ -65,6 +89,8 @@ class EastmoneyBoardSnapshots:
         self._clock = clock
         self._locks = {kind: Lock() for kind in ("industry", "concept")}
         self._cache: dict[BoardKind, tuple[BoardSnapshot, float]] = {}
+        self._members_lock = Lock()
+        self._members_cache: dict[str, tuple[BoardMembersSnapshot, float]] = {}
 
     def fetch(self, kind: BoardKind) -> BoardSnapshot:
         if kind not in self._locks:
@@ -85,6 +111,29 @@ class EastmoneyBoardSnapshots:
             raise
         finally:
             self._locks[kind].release()
+
+    def fetch_members(self, board_code: str, kind: BoardKind) -> BoardMembersSnapshot:
+        """Fetch every quoted constituent for one known board under one deadline."""
+        if re.fullmatch(r"BK\d{4}", board_code) is None:
+            raise ValueError("invalid board code")
+        deadline = self._clock() + BOARD_FETCH_SECONDS
+        if not self._members_lock.acquire(timeout=BOARD_FETCH_SECONDS):
+            raise TimeoutError("board members snapshot busy")
+        try:
+            cached = self._members_cache.get(board_code)
+            if cached is not None and self._clock() < cached[1]:
+                return cached[0].model_copy(update={"cached": True})
+            snapshot = self._fetch_members_complete(board_code, kind, deadline)
+            if snapshot.members:
+                self._members_cache[board_code] = (
+                    snapshot, self._clock() + BOARD_CACHE_SECONDS,
+                )
+            return snapshot
+        except Exception:
+            logger.exception("Eastmoney board members failed: board=%s", board_code)
+            raise
+        finally:
+            self._members_lock.release()
 
     def _fetch_complete(self, kind: BoardKind, deadline: float) -> BoardSnapshot:
         quotes: list[BoardQuoteSnapshot] = []
@@ -132,6 +181,53 @@ class EastmoneyBoardSnapshots:
             kind=kind, quotes=tuple(quotes), fetched_at=datetime.now(SHANGHAI),
         )
 
+    def _fetch_members_complete(
+        self, board_code: str, kind: BoardKind, deadline: float,
+    ) -> BoardMembersSnapshot:
+        members: list[BoardMemberSnapshot] = []
+        seen: set[str] = set()
+        total: int | None = None
+        page = 1
+        params = {
+            "pz": str(PAGE_SIZE), "po": "1", "np": "1", "fltt": "2", "invt": "2",
+            "ut": "bd1d9ddb04089700cf9c27f6f7426281", "fid": "f3",
+            "fs": f"b:{board_code} f:!50", "fields": "f2,f3,f12,f13,f14,f62,f124",
+        }
+        with httpx.Client(
+            transport=self._transport,
+            headers={"Referer": "https://quote.eastmoney.com/", "User-Agent": "Mozilla/5.0"},
+        ) as client:
+            while total is None or len(members) < total:
+                remaining = deadline - self._clock()
+                if remaining <= 0:
+                    raise TimeoutError("board members total deadline exceeded")
+                response = client.get(
+                    BOARD_SNAPSHOT_URL, params={**params, "pn": str(page)},
+                    timeout=min(3.0, remaining),
+                )
+                response.raise_for_status()
+                if self._clock() > deadline:
+                    raise TimeoutError("board members total deadline exceeded")
+                payload = response.json()
+                page_total, rows = self._page(payload)
+                if total is not None and page_total != total:
+                    raise ValueError("board members total changed during pagination")
+                total = page_total
+                expected = min(PAGE_SIZE, total - len(members))
+                if len(rows) != expected:
+                    raise ValueError("board members page is incomplete")
+                for row in rows:
+                    member = self._member(row)
+                    if member.code in seen:
+                        raise ValueError("duplicate board member across pages")
+                    seen.add(member.code)
+                    members.append(member)
+                page += 1
+        return BoardMembersSnapshot(
+            board_code=board_code, kind=kind, members=tuple(members),
+            fetched_at=datetime.now(SHANGHAI),
+        )
+
     @staticmethod
     def _page(payload: Any) -> tuple[int, list[dict[str, Any]]]:
         if not isinstance(payload, dict) or payload.get("rc") != 0:
@@ -161,6 +257,23 @@ class EastmoneyBoardSnapshots:
         assert change_pct is not None
         return BoardQuoteSnapshot(
             code=code, name=name.strip(), change_pct=change_pct,
+            fund_flow=_number(row.get("f62"), nullable=True),
+            as_of=datetime.fromtimestamp(epoch, SHANGHAI),
+        )
+
+    @staticmethod
+    def _member(row: dict[str, Any]) -> BoardMemberSnapshot:
+        if type(row.get("f13")) is not int or row["f13"] not in {0, 1}:
+            raise ValueError("board member market identity mismatch")
+        name, code, epoch = row.get("f14"), row.get("f12"), row.get("f124")
+        if not isinstance(name, str) or not isinstance(code, str):
+            raise ValueError("invalid board member identity")
+        if type(epoch) is not int or epoch <= 0:
+            raise ValueError("board member timestamp missing or invalid")
+        return BoardMemberSnapshot(
+            code=code, name=name.strip(),
+            price=_number(row.get("f2"), nullable=True),
+            change_pct=_number(row.get("f3"), nullable=True),
             fund_flow=_number(row.get("f62"), nullable=True),
             as_of=datetime.fromtimestamp(epoch, SHANGHAI),
         )

@@ -220,7 +220,7 @@ akshare.stock_financial_analysis_indicator(code)
 
 ## 首页板块快照（2026-09-05）
 
-`src/data/providers/eastmoney_boards.py` 是东方财富同源板块快照适配器，仅供首页展示。
+`src/data/providers/eastmoney_boards.py` 是东方财富同源板块快照适配器，供首页与板块详情展示。
 行业请求保持原口径 `m:90 t:2 f:!50`/`fid=f3`，概念为 `m:90 t:3 f:!50`/`fid=f12`；完整分页、
 市场90、BK身份、非空名称、有限数值和带时区as_of全部通过才返回冻结Pydantic快照。
 
@@ -232,3 +232,8 @@ akshare.stock_financial_analysis_indicator(code)
 `BoardQuoteSnapshot.fund_flow` 保存东方财富 f62 原始元值；HTTP `SectorItem.fund_flow` 固定为亿元，
 只在后端快照转响应时除以1e8。前端直接按亿元显示，不得再次除；任一条缺失均为null并触发
 `FUND_FLOW_UNAVAILABLE`，`sort_applied=upstream_order`，不能按资金流排序。
+
+2026-09-06，适配器扩展到板块详情成分股：`b:BKxxxx f:!50` 按100条完整分页，固定读取
+代码、名称、最新价、涨跌幅、主力净流入和上游时间。总数变化、截断页、重复证券、非法
+市场或非有限数值均使整个成分股快照失败；价格/涨跌幅未知由HTTP层省略并显式标注，
+不得补0。BK1629实测282条三页完整，BK0475实测42条。

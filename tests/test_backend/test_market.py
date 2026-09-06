@@ -639,173 +639,148 @@ class TestGetSectors:
 class TestGetSectorDetail:
     """板块详情"""
 
-    def test_returns_detail(self, client, mock_collector):
-        stocks_df = make_board_stocks_df()
-        perf_df = make_board_perf_df()
+    @staticmethod
+    def _frames(perf_df: pd.DataFrame, category: str = "industry"):
+        empty = pd.DataFrame()
+        perf_df = perf_df.copy()
+        if "主力净流入-净额" in perf_df.columns:
+            perf_df["主力净流入-净额"] /= 100_000_000
+        perf_df["数据时间"] = datetime(2026, 9, 4, 15, 39, 32, tzinfo=SHANGHAI)
+        perf_df.attrs.update({"audited_snapshot": True, "cached": False})
+        return {
+            "industry": perf_df if category == "industry" else empty,
+            "concept": perf_df if category == "concept" else empty,
+        }, {}
+
+    @staticmethod
+    def _stocks() -> pd.DataFrame:
+        frame = make_board_stocks_df()
+        frame["主力净流入"] = [1.5, None, -0.5, 0.25, 0.1, -0.2]
+        frame["数据时间"] = datetime(2026, 9, 4, 15, 40, tzinfo=SHANGHAI)
+        frame.attrs["cached"] = False
+        return frame
+
+    def test_returns_detail_from_audited_snapshot(self, client):
         with (
-            patch("backend.routers.market.collector", mock_collector),
-            patch("akshare.stock_board_industry_cons_em", return_value=stocks_df),
-            patch("akshare.stock_board_industry_name_em", return_value=perf_df),
+            patch("backend.routers.market._fetch_board_dataframes",
+                  return_value=self._frames(make_board_perf_df())),
+            patch("backend.routers.market._fetch_board_members_snapshot",
+                  return_value=self._stocks()),
         ):
             resp = client.get("/api/market/sector/BK001")
-
         assert resp.status_code == 200
-        data = resp.json()["data"]
-        assert data["id"] == "BK001"
-        assert data["name"] == "银行"
-        assert "stocks" in data
-        assert "chain_map" in data
-        assert data["chain_map"] == []
-        assert "ai_analysis" in data
-        assert "heat" in data
-        assert data["fund_flow"] == 500_000_000.0
-        assert all(stock["fund_flow"] is None for stock in data["stocks"])
-        assert resp.json()["meta"]["status"] == "partial"
-        assert resp.json()["meta"]["limitations"][0]["code"] == "FUND_FLOW_UNAVAILABLE"
+        body = resp.json()
+        data = body["data"]
+        assert data["id"] == "BK001" and data["name"] == "银行"
+        assert data["chain_map"] == [] and data["fund_flow"] == 5.0
+        assert data["stocks"][0]["price"] > 0
+        assert data["stocks"][0]["fund_flow"] == 1.5
+        assert body["meta"]["status"] == "partial"
+        codes = {item["code"] for item in body["meta"]["limitations"]}
+        assert {"BOARD_SNAPSHOT_MAY_BE_DELAYED", "CHAIN_MAP_UNAVAILABLE"} <= codes
+        assert "FUND_FLOW_UNAVAILABLE" in codes
+        assert "2026-09-04T15:39:32+08:00" in body["meta"]["limitations"][0]["message"]
 
-    def test_missing_detail_fund_flow_is_null(self, client, mock_collector):
-        """板块详情来源缺少资金流时返回未知值，而不是伪造 0.0。"""
-        stocks_df = make_board_stocks_df()
-        perf_df = make_board_perf_df().drop(columns=["主力净流入-净额"])
+    def test_concept_board_uses_matching_catalog(self, client):
+        perf_df = make_board_perf_df(rows=[{
+            "板块代码": "BK010", "板块名称": "人工智能", "涨跌幅": 2.0,
+            "主力净流入-净额": 1_000_000_000.0,
+        }])
         with (
-            patch("backend.routers.market.collector", mock_collector),
-            patch("akshare.stock_board_industry_cons_em", return_value=stocks_df),
-            patch("akshare.stock_board_industry_name_em", return_value=perf_df),
-        ):
-            resp = client.get("/api/market/sector/BK001")
-
-        assert resp.status_code == 200
-        assert resp.json()["data"]["fund_flow"] is None
-        assert resp.json()["meta"]["status"] == "partial"
-
-    def test_concept_board(self, client, mock_collector):
-        """概念板块也能正常获取"""
-        stocks_df = make_board_stocks_df()
-        perf_df = make_board_perf_df(
-            rows=[
-                {
-                    "板块代码": "BK010",
-                    "板块名称": "人工智能",
-                    "涨跌幅": 2.0,
-                    "主力净流入-净额": 1_000_000_000.0,
-                }
-            ]
-        )
-        with (
-            patch("backend.routers.market.collector", mock_collector),
-            patch("akshare.stock_board_concept_cons_em", return_value=stocks_df),
-            patch("akshare.stock_board_concept_name_em", return_value=perf_df),
+            patch("backend.routers.market._fetch_board_dataframes",
+                  return_value=self._frames(perf_df, "concept")),
+            patch("backend.routers.market._fetch_board_members_snapshot",
+                  return_value=self._stocks()) as fetch_members,
         ):
             resp = client.get("/api/market/sector/BK010")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["name"] == "人工智能"
+        fetch_members.assert_called_once_with("BK010", "concept")
 
+    def test_one_catalog_failure_does_not_block_matching_board(self, client):
+        perf_df = make_board_perf_df(rows=[{
+            "板块代码": "BK010", "板块名称": "人工智能", "涨跌幅": 2.0,
+            "主力净流入-净额": 1_000_000_000.0,
+        }])
+        frames, _ = self._frames(perf_df, "concept")
+        with (
+            patch("backend.routers.market._fetch_board_dataframes",
+                  return_value=(frames, {"industry": "timeout"})),
+            patch("backend.routers.market._fetch_board_members_snapshot",
+                  return_value=self._stocks()),
+        ):
+            resp = client.get("/api/market/sector/BK010")
         assert resp.status_code == 200
         assert resp.json()["data"]["name"] == "人工智能"
 
-    def test_empty_stocks_returns_basic_info(self, client, mock_collector):
-        """成分股为空时仍返回板块基本信息"""
-        perf_df = make_board_perf_df()
-        with (
-            patch("backend.routers.market.collector", mock_collector),
-            patch("akshare.stock_board_industry_cons_em", return_value=pd.DataFrame()),
-            patch("akshare.stock_board_industry_name_em", return_value=perf_df),
+    def test_unknown_board_is_404_without_fabricated_detail(self, client):
+        with patch(
+            "backend.routers.market._fetch_board_dataframes",
+            return_value=({"industry": pd.DataFrame(), "concept": pd.DataFrame()}, {}),
         ):
-            resp = client.get("/api/market/sector/BK001")
+            resp = client.get("/api/market/sector/BK9999")
+        assert resp.status_code == 404
+        assert resp.json()["error"]["code"] == "MARKET_SECTOR_NOT_FOUND"
+        assert resp.json()["meta"]["status"] == "empty"
 
-        assert resp.status_code == 200
-        data = resp.json()["data"]
-        assert data["stocks"] == []
-        assert data["chain_map"] == []
-        assert "暂无足够数据" in data["ai_analysis"]
-
-    def test_ai_rating_in_stocks(self, client, mock_collector):
-        """成分股含 ai_rating 字段"""
-        stocks_df = make_board_stocks_df()
-        perf_df = make_board_perf_df()
+    def test_empty_stocks_returns_real_board_basic_info(self, client):
+        empty = pd.DataFrame()
+        empty.attrs["cached"] = False
         with (
-            patch("backend.routers.market.collector", mock_collector),
-            patch("akshare.stock_board_industry_cons_em", return_value=stocks_df),
-            patch("akshare.stock_board_industry_name_em", return_value=perf_df),
+            patch("backend.routers.market._fetch_board_dataframes",
+                  return_value=self._frames(make_board_perf_df())),
+            patch("backend.routers.market._fetch_board_members_snapshot", return_value=empty),
         ):
-            resp = client.get("/api/market/sector/BK001")
-
-        stocks = resp.json()["data"]["stocks"]
-        assert all("ai_rating" in s for s in stocks)
-        assert any(s["ai_rating"] != "B" for s in stocks)  # 有涨跌幅差异
-
-    def test_timeout_returns_structured_retryable_503(self, client, mock_collector):
-        """真实浏览器发现的板块行情超时必须失败关闭，不能泄漏为 500。"""
-        from threading import Event
-
-        release = Event()
-
-        def block_performance() -> pd.DataFrame:
-            release.wait(timeout=1.0)
-            return pd.DataFrame()
-
-        try:
-            with (
-                patch("backend.routers.market.collector", mock_collector),
-                patch(
-                    "akshare.stock_board_industry_cons_em",
-                    return_value=make_board_stocks_df(),
-                ),
-                patch(
-                    "akshare.stock_board_industry_name_em",
-                    side_effect=block_performance,
-                ),
-                patch("backend.routers.market.DATA_TIMEOUT", 0.1),
-            ):
-                resp = client.get("/api/market/sector/BK001")
-        finally:
-            release.set()
-
-        assert resp.status_code == 503
-        assert resp.json()["error"] == {
-            "code": "MARKET_SECTOR_DETAIL_TIMEOUT",
-            "message": "板块详情上游超时",
-            "retryable": True,
-            "retry_mode": "client_controlled",
+            body = client.get("/api/market/sector/BK001").json()
+        assert body["data"]["stocks"] == []
+        assert body["data"]["name"] == "银行"
+        assert "暂无足够数据" in body["data"]["ai_analysis"]
+        assert "BOARD_MEMBERS_EMPTY" in {
+            item["code"] for item in body["meta"]["limitations"]
         }
-        assert resp.json()["meta"]["status"] == "failed"
-        assert resp.json()["meta"]["failed_sources"] == ["industry"]
 
-    @pytest.mark.parametrize("upstream", ["stocks", "performance"])
+    def test_missing_price_is_omitted_instead_of_becoming_zero(self, client):
+        stocks = self._stocks()
+        stocks.loc[0, "现价"] = None
+        with (
+            patch("backend.routers.market._fetch_board_dataframes",
+                  return_value=self._frames(make_board_perf_df())),
+            patch("backend.routers.market._fetch_board_members_snapshot", return_value=stocks),
+        ):
+            body = client.get("/api/market/sector/BK001").json()
+        assert len(body["data"]["stocks"]) == len(stocks) - 1
+        assert all(stock["price"] != 0 for stock in body["data"]["stocks"])
+        assert "MEMBER_QUOTE_UNAVAILABLE" in {
+            item["code"] for item in body["meta"]["limitations"]
+        }
+
     @pytest.mark.parametrize("timed_out", [False, True])
-    def test_upstream_failure_returns_structured_retryable_503(
-        self,
-        client,
-        mock_collector,
-        upstream,
-        timed_out,
-    ):
+    def test_members_failure_returns_structured_retryable_503(self, client, timed_out):
         error = TimeoutError("timeout") if timed_out else RuntimeError("upstream failed")
         with (
-            patch("backend.routers.market.collector", mock_collector),
-            patch(
-                "akshare.stock_board_industry_cons_em",
-                return_value=make_board_stocks_df(),
-                side_effect=error if upstream == "stocks" else None,
-            ),
-            patch(
-                "akshare.stock_board_industry_name_em",
-                return_value=make_board_perf_df(),
-                side_effect=error if upstream == "performance" else None,
+            patch("backend.routers.market._fetch_board_dataframes",
+                  return_value=self._frames(make_board_perf_df())),
+            patch("backend.routers.market._fetch_board_members_snapshot", side_effect=error),
+        ):
+            resp = client.get("/api/market/sector/BK001")
+        assert resp.status_code == 503
+        assert resp.json()["error"]["code"] == (
+            "MARKET_SECTOR_DETAIL_TIMEOUT" if timed_out else "MARKET_SECTOR_DETAIL_FAILED"
+        )
+        assert resp.json()["meta"]["failed_sources"] == ["industry"]
+
+    def test_catalog_failure_prevents_false_not_found(self, client):
+        with patch(
+            "backend.routers.market._fetch_board_dataframes",
+            return_value=(
+                {"industry": pd.DataFrame(), "concept": pd.DataFrame()},
+                {"industry": "timeout"},
             ),
         ):
             resp = client.get("/api/market/sector/BK001")
-
         assert resp.status_code == 503
-        assert resp.json()["error"] == {
-            "code": (
-                "MARKET_SECTOR_DETAIL_TIMEOUT" if timed_out else "MARKET_SECTOR_DETAIL_FAILED"
-            ),
-            "message": "板块详情上游超时" if timed_out else "板块详情暂时不可用",
-            "retryable": True,
-            "retry_mode": "client_controlled",
-        }
-        assert resp.json()["meta"]["status"] == "failed"
+        assert resp.json()["error"]["code"] == "MARKET_SECTOR_DETAIL_TIMEOUT"
         assert resp.json()["meta"]["failed_sources"] == ["industry"]
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # GET /api/market/brief
@@ -1039,7 +1014,14 @@ def test_homepage_market_openapi_freezes_status_and_failed_response(client):
         assert "503" in responses
 
     detail_responses = schema["paths"]["/api/market/sector/{sector_id}"]["get"]["responses"]
+    assert "404" in detail_responses
     assert "503" in detail_responses
+    assert components["SectorDetailResp"]["properties"]["fund_flow"]["description"] == (
+        "主力净流入，单位亿元"
+    )
+    assert components["SectorStockResp"]["properties"]["fund_flow"]["description"] == (
+        "主力净流入，单位亿元"
+    )
     detail_error = components["SectorDetailErrorBody"]["properties"]
     assert detail_error["code"]["enum"] == [
         "MARKET_SECTOR_DETAIL_TIMEOUT",

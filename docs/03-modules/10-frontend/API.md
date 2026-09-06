@@ -248,6 +248,13 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 板块详情沿用同一未知值纪律：板块或成分股资金流缺少已核验字段/单位时返回 `null`，
 `meta.status=partial` 并携带 `FUND_FLOW_UNAVAILABLE`，不得使用 0.0 占位。
 
+2026-09-06 起，详情的板块识别、板块行情和完整成分股分页均使用与列表相同的东方财富
+快照适配器。板块与个股 `fund_flow` 均为亿元；`BOARD_SNAPSHOT_MAY_BE_DELAYED` 的
+message 给出板块及成分股时间范围。`CHAIN_MAP_UNAVAILABLE` 仅标注关系数据缺失，不
+阻止展示行情。价格或涨跌幅未知的成分股不以 0 补值，而是省略并标注
+`MEMBER_QUOTE_UNAVAILABLE`。完整目录中不存在的 BK 代码返回 HTTP 404 +
+`MARKET_SECTOR_NOT_FOUND`；若任一目录采集失败则返回 503，不能误判不存在。
+
 ### POST /api/debate/run
 
 触发一次 AI 多 Agent 辩论。

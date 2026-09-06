@@ -19,6 +19,13 @@ def reply(rows: list[dict], total: int | None = None) -> httpx.Response:
     }})
 
 
+def member_row(number: int = 0) -> dict:
+    return {
+        "f2": 12.34, "f3": 2.5, "f12": f"{number:06d}", "f13": number % 2,
+        "f14": f"stock{number}", "f62": 125_000_000.0, "f124": 1788507572,
+    }
+
+
 def test_complete_pages_preserve_identity_values_and_timestamp() -> None:
     calls = []
     def transport(request):
@@ -136,3 +143,52 @@ def test_concurrent_callers_share_one_fetch() -> None:
         results = [f.result() for f in futures]
     assert calls == 1
     assert sum(result.cached for result in results) == 3
+
+
+def test_members_use_board_filter_and_complete_pagination() -> None:
+    calls = []
+    def transport(request):
+        calls.append(request)
+        assert request.url.host == "push2delay.eastmoney.com"
+        assert request.url.params["fs"] == "b:BK1629 f:!50"
+        assert request.url.params["fields"] == "f2,f3,f12,f13,f14,f62,f124"
+        if len(calls) == 1:
+            return reply([member_row(i) for i in range(100)], 101)
+        return reply([member_row(100)], 101)
+    service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(transport))
+    result = service.fetch_members("BK1629", "concept")
+    assert len(result.members) == 101
+    assert result.members[0].price == 12.34
+    assert result.members[0].fund_flow == 125_000_000.0
+    assert result.members[0].as_of.isoformat() == "2026-09-04T15:39:32+08:00"
+    assert result.source == "eastmoney" and result.possibly_delayed
+    assert not result.cached and service.fetch_members("BK1629", "concept").cached
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize("patch", [
+    {"f13": 90}, {"f12": "BK1629"}, {"f14": " "}, {"f124": None},
+    {"f2": "Infinity"}, {"f3": "nan"}, {"f62": []},
+])
+def test_invalid_member_identity_or_values_fail_snapshot(patch) -> None:
+    service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(
+        lambda _: reply([{**member_row(), **patch}]),
+    ))
+    with pytest.raises((ValueError, OverflowError)):
+        service.fetch_members("BK1629", "concept")
+
+
+def test_member_unknown_numbers_remain_null() -> None:
+    service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(
+        lambda _: reply([{**member_row(), "f2": "-", "f3": None, "f62": "-"}]),
+    ))
+    member = service.fetch_members("BK1629", "concept").members[0]
+    assert member.price is None and member.change_pct is None and member.fund_flow is None
+
+
+def test_unknown_board_code_is_rejected_before_network() -> None:
+    service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(
+        lambda _: pytest.fail("network must not be called"),
+    ))
+    with pytest.raises(ValueError, match="invalid board code"):
+        service.fetch_members("BK1/../", "concept")
