@@ -44,6 +44,7 @@ export function useSectorDetail(sectorId: string) {
   return useQuery({
     queryKey: ["market", "sector", sectorId],
     queryFn: () => fetchSectorDetail(sectorId),
+    retry: false,
     staleTime: 60_000,
     enabled: !!sectorId,
   });

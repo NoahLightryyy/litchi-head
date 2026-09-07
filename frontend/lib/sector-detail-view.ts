@@ -13,6 +13,7 @@ export function resolveSectorDetailViewMode({
   isLoading,
   isError,
 }: SectorDetailViewState): SectorDetailViewMode {
+  if (sector) return "data";
   if (isLoading) return "loading";
   if (isError) return "error";
   if (!sector) return "empty";

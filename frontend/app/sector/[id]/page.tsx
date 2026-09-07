@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiError } from "@/lib/api/client";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Network, List, BrainCircuit } from "lucide-react";
@@ -15,9 +16,9 @@ import { resolveSectorDetailViewMode } from "@/lib/sector-detail-view";
 export default function SectorPage() {
   const params = useParams();
   const sectorId = params.id as string;
-  const { data: sectorEnvelope, isLoading, isError } = useSectorDetail(sectorId);
+  const { data: sectorEnvelope, isLoading, isError, error, isFetching, refetch } = useSectorDetail(sectorId);
   const sector = sectorEnvelope?.data;
-  const viewMode = resolveSectorDetailViewMode({ sector, isLoading, isError });
+  const viewMode = resolveSectorDetailViewMode({ sector, isLoading, isError: isError && !(error instanceof ApiError && error.status === 404 && error.code === "MARKET_SECTOR_NOT_FOUND") });
 
   // ── 加载态 ──
   if (viewMode === "loading") {
@@ -51,7 +52,7 @@ export default function SectorPage() {
             宏观总览
           </Link>
           <span className="text-text-muted">/</span>
-          <span className="text-text-muted">板块未找到</span>
+          <span className="text-text-muted">{requestFailed ? `板块 · ${sectorId}` : "板块未找到"}</span>
         </div>
         <div
           className="p-8 rounded-lg border border-bg-tertiary bg-bg-secondary text-center"
@@ -73,10 +74,11 @@ export default function SectorPage() {
             </Link>
             {requestFailed && (
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => void refetch()}
+                disabled={isFetching}
                 className="px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 transition-colors"
               >
-                重新加载
+                {isFetching ? "正在重试…" : "重新加载"}
               </button>
             )}
           </div>
@@ -91,7 +93,7 @@ export default function SectorPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-      <MarketDataNotice meta={sectorEnvelope.meta} />
+      <MarketDataNotice meta={sectorEnvelope.meta} refreshError={isError} />
       {/* 面包屑 */}
       <div className="flex items-center gap-2 text-sm">
         <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">

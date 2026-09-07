@@ -110,3 +110,7 @@ export function resolveSectorDetailViewMode({ sector, isLoading, isError }) {
 ## 缺时间先核对原始响应（2026-09-05）
 
 AKShare对财新响应只选择tag/summary/url，原始time被投影丢失。`caixin_news.py`保留原始Unix秒，明确转上海时区；不能把“包装库未返回”直接判断为“来源没有”。自己试试：对照适配器测试1788569539与2026-09-05T08:52:19+08:00，删除time确认null与partial仍保留。
+
+## 详情失败与不存在（2026-09-07）
+
+只在404且错误码MARKET_SECTOR_NOT_FOUND时显示不存在，503与网络错误应显示失败。后台刷新失败仍保留旧数据并提示；手动refetch避免整页重载，retry:false避免15秒上游截止被自动重试倍增。首页成功不能替代详情验收，必须真实点击到详情检查成分股。

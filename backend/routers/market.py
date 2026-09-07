@@ -14,7 +14,6 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Literal
 
-import akshare as ak
 import pandas as pd
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse

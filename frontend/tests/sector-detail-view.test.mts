@@ -39,3 +39,7 @@ test("板块详情存在时显示真实数据", () => {
     "data",
   );
 });
+
+test("后台刷新失败保留已有详情，由提示披露刷新失败", () => {
+  assert.equal(resolveSectorDetailViewMode({ sector, isLoading: false, isError: true }), "data");
+});
