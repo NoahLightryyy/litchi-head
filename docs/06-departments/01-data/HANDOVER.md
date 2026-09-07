@@ -328,3 +328,7 @@ TD-081 上游仍失败，独立端口板块 14.58s/503；指数三项新浪单�
 官方目录三级缺报价BK1362不能补0，不能把全部条目视为平行行业。
 完整参数、分页哈希和目录核验见[第二轮证据](../08-backend-api/HEALTH-RECOVERY-INTEGRATION.md)。
 用户已确认继续；HTTP已冻结category/as_of/source/delay字段与三类限制，待前端联合验收。
+
+## 2026-09-07 FD-003 / FW-040 开发进展
+
+产业链证据Pydantic模型、严格目录加载器和11项回归完成；候选为正式AI产业指南四层资料，仅支撑行业结构。源审批与生产HTTP/前端尚未完成，详见docs/03-modules/10-frontend/chain-evidence/README.md。

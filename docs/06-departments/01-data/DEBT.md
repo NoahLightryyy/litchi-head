@@ -120,3 +120,7 @@ department: 数据管道部
 | TD-047 | collector health_stats 异常文本硬编码 | 2026-06-18 | 改为 str(e) 传递真实异常文本 |
 | TD-062 | ADataSource/ZzshareSource 财务数据缺失 | 2026-07-23 | 两来源均已实现 get_financials() |
 | TD-063 | 估值比率模型缺失 — PE/PB/PS 由 FD-002 实现 (ValuationMetrics + DataCollector.get_valuation) | 2026-07-23 | 纯计算模型，17 测试 |
+
+## 2026-09-07 产业链覆盖缺口追踪
+
+既有FD-003/FW-040未关闭：缺少可上线的企业供需证据。当前新增证据模型和候选资料，不将其计为生产图谱覆盖；待新来源范围获批，再做证据录入、HTTP和浏览器联合验收。

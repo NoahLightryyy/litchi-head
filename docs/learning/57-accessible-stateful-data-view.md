@@ -114,3 +114,7 @@ AKShare对财新响应只选择tag/summary/url，原始time被投影丢失。`ca
 ## 详情失败与不存在（2026-09-07）
 
 只在404且错误码MARKET_SECTOR_NOT_FOUND时显示不存在，503与网络错误应显示失败。后台刷新失败仍保留旧数据并提示；手动refetch避免整页重载，retry:false避免15秒上游截止被自动重试倍增。首页成功不能替代详情验收，必须真实点击到详情检查成分股。
+
+## 证据图谱的边界（2026-09-07）
+
+`src/data/chain_evidence.py`把industry_activity和company分开：官方行业分层证据不能证明公司供货关系。每个节点和边都引用原始来源；URL、日期和原文定位帮助用户复核。校验器只验证结构，不替代事实审核。自己试试：把候选行业节点连成supplies边，运行test_chain_evidence，确认被拒绝。

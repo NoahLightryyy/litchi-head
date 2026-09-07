@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "sector_code": "BK1629",
+  "sector_name": "AI应用",
+  "scope": "2024版指南中的人工智能产业层次；不代表当前板块全部企业的位置或供货关系",
+  "sources": [
+    {
+      "id": "miit-ai-2024",
+      "title": "国家人工智能产业综合标准化体系建设指南（2024版）",
+      "publisher": "工业和信息化部等四部门（湖南省政府转载）",
+      "url": "https://hunan.gov.cn/zqt/zcsd/202407/t20240702_33344121.html",
+      "published_on": "2024-07-02",
+      "checked_on": "2026-09-07",
+      "locator": "一、产业发展现状，第1段"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "base",
+      "label": "算力、算法、数据",
+      "kind": "industry_activity",
+      "stage": "基础层",
+      "source_ids": [
+        "miit-ai-2024"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "framework",
+      "label": "模型开发框架与工具",
+      "kind": "industry_activity",
+      "stage": "框架层",
+      "source_ids": [
+        "miit-ai-2024"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "model",
+      "label": "大模型等技术与产品",
+      "kind": "industry_activity",
+      "stage": "模型层",
+      "source_ids": [
+        "miit-ai-2024"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "application",
+      "label": "行业应用场景",
+      "kind": "industry_activity",
+      "stage": "应用层",
+      "source_ids": [
+        "miit-ai-2024"
+      ],
+      "stock_code": null
+    }
+  ],
+  "edges": []
+}
