@@ -97,3 +97,18 @@ def load_chain_evidence(path: Path, *, sector_code: str, sector_name: str) -> Ch
     if (result.sector_code, result.sector_name) != (sector_code, sector_name):
         raise ValueError("catalog does not match the requested sector identity")
     return result
+
+
+CATALOG_ROOT = Path(__file__).parent / "catalogs" / "chain"
+
+
+def get_sector_chain(sector_code: str, sector_name: str) -> ChainEvidenceMap | None:
+    """Only explicit, reviewed catalogs can populate a sector; absent is not inferred."""
+    import re
+
+    if re.fullmatch(r"BK\d{4}", sector_code) is None:
+        return None
+    path = CATALOG_ROOT / f"{sector_code}.json"
+    if not path.is_file():
+        return None
+    return load_chain_evidence(path, sector_code=sector_code, sector_name=sector_name)

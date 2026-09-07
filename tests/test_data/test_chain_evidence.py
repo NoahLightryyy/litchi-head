@@ -8,7 +8,7 @@ from src.data.chain_evidence import ChainEvidenceMap, load_chain_evidence
 
 CATALOG = (
     Path(__file__).parents[2]
-    / "docs/03-modules/10-frontend/chain-evidence/ai-industry.candidate.json"
+    / "src/data/catalogs/chain/BK1629.json"
 )
 
 

@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from backend.async_utils import DATA_TIMEOUT, BoundedSyncRunner, run_sync
+from src.data.chain_evidence import ChainEvidenceMap, get_sector_chain
 from src.data.collector import DataCollector
 from src.data.index_quote_runtime import (
     IndexLimitation,
@@ -169,6 +170,7 @@ class SectorDetailResp(BaseModel):
     fund_flow: float | None = Field(default=None, description="主力净流入，单位亿元")
     heat: str = "medium"
     chain_map: list[ChainStageResp] = Field(default_factory=list)
+    chain_evidence: ChainEvidenceMap | None = None
     ai_analysis: str = ""
     stocks: list[SectorStockResp] = Field(default_factory=list)
 
@@ -828,12 +830,19 @@ async def get_sector_detail(sector_id: str):
 
     # 产业链映射
     chain_map = _build_chain_map(stocks_df, board_type)
+    chain_evidence = None
+    chain_error = False
+    try:
+        chain_evidence = get_sector_chain(sector_id, board_name)
+    except (ValueError, OSError):
+        chain_error = True
+        logger.exception("产业链证据目录无效: sector_id=%s", sector_id)
 
     detail = SectorDetailResp(
         id=sector_id, name=board_name,
         change_pct=change_pct, fund_flow=fund_flow,
         heat=heat, stocks=stocks,
-        ai_analysis=ai_analysis, chain_map=chain_map,
+        ai_analysis=ai_analysis, chain_map=chain_map, chain_evidence=chain_evidence,
     )
     stock_time_values = stocks_df["数据时间"].tolist() if "数据时间" in stocks_df else []
     snapshot_times = [
@@ -847,11 +856,14 @@ async def get_sector_detail(sector_id: str):
             code="BOARD_SNAPSHOT_MAY_BE_DELAYED",
             message=f"当前显示东方财富快照，可能延迟；数据时间 {time_range}",
         ),
-        MarketLimitation(
-            code="CHAIN_MAP_UNAVAILABLE",
-            message="当前没有可核验的产业链关系数据，产业链映射留空",
-        ),
+
     ]
+    if chain_evidence is None:
+        limitations.append(MarketLimitation(
+            code="CHAIN_EVIDENCE_INVALID" if chain_error else "CHAIN_MAP_UNAVAILABLE",
+            message=("产业链资料校验失败，暂不展示" if chain_error
+                     else "该板块尚未收录可核验的产业链资料"),
+        ))
     stock_fund_flow_missing = (
         not stocks_df.empty
         and ("主力净流入" not in stocks_df.columns
@@ -872,7 +884,7 @@ async def get_sector_detail(sector_id: str):
             code="BOARD_MEMBERS_EMPTY", message="当前板块没有可用成分股行情",
         ))
     return {
-        "data": detail.model_dump(),
+        "data": detail.model_dump(mode="json"),
         "meta": _market_meta(
             "partial", t0,
             cached=(board_frames[board_type].attrs.get("cached") is True

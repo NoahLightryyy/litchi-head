@@ -681,6 +681,28 @@ class TestGetSectorDetail:
         assert "FUND_FLOW_UNAVAILABLE" in codes
         assert "2026-09-04T15:39:32+08:00" in body["meta"]["limitations"][0]["message"]
 
+    def test_chain_evidence_is_serialized_with_sources(self, client):
+        frame = make_board_perf_df(rows=[{
+            "板块代码": "BK1629", "板块名称": "AI应用", "涨跌幅": 2.0,
+            "主力净流入-净额": 1_000_000_000.0,
+        }])
+        with (
+            patch("backend.routers.market._fetch_board_dataframes",
+                  return_value=self._frames(frame, "concept")),
+            patch("backend.routers.market._fetch_board_members_snapshot",
+                  return_value=self._stocks()),
+        ):
+            response = client.get("/api/market/sector/BK1629")
+        assert response.status_code == 200
+        body = response.json()
+        graph = body["data"]["chain_evidence"]
+        assert len(graph["nodes"]) == 4
+        assert graph["sources"][0]["published_on"] == "2024-07-02"
+        assert graph["sources"][0]["url"].startswith("https://")
+        assert "CHAIN_MAP_UNAVAILABLE" not in {
+            item["code"] for item in body["meta"]["limitations"]
+        }
+
     def test_concept_board_uses_matching_catalog(self, client):
         perf_df = make_board_perf_df(rows=[{
             "板块代码": "BK010", "板块名称": "人工智能", "涨跌幅": 2.0,
