@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "sector_code": "BK1650",
+  "sector_name": "通信技术",
+  "scope": "工信部指导编制的2018—2022年路线图所定义的光通信子产业结构，仅覆盖通信技术板块中的光通信器件、系统与应用链条；不代表BK1650全部业务，不表示当前市场份额，也不证明任何上市公司的供应商、客户或合同关系",
+  "sources": [
+    {
+      "id": "miit-optoelectronics-roadmap-release",
+      "title": "《中国光电子器件产业技术发展路线图（2018—2022年）》发布",
+      "publisher": "工业和信息化部电子信息司",
+      "url": "https://wap.miit.gov.cn/jgsj/dzs/gzdt/art/2020/art_cdff9d94e6c44ec69dc17a5464b2b394.html",
+      "published_on": "2018-01-02",
+      "checked_on": "2026-09-07",
+      "locator": "正文第2段确认编制主体及2017-12-29正式发布日期；第3段说明路线图覆盖光通信器件和通信光纤光缆等门类；附件链接指向路线图PDF"
+    },
+    {
+      "id": "miit-optoelectronics-roadmap-2018-2022",
+      "title": "中国光电子器件产业技术发展路线图（2018—2022年）",
+      "publisher": "工业和信息化部电子信息司指导，中国电子元件行业协会编制",
+      "url": "https://www.miit.gov.cn/n1146285/n1146352/n3054355/n3057643/n3057648/c5998588/part/6004452.pdf",
+      "published_on": "2017-12-29",
+      "checked_on": "2026-09-07",
+      "locator": "PDF第7页（正文第1页）§1.1.1图1及§1.1.2第1段；PDF第8页（正文第2页）表1"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "optical-supporting-industries",
+      "label": "光学、半导体、装备、测试仪器仪表",
+      "kind": "industry_activity",
+      "stage": "上游配套",
+      "source_ids": [
+        "miit-optoelectronics-roadmap-release",
+        "miit-optoelectronics-roadmap-2018-2022"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "optical-communication-devices",
+      "label": "芯片、光有源器件、光无源器件、光模块与子系统",
+      "kind": "industry_activity",
+      "stage": "光通信器件",
+      "source_ids": [
+        "miit-optoelectronics-roadmap-release",
+        "miit-optoelectronics-roadmap-2018-2022"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "optical-communication-systems",
+      "label": "光通信系统",
+      "kind": "industry_activity",
+      "stage": "系统层",
+      "source_ids": [
+        "miit-optoelectronics-roadmap-release",
+        "miit-optoelectronics-roadmap-2018-2022"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "optical-communication-applications",
+      "label": "光通信应用",
+      "kind": "industry_activity",
+      "stage": "应用层",
+      "source_ids": [
+        "miit-optoelectronics-roadmap-release",
+        "miit-optoelectronics-roadmap-2018-2022"
+      ],
+      "stock_code": null
+    }
+  ],
+  "edges": [
+    {
+      "source_node": "optical-supporting-industries",
+      "target_node": "optical-communication-devices",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "miit-optoelectronics-roadmap-release",
+        "miit-optoelectronics-roadmap-2018-2022"
+      ],
+      "description": "路线图将光学、半导体、装备和测试仪器仪表列为光通信产业链上游配套行业"
+    },
+    {
+      "source_node": "optical-communication-devices",
+      "target_node": "optical-communication-systems",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "miit-optoelectronics-roadmap-release",
+        "miit-optoelectronics-roadmap-2018-2022"
+      ],
+      "description": "路线图将光通信器件、光通信系统和光通信应用列为产业链的三个组成部分"
+    },
+    {
+      "source_node": "optical-communication-systems",
+      "target_node": "optical-communication-applications",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "miit-optoelectronics-roadmap-release",
+        "miit-optoelectronics-roadmap-2018-2022"
+      ],
+      "description": "路线图按光通信器件、光通信系统、光通信应用的次序描述产业链组成"
+    }
+  ]
+}
