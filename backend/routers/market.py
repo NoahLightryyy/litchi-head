@@ -515,7 +515,7 @@ def _build_ai_analysis(
     heat_label = {"high": "活跃", "medium": "温和", "low": "低迷"}.get(heat, "温和")
 
     lines = [
-        f"📊 **{board_name}**（{'行业' if board_type == 'industry' else '概念'}板块）",
+        f"{board_name}（{'行业' if board_type == 'industry' else '概念'}板块）",
         "",
         f"- 成分股共 {n} 只，上涨 {up} 只，下跌 {down} 只",
         f"- 平均涨跌幅 {avg_change:+.2f}%",
@@ -531,7 +531,7 @@ def _build_ai_analysis(
         lines.append("板块多空相对均衡，震荡为主。")
 
     lines.append("")
-    lines.append("*数据来源：东方财富 / akshare*")
+    lines.append("数据来源：东方财富行情快照")
     return "\n".join(lines)
 
 

@@ -331,4 +331,4 @@ TD-081 上游仍失败，独立端口板块 14.58s/503；指数三项新浪单�
 
 ## 2026-09-07 FD-003 / FW-040 开发进展
 
-产业链证据Pydantic模型、严格目录加载器和11项回归完成；候选为正式AI产业指南四层资料，仅支撑行业结构。源审批与生产HTTP/前端尚未完成，详见docs/03-modules/10-frontend/chain-evidence/README.md。
+2026-09-08：来源已获用户批准，Pydantic、HTTP和前端证据展开已接入。BK1629 AI四层、BK1650历史光通信子链正式目录可用。企业供货关系与其他板块覆盖仍待证据；详见docs/03-modules/10-frontend/chain-evidence/README.md。

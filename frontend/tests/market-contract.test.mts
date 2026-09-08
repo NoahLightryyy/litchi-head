@@ -213,3 +213,23 @@ test("快照 partial 保留榜单，并严格校验来源、分类及带时区�
   }
   assert.equal(parseSectorsEnvelope({ ...value, data: [{ ...item, category: "concept", as_of: null }] }).data[0].category, "concept");
 });
+
+
+test("产业链消费者验证身份、来源和关系引用，兼容旧响应", async () => {
+  const { readFileSync } = await import("node:fs");
+  const graph = JSON.parse(readFileSync(new URL("../../src/data/catalogs/chain/BK1629.json", import.meta.url), "utf8"));
+  const data = { id: "BK1629", name: "AI应用", change_pct: 0, fund_flow: 0,
+    heat: "low", chain_map: [], chain_evidence: graph, stocks: [], ai_analysis: "" };
+  assert.deepEqual(parseSectorDetailEnvelope({ data, meta: baseMeta }).data.chain_evidence, graph);
+  for (const mutate of [
+    (g: typeof graph) => { g.sector_code = "BK1650"; },
+    (g: typeof graph) => { g.sources[0].url = "javascript:alert(1)"; },
+    (g: typeof graph) => { g.nodes[0].source_ids = ["unknown"]; },
+    (g: typeof graph) => { g.sources[0].published_on = "2024-02-31"; },
+    (g: typeof graph) => { g.edges = [{ source_node: "base", target_node: "model", relation: "supplies", source_ids: [g.sources[0].id], description: "invalid" }]; },
+  ]) {
+    const invalid = structuredClone(graph); mutate(invalid);
+    assert.throws(() => parseSectorDetailEnvelope({ data: { ...data, chain_evidence: invalid }, meta: baseMeta }), MarketContractError);
+  }
+  assert.equal(parseSectorDetailEnvelope({ data: { ...data, chain_evidence: null }, meta: baseMeta }).data.chain_evidence, null);
+});

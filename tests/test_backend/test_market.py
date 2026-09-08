@@ -199,12 +199,13 @@ class TestBuildAiAnalysis:
         text = _build_ai_analysis("测试", pd.DataFrame(), "medium", "industry")
         assert "暂无足够数据" in text
 
-    def test_html_formatting(self):
-        """分析文本包含 Markdown 格式"""
+    def test_plain_text_formatting(self):
+        """行情摘要为可直接呈现的纯文本"""
         df = make_board_stocks_df()
         text = _build_ai_analysis("银行", df, "high", "industry")
-        assert "**" in text  # markdown bold
-        assert "*" in text  # markdown italic
+        assert "**" not in text  # UI renders plain text, not markdown
+        assert "akshare" not in text
+        assert "*" not in text
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -700,6 +701,23 @@ class TestGetSectorDetail:
         assert graph["sources"][0]["published_on"] == "2024-07-02"
         assert graph["sources"][0]["url"].startswith("https://")
         assert "CHAIN_MAP_UNAVAILABLE" not in {
+            item["code"] for item in body["meta"]["limitations"]
+        }
+
+    def test_invalid_chain_keeps_quotes_and_reports_limitation(self, client):
+        with (
+            patch("backend.routers.market._fetch_board_dataframes",
+                  return_value=self._frames(make_board_perf_df())),
+            patch("backend.routers.market._fetch_board_members_snapshot",
+                  return_value=self._stocks()),
+            patch("backend.routers.market.get_sector_chain", side_effect=ValueError("bad catalog")),
+        ):
+            response = client.get("/api/market/sector/BK001")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["data"]["chain_evidence"] is None
+        assert len(body["data"]["stocks"]) == 6
+        assert "CHAIN_EVIDENCE_INVALID" in {
             item["code"] for item in body["meta"]["limitations"]
         }
 

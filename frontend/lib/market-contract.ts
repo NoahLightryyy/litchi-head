@@ -262,6 +262,48 @@ function isChainStage(value: unknown): value is ChainStage {
   );
 }
 
+function isChainEvidence(value: unknown, id: string, name: string): boolean {
+  if (!isRecord(value) || value.schema_version !== 1 || value.sector_code !== id ||
+      value.sector_name !== name || !isNonEmptyString(value.scope) ||
+      !Array.isArray(value.sources) || !value.sources.length ||
+      !Array.isArray(value.nodes) || !value.nodes.length || !Array.isArray(value.edges)) return false;
+  const sourceIds = new Set<string>();
+  for (const source of value.sources) {
+    if (!isRecord(source) || ![source.id, source.title, source.publisher, source.locator].every(isNonEmptyString) ||
+        typeof source.id !== "string" || sourceIds.has(source.id) || typeof source.url !== "string" ||
+        !/^https?:\/\//.test(source.url)) return false;
+    try { new URL(source.url); } catch { return false; }
+    for (const date of [source.published_on, source.checked_on]) {
+      if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+          !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date) return false;
+    }
+    if (String(source.published_on) > String(source.checked_on)) return false;
+    sourceIds.add(source.id);
+  }
+  const validRefs = (refs: unknown) => Array.isArray(refs) && refs.length > 0 &&
+    refs.every((ref) => typeof ref === "string" && sourceIds.has(ref));
+  const nodes = new Map<string, string>();
+  for (const node of value.nodes) {
+    if (!isRecord(node) || !isNonEmptyString(node.id) || nodes.has(node.id) ||
+        !isNonEmptyString(node.label) || !isNonEmptyString(node.stage) ||
+        !["industry_activity", "company"].includes(String(node.kind)) || !validRefs(node.source_ids) ||
+        (node.stock_code != null && (node.kind !== "company" || typeof node.stock_code !== "string" ||
+          !/^\d{6}$/.test(node.stock_code)))) return false;
+    nodes.set(node.id, String(node.kind));
+  }
+  const edges = new Set<string>();
+  return value.edges.every((edge) => {
+    if (!isRecord(edge) || typeof edge.source_node !== "string" || typeof edge.target_node !== "string") return false;
+    const key = `${edge.source_node}:${edge.target_node}:${edge.relation}`;
+    const kind = edge.relation === "supplies" ? "company" : edge.relation === "industry_sequence" ? "industry_activity" : null;
+    if (!kind || nodes.get(edge.source_node) !== kind || nodes.get(edge.target_node) !== kind ||
+        edge.source_node === edge.target_node || edges.has(key) || !validRefs(edge.source_ids) ||
+        !isNonEmptyString(edge.description)) return false;
+    edges.add(key);
+    return true;
+  });
+}
+
 function isSectorDetail(value: unknown): value is SectorDetail {
   return (
     isRecord(value) &&
@@ -272,6 +314,7 @@ function isSectorDetail(value: unknown): value is SectorDetail {
     (value.heat === "high" || value.heat === "medium" || value.heat === "low") &&
     Array.isArray(value.chain_map) &&
     value.chain_map.every(isChainStage) &&
+    (value.chain_evidence == null || isChainEvidence(value.chain_evidence, value.id, value.name)) &&
     typeof value.ai_analysis === "string" &&
     Array.isArray(value.stocks) &&
     value.stocks.every(isSectorStock)

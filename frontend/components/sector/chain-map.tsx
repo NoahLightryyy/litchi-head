@@ -1,63 +1,34 @@
 "use client";
 
-import type { ChainStage } from "@/lib/types/market";
+import type { ChainEvidence } from "@/lib/types/market";
 
-interface ChainMapProps {
-  stages: ChainStage[];
-}
-
-/** 产业链地图：上游 → 中游 → 下游，关键节点标记瓶颈 */
-export function ChainMap({ stages }: ChainMapProps) {
-  if (stages.length === 0) {
-    return <p className="text-sm text-text-muted text-center py-8">暂无产业链数据</p>;
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      {stages.map((stage, i) => (
-        <div key={stage.stage}>
-          {/* 阶段标题 */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-medium text-accent-blue bg-accent-blue/10 px-2 py-0.5 rounded">
-              {stage.stage}
-            </span>
-            <span className="text-xs text-text-muted">{stage.description}</span>
-            {i < stages.length - 1 && (
-              <span className="text-text-muted ml-auto text-xs">↓</span>
-            )}
-          </div>
-          {/* 节点网格 */}
-          <div className="grid grid-cols-2 gap-2">
-            {stage.nodes.map((node) => (
-              <div
-                key={node.name}
-                className={`p-3 rounded-md border ${
-                  node.is_bottleneck
-                    ? "border-accent-gold/30 bg-accent-gold/5"
-                    : "border-bg-tertiary bg-bg-primary/50"
-                }`}
-              >
-                <div className="flex items-center gap-1 mb-1">
-                  <span className="text-sm font-medium text-text-primary">{node.name}</span>
-                  {node.is_bottleneck && (
-                    <span className="text-xs text-accent-gold">⭐ 瓶颈</span>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {node.companies.map((c) => (
-                    <span
-                      key={c}
-                      className="text-xs text-accent-blue"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+export function ChainMap({ evidence }: { evidence?: ChainEvidence | null }) {
+  if (!evidence) return <p className="text-sm text-text-muted text-center py-8">该板块尚未收录可核验的产业链资料</p>;
+  const sources = (ids: string[]) => <details className="mt-3 text-xs text-text-muted">
+    <summary className="cursor-pointer text-accent-blue">查看依据</summary>
+    {evidence.sources.filter((source) => ids.includes(source.id)).map((source) =>
+      <div key={source.id} className="mt-2 space-y-1 leading-relaxed">
+        <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-accent-blue underline">{source.title}</a>
+        <p>{source.publisher} · 发布 {source.published_on}</p>
+        <p>核验 {source.checked_on} · {source.locator}</p>
+      </div>)}
+  </details>;
+  return <div className="space-y-4">
+    <p className="text-sm text-text-secondary leading-relaxed">{evidence.scope}</p>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      {evidence.nodes.map((node, index) => <article key={node.id} className="rounded-lg border border-bg-tertiary bg-bg-primary/50 p-4">
+        <p className="text-xs text-accent-blue mb-2">{index + 1} · {node.stage} · {node.kind === "company" ? "企业" : "产业环节"}</p>
+        <h3 className="font-semibold text-text-primary">{node.label}</h3>
+        {node.stock_code && <a href={`/stock/${node.stock_code}`} className="text-xs text-accent-blue">{node.stock_code}</a>}
+        {sources(node.source_ids)}
+      </article>)}
     </div>
-  );
+    {evidence.edges.length > 0 && <section className="space-y-3" aria-label="已核验关系">
+      {evidence.edges.map((edge) => <div key={`${edge.source_node}:${edge.target_node}:${edge.relation}`} className="border-t border-bg-tertiary pt-3 text-sm">
+        <p>{evidence.nodes.find((node) => node.id === edge.source_node)?.label} → {evidence.nodes.find((node) => node.id === edge.target_node)?.label}</p>
+        <p className="text-text-muted">{edge.relation === "supplies" ? "供货关系" : "产业环节顺序"}：{edge.description}</p>
+        {sources(edge.source_ids)}
+      </div>)}
+    </section>}
+  </div>;
 }

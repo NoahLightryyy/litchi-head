@@ -118,3 +118,7 @@ AKShare对财新响应只选择tag/summary/url，原始time被投影丢失。`ca
 ## 证据图谱的边界（2026-09-07）
 
 `src/data/chain_evidence.py`把industry_activity和company分开：官方行业分层证据不能证明公司供货关系。每个节点和边都引用原始来源；URL、日期和原文定位帮助用户复核。校验器只验证结构，不替代事实审核。自己试试：把候选行业节点连成supplies边，运行test_chain_evidence，确认被拒绝。
+
+## 来源跟随节点（2026-09-08）
+
+`chain-map.tsx`使用原生details/summary展开原文链接、发布/核验日期和页码。目录无edges时不自动添加箭头；只有明确记录的industry_sequence才展示产业顺序。消费者校验身份、URL、日期和引用，后端目录损坏附CHAIN_EVIDENCE_INVALID并保留行情。自己试试：在BK1629展开基础层依据，再在BK1650对照子链范围和历史年份。

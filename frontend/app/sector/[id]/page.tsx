@@ -126,20 +126,20 @@ export default function SectorPage() {
           <div className="flex items-center gap-2 mb-3">
             <Network className="w-4 h-4 text-accent-blue" />
             <h2 className="text-sm font-semibold text-text-primary">产业链地图</h2>
-            <span className="text-xs text-text-muted ml-auto">上下游关键节点</span>
+            <span className="text-xs text-text-muted ml-auto">资料可追溯</span>
           </div>
           <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
-            <ChainMap stages={sector.chain_map} />
+            <ChainMap evidence={sector.chain_evidence} />
           </div>
         </div>
 
         {/* 右列：个股排行 + AI 分析 (2/5) */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          {/* AI 产业链分析 */}
+          {/* 板块行情摘要 */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <BrainCircuit className="w-4 h-4 text-accent-blue" />
-              <h2 className="text-sm font-semibold text-text-primary">AI 产业链分析</h2>
+              <h2 className="text-sm font-semibold text-text-primary">板块行情摘要</h2>
               <span className="text-xs text-text-muted ml-auto">自动生成</span>
             </div>
             <ChainAnalysis analysis={sector.ai_analysis || null} />

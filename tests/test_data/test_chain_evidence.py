@@ -64,3 +64,15 @@ def test_invalid_relationships_are_rejected(failure):
     data["edges"] = [edge]
     with pytest.raises(ValidationError):
         ChainEvidenceMap.model_validate(data)
+
+
+def test_communication_catalog_has_only_sourced_industry_edges():
+    from src.data.chain_evidence import get_sector_chain
+
+    graph = get_sector_chain("BK1650", "通信技术")
+    assert graph is not None
+    assert len(graph.nodes) == 4 and len(graph.edges) == 3
+    assert all(node.kind == "industry_activity" for node in graph.nodes)
+    assert all(edge.relation == "industry_sequence" for edge in graph.edges)
+    assert get_sector_chain("../BK1650", "通信技术") is None
+    assert get_sector_chain("BK9999", "未知") is None

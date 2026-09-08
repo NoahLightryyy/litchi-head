@@ -98,6 +98,19 @@ export interface ChainAnalysis {
   risk_factors: string[];
 }
 
+export interface ChainEvidence {
+  schema_version: 1;
+  sector_code: string;
+  sector_name: string;
+  scope: string;
+  sources: { id: string; title: string; publisher: string; url: string;
+    published_on: string; checked_on: string; locator: string }[];
+  nodes: { id: string; label: string; kind: "industry_activity" | "company";
+    stage: string; source_ids: string[]; stock_code: string | null }[];
+  edges: { source_node: string; target_node: string;
+    relation: "industry_sequence" | "supplies"; source_ids: string[]; description: string }[];
+}
+
 export interface SectorDetail {
   id: string;
   name: string;
@@ -105,6 +118,7 @@ export interface SectorDetail {
   fund_flow: number | null;
   heat: "high" | "medium" | "low";
   chain_map: ChainStage[];
+  chain_evidence?: ChainEvidence | null;
   ai_analysis: string;
   stocks: SectorStock[];
 }
