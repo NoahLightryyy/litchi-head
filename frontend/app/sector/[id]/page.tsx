@@ -150,9 +150,9 @@ export default function SectorPage() {
             <div className="flex items-center gap-2 mb-3">
               <List className="w-4 h-4 text-accent-blue" />
               <h2 className="text-sm font-semibold text-text-primary">板块个股</h2>
-              <span className="text-xs text-text-muted ml-auto">按 AI 评级排序</span>
+              <span className="text-xs text-text-muted ml-auto">分维度筛选</span>
             </div>
-            <StockList stocks={sector.stocks} />
+            <StockList key={sector.id} stocks={sector.stocks} />
           </div>
         </div>
       </div>
