@@ -122,3 +122,7 @@ AKShare对财新响应只选择tag/summary/url，原始time被投影丢失。`ca
 ## 来源跟随节点（2026-09-08）
 
 `chain-map.tsx`使用原生details/summary展开原文链接、发布/核验日期和页码。目录无edges时不自动添加箭头；只有明确记录的industry_sequence才展示产业顺序。消费者校验身份、URL、日期和引用，后端目录损坏附CHAIN_EVIDENCE_INVALID并保留行情。自己试试：在BK1629展开基础层依据，再在BK1650对照子链范围和历史年份。
+
+## 图与详情分离（2026-09-08）
+
+产业链图把节点和真实边作为button，使用aria-pressed报告选中状态、aria-controls关联统一详情区。SVG只承载视觉连线并aria-hidden；键盘用户可用Enter选择同一关系。来源只在详情区展开，既减少重复也保留出处。自己试试：选择第二条箭头后展开依据，再用Enter选系统层，检查标题与来源同步切换。
