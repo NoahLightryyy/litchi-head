@@ -48,8 +48,8 @@ export default function SectorPage() {
     return (
       <div className="flex flex-col gap-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-2 text-sm">
-          <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">
-            宏观总览
+          <Link href="/industries" className="text-text-secondary hover:text-text-primary transition-colors">
+            行业研究
           </Link>
           <span className="text-text-muted">/</span>
           <span className="text-text-muted">{requestFailed ? `板块 · ${sectorId}` : "板块未找到"}</span>
@@ -67,10 +67,10 @@ export default function SectorPage() {
           )}
           <div className="flex items-center justify-center gap-3">
             <Link
-              href="/"
+              href="/industries"
               className="px-4 py-2 rounded-md bg-bg-tertiary text-text-secondary text-sm font-medium hover:bg-bg-elevated transition-colors"
             >
-              返回宏观总览
+              返回行业研究
             </Link>
             {requestFailed && (
               <button
@@ -96,8 +96,8 @@ export default function SectorPage() {
       <MarketDataNotice meta={sectorEnvelope.meta} refreshError={isError} />
       {/* 面包屑 */}
       <div className="flex items-center gap-2 text-sm">
-        <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">
-          宏观总览
+        <Link href="/industries" className="text-text-secondary hover:text-text-primary transition-colors">
+          行业研究
         </Link>
         <span className="text-text-muted">/</span>
         <span className="text-text-primary font-medium">{sector.name}</span>
@@ -112,7 +112,7 @@ export default function SectorPage() {
           heat={sector.heat as "high" | "medium" | "low"}
         />
         <Link
-          href="/"
+          href="/industries"
           className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="w-3 h-3" /> 返回

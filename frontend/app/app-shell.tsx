@@ -7,7 +7,9 @@ import Link from "next/link";
 
 /* ── 路径 → 标题 映射 ── */
 function useRouteMeta(pathname: string): { title: string } {
-  if (pathname === "/") return { title: "宏观总览" };
+  if (pathname === "/") return { title: "市场总览" };
+  if (pathname === "/industries") return { title: "行业研究" };
+  if (pathname === "/retro") return { title: "研究与复盘" };
   if (pathname.startsWith("/sector/"))
     return { title: `板块 · ${pathname.slice(8)}` };
   if (pathname.startsWith("/stock/"))
@@ -42,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
       <SidebarNav pathname={pathname} />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {!online && (
           <div className="px-4 py-2 bg-accent-red/10 text-accent-red text-xs text-center border-b border-accent-red/20">
             ⚠ 网络已断开，数据可能无法更新
@@ -51,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <BackendStatusIndicator />
         <LoadingBar />
         <Header meta={meta} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6">{children}</main>
       </div>
     </div>
   );
@@ -85,25 +87,29 @@ const SECTOR_PREFIX = "/sector/";
 
 function SidebarNav({ pathname }: { pathname: string }) {
   const navItems = [
-    { href: "/", icon: "🏠", label: "宏观总览" },
-    { href: "/retro", icon: "📋", label: "复盘看板" },
+    { href: "/", icon: "🏠", label: "市场总览" },
+    { href: "/industries", icon: "🧭", label: "行业研究" },
+    { href: "/retro", icon: "📋", label: "研究与复盘" },
   ];
 
   return (
-    <aside className="w-56 border-r border-bg-tertiary bg-bg-secondary p-4 flex flex-col gap-6 shrink-0">
+    <aside className="w-16 sm:w-56 border-r border-bg-tertiary bg-bg-secondary p-2 sm:p-4 flex flex-col gap-6 shrink-0">
       <div className="flex items-center gap-2 px-2">
         <span className="text-2xl">🍒</span>
-        <span className="font-bold text-lg text-text-primary tracking-tight">
+        <span className="hidden sm:block font-bold text-lg text-text-primary tracking-tight">
           litchi-head
         </span>
       </div>
       <nav className="flex flex-col gap-1">
         {navItems.map((item) => {
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active = item.href === "/" ? pathname === "/" : (pathname === item.href || (item.href === "/industries" && pathname.startsWith("/sector/")));
           return (
             <Link
               key={item.label}
               href={item.href}
+              aria-current={active ? "page" : undefined}
+              aria-label={item.label}
+              title={item.label}
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                 active
                   ? "bg-accent-blue/10 text-accent-blue font-medium"
@@ -111,12 +117,12 @@ function SidebarNav({ pathname }: { pathname: string }) {
               }`}
             >
               <span>{item.icon}</span>
-              <span>{item.label}</span>
+              <span className="hidden sm:inline">{item.label}</span>
             </Link>
           );
         })}
       </nav>
-      <div className="mt-auto">
+      <div className="mt-auto hidden sm:block">
         <div className="px-3 py-2 text-xs text-text-muted uppercase tracking-wider">最近浏览</div>
         <div className="px-3 py-4 text-xs text-text-muted text-center">
           {pathname.startsWith(STOCK_PREFIX) || pathname.startsWith(SECTOR_PREFIX) ? (
