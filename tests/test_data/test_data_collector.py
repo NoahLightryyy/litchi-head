@@ -789,3 +789,10 @@ class TestFormatMarketBriefSentiment:
         assert "涨停 80 家" in result
         assert "跌停 5 家" in result
 
+
+
+def test_empty_kline_result_does_not_block_retry(mock_empty_cache, mocker):
+    upstream = mocker.patch.object(mock_empty_cache._source, "get_klines", return_value=[])
+    assert mock_empty_cache.get_klines("300913") == []
+    assert mock_empty_cache.get_klines("300913") == []
+    assert upstream.call_count == 2

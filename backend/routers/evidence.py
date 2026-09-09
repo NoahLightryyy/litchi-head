@@ -219,7 +219,7 @@ async def intraday_battlefield(
         ),
         canonical_source_id=canonical[0] if canonical else None,
         available_source_ids=[source_id for source_id, _ in available],
-        failed_source_ids=envelope.assessment.failed_source_ids,
+        failed_source_ids=sorted(envelope.assessment.failed_source_ids),
         as_of=points[-1].timestamp if points else None,
         price_points=points,
         collected_at=envelope.collected_at,

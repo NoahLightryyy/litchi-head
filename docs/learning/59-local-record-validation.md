@@ -23,3 +23,7 @@
 3. 运行`npm test`，观察模拟第二个键写失败后两份原记录均恢复的测试。
 
 上一篇：[58 并发截止](58-bounded-sync-upstream-concurrency.md)。后续卡片见[索引](README.md)。
+
+## 补充：接口边界也要做真实消费者验收
+
+`frontend/lib/intraday-contract.ts`会拒绝缺字段，不能把HTTP200等同于可展示。`backend/routers/evidence.py`区分usable（可展示原始单源点）和complete（满足双源策略）。`src/data/collector.py`不缓存空K线，让重试真正触达数据源。真实浏览器验收发现旧信封时，应对齐后端模型并提交契约，不能删掉前端校验。

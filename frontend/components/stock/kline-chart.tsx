@@ -24,7 +24,7 @@ const PERIOD_MAP = [
 export function KlineChart({ code }: KlineChartProps) {
   const [period, setPeriod] = useState<string>("daily");
 
-  const { data: klines, isLoading, isError } = useKline(code, period);
+  const { data: klines, isLoading, isError, isFetching, refetch } = useKline(code, period);
 
   const handlePeriodChange = useCallback((value: string) => {
     setPeriod(value);
@@ -73,6 +73,7 @@ export function KlineChart({ code }: KlineChartProps) {
           <div className="text-center">
             <div className="text-2xl mb-2">⚠️</div>
             <p className="text-sm text-text-muted">数据加载失败</p>
+            <button disabled={isFetching} onClick={() => void refetch()} className="mt-3 text-sm text-accent-blue">重新获取 K 线</button>
           </div>
         </div>
       ) : klines && klines.length > 0 ? (
@@ -81,7 +82,9 @@ export function KlineChart({ code }: KlineChartProps) {
         <div className="h-80 rounded-md bg-bg-primary flex items-center justify-center border border-bg-tertiary">
           <div className="text-center">
             <div className="text-2xl mb-2">📭</div>
-            <p className="text-sm text-text-muted">暂无数据</p>
+            <p className="text-sm text-text-muted">当前数据源未返回 K 线</p>
+            <p className="mt-2 text-xs text-text-muted">尚不能确认是无历史记录还是来源故障，请查看数据状态或重试。</p>
+            <button disabled={isFetching} onClick={() => void refetch()} className="mt-3 text-sm text-accent-blue">{isFetching ? "正在获取…" : "重新获取 K 线"}</button>
           </div>
         </div>
       )}

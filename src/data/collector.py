@@ -357,7 +357,8 @@ class DataCollector:
                 code, period=period, start=start, end=end, adjust=adjust,
             )
             ttl = TTL_KLINES_DAILY if period == "daily" else 60
-            self.cache.set(cache_key, result, ttl=ttl)
+            if result:
+                self.cache.set(cache_key, result, ttl=ttl)
             _health_stats.record_call(
                 f"kline:{period}", (time.time() - t0) * 1000, empty=not result,
             )
