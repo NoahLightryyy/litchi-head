@@ -182,6 +182,9 @@ async def intraday_battlefield(
         diagnostics.append(
             IntradaySourceDiagnostic(
                 source_id=result.source_id,
+                source_name={"eastmoney": "东方财富", "tencent": "腾讯"}.get(
+                    result.upstream_id, result.upstream_id
+                ),
                 upstream_id=result.upstream_id,
                 status=result.status,
                 fetched_at=result.fetched_at,
@@ -193,9 +196,32 @@ async def intraday_battlefield(
                 ),
             )
         )
+    # Display an independently valid source without claiming dual-source verification.
+    # Stale or conflicted series remain diagnostic-only and never become chart points.
+    available = list(verified_series)
+    canonical = next(
+        (item for item in available if item[1].ohlc_supported),
+        available[0] if available else None,
+    )
+    points = (
+        sorted(canonical[1].checkpoints, key=lambda point: point.timestamp) if canonical else []
+    )
     return IntradayBattlefieldEnvelope(
         symbol=payload.symbol,
         complete=envelope.complete,
+        usable=bool(points),
+        verification_status=(
+            "multi_source_verified"
+            if envelope.complete and points
+            else "single_source"
+            if len(available) == 1 and points
+            else "unavailable"
+        ),
+        canonical_source_id=canonical[0] if canonical else None,
+        available_source_ids=[source_id for source_id, _ in available],
+        failed_source_ids=envelope.assessment.failed_source_ids,
+        as_of=points[-1].timestamp if points else None,
+        price_points=points,
         collected_at=envelope.collected_at,
         assessment=envelope.assessment,
         source_diagnostics=diagnostics,

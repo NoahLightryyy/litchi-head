@@ -23,13 +23,15 @@ class MockDataSource:
 
     def get_all_stocks(self) -> list:
         from src.data.models import StockInfo
+
         return [StockInfo(code="000001", name="平安银行")]
 
     def get_realtime_quotes(self) -> list:
         return []
 
-    def get_klines(self, code: str, period: str = "daily", start: str = "",
-                   end: str = "", adjust: str = "qfq") -> list:
+    def get_klines(
+        self, code: str, period: str = "daily", start: str = "", end: str = "", adjust: str = "qfq"
+    ) -> list:
         return []
 
     def get_news(self, code: str) -> list:
@@ -49,6 +51,7 @@ class MockDataSource:
 
     def get_stock_industry(self, code: str) -> str | None:
         return None
+
     """验证 MockDataSource 满足 DataSource Protocol（鸭子类型）"""
 
     def test_mock_is_valid_datasource(self):
@@ -77,64 +80,77 @@ class TestSafeConverters:
 
     def test_safe_str_normal(self):
         from src.data.providers.base import safe_str
+
         assert safe_str("hello") == "hello"
         assert safe_str("123") == "123"
         assert safe_str("") == ""
 
     def test_safe_str_none(self):
         from src.data.providers.base import safe_str
+
         assert safe_str(None) == ""
 
     def test_safe_str_numeric(self):
         from src.data.providers.base import safe_str
+
         assert safe_str(123) == "123"
         assert safe_str(3.14) == "3.14"
 
     def test_safe_str_empty_collection(self):
         from src.data.providers.base import safe_str
+
         # Series with len 0 or falsy values
         assert safe_str("", default="fallback") == "fallback"
 
     def test_safe_float_normal(self):
         from src.data.providers.base import safe_float
+
         assert safe_float(3.14) == 3.14
         assert safe_float("3.14") == 3.14
         assert safe_float(0) == 0.0
 
     def test_safe_float_none(self):
         from src.data.providers.base import safe_float
+
         assert safe_float(None) == 0.0
 
     def test_safe_float_invalid_string(self):
         from src.data.providers.base import safe_float
+
         assert safe_float("abc") == 0.0
         assert safe_float("") == 0.0
 
     def test_safe_float_custom_default(self):
         from src.data.providers.base import safe_float
+
         assert safe_float(None, default=-1.0) == -1.0
 
     def test_safe_int_normal(self):
         from src.data.providers.base import safe_int
+
         assert safe_int(42) == 42
         assert safe_int("42") == 42
         assert safe_int(0) == 0
 
     def test_safe_int_none(self):
         from src.data.providers.base import safe_int
+
         assert safe_int(None) == 0
 
     def test_safe_int_invalid_string(self):
         from src.data.providers.base import safe_int
+
         assert safe_int("abc") == 0
         assert safe_int("") == 0
 
     def test_safe_int_float_input(self):
         from src.data.providers.base import safe_int
+
         assert safe_int(3.14) == 3
 
     def test_safe_int_custom_default(self):
         from src.data.providers.base import safe_int
+
         assert safe_int(None, default=-1) == -1
 
 
@@ -146,27 +162,32 @@ class TestAKShareDetectMarket:
 
     def test_sh_starts_with_6(self):
         from src.data.providers.akshare import _detect_market
+
         assert _detect_market("600000") == "sh"
         assert _detect_market("688001") == "sh"
 
     def test_sz_default(self):
         from src.data.providers.akshare import _detect_market
+
         assert _detect_market("000001") == "sz"
         assert _detect_market("300750") == "sz"
         assert _detect_market("002001") == "sz"
 
     def test_bj_starts_with_4_or_8(self):
         from src.data.providers.akshare import _detect_market
+
         assert _detect_market("430017") == "bj"
         assert _detect_market("830000") == "bj"
         assert _detect_market("488888") == "bj"
 
     def test_empty_code_defaults_to_sh(self):
         from src.data.providers.akshare import _detect_market
+
         assert _detect_market("") == "sh"
 
     def test_none_code_defaults_to_sh(self):
         from src.data.providers.akshare import _detect_market
+
         assert _detect_market("") == "sh"
 
 
@@ -175,10 +196,20 @@ class TestAKShareRowToQuote:
 
     def test_normal_row(self):
         from src.data.providers.akshare import _row_to_quote
-        row = {"代码": "000001", "名称": "平安银行", "最新价": 12.34,
-               "涨跌额": 0.56, "涨跌幅": 4.76, "成交量": 1000000,
-               "成交额": 12340000.0, "最高": 12.50, "最低": 12.10,
-               "今开": 12.20, "昨收": 11.78}
+
+        row = {
+            "代码": "000001",
+            "名称": "平安银行",
+            "最新价": 12.34,
+            "涨跌额": 0.56,
+            "涨跌幅": 4.76,
+            "成交量": 1000000,
+            "成交额": 12340000.0,
+            "最高": 12.50,
+            "最低": 12.10,
+            "今开": 12.20,
+            "昨收": 11.78,
+        }
         q = _row_to_quote(row)
         assert q.code == "000001"
         assert q.name == "平安银行"
@@ -191,6 +222,7 @@ class TestAKShareRowToQuote:
 
     def test_missing_keys_default_to_zero(self):
         from src.data.providers.akshare import _row_to_quote
+
         row = {"代码": "000001", "名称": "测试"}
         q = _row_to_quote(row)
         assert q.code == "000001"
@@ -199,8 +231,8 @@ class TestAKShareRowToQuote:
 
     def test_none_values_safe(self):
         from src.data.providers.akshare import _row_to_quote
-        row = {"代码": "000001", "名称": "测试", "最新价": None,
-               "成交量": None, "涨跌额": None}
+
+        row = {"代码": "000001", "名称": "测试", "最新价": None, "成交量": None, "涨跌额": None}
         q = _row_to_quote(row)
         assert q.price == 0.0
         assert q.volume == 0
@@ -212,8 +244,16 @@ class TestAKShareRowToKline:
 
     def test_normal_row(self):
         from src.data.providers.akshare import _row_to_kline
-        row = {"日期": "2024-01-02", "开盘": 10.0, "收盘": 10.5,
-               "最高": 10.8, "最低": 9.9, "成交量": 500000, "成交额": 5200000.0}
+
+        row = {
+            "日期": "2024-01-02",
+            "开盘": 10.0,
+            "收盘": 10.5,
+            "最高": 10.8,
+            "最低": 9.9,
+            "成交量": 500000,
+            "成交额": 5200000.0,
+        }
         k = _row_to_kline(row)
         assert k.date == "2024-01-02"
         assert k.open == 10.0
@@ -225,6 +265,7 @@ class TestAKShareRowToKline:
 
     def test_missing_keys_default_to_zero(self):
         from src.data.providers.akshare import _row_to_kline
+
         row = {"日期": "2024-01-02"}
         k = _row_to_kline(row)
         assert k.date == "2024-01-02"
@@ -237,8 +278,14 @@ class TestAKShareRowToNews:
 
     def test_normal_row(self):
         from src.data.providers.akshare import _row_to_news
-        row = {"title": "标题", "date": "2024-01-02",
-               "content": "内容", "source": "东方财富", "url": "http://example.com"}
+
+        row = {
+            "title": "标题",
+            "date": "2024-01-02",
+            "content": "内容",
+            "source": "东方财富",
+            "url": "http://example.com",
+        }
         n = _row_to_news(row, code="000001")
         assert n.code == "000001"
         assert n.title == "标题"
@@ -249,6 +296,7 @@ class TestAKShareRowToNews:
 
     def test_missing_keys_default_to_empty(self):
         from src.data.providers.akshare import _row_to_news
+
         row = {}
         n = _row_to_news(row, code="000001")
         assert n.code == "000001"
@@ -263,6 +311,7 @@ class TestAKShareErrorHandling:
         import akshare as ak
 
         from src.data.providers.akshare import AKShareSource
+
         mocker.patch.object(ak, "stock_info_a_code_name", side_effect=ConnectionError("网络错误"))
         source = AKShareSource()
         result = source.get_all_stocks()
@@ -272,6 +321,7 @@ class TestAKShareErrorHandling:
         import akshare as ak
 
         from src.data.providers.akshare import AKShareSource
+
         mocker.patch.object(ak, "stock_zh_a_spot_em", side_effect=ConnectionError("网络错误"))
         source = AKShareSource()
         with pytest.raises(ConnectionError):
@@ -281,6 +331,7 @@ class TestAKShareErrorHandling:
         import akshare as ak
 
         from src.data.providers.akshare import AKShareSource
+
         mocker.patch.object(ak, "stock_zh_a_hist", side_effect=ConnectionError("网络错误"))
         source = AKShareSource()
         result = source.get_klines("000001")
@@ -290,6 +341,7 @@ class TestAKShareErrorHandling:
         import akshare as ak
 
         from src.data.providers.akshare import AKShareSource
+
         mocker.patch.object(ak, "stock_news_em", side_effect=ConnectionError("网络错误"))
         source = AKShareSource()
         result = source.get_news("000001")
@@ -299,8 +351,10 @@ class TestAKShareErrorHandling:
         import akshare as ak
 
         from src.data.providers.akshare import AKShareSource
+
         mocker.patch.object(
-            ak, "stock_individual_fund_flow",
+            ak,
+            "stock_individual_fund_flow",
             side_effect=ConnectionError("网络错误"),
         )
         source = AKShareSource()
@@ -311,8 +365,10 @@ class TestAKShareErrorHandling:
         import akshare as ak
 
         from src.data.providers.akshare import AKShareSource
+
         mocker.patch.object(
-            ak, "stock_board_industry_name_em",
+            ak,
+            "stock_board_industry_name_em",
             side_effect=ConnectionError("网络错误"),
         )
         source = AKShareSource()
@@ -323,8 +379,10 @@ class TestAKShareErrorHandling:
         import akshare as ak
 
         from src.data.providers.akshare import AKShareSource
+
         mocker.patch.object(
-            ak, "stock_board_concept_name_em",
+            ak,
+            "stock_board_concept_name_em",
             side_effect=ConnectionError("网络错误"),
         )
         source = AKShareSource()
@@ -337,6 +395,7 @@ class TestAKShareErrorHandling:
         import pandas as pd
 
         from src.data.providers.akshare import AKShareSource
+
         mocker.patch.object(ak, "stock_individual_fund_flow", return_value=pd.DataFrame())
         source = AKShareSource()
         result = source.get_capital_flow("000001")
@@ -352,12 +411,16 @@ class TestAKShareCapitalFlowDataParsing:
 
         from src.data.providers.akshare import AKShareSource
 
-        mock_df = pd.DataFrame([{
-            "日期": "2024-01-02",
-            "主力净流入-净额": 1000000.0,
-            "小单净流入-净额": -200000.0,
-            "大单净流入-净额": 500000.0,
-        }])
+        mock_df = pd.DataFrame(
+            [
+                {
+                    "日期": "2024-01-02",
+                    "主力净流入-净额": 1000000.0,
+                    "小单净流入-净额": -200000.0,
+                    "大单净流入-净额": 500000.0,
+                }
+            ]
+        )
         mocker.patch.object(ak, "stock_individual_fund_flow", return_value=mock_df)
         source = AKShareSource()
         result = source.get_capital_flow("000001")
@@ -374,17 +437,22 @@ class TestAKShareCapitalFlowDataParsing:
 
         from src.data.providers.akshare import AKShareSource
 
-        mock_df = pd.DataFrame([
-            {
-                "日期": "2024-01-02", "主力净流入-净额": 100.0,
-                "小单净流入-净额": -50.0, "大单净流入-净额": 30.0,
-            },
-            {
-                "日期": "2024-01-03",
-                "主力净流入-净额": None, "小单净流入-净额": None,
-                "大单净流入-净额": None,
-            },
-        ])
+        mock_df = pd.DataFrame(
+            [
+                {
+                    "日期": "2024-01-02",
+                    "主力净流入-净额": 100.0,
+                    "小单净流入-净额": -50.0,
+                    "大单净流入-净额": 30.0,
+                },
+                {
+                    "日期": "2024-01-03",
+                    "主力净流入-净额": None,
+                    "小单净流入-净额": None,
+                    "大单净流入-净额": None,
+                },
+            ]
+        )
         mocker.patch.object(ak, "stock_individual_fund_flow", return_value=mock_df)
         source = AKShareSource()
         result = source.get_capital_flow("000001")
@@ -400,6 +468,7 @@ class TestAKShareSource:
 
     def test_importable(self):
         from src.data.providers.akshare import AKShareSource
+
         # 只验证能 import 和实例化
         source = AKShareSource()
         assert source is not None
@@ -485,7 +554,8 @@ class TestAKShareFinancialErrorHandling:
         from src.data.providers.akshare import AKShareSource
 
         mocker.patch.object(
-            ak, "stock_financial_analysis_indicator",
+            ak,
+            "stock_financial_analysis_indicator",
             side_effect=ConnectionError("网络错误"),
         )
         source = AKShareSource()
@@ -499,7 +569,8 @@ class TestAKShareFinancialErrorHandling:
         from src.data.providers.akshare import AKShareSource
 
         mocker.patch.object(
-            ak, "stock_financial_analysis_indicator",
+            ak,
+            "stock_financial_analysis_indicator",
             return_value=pd.DataFrame(),
         )
         source = AKShareSource()
@@ -515,10 +586,20 @@ class TestADataRowToQuote:
 
     def test_normal_row(self):
         from src.data.providers.adata_source import _adata_row_to_quote
-        row = {"stock_code": "000001", "stock_name": "平安银行", "latest_price": 12.34,
-               "change": 0.56, "change_pct": 4.76, "volume": 1000000,
-               "amount": 12340000.0, "high": 12.50, "low": 12.10,
-               "open": 12.20, "pre_close": 11.78}
+
+        row = {
+            "stock_code": "000001",
+            "stock_name": "平安银行",
+            "latest_price": 12.34,
+            "change": 0.56,
+            "change_pct": 4.76,
+            "volume": 1000000,
+            "amount": 12340000.0,
+            "high": 12.50,
+            "low": 12.10,
+            "open": 12.20,
+            "pre_close": 11.78,
+        }
         q = _adata_row_to_quote(row)
         assert q.code == "000001"
         assert q.name == "平安银行"
@@ -529,6 +610,7 @@ class TestADataRowToQuote:
 
     def test_missing_keys_default_to_zero(self):
         from src.data.providers.adata_source import _adata_row_to_quote
+
         row = {"stock_code": "000001"}
         q = _adata_row_to_quote(row)
         assert q.code == "000001"
@@ -541,8 +623,16 @@ class TestADataRowToKline:
 
     def test_normal_row(self):
         from src.data.providers.adata_source import _adata_row_to_kline
-        row = {"trade_date": "2024-01-02", "open": 10.0, "close": 10.5,
-               "high": 10.8, "low": 9.9, "volume": 500000, "amount": 5200000.0}
+
+        row = {
+            "trade_date": "2024-01-02",
+            "open": 10.0,
+            "close": 10.5,
+            "high": 10.8,
+            "low": 9.9,
+            "volume": 500000,
+            "amount": 5200000.0,
+        }
         k = _adata_row_to_kline(row)
         assert k.date == "2024-01-02"
         assert k.open == 10.0
@@ -553,6 +643,7 @@ class TestADataRowToKline:
 
     def test_missing_keys_default_to_zero(self):
         from src.data.providers.adata_source import _adata_row_to_kline
+
         row = {"trade_date": "2024-01-02"}
         k = _adata_row_to_kline(row)
         assert k.date == "2024-01-02"
@@ -564,10 +655,12 @@ class TestADataSourceErrorHandling:
 
     def test_get_all_stocks_returns_empty_on_error(self, mocker):
         from src.data.providers.adata_source import ADataSource
+
         source = ADataSource()
         # mock 整个 all_code 调用链
         mocker.patch.object(
-            source._adata.stock.info, "all_code",
+            source._adata.stock.info,
+            "all_code",
             side_effect=ConnectionError("网络错误"),
         )
         result = source.get_all_stocks()
@@ -575,13 +668,16 @@ class TestADataSourceErrorHandling:
 
     def test_get_realtime_quotes_returns_empty_on_error(self, mocker):
         from src.data.providers.adata_source import ADataSource
+
         source = ADataSource()
         mocker.patch.object(
-            source._adata.stock.info, "all_code",
+            source._adata.stock.info,
+            "all_code",
             return_value=__import__("pandas").DataFrame(),
         )
         mocker.patch.object(
-            source._adata.stock.market, "list_market_current",
+            source._adata.stock.market,
+            "list_market_current",
             side_effect=ConnectionError("网络错误"),
         )
         result = source.get_realtime_quotes()
@@ -590,6 +686,7 @@ class TestADataSourceErrorHandling:
     def test_get_realtime_quotes_empty_stocks(self):
         """全部股票为空，应返回空列表"""
         from src.data.providers.adata_source import ADataSource
+
         source = ADataSource()
         original = source._adata.stock.info.all_code
         source._adata.stock.info.all_code = lambda: __import__("pandas").DataFrame()
@@ -601,9 +698,11 @@ class TestADataSourceErrorHandling:
 
     def test_get_klines_returns_empty_on_error(self, mocker):
         from src.data.providers.adata_source import ADataSource
+
         source = ADataSource()
         mocker.patch.object(
-            source._adata.stock.market, "get_market",
+            source._adata.stock.market,
+            "get_market",
             side_effect=ConnectionError("网络错误"),
         )
         result = source.get_klines("000001")
@@ -611,11 +710,14 @@ class TestADataSourceErrorHandling:
 
     def test_get_industry_boards_returns_empty_on_error(self, mocker):
         from src.data.providers.adata_source import ADataSource
+
         source = ADataSource()
         # adata 版本不同时 all_industry 可能不存在，用字符串路径 mock
         mocker.patch.object(
-            source._adata.stock.info, "all_industry",
-            side_effect=ConnectionError("网络错误"), create=True,
+            source._adata.stock.info,
+            "all_industry",
+            side_effect=ConnectionError("网络错误"),
+            create=True,
         )
         result = source.get_industry_boards()
         assert result == []
@@ -623,6 +725,7 @@ class TestADataSourceErrorHandling:
     def test_get_klines_weekly_period(self, mocker):
         """周 K 线应使用 k_type=2"""
         from src.data.providers.adata_source import ADataSource
+
         source = ADataSource()
         mock_df = __import__("pandas").DataFrame()
         mocker.patch.object(source._adata.stock.market, "get_market", return_value=mock_df)
@@ -632,6 +735,7 @@ class TestADataSourceErrorHandling:
     def test_get_klines_monthly_period(self, mocker):
         """月 K 线应使用 k_type=3"""
         from src.data.providers.adata_source import ADataSource
+
         source = ADataSource()
         mock_df = __import__("pandas").DataFrame()
         mocker.patch.object(source._adata.stock.market, "get_market", return_value=mock_df)
@@ -644,15 +748,18 @@ class TestADataSourcePlaceholders:
 
     def test_get_news_returns_empty(self):
         from src.data.providers.adata_source import ADataSource
+
         # 不调用远程 API，只测占位方法
         assert ADataSource.get_news(None, "000001") == []  # type: ignore[arg-type]
 
     def test_get_concept_boards_returns_empty(self):
         from src.data.providers.adata_source import ADataSource
+
         assert ADataSource.get_concept_boards(None) == []  # type: ignore[arg-type]
 
     def test_get_capital_flow_returns_empty(self):
         from src.data.providers.adata_source import ADataSource
+
         assert ADataSource.get_capital_flow(None, "000001") == []  # type: ignore[arg-type]
 
 
@@ -661,6 +768,7 @@ class TestADataSourceImport:
 
     def test_importable(self):
         from src.data.providers.adata_source import ADataSource
+
         # 只验证模块能 import
         assert ADataSource is not None
 
@@ -744,7 +852,8 @@ class TestADataFinancialErrorHandling:
         from src.data.providers.adata_source import ADataSource
 
         mocker.patch.object(
-            adata.stock.finance, "get_core_index",
+            adata.stock.finance,
+            "get_core_index",
             side_effect=ConnectionError("网络错误"),
         )
         source = ADataSource()
@@ -758,7 +867,8 @@ class TestADataFinancialErrorHandling:
         from src.data.providers.adata_source import ADataSource
 
         mocker.patch.object(
-            adata.stock.finance, "get_core_index",
+            adata.stock.finance,
+            "get_core_index",
             return_value=pd.DataFrame(),
         )
         source = ADataSource()
@@ -774,21 +884,25 @@ class TestZzshareToTsCode:
 
     def test_sh_stock(self):
         from src.data.providers.zzshare import _to_ts_code
+
         assert _to_ts_code("600000") == "600000.SH"
 
     def test_sz_stock(self):
         from src.data.providers.zzshare import _to_ts_code
+
         assert _to_ts_code("000001") == "000001.SZ"
         assert _to_ts_code("300750") == "300750.SZ"
         assert _to_ts_code("002001") == "002001.SZ"
 
     def test_already_ts_code(self):
         from src.data.providers.zzshare import _to_ts_code
+
         assert _to_ts_code("000001.SZ") == "000001.SZ"
         assert _to_ts_code("600000.SH") == "600000.SH"
 
     def test_handles_whitespace(self):
         from src.data.providers.zzshare import _to_ts_code
+
         assert _to_ts_code(" 600000 ") == "600000.SH"
         assert _to_ts_code(" 000001 ") == "000001.SZ"
 
@@ -798,8 +912,16 @@ class TestZzshareRowToKline:
 
     def test_normal_row(self):
         from src.data.providers.zzshare import _zz_row_to_kline
-        row = {"trade_date": "2024-01-02", "open": 10.0, "close": 10.5,
-               "high": 10.8, "low": 9.9, "vol": 500000, "amount": 5200000.0}
+
+        row = {
+            "trade_date": "2024-01-02",
+            "open": 10.0,
+            "close": 10.5,
+            "high": 10.8,
+            "low": 9.9,
+            "vol": 500000,
+            "amount": 5200000.0,
+        }
         k = _zz_row_to_kline(row)
         assert k.date == "2024-01-02"
         assert k.open == 10.0
@@ -811,6 +933,7 @@ class TestZzshareRowToKline:
 
     def test_missing_keys_default_to_zero(self):
         from src.data.providers.zzshare import _zz_row_to_kline
+
         row = {"trade_date": "2024-01-02"}
         k = _zz_row_to_kline(row)
         assert k.date == "2024-01-02"
@@ -820,6 +943,7 @@ class TestZzshareRowToKline:
     def test_trade_date_key_exists(self):
         """验证 TD-034：trade_date 字段选择逻辑实际不造成 bug"""
         from src.data.providers.zzshare import _zz_row_to_kline
+
         # 当前代码两个条件一样（都返回 trade_date），所以不管怎样都正确
         row = {"trade_date": "2024-01-02"}
         k = _zz_row_to_kline(row)
@@ -828,12 +952,14 @@ class TestZzshareRowToKline:
     def test_vol_field_mapped_correctly(self):
         """zzshare 使用 vol 而非 volume 字段名"""
         from src.data.providers.zzshare import _zz_row_to_kline
+
         row = {"trade_date": "2024-01-02", "vol": 100000}
         k = _zz_row_to_kline(row)
         assert k.volume == 100000
 
     def test_amount_default_zero(self):
         from src.data.providers.zzshare import _zz_row_to_kline
+
         row = {"trade_date": "2024-01-02"}
         k = _zz_row_to_kline(row)
         assert k.amount == 0.0
@@ -844,6 +970,7 @@ class TestZzshareSourceImport:
 
     def test_importable(self):
         from src.data.providers.zzshare import ZzshareSource
+
         assert ZzshareSource is not None
 
     def test_has_required_methods(self):
@@ -931,8 +1058,14 @@ class MockFailingPrimary:
     def get_realtime_quotes(self):
         raise ConnectionError("主源挂了")
 
-    def get_klines(self, code: str = "", period: str = "daily", start: str = "",
-                   end: str = "", adjust: str = "qfq"):
+    def get_klines(
+        self,
+        code: str = "",
+        period: str = "daily",
+        start: str = "",
+        end: str = "",
+        adjust: str = "qfq",
+    ):
         raise ConnectionError("主源挂了")
 
     def get_news(self, code: str = ""):
@@ -960,8 +1093,14 @@ class MockHealthyFallback:
     def get_realtime_quotes(self):
         return ["fallback_quote"]
 
-    def get_klines(self, code: str = "", period: str = "daily", start: str = "",
-                   end: str = "", adjust: str = "qfq"):
+    def get_klines(
+        self,
+        code: str = "",
+        period: str = "daily",
+        start: str = "",
+        end: str = "",
+        adjust: str = "qfq",
+    ):
         return ["fallback_kline"]
 
     def get_news(self, code: str = ""):
@@ -998,8 +1137,14 @@ class MockMixedPrimary:
     def get_realtime_quotes(self):
         return ["primary_quote"]
 
-    def get_klines(self, code: str = "", period: str = "daily", start: str = "",
-                   end: str = "", adjust: str = "qfq"):
+    def get_klines(
+        self,
+        code: str = "",
+        period: str = "daily",
+        start: str = "",
+        end: str = "",
+        adjust: str = "qfq",
+    ):
         return []
 
     def get_news(self, code: str = ""):
@@ -1184,6 +1329,7 @@ class TestFallbackSourceAutoRecovery:
 
         class RecoveryPrimary:
             """先失败后恢复的主源"""
+
             def __init__(self):
                 self.calls = 0
 
@@ -1195,6 +1341,7 @@ class TestFallbackSourceAutoRecovery:
 
         class CountingFallback:
             """计数备用源"""
+
             def __init__(self):
                 self.calls = 0
 
@@ -1367,3 +1514,21 @@ class TestFallbackSourceExtended:
         r2 = source.get_all_stocks()
         assert r2 == []
         assert source._consecutive_failures["all_stocks"] == 2  # 备用失败计数也增
+
+
+def test_akshare_kline_normalizes_optional_dates(mocker):
+    import pandas as pd
+
+    from src.data.providers.akshare import AKShareSource
+
+    call = mocker.patch(
+        "src.data.providers.akshare.ak.stock_zh_a_hist", return_value=pd.DataFrame()
+    )
+    source = AKShareSource()
+    source.get_klines("300913")
+    assert call.call_args.kwargs["start_date"] == "19700101"
+    assert call.call_args.kwargs["end_date"] == "20500101"
+    assert call.call_args.kwargs["timeout"] == 10
+    source.get_klines("300913", start="2026-01-01", end="2026-09-09")
+    assert call.call_args.kwargs["start_date"] == "20260101"
+    assert call.call_args.kwargs["end_date"] == "20260909"

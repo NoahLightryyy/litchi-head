@@ -87,9 +87,10 @@ class AKShareSource:
             df: pd.DataFrame = ak.stock_zh_a_hist(
                 symbol=code,
                 period=period,
-                start_date=start,
-                end_date=end,
+                start_date=start.replace("-", "") if start else "19700101",
+                end_date=end.replace("-", "") if end else "20500101",
                 adjust=adjust,
+                timeout=10,
             )
             return [_row_to_kline(row) for _, row in df.iterrows()]
         except Exception:

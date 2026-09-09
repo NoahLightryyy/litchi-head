@@ -236,6 +236,9 @@ def test_intraday_battlefield_returns_bars_snapshot_and_source_diagnostics(clien
     assert response.status_code == 200
     payload = response.json()
     assert payload["complete"] is True
+    assert payload["verification_status"] == "multi_source_verified"
+    assert payload["usable"] is True
+    assert payload["price_points"]
     assert payload["bars"][0]["volume"] == 450_700
     assert payload["snapshot"]["evidence_level"] == "L1"
     assert payload["snapshot"]["relative_volume"] == 2.0
@@ -385,3 +388,60 @@ def test_news_aggregate_requires_explicit_timezone(client) -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_intraday_single_source_returns_points_without_verified_snapshot(client) -> None:
+    envelope = _intraday_envelope()
+    good = envelope.source_results[1]
+    assessment = envelope.assessment.model_copy(
+        update={
+            "complete": False,
+            "successful_source_ids": {good.source_id},
+            "successful_upstream_ids": {good.upstream_id},
+            "missing_independent_upstreams": 1,
+        }
+    )
+    service = Mock()
+    service.collect.return_value = envelope.model_copy(
+        update={
+            "complete": False,
+            "items": [],
+            "source_results": [good],
+            "assessment": assessment,
+        }
+    )
+    with patch("backend.routers.evidence.intraday_evidence_service", service):
+        response = client.post("/api/v1/evidence/intraday/battlefield", json={"symbol": "000001"})
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["usable"] is True
+    assert payload["complete"] is False
+    assert payload["verification_status"] == "single_source"
+    assert payload["canonical_source_id"] == good.source_id
+    assert payload["price_points"][0]["code"] == "000001"
+    assert payload["source_diagnostics"][0]["source_name"] == "腾讯"
+    assert payload["as_of"] == payload["price_points"][-1]["timestamp"]
+    assert payload["bars"] == []
+    assert payload["snapshot"] is None
+
+
+def test_intraday_conflicted_source_never_draws_points(client) -> None:
+    envelope = _intraday_envelope()
+    source = envelope.source_results[1].model_copy(update={"status": SourceStatus.CONFLICTED})
+    service = Mock()
+    service.collect.return_value = envelope.model_copy(
+        update={
+            "complete": False,
+            "items": [],
+            "source_results": [source],
+            "assessment": envelope.assessment.model_copy(update={"complete": False}),
+        }
+    )
+    with patch("backend.routers.evidence.intraday_evidence_service", service):
+        payload = client.post(
+            "/api/v1/evidence/intraday/battlefield", json={"symbol": "000001"}
+        ).json()
+    assert payload["usable"] is False
+    assert payload["price_points"] == []
+    assert payload["canonical_source_id"] is None
+    assert payload["source_diagnostics"][0]["status"] == "conflicted"

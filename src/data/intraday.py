@@ -122,6 +122,7 @@ class IntradaySourceDiagnostic(BaseModel):
     """业务节点可见的逐源诊断，不重复传输完整原始序列。"""
 
     source_id: str
+    source_name: str = ""
     upstream_id: str
     status: SourceStatus
     fetched_at: datetime
@@ -136,6 +137,15 @@ class IntradayBattlefieldEnvelope(BaseModel):
 
     symbol: str = Field(pattern=r"^\d{6}$")
     complete: bool
+    usable: bool = False
+    verification_status: Literal[
+        "multi_source_verified", "single_source", "source_conflict", "unavailable"
+    ] = "unavailable"
+    canonical_source_id: str | None = None
+    available_source_ids: list[str] = Field(default_factory=list)
+    failed_source_ids: list[str] = Field(default_factory=list)
+    as_of: datetime | None = None
+    price_points: list[IntradayCheckpoint] = Field(default_factory=list)
     collected_at: datetime
     assessment: EvidenceAssessment
     source_diagnostics: list[IntradaySourceDiagnostic]
