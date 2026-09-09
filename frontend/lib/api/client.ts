@@ -54,11 +54,11 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(path: string, params?: Record<string, string>) => {
+  get: <T>(path: string, params?: Record<string, string>, options?: RequestInit) => {
     const query = params
       ? "?" + new URLSearchParams(params).toString()
       : "";
-    return request<T>(`${path}${query}`);
+    return request<T>(`${path}${query}`, options);
   },
 
   getRaw: <T>(path: string, params?: Record<string, string>, options?: RequestInit) => {

@@ -1,7 +1,7 @@
 # litchi-head 前端
 
 > 专业散户「自上而下决策漏斗」投资决策看板。
-> React + Next.js 16 + Tailwind v4 + TanStack Query + Zustand。
+> React + Next.js 16 + Tailwind v4 + TanStack Query。
 
 ## 快速启动
 
@@ -25,7 +25,7 @@ pnpm type-check   # tsc --noEmit
 
 | 路径 | 页面 | 说明 |
 |:-----|:-----|:------|
-| `/` | 宏观总览 | 三大指数 + 板块排行 + AI 宏观简报 + 搜索 autocomplete |
+| `/` | 市场总览 | 三大指数 + 板块排行 + AI 宏观简报 + 搜索 autocomplete |
 | `/sector/[id]` | 产业链分析 | 产业链地图 + 个股排行 + AI 分析 |
 | `/stock/[code]` | 个股决策 | 行情卡片 + K 线图 + 4 Tab（技术分析/资金流向/AI 辩论/信任度） |
 
@@ -101,3 +101,15 @@ frontend/
 | API 地址 | `http://localhost:8000/api`（`NEXT_PUBLIC_API_URL`） |
 | 后端服务 | uvicorn backend.main:app --port 8000 |
 | API 文档 | `http://localhost:8000/docs` |
+
+## 投资工作区（FW-070）
+
+- `/industries`：行业/概念目录，搜索、排序、分页和详情入口。
+- `/screening`：最多四家公司财务与估值原始指标对照；缺值、报告期、待核验零值明确显示，无综合评级。
+- `/watchlist`：本机自选与研究假设，编辑、移除和撤销。
+- `/portfolio`：手动股票/基金持仓，金额分布与单项集中度；没有账户自动同步或基金穿透。
+- `/retro`：既有研究复盘。
+- `/data-status`：数据源诊断；调用健康不等于数据新鲜。
+- `/settings`：本机记录JSON备份/恢复，恢复前预览确认。
+
+自选和持仓保存在当前站点的浏览器存储，换设备或端口须使用备份迁移。预览3001在构建时设置`NEXT_PUBLIC_API_URL=/api`，通过现有Next代理访问8000。

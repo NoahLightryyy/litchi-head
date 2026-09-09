@@ -105,3 +105,5 @@
 | Windows 开发调试 | **19** → `docs/01-guides/triage/git-bash-compat.md` |
 | 测试优化与 CI 流程 | 17 → **20** → `docs/01-guides/ci/` |
 | 准备面试 | 全部通读一遍，重点练「自己试试」 |
+
+- [59 本机记录：校验、持久化与恢复](59-local-record-validation.md)

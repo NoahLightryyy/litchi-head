@@ -8,6 +8,8 @@ import Link from "next/link";
 /* ── 路径 → 标题 映射 ── */
 function useRouteMeta(pathname: string): { title: string } {
   if (pathname === "/") return { title: "市场总览" };
+  const titles: Record<string, string> = { "/screening": "选股与对比", "/watchlist": "自选与跟踪", "/portfolio": "持仓与风险", "/data-status": "数据状态", "/settings": "设置" };
+  if (titles[pathname]) return { title: titles[pathname] };
   if (pathname === "/industries") return { title: "行业研究" };
   if (pathname === "/retro") return { title: "研究与复盘" };
   if (pathname.startsWith("/sector/"))
@@ -89,6 +91,9 @@ function SidebarNav({ pathname }: { pathname: string }) {
   const navItems = [
     { href: "/", icon: "🏠", label: "市场总览" },
     { href: "/industries", icon: "🧭", label: "行业研究" },
+    { href: "/screening", icon: "🔎", label: "选股与对比" },
+    { href: "/watchlist", icon: "⭐", label: "自选与跟踪" },
+    { href: "/portfolio", icon: "💼", label: "持仓与风险" },
     { href: "/retro", icon: "📋", label: "研究与复盘" },
   ];
 
@@ -122,7 +127,10 @@ function SidebarNav({ pathname }: { pathname: string }) {
           );
         })}
       </nav>
-      <div className="mt-auto hidden sm:block">
+      <nav aria-label="工具与设置" className="mt-auto flex flex-col gap-2">
+        {[{href:"/data-status",label:"数据状态",icon:"📡"},{href:"/settings",label:"设置",icon:"⚙"}].map((item)=><Link key={item.href} href={item.href} aria-label={item.label} title={item.label} aria-current={pathname===item.href ? "page" : undefined} className={`rounded px-3 py-2 text-sm ${pathname===item.href ? "bg-accent-blue/10 text-accent-blue" : "text-text-muted"}`}><span>{item.icon}</span><span className="ml-3 hidden sm:inline">{item.label}</span></Link>)}
+      </nav>
+      <div className="hidden sm:block">
         <div className="px-3 py-2 text-xs text-text-muted uppercase tracking-wider">最近浏览</div>
         <div className="px-3 py-4 text-xs text-text-muted text-center">
           {pathname.startsWith(STOCK_PREFIX) || pathname.startsWith(SECTOR_PREFIX) ? (

@@ -44,13 +44,13 @@ export async function fetchTechnicalIndicators(
 }
 
 /** 个股财务指标（ROE/毛利率/负债率等） */
-export async function fetchFinancials(code: string): Promise<FinancialMetrics[]> {
-  return api.get(`/stocks/${code}/financials`);
+export async function fetchFinancials(code: string, signal?: AbortSignal): Promise<FinancialMetrics[]> {
+  return api.get(`/stocks/${code}/financials`, undefined, { signal });
 }
 
 /** 个股估值比率（PE/PB/PS） */
-export async function fetchValuation(code: string): Promise<ValuationMetrics | null> {
-  return api.get(`/stocks/${code}/valuation`);
+export async function fetchValuation(code: string, signal?: AbortSignal): Promise<ValuationMetrics | null> {
+  return api.get(`/stocks/${code}/valuation`, undefined, { signal });
 }
 
 /** 个股动态关键指标（按行业注册表） */

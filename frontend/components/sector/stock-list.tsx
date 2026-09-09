@@ -84,6 +84,7 @@ export function StockList({ stocks, loading }: StockListProps) {
                   <span className="text-text-primary font-medium">{s.name}</span>
                   <span className="text-xs text-text-muted">{s.code}</span>
                 </Link>
+                <Link href={`/screening?code=${s.code}`} className="text-xs text-accent-blue">研究对比</Link>
               </td>
               <td className={`px-3 py-2.5 text-right font-number ${s.change_pct >= 0 ? "text-accent-green" : "text-accent-red"}`}>
                 {s.change_pct >= 0 ? "+" : ""}{s.change_pct.toFixed(2)}%
