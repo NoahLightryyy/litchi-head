@@ -33,49 +33,19 @@ export default function StockPage() {
   const [activeTab, setActiveTab] = useState<TabId>("debate");
 
   // ── 数据 ──
-  const { data: quote, isLoading: quoteLoading, isError: quoteError } = useStockQuote(code);
-  const { data: news, isLoading: newsLoading } = useStockNews(code);
+  const { data: quote, isLoading: quoteLoading, isError: quoteError, refetch: refreshQuote, isFetching: quoteFetching } = useStockQuote(code);
+  const { data: news, isLoading: newsLoading, isError: newsError, refetch: refreshNews, isFetching: newsFetching } = useStockNews(code);
   const { data: trustReports, isLoading: trustLoading } = useTrustLeaderboard();
 
   const stockName = quote?.name ?? code;
 
-  // ── 错误态 ──
-  if (quoteError && !quoteLoading) {
-    return (
-      <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2 text-sm">
-          <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">
-            宏观总览
-          </Link>
-          <span className="text-text-muted">/</span>
-          <span className="text-text-muted">{code}</span>
-        </div>
-        <div className="p-8 rounded-lg border border-bg-tertiary bg-bg-secondary text-center">
-          <div className="text-4xl mb-4">📡</div>
-          <p className="text-sm text-text-muted mb-2">个股数据加载失败</p>
-          <p className="text-xs text-text-muted mb-4">股票代码 {code} 数据暂时不可用</p>
-          <div className="flex items-center justify-center gap-3">
-            <Link href="/" className="px-4 py-2 rounded-md bg-bg-tertiary text-text-secondary text-sm font-medium hover:bg-bg-elevated transition-colors">
-              返回宏观总览
-            </Link>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 transition-colors"
-            >
-              重新加载
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {/* 面包屑 */}
       <div className="flex items-center gap-2 text-sm">
         <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">
-          宏观总览
+          市场总览
         </Link>
         <span className="text-text-muted">/</span>
         <span className="text-text-muted">个股</span>
@@ -85,7 +55,11 @@ export default function StockPage() {
       </div>
 
       {/* 行情卡片 */}
-      <QuoteCard quote={quote ?? null} loading={quoteLoading} />
+      {!quoteLoading && (quoteError || !quote) ? <div role="status" className="rounded-lg border border-bg-tertiary bg-bg-secondary p-5">
+        <p>个股名称与报价尚未取得（{code}）</p>
+        <p className="mt-2 text-sm text-text-muted">当前报价接口未提供有效数据。分时、K线等模块独立加载；不把未知报价填成零。</p>
+        <button disabled={quoteFetching} onClick={() => void refreshQuote()} className="mt-3 text-sm text-accent-blue">{quoteFetching ? "正在获取…" : "重新获取报价"}</button>
+      </div> : <QuoteCard quote={quote ?? null} loading={quoteLoading} />}
 
       {/* 真实盘中分钟结构与数据来源状态 */}
       <IntradayBattlefieldPanel code={code} />
@@ -134,7 +108,8 @@ export default function StockPage() {
       </div>
 
       {/* 新闻 */}
-      <NewsFeed items={news ?? []} loading={newsLoading} />
+      {newsError ? <div role="alert" className="rounded-lg border border-bg-tertiary p-5">关联新闻请求失败</div> : <NewsFeed items={news ?? []} loading={newsLoading} />}
+      {!newsLoading && (newsError || !news?.length) && <button disabled={newsFetching} onClick={() => void refreshNews()} className="self-start text-sm text-accent-blue">{newsFetching ? "正在获取…" : "重新获取关联新闻"}</button>}
     </div>
   );
 }

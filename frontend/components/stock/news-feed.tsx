@@ -39,7 +39,7 @@ export function NewsFeed({ items, loading }: NewsFeedProps) {
           ))}
         </div>
       ) : (
-        <p className="text-xs text-text-muted text-center py-4">暂无关联新闻</p>
+        <p className="text-xs text-text-muted text-center py-4">当前来源未返回关联新闻，不能据此判断该公司近期没有消息</p>
       )}
     </div>
   );
