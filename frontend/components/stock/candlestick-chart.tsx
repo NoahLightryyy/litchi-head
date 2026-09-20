@@ -11,7 +11,7 @@ import {
 import type { KLineData } from "@/lib/types/stock";
 
 interface CandlestickChartProps {
-  data: KLineData[];
+  data: Pick<KLineData, "date" | "open" | "high" | "low" | "close" | "volume">[];
 }
 
 /** 暖白研究终端配色（匹配全局数据面板） */

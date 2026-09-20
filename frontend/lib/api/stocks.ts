@@ -17,12 +17,13 @@ export async function fetchKline(
   code: string,
   period: string = "daily",
   start?: string,
-  end?: string
+  end?: string,
+  signal?: AbortSignal
 ): Promise<KLineData[]> {
   const params: Record<string, string> = { period };
   if (start) params.start = start;
   if (end) params.end = end;
-  return api.get(`/stocks/${code}/kline`, params);
+  return api.get(`/stocks/${code}/kline`, params, {signal});
 }
 
 /** 个股新闻 */

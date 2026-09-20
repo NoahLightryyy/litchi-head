@@ -30,7 +30,8 @@ export function useStockQuote(code: string) {
 export function useKline(code: string, period: string = "daily") {
   return useQuery({
     queryKey: ["stocks", code, "kline", period],
-    queryFn: () => fetchKline(code, period),
+    queryFn: ({signal}) => fetchKline(code, period, undefined, undefined, AbortSignal.any([signal, AbortSignal.timeout(15000)])),
+    retry: false,
     staleTime: 60_000,
     enabled: !!code,
   });

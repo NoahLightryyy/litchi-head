@@ -29,3 +29,5 @@
 `frontend/lib/intraday-contract.ts`会拒绝缺字段，不能把HTTP200等同于可展示。`backend/routers/evidence.py`区分usable（可展示原始单源点）和complete（满足双源策略）。`src/data/collector.py`不缓存空K线，让重试真正触达数据源。真实浏览器验收发现旧信封时，应对齐后端模型并提交契约，不能删掉前端校验。
 
 2026-09-20：frontend/lib/debate-error.ts按服务端错误码区分证据门禁、限流和断线，未知错误不输出原始上游内容；个股页面各模块独立失败，不让报价失败吞掉已有分时证据。
+
+备用数据也要验证语义：frontend/lib/raw-daily.ts同时核对代码、raw口径、1d周期、严格日期顺序及OHLC。backend/kline_display.py通过独立信封保留来源和日期，不把备用RAW塞入既有前复权接口。图表只接收真实OHLC与成交量，不将未知成交额补零。

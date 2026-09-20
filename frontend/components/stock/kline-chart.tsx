@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useKline } from "@/lib/hooks/use-stock";
 import { CandlestickChart } from "@/components/stock/candlestick-chart";
 import { DataFreshnessTag } from "@/components/shared/data-freshness";
+import { RawDailyChart } from "./raw-daily-chart";
 
 interface KlineChartProps {
   code: string;
@@ -68,6 +69,8 @@ export function KlineChart({ code }: KlineChartProps) {
         <div className="h-80 rounded-md bg-bg-primary flex items-center justify-center border border-bg-tertiary">
           <div className="text-sm text-text-muted animate-pulse">加载中...</div>
         </div>
+      ) : period === "daily" && (isError || !klines?.length) ? (
+        <RawDailyChart code={code} />
       ) : isError ? (
         <div className="h-80 rounded-md bg-bg-primary flex items-center justify-center border border-bg-tertiary">
           <div className="text-center">
