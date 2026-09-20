@@ -53,18 +53,21 @@ export function CandlestickChart({ data }: CandlestickChartProps) {
         textColor: THEME.textColor,
       },
       grid: {
-        vertLines: { color: THEME.gridColor },
-        horzLines: { color: THEME.gridColor },
+        vertLines: { visible: false },
+        horzLines: { color: "rgba(104, 115, 110, 0.12)" },
       },
       crosshair: { mode: CrosshairMode.Magnet },
       rightPriceScale: {
         borderColor: THEME.borderColor,
-        scaleMargins: { top: 0.05, bottom: 0.25 },
+        scaleMargins: { top: 0.08, bottom: 0.25 },
       },
       timeScale: {
         borderColor: THEME.borderColor,
         timeVisible: false,
         secondsVisible: false,
+        rightOffset: 2,
+        fixLeftEdge: true,
+        fixRightEdge: true,
       },
       handleScroll: { vertTouchDrag: false },
     });
@@ -94,6 +97,8 @@ export function CandlestickChart({ data }: CandlestickChartProps) {
       color: THEME.volumeUp,
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
+      priceLineVisible: false,
+      lastValueVisible: false,
     });
     chart.priceScale("volume").applyOptions({
       scaleMargins: { top: 0.8, bottom: 0 },
@@ -106,10 +111,13 @@ export function CandlestickChart({ data }: CandlestickChartProps) {
       })),
     );
 
+    // Fit the actual returned window rather than leaving 6px default bars at the right.
+    chart.timeScale().fitContent();
+
     // ── 自适应宽度 ──────────────────────────────────────────
     const handleResize = () => {
       if (container) {
-        chart.applyOptions({ width: container.clientWidth });
+        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
       }
     };
     const observer = new ResizeObserver(handleResize);
@@ -130,9 +138,12 @@ export function CandlestickChart({ data }: CandlestickChartProps) {
   }, [data]);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-80 rounded-md overflow-hidden"
-    />
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs text-text-muted">
+        <span>价格（元） · 下方为成交量（股）</span>
+        <button className="rounded border border-bg-tertiary px-2 py-1 hover:bg-bg-tertiary" onClick={() => chartRef.current?.timeScale().fitContent()}>适应全部数据</button>
+      </div>
+      <div ref={containerRef} className="w-full h-[360px] sm:h-[420px] rounded-md overflow-hidden" />
+    </div>
   );
 }

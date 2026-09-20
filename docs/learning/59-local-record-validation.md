@@ -31,3 +31,5 @@
 2026-09-20：frontend/lib/debate-error.ts按服务端错误码区分证据门禁、限流和断线，未知错误不输出原始上游内容；个股页面各模块独立失败，不让报价失败吞掉已有分时证据。
 
 备用数据也要验证语义：frontend/lib/raw-daily.ts同时核对代码、raw口径、1d周期、严格日期顺序及OHLC。backend/kline_display.py通过独立信封保留来源和日期，不把备用RAW塞入既有前复权接口。图表只接收真实OHLC与成交量，不将未知成交额补零。
+
+图表也有默认视窗状态：candlestick-chart.tsx在setData之后调用timeScale().fitContent()，否则64根默认宽度的K线会集中在右侧。成交量独立比例尺隐藏最后值/价格线，避免体量标签与价格轴混读。数据语义标签留在图旁，长限制移到details。
