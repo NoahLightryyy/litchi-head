@@ -8,14 +8,21 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Path, Query
 
 from backend.async_utils import run_sync
+from backend.kline_display import RawDailyDisplay, get_raw_daily_display
 from src.data.collector import DataCollector
 
 logger = logging.getLogger("backend.stocks")
 router = APIRouter(prefix="/api/stocks")
 collector = DataCollector()
+
+
+@router.get("/{code}/kline-raw-display", response_model=RawDailyDisplay)
+async def raw_daily_display(code: str = Path(pattern=r"^\d{6}$")) -> RawDailyDisplay:
+    """Single-source unadjusted completed daily bars; never replaces adjusted evidence."""
+    return await run_sync(get_raw_daily_display, code)
 
 
 @router.get("/search")
