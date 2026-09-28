@@ -9,6 +9,7 @@ import logging
 import re
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from threading import Lock
 from typing import Any, Literal
@@ -186,18 +187,16 @@ class EastmoneyBoardSnapshots:
     ) -> BoardMembersSnapshot:
         members: list[BoardMemberSnapshot] = []
         seen: set[str] = set()
-        total: int | None = None
-        page = 1
         params = {
             "pz": str(PAGE_SIZE), "po": "1", "np": "1", "fltt": "2", "invt": "2",
-            "ut": "bd1d9ddb04089700cf9c27f6f7426281", "fid": "f3",
+            "ut": "bd1d9ddb04089700cf9c27f6f7426281", "fid": "f12",
             "fs": f"b:{board_code} f:!50", "fields": "f2,f3,f12,f13,f14,f62,f124",
         }
         with httpx.Client(
             transport=self._transport,
             headers={"Referer": "https://quote.eastmoney.com/", "User-Agent": "Mozilla/5.0"},
         ) as client:
-            while total is None or len(members) < total:
+            def fetch_page(page: int) -> tuple[int, list[dict[str, Any]]]:
                 remaining = deadline - self._clock()
                 if remaining <= 0:
                     raise TimeoutError("board members total deadline exceeded")
@@ -208,13 +207,14 @@ class EastmoneyBoardSnapshots:
                 response.raise_for_status()
                 if self._clock() > deadline:
                     raise TimeoutError("board members total deadline exceeded")
-                payload = response.json()
-                page_total, rows = self._page(payload)
-                if total is not None and page_total != total:
+                return self._page(response.json())
+
+            total, first_rows = fetch_page(1)
+
+            def append_page(page_total: int, rows: list[dict[str, Any]]) -> None:
+                if page_total != total:
                     raise ValueError("board members total changed during pagination")
-                total = page_total
-                expected = min(PAGE_SIZE, total - len(members))
-                if len(rows) != expected:
+                if len(rows) != min(PAGE_SIZE, total - len(members)):
                     raise ValueError("board members page is incomplete")
                 for row in rows:
                     member = self._member(row)
@@ -222,7 +222,22 @@ class EastmoneyBoardSnapshots:
                         raise ValueError("duplicate board member across pages")
                     seen.add(member.code)
                     members.append(member)
-                page += 1
+
+            append_page(total, first_rows)
+            # The members lock permits one batch per provider. Join workers before
+            # closing their shared client; cancel queued pages after any failure.
+            with ThreadPoolExecutor(max_workers=8, thread_name_prefix="board-page") as pool:
+                futures = [pool.submit(fetch_page, page)
+                           for page in range(2, (total + PAGE_SIZE - 1) // PAGE_SIZE + 1)]
+                try:
+                    for future in futures:
+                        remaining = deadline - self._clock()
+                        if remaining <= 0:
+                            raise TimeoutError("board members total deadline exceeded")
+                        append_page(*future.result(timeout=remaining))
+                finally:
+                    for future in futures:
+                        future.cancel()
         return BoardMembersSnapshot(
             board_code=board_code, kind=kind, members=tuple(members),
             fetched_at=datetime.now(SHANGHAI),

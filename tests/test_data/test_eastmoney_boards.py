@@ -192,3 +192,50 @@ def test_unknown_board_code_is_rejected_before_network() -> None:
     ))
     with pytest.raises(ValueError, match="invalid board code"):
         service.fetch_members("BK1/../", "concept")
+
+
+def test_large_members_fetch_overlapping_pages_and_preserve_order() -> None:
+    from threading import Barrier, Lock
+    barrier, lock = Barrier(8), Lock()
+    active = peak = 0
+    def transport(request):
+        nonlocal active, peak
+        page = int(request.url.params["pn"])
+        assert request.url.params["fid"] == "f12"
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        if 2 <= page <= 9:
+            barrier.wait(timeout=3)
+        with lock:
+            active -= 1
+        return reply([member_row(i) for i in range((page-1)*100, min(page*100, 3870))], 3870)
+    service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(transport))
+    result = service.fetch_members("BK0596", "concept")
+    assert [m.code for m in result.members] == [f"{i:06d}" for i in range(3870)]
+    assert peak == 8
+    assert service.fetch_members("BK0596", "concept").cached
+
+
+@pytest.mark.parametrize("failure", ["duplicate", "missing", "total", "http", "deadline"])
+def test_failed_member_pages_never_enter_cache(failure) -> None:
+    clock = [0.0]
+    first_calls = 0
+    def transport(request):
+        nonlocal first_calls
+        if request.url.params["pn"] == "1":
+            first_calls += 1
+            return reply([member_row(i) for i in range(100)], 101)
+        if failure == "http":
+            return httpx.Response(503)
+        if failure == "deadline":
+            clock[0] += 9
+        rows = [] if failure == "missing" else [member_row(0 if failure == "duplicate" else 100)]
+        return reply(rows, 102 if failure == "total" else 101)
+    service = EastmoneyBoardSnapshots(
+        transport=httpx.MockTransport(transport), clock=lambda: clock[0],
+    )
+    for _ in range(2):
+        with pytest.raises((ValueError, httpx.HTTPError, TimeoutError)):
+            service.fetch_members("BK0596", "concept")
+    assert first_calls == 2

@@ -70,3 +70,12 @@ for call_id, task in tasks.items():
 ---
 
 **上一篇：[57｜可访问的数据视图](57-accessible-stateful-data-view.md)**
+
+## 2026-09-28：大板块的分页也必须有界并发
+
+`src/data/providers/eastmoney_boards.py` 的成分股先取第一页确认总数，再用最多8个线程采集其余页。
+现有成员锁限制每个Provider仅一个批次；取消排队任务后等待正在执行的请求退出，随后关闭共享HTTP客户端，避免关闭仍被线程使用的连接。
+所有页共用8秒预算，每次I/O最多3秒。超时后的线程收尾仍可能延长同步函数退出，外层HTTP总截止继续生效。
+按代码f12稳定分页，结果按页码归并；数量变化、缺页、重复代码、超时都拒绝发布和缓存。
+真实BK0596由39页串行超时改善为3.96秒/3874条，但目录502仍会阻塞整个详情：局部采集成功不能当成端到端成功。
+自己试试：运行 `python -m pytest tests/test_data/test_eastmoney_boards.py -q`，观察Barrier测试如何证明8个页面同时执行。
