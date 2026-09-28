@@ -239,3 +239,41 @@ def test_failed_member_pages_never_enter_cache(failure) -> None:
         with pytest.raises((ValueError, httpx.HTTPError, TimeoutError)):
             service.fetch_members("BK0596", "concept")
     assert first_calls == 2
+
+
+@pytest.mark.parametrize("failure", [None, "code", "name", "category", "duplicate", "time", "http"])
+def test_single_board_identity_and_quote_are_verified(failure) -> None:
+    def transport(request):
+        if request.url.path.endswith("sidemenu_new.json"):
+            identity = {"code": "BK0596", "name": "融资融券", "market": 90,
+                        "type": 1 if failure == "category" else 3}
+            rows = [identity] * (2 if failure == "duplicate" else 1)
+            return httpx.Response(200, json={"bklist": rows})
+        assert request.url.params["fltt"] == "2"
+        assert request.url.params["secid"] == "90.BK0596"
+        if failure == "http":
+            return httpx.Response(502)
+        return httpx.Response(200, json={"rc": 0, "data": {
+            "f57": "BK0001" if failure == "code" else "BK0596",
+            "f58": "wrong" if failure == "name" else "融资融券",
+            "f86": None if failure == "time" else 1788507572,
+            "f170": -2.43, "f62": 250000000,
+        }})
+    service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(transport))
+    if failure:
+        with pytest.raises((ValueError, httpx.HTTPError)):
+            service.fetch_detail("BK0596")
+    else:
+        result = service.fetch_detail("BK0596")
+        assert result is not None and result.kind == "concept"
+        assert result.quotes[0].change_pct == -2.43
+        assert result.quotes[0].fund_flow == 250000000
+        assert result.quotes[0].as_of.isoformat() == "2026-09-04T15:39:32+08:00"
+
+
+def test_single_unknown_board_does_not_fetch_quote() -> None:
+    def transport(request):
+        assert request.url.path.endswith("sidemenu_new.json")
+        return httpx.Response(200, json={"bklist": [{"code": "BK0001"}]})
+    service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(transport))
+    assert service.fetch_detail("BK0596") is None

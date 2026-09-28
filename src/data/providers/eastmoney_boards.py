@@ -136,6 +136,61 @@ class EastmoneyBoardSnapshots:
         finally:
             self._members_lock.release()
 
+    def fetch_detail(self, board_code: str) -> BoardSnapshot | None:
+        """Resolve a board using the official directory and same-host single quote.
+
+        This path is independent of the full ranking endpoint. Never infer a
+        category from a name or publish a quote whose identity disagrees.
+        """
+        if re.fullmatch(r"BK\d{4}", board_code) is None:
+            raise ValueError("invalid board code")
+        deadline = self._clock() + BOARD_FETCH_SECONDS
+        with httpx.Client(
+            transport=self._transport,
+            headers={"Referer": "https://quote.eastmoney.com/", "User-Agent": "Mozilla/5.0"},
+        ) as client:
+            def get(url: str, params: dict[str, str] | None = None) -> Any:
+                remaining = deadline - self._clock()
+                if remaining <= 0:
+                    raise TimeoutError("board identity deadline exceeded")
+                response = client.get(url, params=params, timeout=min(3.0, remaining))
+                response.raise_for_status()
+                if self._clock() > deadline:
+                    raise TimeoutError("board identity deadline exceeded")
+                return response.json()
+
+            catalog = get("https://quote.eastmoney.com/center/api/sidemenu_new.json")
+            rows = catalog.get("bklist") if isinstance(catalog, dict) else None
+            if not isinstance(rows, list) or not rows or any(
+                not isinstance(row, dict) or not isinstance(row.get("code"), str)
+                for row in rows
+            ):
+                raise ValueError("invalid official board directory")
+            matches = [row for row in rows if row["code"] == board_code]
+            if not matches:
+                return None
+            if len(matches) != 1:
+                raise ValueError("ambiguous official board identity")
+            identity = matches[0]
+            if identity.get("market") != 90 or identity.get("type") not in (2, 3):
+                raise ValueError("unsupported official board category")
+            kind: BoardKind = "industry" if identity["type"] == 2 else "concept"
+            payload = get("https://push2delay.eastmoney.com/api/qt/stock/get", {
+                "secid": f"90.{board_code}", "fltt": "2",
+                "fields": "f57,f58,f86,f170,f62",
+            })
+            data = payload.get("data") if isinstance(payload, dict) else None
+            if (not isinstance(payload, dict) or payload.get("rc") != 0
+                    or not isinstance(data, dict)):
+                raise ValueError("invalid single board quote")
+            if data.get("f57") != board_code or data.get("f58") != identity.get("name"):
+                raise ValueError("board quote/directory identity mismatch")
+            quote = self._quote({
+                "f12": data["f57"], "f13": 90, "f14": data["f58"],
+                "f124": data.get("f86"), "f3": data.get("f170"), "f62": data.get("f62"),
+            })
+            return BoardSnapshot(kind=kind, quotes=(quote,), fetched_at=datetime.now(SHANGHAI))
+
     def _fetch_complete(self, kind: BoardKind, deadline: float) -> BoardSnapshot:
         quotes: list[BoardQuoteSnapshot] = []
         seen: set[str] = set()

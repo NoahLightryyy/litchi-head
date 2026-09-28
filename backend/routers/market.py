@@ -296,7 +296,10 @@ def _market_source_diagnostics(
 
 def _board_snapshot_frame(kind: BoardKind) -> pd.DataFrame:
     """Adapt the frozen snapshot model to this router's internal tabular pipeline."""
-    snapshot: BoardSnapshot = board_snapshots.fetch(kind)
+    return _snapshot_frame(board_snapshots.fetch(kind))
+
+
+def _snapshot_frame(snapshot: BoardSnapshot) -> pd.DataFrame:
     frame = pd.DataFrame([
         {
             "板块代码": quote.code,
@@ -317,6 +320,13 @@ def _board_snapshot_frame(kind: BoardKind) -> pd.DataFrame:
         "source": snapshot.source,
     })
     return frame
+
+
+def _fetch_single_board_snapshot(sector_id: str) -> tuple[BoardKind, pd.Series] | None:
+    snapshot = board_snapshots.fetch_detail(sector_id)
+    if snapshot is None:
+        return None
+    return snapshot.kind, _snapshot_frame(snapshot).iloc[0]
 
 
 def _fetch_industry_board_snapshot() -> pd.DataFrame:
@@ -748,6 +758,11 @@ async def get_sector_detail(sector_id: str):
                 matched = frame[frame["板块代码"].astype(str) == sector_id]
                 if not matched.empty:
                     matches.append((kind, matched.iloc[0]))
+            if not matches and board_failures:
+                # Full rankings must not block an independently verified board.
+                single = await _sector_source_runner.run(_fetch_single_board_snapshot, sector_id)
+                if single is not None:
+                    matches.append(single)
             if not matches:
                 if board_failures:
                     failure_code = (

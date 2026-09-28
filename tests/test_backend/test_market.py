@@ -43,6 +43,13 @@ SHANGHAI = ZoneInfo("Asia/Shanghai")
 INDEX_AS_OF = datetime(2026, 8, 27, 14, 11, 23, tzinfo=SHANGHAI)
 
 
+@pytest.fixture(autouse=True)
+def isolated_single_board_lookup():
+    # Error-path tests must never reach the real official directory.
+    with patch("backend.routers.market._fetch_single_board_snapshot", return_value=None):
+        yield
+
+
 class StubIndexQuoteService:
     def __init__(self, result: IndexQuoteCollection) -> None:
         self.result = result
@@ -1069,3 +1076,40 @@ def test_homepage_market_openapi_freezes_status_and_failed_response(client):
     ]
     assert detail_error["retryable"]["const"] is True
     assert detail_error["retry_mode"]["const"] == "client_controlled"
+
+
+def test_sector_detail_survives_failed_full_rankings(client):
+    board = pd.Series({"板块代码": "BK0596", "板块名称": "融资融券", "涨跌幅": -2.43,
+                       "主力净流入-净额": 2.5, "数据时间": INDEX_AS_OF})
+    with (
+        patch("backend.routers.market._fetch_industry_board_snapshot",
+              side_effect=ValueError("502")),
+        patch("backend.routers.market._fetch_concept_board_snapshot",
+              side_effect=ValueError("502")),
+        patch("backend.routers.market._fetch_single_board_snapshot",
+              return_value=("concept", board)) as lookup,
+        patch("backend.routers.market._fetch_board_members_snapshot",
+              return_value=make_board_stocks_df()),
+    ):
+        response = client.get("/api/market/sector/BK0596")
+    assert response.status_code == 200
+    lookup.assert_called_once_with("BK0596")
+    assert response.json()["data"]["name"] == "融资融券"
+    assert response.json()["data"]["change_pct"] == -2.43
+    assert response.json()["data"]["stocks"]
+
+
+def test_sector_detail_rejects_failed_single_quote(client):
+    with (
+        patch("backend.routers.market._fetch_industry_board_snapshot",
+              side_effect=ValueError("502")),
+        patch("backend.routers.market._fetch_concept_board_snapshot",
+              side_effect=ValueError("502")),
+        patch("backend.routers.market._fetch_single_board_snapshot",
+              side_effect=ValueError("identity mismatch")),
+        patch("backend.routers.market._fetch_board_members_snapshot") as members,
+    ):
+        response = client.get("/api/market/sector/BK0596")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "MARKET_SECTOR_DETAIL_FAILED"
+    members.assert_not_called()
