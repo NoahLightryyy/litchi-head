@@ -114,7 +114,7 @@ export interface ChainEvidence {
 export interface SectorDetail {
   id: string;
   name: string;
-  change_pct: number;
+  change_pct: number | null;
   fund_flow: number | null;
   heat: "high" | "medium" | "low";
   chain_map: ChainStage[];

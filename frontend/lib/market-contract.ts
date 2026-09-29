@@ -309,7 +309,7 @@ function isSectorDetail(value: unknown): value is SectorDetail {
     isRecord(value) &&
     isNonEmptyString(value.id) &&
     isNonEmptyString(value.name) &&
-    isFiniteNumber(value.change_pct) &&
+    (value.change_pct === null || isFiniteNumber(value.change_pct)) &&
     (value.fund_flow === null || isFiniteNumber(value.fund_flow)) &&
     (value.heat === "high" || value.heat === "medium" || value.heat === "low") &&
     Array.isArray(value.chain_map) &&
@@ -330,6 +330,12 @@ export function parseSectorDetailEnvelope(value: unknown): MarketEnvelope<Sector
     },
     () => false,
   );
+  if (envelope.data.change_pct === null && (
+    envelope.meta.status !== "partial" ||
+    !envelope.meta.limitations.some((item) => item.code === "BOARD_QUOTE_UNAVAILABLE")
+  )) {
+    throw new MarketContractError();
+  }
   const hasUnknownFundFlow = envelope.data.fund_flow === null ||
     envelope.data.stocks.some((item) => item.fund_flow === null);
   if (

@@ -233,3 +233,26 @@ test("产业链消费者验证身份、来源和关系引用，兼容旧响应",
   }
   assert.equal(parseSectorDetailEnvelope({ data: { ...data, chain_evidence: null }, meta: baseMeta }).data.chain_evidence, null);
 });
+
+
+test("板块报价缺失时保留成分股，要求partial与明确诊断", () => {
+  const envelope = {
+    data: { id: "BK0596", name: "融资融券", change_pct: null, fund_flow: null,
+      heat: "medium", chain_map: [], ai_analysis: "", stocks: [
+        {code: "000001", name: "平安银行", price: 10, change_pct: 1, fund_flow: 2, ai_rating: "B"},
+      ] },
+    meta: { ...baseMeta, status: "partial", limitations: [
+      {code: "BOARD_QUOTE_UNAVAILABLE", message: "板块行情暂不可用", index_code: null},
+      {code: "FUND_FLOW_UNAVAILABLE", message: "暂无数据", index_code: null},
+    ] },
+  };
+  const parsed = parseSectorDetailEnvelope(envelope);
+  assert.equal(parsed.data.change_pct, null);
+  assert.equal(parsed.data.stocks.length, 1);
+  assert.throws(() => parseSectorDetailEnvelope({ ...envelope,
+    meta: {...envelope.meta, status: "success"} }), MarketContractError);
+  assert.throws(() => parseSectorDetailEnvelope({ ...envelope,
+    meta: {...envelope.meta, limitations: envelope.meta.limitations.slice(1)} }), MarketContractError);
+  assert.throws(() => parseSectorDetailEnvelope({ ...envelope,
+    data: {...envelope.data, change_pct: "暂无数据"} }), MarketContractError);
+});

@@ -2,7 +2,7 @@
 
 interface SectorHeaderProps {
   name: string;
-  changePct: number;
+  changePct: number | null;
   fundFlow: number | null;
   heat: "high" | "medium" | "low";
 }
@@ -15,8 +15,8 @@ export function SectorHeader({ name, changePct, fundFlow, heat }: SectorHeaderPr
   return (
     <div className="flex items-center gap-4 flex-wrap">
       <h1 className="text-xl font-bold text-text-primary">{name}</h1>
-      <span className={`font-number text-lg ${changePct >= 0 ? "text-accent-green" : "text-accent-red"}`}>
-        {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
+      <span className={`font-number text-lg ${changePct === null ? "text-text-muted" : changePct >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+        {changePct === null ? "涨跌幅 暂无数据" : `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`}
       </span>
       <span className="text-sm text-text-secondary">
         主力净流入{" "}
