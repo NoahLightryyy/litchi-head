@@ -613,6 +613,25 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
         timeout=DATA_TIMEOUT,
     )
 
+    # Display-only recovery: never feed historical snapshots into detail/AI collectors.
+    restored_kinds: list[str] = []
+    store = board_snapshots.store
+    if store is not None:
+        for kind in ("industry", "concept"):
+            if not board_frames[kind].empty:
+                continue
+            try:
+                stored = await run_sync(store.load, f"boards:{kind}")
+                if stored is not None and isinstance(stored.snapshot, BoardSnapshot):
+                    board_frames[kind] = _snapshot_frame(
+                        stored.snapshot.model_copy(update={"cached": True})
+                    )
+                    restored_kinds.append(kind)
+                    if kind not in failed_sources:
+                        failed_sources.append(kind)
+            except Exception:
+                logger.exception("Board display snapshot restore failed: category=%s", kind)
+
     audited_kinds: set[str] = set()
     snapshot_times: list[datetime] = []
     snapshot_cached = False
@@ -684,6 +703,13 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
             failed_sources=failed_sources,
         )
     limitations: list[MarketLimitation] = []
+    if restored_kinds:
+        limitations.append(MarketLimitation(
+            code="BOARD_HISTORY_ONLY",
+            message=("行情更新失败，当前包含上次成功的历史快照（"
+                     + "、".join(restored_kinds)
+                     + "）；排名仅反映所示数据时点，不代表当前行情，不用于实时决策"),
+        ))
     if audited_kinds:
         as_of_min = min(snapshot_times).isoformat() if snapshot_times else "未知"
         as_of_max = max(snapshot_times).isoformat() if snapshot_times else "未知"
@@ -722,7 +748,9 @@ async def get_sectors(sort: str = Query("fund_flow", description="排序维度")
         item.rank = rank
 
     status: MarketDataStatus = "empty" if not items else (
-        "partial" if failed_sources or limitations else "success"
+        "stale" if restored_kinds else (
+            "partial" if failed_sources or limitations else "success"
+        )
     )
     return {
         "data": [i.model_dump() for i in items],

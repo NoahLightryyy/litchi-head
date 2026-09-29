@@ -97,3 +97,5 @@ for call_id, task in tasks.items():
 `src/data/board_store.py`将成功payload/hash和last_attempt/failures分开：失败仅增加失败信息；事务提交才替换成功快照。重开数据库时重新校验hash、类型和身份。迟到成功可以增加已有成功的版本，但不能消除时间更晚的失败诊断。
 `board_runtime.warm_boards`用shield保护正在运行的I/O，取消时等待有界工作收尾，再退出服务，避免孤儿线程继续写数据。后台采集不意味着缓存自动满足实时性；读取陈旧数据的展示与风控策略仍须单独冻结。
 自己试试：运行tests/test_data/test_board_store.py，查看断源后重开、损坏校验和关闭等待测试。
+
+首页恢复示例：backend/routers/market.py 的 get_sectors 只在展示边界读取持久快照；stale 与原始 as_of 一起保留。缓存恢复不能放在共享 Provider.fetch 内，否则其他调用方可能把历史数据当实时证据。首次无缓存和损坏仍失败，见 tests/test_backend/test_board_display_restore.py。
