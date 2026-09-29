@@ -310,3 +310,7 @@ API字段、错误码、前端文案均未改。端到端验收未通过：行�
 
 用户“继续”确认9/28提出的方案。GET /api/market/sector/{id}：SectorDetailResp.change_pct 改为number|null（百分数），fund_flow仍为number|null（亿元）。官方身份有效且成分股采集成功时，单报价失败返回200/meta.status=partial，BOARD_QUOTE_UNAVAILABLE；两个板块指标为null，仍有name/stocks，不从个股推算指数。身份失败或成分股采集失败仍503，原错误码与client_controlled重试不变。无来源时间则不伪造；正常报价字段不变。
 前端需放宽详情change_pct的严格解析（榜单/个股维持number），缺失显示“暂无数据”；局部说明为“板块行情暂不可用，已展示核验名称和成分股；缺失指标暂无数据”。专项110 passed，ruff/pyright通过。先提交本契约，再消费前端。
+
+## 2026-09-29 数据可靠性专项下发
+
+主责：DR-03 契约冻结与本地读取。职责、上下游、状态与验收统一见[专项计划](../00-cross-cutting/DATA-RELIABILITY-PLAN.md)。当前为已登记待接单（前端正式接线待新契约）；不能把本条当作实现完成。复用现有ADR-012与TD-081，禁止未经批准改新源/阈值/交易门禁；反馈执行会话、隔离分支、输入版本、交付与阻塞。
