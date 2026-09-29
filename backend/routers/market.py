@@ -166,7 +166,7 @@ class SectorDetailResp(BaseModel):
     """板块详情（匹配 SectorDetail 类型）"""
     id: str
     name: str
-    change_pct: float = 0.0
+    change_pct: float | None = Field(default=None, description="板块涨跌幅，缺报价为null")
     fund_flow: float | None = Field(default=None, description="主力净流入，单位亿元")
     heat: str = "medium"
     chain_map: list[ChainStageResp] = Field(default_factory=list)
@@ -326,7 +326,16 @@ def _fetch_single_board_snapshot(sector_id: str) -> tuple[BoardKind, pd.Series] 
     snapshot = board_snapshots.fetch_detail(sector_id)
     if snapshot is None:
         return None
-    return snapshot.kind, _snapshot_frame(snapshot).iloc[0]
+    quote = snapshot.quote
+    return snapshot.kind, pd.Series({
+        "板块代码": snapshot.code, "板块名称": snapshot.name,
+        "涨跌幅": quote.change_pct if quote is not None else None,
+        "主力净流入-净额": (
+            quote.fund_flow / 100_000_000
+            if quote is not None and quote.fund_flow is not None else None
+        ),
+        "数据时间": quote.as_of if quote is not None else None,
+    })
 
 
 def _fetch_industry_board_snapshot() -> pd.DataFrame:
@@ -819,7 +828,7 @@ async def get_sector_detail(sector_id: str):
     heat = _calc_heat(stocks_df)
 
     # 板块涨跌幅 + 资金流
-    change_pct = safe_float(board_row.get("涨跌幅", 0.0))
+    change_pct = _nullable_board_number(board_row.get("涨跌幅"))
     fund_flow = _nullable_board_number(board_row.get("主力净流入-净额"))
 
     # 成分股列表
@@ -878,6 +887,11 @@ async def get_sector_detail(sector_id: str):
             code="CHAIN_EVIDENCE_INVALID" if chain_error else "CHAIN_MAP_UNAVAILABLE",
             message=("产业链资料校验失败，暂不展示" if chain_error
                      else "该板块尚未收录可核验的产业链资料"),
+        ))
+    if change_pct is None:
+        limitations.append(MarketLimitation(
+            code="BOARD_QUOTE_UNAVAILABLE",
+            message="板块行情暂不可用，已展示核验名称和成分股；缺失指标暂无数据",
         ))
     stock_fund_flow_missing = (
         not stocks_df.empty

@@ -48,6 +48,15 @@ class BoardSnapshot(BaseModel):
     possibly_delayed: Literal[True] = True
 
 
+class BoardDetailSnapshot(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    code: str = Field(pattern=r"^BK\d{4}$")
+    name: str = Field(min_length=1)
+    kind: BoardKind
+    quote: BoardQuoteSnapshot | None = None
+
+
 class BoardMemberSnapshot(BaseModel):
     model_config = ConfigDict(frozen=True, allow_inf_nan=False)
 
@@ -136,7 +145,7 @@ class EastmoneyBoardSnapshots:
         finally:
             self._members_lock.release()
 
-    def fetch_detail(self, board_code: str) -> BoardSnapshot | None:
+    def fetch_detail(self, board_code: str) -> BoardDetailSnapshot | None:
         """Resolve a board using the official directory and same-host single quote.
 
         This path is independent of the full ranking endpoint. Never infer a
@@ -175,21 +184,26 @@ class EastmoneyBoardSnapshots:
             if identity.get("market") != 90 or identity.get("type") not in (2, 3):
                 raise ValueError("unsupported official board category")
             kind: BoardKind = "industry" if identity["type"] == 2 else "concept"
-            payload = get("https://push2delay.eastmoney.com/api/qt/stock/get", {
-                "secid": f"90.{board_code}", "fltt": "2",
-                "fields": "f57,f58,f86,f170,f62",
-            })
-            data = payload.get("data") if isinstance(payload, dict) else None
-            if (not isinstance(payload, dict) or payload.get("rc") != 0
-                    or not isinstance(data, dict)):
-                raise ValueError("invalid single board quote")
-            if data.get("f57") != board_code or data.get("f58") != identity.get("name"):
-                raise ValueError("board quote/directory identity mismatch")
-            quote = self._quote({
-                "f12": data["f57"], "f13": 90, "f14": data["f58"],
-                "f124": data.get("f86"), "f3": data.get("f170"), "f62": data.get("f62"),
-            })
-            return BoardSnapshot(kind=kind, quotes=(quote,), fetched_at=datetime.now(SHANGHAI))
+            detail = BoardDetailSnapshot(code=board_code, name=identity.get("name"), kind=kind)
+            try:
+                payload = get("https://push2delay.eastmoney.com/api/qt/stock/get", {
+                    "secid": f"90.{board_code}", "fltt": "2",
+                    "fields": "f57,f58,f86,f170,f62",
+                })
+                data = payload.get("data") if isinstance(payload, dict) else None
+                if (not isinstance(payload, dict) or payload.get("rc") != 0
+                        or not isinstance(data, dict)):
+                    raise ValueError("invalid single board quote")
+                if data.get("f57") != board_code or data.get("f58") != identity.get("name"):
+                    raise ValueError("board quote/directory identity mismatch")
+                quote = self._quote({
+                    "f12": data["f57"], "f13": 90, "f14": data["f58"],
+                    "f124": data.get("f86"), "f3": data.get("f170"), "f62": data.get("f62"),
+                })
+            except (httpx.HTTPError, ValueError, TimeoutError):
+                logger.exception("Single board quote unavailable: board=%s", board_code)
+                return detail
+            return detail.model_copy(update={"quote": quote})
 
     def _fetch_complete(self, kind: BoardKind, deadline: float) -> BoardSnapshot:
         quotes: list[BoardQuoteSnapshot] = []

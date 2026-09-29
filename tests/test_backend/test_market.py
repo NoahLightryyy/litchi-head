@@ -1113,3 +1113,25 @@ def test_sector_detail_rejects_failed_single_quote(client):
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "MARKET_SECTOR_DETAIL_FAILED"
     members.assert_not_called()
+
+
+def test_sector_missing_quote_preserves_verified_identity_and_members(client):
+    board = pd.Series({"板块代码": "BK0596", "板块名称": "融资融券", "涨跌幅": None,
+                       "主力净流入-净额": None, "数据时间": None})
+    with (
+        patch("backend.routers.market._fetch_industry_board_snapshot",
+              side_effect=ValueError("502")),
+        patch("backend.routers.market._fetch_concept_board_snapshot",
+              side_effect=ValueError("502")),
+        patch("backend.routers.market._fetch_single_board_snapshot",
+              return_value=("concept", board)),
+        patch("backend.routers.market._fetch_board_members_snapshot",
+              return_value=make_board_stocks_df()),
+    ):
+        response = client.get("/api/market/sector/BK0596")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["data"]["name"] == "融资融券" and body["data"]["stocks"]
+    assert body["data"]["change_pct"] is None and body["data"]["fund_flow"] is None
+    assert body["meta"]["status"] == "partial"
+    assert "BOARD_QUOTE_UNAVAILABLE" in {x["code"] for x in body["meta"]["limitations"]}

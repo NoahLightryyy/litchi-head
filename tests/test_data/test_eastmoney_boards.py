@@ -260,15 +260,20 @@ def test_single_board_identity_and_quote_are_verified(failure) -> None:
             "f170": -2.43, "f62": 250000000,
         }})
     service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(transport))
-    if failure:
+    if failure in {"category", "duplicate"}:
         with pytest.raises((ValueError, httpx.HTTPError)):
             service.fetch_detail("BK0596")
     else:
         result = service.fetch_detail("BK0596")
         assert result is not None and result.kind == "concept"
-        assert result.quotes[0].change_pct == -2.43
-        assert result.quotes[0].fund_flow == 250000000
-        assert result.quotes[0].as_of.isoformat() == "2026-09-04T15:39:32+08:00"
+        assert result.code == "BK0596" and result.name == "融资融券"
+        if failure:
+            assert result.quote is None
+        else:
+            assert result.quote is not None
+            assert result.quote.change_pct == -2.43
+            assert result.quote.fund_flow == 250000000
+            assert result.quote.as_of.isoformat() == "2026-09-04T15:39:32+08:00"
 
 
 def test_single_unknown_board_does_not_fetch_quote() -> None:
