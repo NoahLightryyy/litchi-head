@@ -256,3 +256,20 @@ test("板块报价缺失时保留成分股，要求partial与明确诊断", () =
   assert.throws(() => parseSectorDetailEnvelope({ ...envelope,
     data: {...envelope.data, change_pct: "暂无数据"} }), MarketContractError);
 });
+
+
+test("断源历史榜单保留时间、排序和用户可见限制", async () => {
+  const { marketNoticeFacts } = await import("../lib/market-notice.ts");
+  const value = {
+    data: [{ id: "BK0001", name: "历史板块", change_pct: 1.2, fund_flow: 1,
+      heat: "medium", top_stocks: [], rank: 1, category: "industry",
+      as_of: "2026-09-28T07:00:00Z", source: "eastmoney", snapshot_may_be_delayed: true }],
+    meta: { ...baseMeta, status: "stale", cached: true, failed_sources: ["industry", "concept"],
+      sort_requested: "fund_flow", sort_applied: "fund_flow",
+      limitations: [{ code: "BOARD_HISTORY_ONLY", message: "历史排名不代表当前行情", index_code: null }] },
+  };
+  const parsed = parseSectorsEnvelope(value);
+  assert.equal(parsed.data[0].as_of, "2026-09-28T07:00:00Z");
+  assert.equal(parsed.meta.status, "stale");
+  assert.ok(marketNoticeFacts(parsed.meta).includes("历史排名不代表当前行情"));
+});
