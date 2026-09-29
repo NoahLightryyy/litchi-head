@@ -12,11 +12,14 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from threading import Lock
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from zoneinfo import ZoneInfo
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
+
+if TYPE_CHECKING:
+    from src.data.board_store import BoardSnapshotStore
 
 BoardKind = Literal["industry", "concept"]
 BOARD_SNAPSHOT_URL = "https://push2delay.eastmoney.com/api/qt/clist/get"
@@ -94,13 +97,22 @@ class EastmoneyBoardSnapshots:
     def __init__(
         self, *, transport: httpx.BaseTransport | None = None,
         clock: Callable[[], float] = time.monotonic,
+        store: BoardSnapshotStore | None = None,
     ) -> None:
+        self.store = store
         self._transport = transport
         self._clock = clock
         self._locks = {kind: Lock() for kind in ("industry", "concept")}
         self._cache: dict[BoardKind, tuple[BoardSnapshot, float]] = {}
         self._members_lock = Lock()
         self._members_cache: dict[str, tuple[BoardMembersSnapshot, float]] = {}
+
+    def _record_failure(self, key: str) -> None:
+        if self.store is not None:
+            try:
+                self.store.record_failure(key, attempted_at=datetime.now(SHANGHAI))
+            except Exception:
+                logger.exception("Board snapshot failure metadata could not be saved: key=%s", key)
 
     def fetch(self, kind: BoardKind) -> BoardSnapshot:
         if kind not in self._locks:
@@ -114,9 +126,12 @@ class EastmoneyBoardSnapshots:
                 return cached[0].model_copy(update={"cached": True})
             snapshot = self._fetch_complete(kind, deadline)
             if snapshot.quotes:
+                if self.store is not None:
+                    self.store.record_success(snapshot)
                 self._cache[kind] = (snapshot, self._clock() + BOARD_CACHE_SECONDS)
             return snapshot
         except Exception:
+            self._record_failure(f"boards:{kind}")
             logger.exception("Eastmoney board snapshot failed: category=%s", kind)
             raise
         finally:
@@ -135,11 +150,14 @@ class EastmoneyBoardSnapshots:
                 return cached[0].model_copy(update={"cached": True})
             snapshot = self._fetch_members_complete(board_code, kind, deadline)
             if snapshot.members:
+                if self.store is not None:
+                    self.store.record_success(snapshot)
                 self._members_cache[board_code] = (
                     snapshot, self._clock() + BOARD_CACHE_SECONDS,
                 )
             return snapshot
         except Exception:
+            self._record_failure(f"members:{kind}:{board_code}")
             logger.exception("Eastmoney board members failed: board=%s", board_code)
             raise
         finally:

@@ -100,6 +100,11 @@ async def lifespan(app: FastAPI):
     poll_seconds = validate_news_poll_seconds(
         int(os.getenv("LITCHI_NEWS_POLL_SECONDS", str(DEFAULT_POLL_SECONDS)))
     )
+    from src.data.board_runtime import configure_board_store, warm_boards  # noqa: PLC0415
+
+    configure_board_store(market.board_snapshots)
+    board_task = asyncio.create_task(warm_boards(market.board_snapshots), name="board-warmup")
+    app.state.board_warmup_task = board_task
     news_task = asyncio.create_task(
         run_news_ingestion_loop(
             get_news_evidence_runtime(),
@@ -111,6 +116,13 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        board_task.cancel()
+        try:
+            with suppress(asyncio.CancelledError):
+                await board_task
+        except Exception:
+            logger.exception("Board warm-up task failed during shutdown")
+        app.state.board_warmup_task = None
         news_task.cancel()
         with suppress(asyncio.CancelledError):
             await news_task
