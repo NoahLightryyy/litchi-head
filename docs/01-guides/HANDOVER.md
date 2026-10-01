@@ -71,7 +71,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 部门 | 代码 | 状态 | 开放债务 | → 看这里 |
 |:-----|:-----|:----:|:--------:|:---------|
 | 🗄️ 数据管道部 | `src/data/` + `src/data/indicators/` | 🟡 | 5 | [HANDOVER](../06-departments/01-data/HANDOVER.md) |
-| 🎯 辩论引擎部 | `src/debate/` | 🟡 | 3 | [HANDOVER](../06-departments/02-debate-engine/HANDOVER.md) |
+| 🎯 辩论引擎部 | `src/debate/` | 🟡 | 4 | [HANDOVER](../06-departments/02-debate-engine/HANDOVER.md) |
 | 🤖 AI Agent 架构部 | `src/agents/` + `src/core/` | ✅ | 3 | [HANDOVER](../06-departments/03-ai-agents/HANDOVER.md) |
 | 🧠 记忆系统部 | `src/memory/` | 🟡 | 2 | [HANDOVER](../06-departments/04-memory-systems/HANDOVER.md) |
 | 🛡️ 风控管理部 | `src/risk/` | ✅ | 0 | [HANDOVER](../06-departments/05-risk-management/HANDOVER.md) |
@@ -107,7 +107,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 🔥 P0 | **C2 情绪数据层** — ✅ 已接入真实市场情绪数据（涨跌比+情绪评分），见 [2026-07-24-5 日志](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **R4 置信度量化机制** — ✅ 校准曲线映射 + aggregate_node + 前端可视化已完成；真实概率校准仍依赖 TD-074 连续结果样本，见 [R4](../04-changelog/logs/2026-07-24/2026-07-24-5.md) |
 | 🔥 P0 | **FD-001 基本面数据接入** — ✅ 全部完成：模型+Provider+多源财务数据+辩论注入+分析师增强+API 端点+前端财务 Tab | 全部门 ✅ | ~0 剩余 |
-| 🔥 P0 | **交易复盘看板（极简版）** — ⟳ 后端完成（27 tests ✅）+ 前端组件完成 + 辩论自动记录已接入 | 后端 API 部+前端部 | ~2 天 |
+| 🔥 P0 | **交易复盘看板（极简版）** — 不可变操作与前端采集完成；AI 快照核验核心完成、生产血缘待接；真实账户结果待确认 | 后端 API 部+前端部+辩论/Agent | 部分完成 |
 
 ### P1 — 提升赚钱概率（8 月底前）
 

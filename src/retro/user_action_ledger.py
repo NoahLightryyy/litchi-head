@@ -65,6 +65,14 @@ class UserActionLedger:
         except (OSError, sqlite3.Error, ValueError) as exc:
             raise UserActionLedgerError("user action ledger read failed") from exc
 
+    async def get_event(self, *, user_id: str, event_id: str) -> UserActionEvent | None:
+        """Return one event only when it belongs to ``user_id``."""
+        await self._ensure_schema()
+        try:
+            return await asyncio.to_thread(self._get_sync, user_id, event_id)
+        except (OSError, sqlite3.Error, ValueError) as exc:
+            raise UserActionLedgerError("user action ledger read failed") from exc
+
     async def _ensure_schema(self) -> None:
         if self._initialized:
             return
@@ -211,6 +219,19 @@ class UserActionLedger:
                 [*params, limit, offset],
             ).fetchall()
         return [UserActionEvent.model_validate_json(row["payload_json"]) for row in rows], total
+
+    def _get_sync(self, user_id: str, event_id: str) -> UserActionEvent | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload_json FROM user_action_events
+                WHERE user_id = ? AND event_id = ?
+                """,
+                (user_id, event_id),
+            ).fetchone()
+        if row is None:
+            return None
+        return UserActionEvent.model_validate_json(row["payload_json"])
 
 
 __all__ = [
