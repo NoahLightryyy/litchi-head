@@ -104,3 +104,8 @@ for call_id, task in tasks.items():
 
 ### 补字段不等于补事实
 本项目src/data/providers/sina_boards.py对分页前后服务时间做稳定性检查，但该时间只证明服务更新标记没变，不证明每条报价同时产生。backend/routers/market.py明确把它放在service_updated_at，as_of仍null；netamount进入net_flow，主力fund_flow仍null。frontend/lib/sector-feed.ts只对明确上游失败切换分类源，不能把所有异常都吞成备用成功。自己试试：运行tests/test_data/test_sina_boards.py查看缺页、重复、nan、错分类、跨刷新时间的拒绝路径，再运行frontend/tests/sector-feed.test.mts观察取消与后端断连为什么不触发换源。
+
+
+### 来源链接不应替代产品导航
+`frontend/lib/sector-navigation.ts`以来源命名空间生成内部URL；新浪new_*/gn_*不强行转换成BK。`src/data/providers/sina_members.py`使用官方bankuai=分类/代码并分页，逐页校验数值和服务标记，但不把分页之和当作整板块事实。`frontend/app/sector/sina/[code]/page.tsx`将概览与成员错误隔离。确定性统计与LLM输出应使用不同标签：当前/brief只汇总指数，显示“指数摘要”。
+自己试试：运行frontend/tests/sector-navigation.test.mts，确认同名跨源板块不混排；请求 `/api/market/sina/sector/new_swzz/stocks?page=8` 并观察20条上限和余数；比较服务时间字段与行情as_of，解释为什么前者不能填进后者。

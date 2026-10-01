@@ -8,6 +8,7 @@ import {
   parseMacroBriefEnvelope,
   parseSectorDetailEnvelope,
   parseSectorsEnvelope,
+  parseSinaMembersEnvelope,
 } from "../lib/market-contract.ts";
 
 const baseMeta = {
@@ -288,4 +289,19 @@ test("新浪补充字段必须区分主力、净流入和服务时间", () => {
     assert.throws(() => parseSectorsEnvelope({data: [{...data[0], ...changes}], meta}), MarketContractError);
   }
   assert.throws(() => parseSectorsEnvelope({data, meta: {...meta, status: "success"}}), MarketContractError);
+});
+
+
+test("新浪成分股核对板块和页码，拒绝缺页、伪实时及非法行情", () => {
+  const value = { data: {source: "sina", board_code: "new_swzz", page: 2, page_size: 20, total: 21,
+    stocks: [{code: "300199", name: "翰宇药业", price: 23.92, change_pct: 4.9, net_flow: 3.24}],
+    service_updated_at: "2026-09-30T15:01:48+08:00", cached: false},
+    meta: {...baseMeta, status: "partial", limitations: [{code: "SINA_MEMBER_BASIS", message: "新浪口径", index_code: null}]}};
+  assert.equal(parseSinaMembersEnvelope(value, "new_swzz", 2).data.total, 21);
+  assert.throws(() => parseSinaMembersEnvelope(value, "gn_other", 2), MarketContractError);
+  assert.throws(() => parseSinaMembersEnvelope(value, "new_swzz", 1), MarketContractError);
+  for (const stocks of [[], [{...value.data.stocks[0], net_flow: NaN}], [{...value.data.stocks[0], code: "bad"}]]) {
+    assert.throws(() => parseSinaMembersEnvelope({...value, data: {...value.data, stocks}}, "new_swzz", 2), MarketContractError);
+  }
+  assert.throws(() => parseSinaMembersEnvelope({...value, meta: {...value.meta, status: "success"}}, "new_swzz", 2), MarketContractError);
 });

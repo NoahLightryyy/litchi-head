@@ -13,6 +13,7 @@ import type {
   SectorItem,
   SectorDetail,
   SectorStock,
+  SinaMemberPage,
 } from "@/lib/types/market";
 
 const MARKET_STATUSES = new Set<MarketDataStatus>([
@@ -377,4 +378,22 @@ export function parseHotNewsEnvelope(value: unknown): MarketEnvelope<HotNewsItem
     (data) => parseArray(data, isHotNews),
     (data) => data.length === 0,
   );
+}
+
+export function parseSinaMembersEnvelope(value: unknown, code: string, page: number): MarketEnvelope<SinaMemberPage> {
+  const envelope = parseEnvelope(value, (data) => {
+    if (!isRecord(data) || data.source !== "sina" || data.board_code !== code ||
+      data.page !== page || data.page_size !== 20 || !isNonNegativeInteger(data.total) ||
+      data.total > 10000 || !isTimestamp(data.service_updated_at) || typeof data.cached !== "boolean" ||
+      !Array.isArray(data.stocks) || data.stocks.length !== Math.max(0, Math.min(20, data.total - (page - 1) * 20)) ||
+      !data.stocks.every((s: unknown) => isRecord(s) && typeof s.code === "string" && /^\d{6}$/.test(s.code) &&
+        isNonEmptyString(s.name) && isFiniteNumber(s.price) && s.price >= 0 &&
+        isFiniteNumber(s.change_pct) && isFiniteNumber(s.net_flow)) ||
+      new Set(data.stocks.map(s => s.code)).size !== data.stocks.length) throw new MarketContractError();
+    return data as unknown as SinaMemberPage;
+  }, (data) => data.stocks.length === 0);
+  if ((envelope.meta.status !== "partial" && envelope.meta.status !== "empty") ||
+    !envelope.meta.limitations.some(l => l.code === "SINA_MEMBER_BASIS") ||
+    envelope.meta.cached !== envelope.data.cached) throw new MarketContractError();
+  return envelope;
 }

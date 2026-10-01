@@ -142,3 +142,14 @@ export interface HotNewsItem {
   source: string;
   url: string;
 }
+
+export interface SinaMemberPage {
+  source: "sina";
+  board_code: string;
+  page: number;
+  page_size: 20;
+  total: number;
+  stocks: { code: string; name: string; price: number; change_pct: number; net_flow: number }[];
+  service_updated_at: string;
+  cached: boolean;
+}

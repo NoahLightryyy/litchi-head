@@ -12,6 +12,7 @@ function useRouteMeta(pathname: string): { title: string } {
   if (titles[pathname]) return { title: titles[pathname] };
   if (pathname === "/industries") return { title: "行业研究" };
   if (pathname === "/retro") return { title: "研究与复盘" };
+  if (pathname.startsWith("/sector/sina/")) return { title: "板块研究 · 新浪分类" };
   if (pathname.startsWith("/sector/"))
     return { title: `板块 · ${pathname.slice(8)}` };
   if (pathname.startsWith("/stock/"))

@@ -108,11 +108,11 @@ export default function MacroPage() {
           />
         </section>
 
-        {/* AI 宏观简报 */}
+        {/* 指数摘要 */}
         <section className="col-span-1">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-4 h-4 text-accent-blue" />
-            <h2 className="text-sm font-semibold text-text-primary">AI 宏观简报</h2>
+            <h2 className="text-sm font-semibold text-text-primary">指数摘要</h2>
             <span className="text-xs text-text-muted ml-auto">自动生成</span>
           </div>
           <MacroBrief

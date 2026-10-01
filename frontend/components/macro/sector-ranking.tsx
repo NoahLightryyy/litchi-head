@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { sectorHref } from "@/lib/sector-navigation";
 import type { MarketMeta, SectorItem } from "@/lib/types/market";
 import { formatChangePct, changeColor } from "@/lib/utils";
 import {
@@ -118,7 +119,7 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
               <td className="px-4 py-3 text-text-muted text-xs">{s.rank}</td>
               <td className="px-4 py-3">
                 <div className="flex flex-col">
-                  {s.source === "sina" ? <a href={`https://money.finance.sina.com.cn/moneyflow/#!bk!${s.category === "industry" ? "0" : "1"}/${s.id.slice(5)}`} target="_blank" rel="noopener noreferrer" className="text-text-primary font-medium hover:underline">{s.name} ↗</a> : <Link href={`/sector/${s.id}`} className="text-text-primary font-medium hover:underline focus-visible:outline-2 focus-visible:outline-accent-blue">{s.name}</Link>}
+                  <Link href={sectorHref(s)} className="text-text-primary font-medium hover:underline focus-visible:outline-2 focus-visible:outline-accent-blue">{s.name}</Link>
                   <span className="text-xs text-text-muted">
                     {s.category === "industry" ? "行业" : "概念"}{s.source === "sina" && " · 新浪"}
                     {s.top_stocks.length > 0 && ` · ${s.top_stocks.slice(0, 2).join(" · ")}`}

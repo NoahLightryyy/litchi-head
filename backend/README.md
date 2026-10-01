@@ -55,7 +55,7 @@ backend/
 | GET | `/api/market/indices` | 三大指数实时行情 | ✅ |
 | GET | `/api/market/sectors` | 板块排行（含涨跌幅+主力净流入+热度和top_stocks） | ✅ TD-020 |
 | GET | `/api/market/sector/{id}` | 板块详情 + 产业链映射 + AI 分析 | ✅ TD-020 |
-| GET | `/api/market/brief` | AI 宏观简报 | ✅ |
+| GET | `/api/market/brief` | 指数摘要（行情汇总，非LLM） | ✅ |
 | GET | `/api/stocks/search` | 股票搜索 | ✅ |
 | GET | `/api/stocks/{code}/quote` | 个股实时行情 | ✅ |
 | GET | `/api/stocks/{code}/kline` | K 线数据 | ✅ |

@@ -19,7 +19,7 @@ class SinaMember(BaseModel):
     name: str = Field(min_length=1)
     price: float = Field(ge=0)
     change_pct: float
-    net_flow: float  # billions of CNY (亿元), not main-force flow
+    net_flow: float  # hundred-million CNY (亿元), not main-force flow
 
 
 class SinaMemberPage(BaseModel):

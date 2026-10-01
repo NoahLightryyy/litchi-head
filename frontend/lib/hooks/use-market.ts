@@ -15,7 +15,7 @@ export function useMarketIndices() {
   });
 }
 
-/* ── AI 宏观简报 ── */
+/* ── 指数摘要 ── */
 export function useMacroBrief() {
   return useQuery({
     queryKey: ["market", "brief"],

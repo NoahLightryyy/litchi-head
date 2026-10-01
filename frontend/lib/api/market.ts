@@ -7,6 +7,7 @@ import {
   parseMacroBriefEnvelope,
   parseSectorDetailEnvelope,
   parseSectorsEnvelope,
+  parseSinaMembersEnvelope,
 } from "@/lib/market-contract";
 
 /** 三大指数行情 */
@@ -14,7 +15,7 @@ export async function fetchMarketIndices(): Promise<MarketEnvelope<MarketIndex[]
   return parseIndicesEnvelope(await api.getRaw("/market/indices"));
 }
 
-/** AI 宏观简报 */
+/** 指数摘要 */
 export async function fetchMacroBrief(): Promise<MarketEnvelope<MacroBrief | null>> {
   return parseMacroBriefEnvelope(await api.getRaw("/market/brief"));
 }
@@ -39,4 +40,12 @@ export async function fetchSectorDetail(sectorId: string): Promise<MarketEnvelop
 /** 热点快讯 */
 export async function fetchHotNews(): Promise<MarketEnvelope<HotNewsItem[]>> {
   return parseHotNewsEnvelope(await api.getRaw("/market/hot-news"));
+}
+
+export async function fetchSinaSectors(signal?: AbortSignal) {
+  return parseSectorsEnvelope(await api.getRaw("/market/sectors", { source: "sina", sort: "net_flow" }, { signal }));
+}
+
+export async function fetchSinaMembers(code: string, page: number, signal?: AbortSignal) {
+  return parseSinaMembersEnvelope(await api.getRaw(`/market/sina/sector/${encodeURIComponent(code)}/stocks`, { page: String(page) }, { signal }), code, page);
 }
