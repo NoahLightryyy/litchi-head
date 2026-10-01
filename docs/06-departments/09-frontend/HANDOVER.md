@@ -6,6 +6,10 @@ last_updated: 2026-09-04 (TD-081 后端冻结待集成复验)
 
 # 🎨 前端部工作交接
 
+## 2026-10-01 侧会话：新闻主题速览
+
+独立分支 `codex/news-topic-cloud`，基线 1298ea4，worktree `news-topic-cloud/litchi-head`。首页 `NewsTopics` 提供标题主题词云、报道关注点、原文过滤及时间窗口。复用现有 HotNewsItem 契约，无新源/LLM；字段语义未变。独立预览 3003，未改 3001。专项6项、lint/build、Ruff/Pyright及实网点击验收通过，详见[日志](../../04-changelog/logs/2026-10-01/2026-10-01-news-topics.md)。尚未集成到主会话分支，不应把源码完成当成3001已上线。
+
 ## 当前状态
 
 ### 模块完成度

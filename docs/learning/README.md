@@ -107,3 +107,4 @@
 | 准备面试 | 全部通读一遍，重点练「自己试试」 |
 
 - [59 本机记录：校验、持久化与恢复](59-local-record-validation.md)
+- [61 新闻热点：词频不是市场方向](61-news-topic-counting.md)

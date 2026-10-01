@@ -8,6 +8,7 @@ import { MarketIndices } from "@/components/macro/market-indices";
 import { SectorRanking } from "@/components/macro/sector-ranking";
 import { MacroBrief } from "@/components/macro/macro-brief";
 import { MarketDataNotice } from "@/components/macro/market-data-notice";
+import { NewsTopics } from "@/components/macro/news-topics";
 
 /** 宏观总览主页面 */
 export default function MacroPage() {
@@ -131,7 +132,7 @@ export default function MacroPage() {
         <div className="flex items-center gap-2 mb-3">
           <Newspaper className="w-4 h-4 text-accent-blue" />
           <h2 className="text-sm font-semibold text-text-primary">热点快讯</h2>
-          <span className="text-xs text-text-muted ml-auto">实时市场动态</span>
+          <span className="text-xs text-text-muted ml-auto">主题提取 · 点击词云查看报道</span>
         </div>
         <div className="rounded-lg border border-bg-tertiary bg-bg-secondary divide-y divide-bg-tertiary">
           {newsQuery.isLoading ? (
@@ -150,22 +151,7 @@ export default function MacroPage() {
               <div className="px-4 pt-3">
                 <MarketDataNotice meta={newsQuery.data.meta} refreshError={newsQuery.isError} />
               </div>
-              <div className="max-h-64 overflow-y-auto">
-              {newsQuery.data.data.map((item, idx) => (
-                <a
-                  key={idx}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-4 py-2.5 hover:bg-bg-tertiary transition-colors"
-                >
-                  <p className="text-xs text-text-primary leading-relaxed line-clamp-2">{item.title}</p>
-                  <p className="text-[11px] text-text-muted mt-1">
-                    {item.source}{item.date ? ` · ${item.date}` : ""}
-                  </p>
-                </a>
-              ))}
-              </div>
+              <NewsTopics items={newsQuery.data.data} sampledAt={newsQuery.dataUpdatedAt} refreshFailed={newsQuery.isError} />
             </div>
           ) : (
             <div className="p-4">
