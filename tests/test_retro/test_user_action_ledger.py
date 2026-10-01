@@ -127,6 +127,15 @@ async def test_query_filters_without_cross_user_leakage(tmp_path) -> None:
     assert all(event.user_id == "u1" for event in events)
 
 
+@pytest.mark.asyncio
+async def test_get_event_enforces_user_ownership(tmp_path) -> None:
+    ledger = UserActionLedger(tmp_path / "actions.sqlite3")
+    event, _ = await ledger.append(user_id="user-a", action=_action())
+
+    assert await ledger.get_event(user_id="user-a", event_id=event.event_id) == event
+    assert await ledger.get_event(user_id="user-b", event_id=event.event_id) is None
+
+
 def test_money_facts_require_positive_values_and_explicit_currency() -> None:
     with pytest.raises(ValidationError, match="greater than 0"):
         _action(quantity=Decimal("0"))

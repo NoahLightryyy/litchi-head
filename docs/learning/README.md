@@ -109,3 +109,4 @@
 - [59 本机记录：校验、持久化与恢复](59-local-record-validation.md)
 - [60 时间范围缩放：换视图不等于造数据](60-semantic-price-zoom.md)
 - [61 不可变用户操作账本：点击一次，事实只能追加一次](61-immutable-user-action-ledger.md)
+- [62 决策血缘失败关闭：有分数，不等于可验证](62-fail-closed-decision-provenance.md)
