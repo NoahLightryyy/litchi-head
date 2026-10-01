@@ -64,7 +64,7 @@ export function FinancialPanel({ code }: FinancialPanelProps) {
       )}
 
       {/* 估值概览 */}
-      {valuation && <ValuationGrid valuation={valuation} />}
+      {valuation ? <ValuationGrid valuation={valuation} /> : <p className="text-xs text-text-muted">估值暂未计算：尚缺可核验时点及股本范围的总市值。</p>}
 
       {/* 最新财务指标（按行业过滤） */}
       {latest && (
@@ -147,7 +147,7 @@ function peColor(pe: number): string {
 interface SectionItem {
   id: string;
   label: string;
-  value: number;
+  value: number | null;
   suffix: string;
   goodDir: "up" | "down";
 }
@@ -250,12 +250,12 @@ function FinancialMetricsDetail({
 }
 
 function metricColor(item: SectionItem): string {
-  if (item.value <= 0) return "text-text-muted";
+  if (item.value === null || !Number.isFinite(item.value) || item.value <= 0) return "text-text-muted";
   return item.goodDir === "up" ? "text-accent-green" : "text-accent-gold";
 }
 
 function formatMetric(item: SectionItem): string {
-  if (item.value <= 0) return "--";
+  if (item.value === null || !Number.isFinite(item.value)) return "--";
   const val = item.value.toFixed(2);
   return `${val}${item.suffix}`;
 }
@@ -267,7 +267,7 @@ function HistoricalTable({ periods }: { periods: FinancialMetrics[] }) {
     { key: "report_date" as const, label: "报告期", format: (v: string) => v.slice(0, 7) },
     { key: "roe" as const, label: "ROE(%)", format: (v: number) => v.toFixed(1) },
     { key: "eps" as const, label: "EPS", format: (v: number) => v.toFixed(2) },
-    { key: "gross_margin" as const, label: "毛利率(%)", format: (v: number) => v.toFixed(1) },
+    { key: "gross_margin" as const, label: "毛利率(%)", format: (v: number | null) => v === null ? "—" : v.toFixed(1) },
     { key: "net_profit_margin" as const, label: "净利率(%)", format: (v: number) => v.toFixed(1) },
     { key: "debt_ratio" as const, label: "负债率(%)", format: (v: number) => v.toFixed(1) },
     { key: "revenue_growth" as const, label: "营收增长(%)", format: (v: number) => v.toFixed(1) },

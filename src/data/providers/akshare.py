@@ -5,6 +5,7 @@
 """
 
 import logging
+import math
 from datetime import datetime
 
 import akshare as ak
@@ -276,11 +277,21 @@ def _row_to_news(row: pd.Series, code: str) -> NewsItem:
     )
 
 
+def _optional_amount(value: object) -> float | None:
+    """Do not coerce absent financial facts to real zeros."""
+    try:
+        number = float(str(value))
+        return number if math.isfinite(number) else None
+    except (ValueError, TypeError):
+        return None
+
+
 def _row_to_financial(row: pd.Series, code: str) -> FinancialMetrics:
     """将 akshare 财务分析 DataFrame 行转换为 FinancialMetrics
 
     akshare stock_financial_analysis_indicator 返回约 86 列，
-    此函数提取关键指标，缺失列安全默认 0.0。
+    历史指标保留原契约；毛利率与营业收入缺失返回 None。
+    主营业务利润不能映射为营业收入。
     """
     return FinancialMetrics(
         stock_code=code,
@@ -290,7 +301,7 @@ def _row_to_financial(row: pd.Series, code: str) -> FinancialMetrics:
         operating_cf_per_share=safe_float(row.get("每股经营性现金流(元)", 0.0)),
         roe=safe_float(row.get("净资产收益率(%)", 0.0)),
         roa=safe_float(row.get("总资产利润率(%)", 0.0)),
-        gross_margin=safe_float(row.get("销售毛利率(%)", 0.0)),
+        gross_margin=_optional_amount(row.get("销售毛利率(%)")),
         net_profit_margin=safe_float(row.get("销售净利率(%)", 0.0)),
         revenue_growth=safe_float(row.get("主营业务收入增长率(%)", 0.0)),
         net_profit_growth=safe_float(row.get("净利润增长率(%)", 0.0)),
@@ -300,7 +311,7 @@ def _row_to_financial(row: pd.Series, code: str) -> FinancialMetrics:
         inventory_turnover=safe_float(row.get("存货周转率(次)", 0.0)),
         asset_turnover=safe_float(row.get("总资产周转率(次)", 0.0)),
         total_assets=safe_float(row.get("总资产(元)", 0.0)),
-        operating_revenue=safe_float(row.get("主营业务利润(元)", 0.0)),
+        operating_revenue=_optional_amount(row.get("营业收入(元)")),
     )
 
 

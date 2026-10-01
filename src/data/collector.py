@@ -18,6 +18,7 @@
 import logging
 import time
 from collections import defaultdict
+from datetime import date
 from threading import RLock
 from typing import Literal
 
@@ -50,7 +51,6 @@ TTL_NEWS = 120          # 新闻：2 分钟
 TTL_BOARDS = 3600       # 板块：1 小时
 TTL_CAPITAL_FLOW = 300  # 资金流向：5 分钟
 TTL_FINANCIALS = 3600   # 财务数据：1 小时（日内不变）
-TTL_VALUATION = 300     # 估值比率：5 分钟（随股价变化）
 TTL_INDUSTRY = 86400    # 行业分类：1 天（不会天天变）
 
 
@@ -503,6 +503,10 @@ class DataCollector:
         t0 = time.time()
         try:
             result = self._source.get_financials(code)
+            # Providers do not consistently return reverse chronology. Normalize
+            # before caching/API truncation and valuation's latest-period lookup.
+            result = sorted(result, key=lambda item: date.fromisoformat(item.report_date),
+                            reverse=True)
             self.cache.set(cache_key, result, ttl=TTL_FINANCIALS)
             _health_stats.record_call(
                 "financials", (time.time() - t0) * 1000, empty=not result,
@@ -529,57 +533,11 @@ class DataCollector:
         Returns:
             ValuationMetrics 对象，数据不足时返回 None
         """
-        cache_key = f"valuation:{code}"
-        cached = self._cached_or_none(cache_key)
-        if cached is not None:
-            return cached
-
-        t0 = time.time()
-        try:
-            financials = self.get_financials(code)
-            if not financials:
-                _health_stats.record_call(
-                    "valuation", (time.time() - t0) * 1000, empty=True,
-                )
-                return None
-
-            quote = self.get_realtime_quote(code)
-            if quote is None or quote.price <= 0:
-                _health_stats.record_call(
-                    "valuation", (time.time() - t0) * 1000, empty=True,
-                )
-                return None
-
-            latest = financials[0]  # 最新一期
-
-            pe = 0.0
-            if latest.eps > 0:
-                pe = round(quote.price / latest.eps, 2)
-
-            pb = 0.0
-            if latest.book_value_per_share > 0:
-                pb = round(quote.price / latest.book_value_per_share, 2)
-
-            ps = 0.0
-            if quote.market_cap > 0 and latest.operating_revenue > 0:
-                ps = round(quote.market_cap / latest.operating_revenue, 2)
-
-            result = ValuationMetrics(
-                stock_code=code,
-                report_date=latest.report_date,
-                pe=pe,
-                pb=pb,
-                ps=ps,
-                market_cap=quote.market_cap,
-            )
-
-            self.cache.set(cache_key, result, ttl=TTL_VALUATION)
-            _health_stats.record_call("valuation", (time.time() - t0) * 1000)
-            return result
-        except Exception as e:
-            _health_stats.record_call("valuation", (time.time() - t0) * 1000, error=str(e))
-            logger.exception("计算估值比率失败: code=%s", code)
-            return None
+        # Legacy quotes contain fetched_at, not an exchange as-of timestamp or
+        # verified capitalization scope. Cached old ratios must not bypass this gate.
+        logger.info("Valuation withheld: code=%s; market-value time/scope unavailable", code)
+        _health_stats.record_call("valuation", 0, empty=True)
+        return None
 
     # ── PD 动态指标体系 ─────────────────────────────────────────────
 
@@ -893,7 +851,7 @@ def format_market_brief(
             prof_parts.append(f"ROE {latest.roe:.2f}%")
         if latest.roa != 0.0:
             prof_parts.append(f"ROA {latest.roa:.2f}%")
-        if latest.gross_margin != 0.0:
+        if latest.gross_margin is not None:
             prof_parts.append(f"毛利率 {latest.gross_margin:.2f}%")
         if latest.net_profit_margin != 0.0:
             prof_parts.append(f"净利率 {latest.net_profit_margin:.2f}%")
@@ -933,8 +891,8 @@ def format_market_brief(
         scale_parts = []
         if latest.total_assets != 0.0:
             scale_parts.append(f"总资产 {latest.total_assets / 1e8:.2f} 亿元")
-        if latest.operating_revenue != 0.0:
-            scale_parts.append(f"主营利润 {latest.operating_revenue / 1e8:.2f} 亿元")
+        if latest.operating_revenue is not None:
+            scale_parts.append(f"营业收入 {latest.operating_revenue / 1e8:.2f} 亿元")
         if scale_parts:
             fund_lines.append("🏢 规模: " + " | ".join(scale_parts))
 

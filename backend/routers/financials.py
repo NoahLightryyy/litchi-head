@@ -58,5 +58,6 @@ async def get_valuation(code: str):
     val = await run_sync(collector.get_valuation, code)
     return {
         "data": val.model_dump() if val is not None else None,
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
+        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000),
+                 "reason": "缺少可核验时点及股本范围的总市值，暂不计算" if val is None else None},
     }

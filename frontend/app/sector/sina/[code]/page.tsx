@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchSinaMembers, fetchSinaSectors } from "@/lib/api/market";
 import { compareSinaSector } from "@/lib/sector-navigation";
 import { MarketDataNotice } from "@/components/macro/market-data-notice";
+import { SectorFundamentals } from "@/components/sector/sector-fundamentals";
 
 const signed = (value: number) => `${value > 0 ? "+" : ""}${value.toFixed(2)}`;
 const color = (value: number) => value > 0 ? "text-accent-green" : value < 0 ? "text-accent-red" : "text-text-muted";
@@ -67,8 +68,9 @@ function SinaSector({ code }: { code: string }) {
         <h2 className="font-semibold mb-3">板块观察 <span className="text-xs text-text-muted font-normal ml-2">本站按行情计算</span></h2>
         <p className="text-sm leading-7 text-text-secondary">{sector.name}在当前新浪{sector.category === "industry" ? "行业" : "概念"}分类的 {comparison.total} 个板块中，涨幅并列排名口径为第 {comparison.changeRank}；资金净流入排名为第 {comparison.flowRank ?? "—"}。
           涨跌幅反映价格变化，净流入反映来源口径下的资金差额，两项分开观察，不合成为买卖评级。</p>
-        <p className="text-xs text-text-muted mt-3">比较范围仅包含同一来源、同一分类的板块，同值并列。当前是行情统计，未生成行业基本面或 AI 投资结论。</p>
+        <p className="text-xs text-text-muted mt-3">比较范围仅包含同一来源、同一分类的板块，同值并列。<a href="#fundamentals" className="text-accent-blue underline">查看成分股基本面研究</a></p>
       </section>
+      <SectorFundamentals members={data?.stocks ?? []} membersLoading={members.isLoading} />
       <details className="text-xs text-text-muted rounded-lg border border-bg-tertiary p-4">
         <summary className="cursor-pointer">数据口径与更新时间{sector.service_updated_at ? ` · ${date(sector.service_updated_at)}（北京时间）` : ""}</summary>
         <div className="mt-3"><MarketDataNotice meta={boards.data?.meta} refreshError={boards.isError} />

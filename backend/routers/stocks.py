@@ -14,6 +14,7 @@ from backend.async_utils import run_sync
 from backend.intraday_display import FiveDayDisplay, get_five_day_display
 from backend.kline_display import RawDailyDisplay, get_raw_daily_display
 from src.data.collector import DataCollector
+from src.data.fundamental_research import FundamentalResearch, get_fundamental_research
 
 logger = logging.getLogger("backend.stocks")
 router = APIRouter(prefix="/api/stocks")
@@ -140,3 +141,9 @@ async def get_capital_flow(code: str):
 async def five_day_display(code: str = Path(pattern=r"^\d{6}$")) -> FiveDayDisplay:
     """Display only; single-source minute history is not verified research evidence."""
     return await run_sync(get_five_day_display, code)
+
+
+@router.get("/{code}/fundamental-research", response_model=FundamentalResearch)
+async def fundamental_research(code: str = Path(pattern=r"^\d{6}$")) -> FundamentalResearch:
+    """Versioned statement facts, publication dates, formulas and missing-data reasons."""
+    return await run_sync(get_fundamental_research, code)
