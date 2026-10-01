@@ -110,3 +110,4 @@
 - [60 时间范围缩放：换视图不等于造数据](60-semantic-price-zoom.md)
 - [61 不可变用户操作账本：点击一次，事实只能追加一次](61-immutable-user-action-ledger.md)
 - [62 决策血缘失败关闭：有分数，不等于可验证](62-fail-closed-decision-provenance.md)
+- [62 新闻热点：词频不是市场方向](62-news-topic-counting.md)
