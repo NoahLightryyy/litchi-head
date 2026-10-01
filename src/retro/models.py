@@ -18,7 +18,7 @@ class RetroRecord(BaseModel):
     """单条复盘记录
 
     每次辩论完成自动创建，记录 AI 推荐的真实快照，
-    后续可手动补全用户操作和实际盈亏。
+    后续可补充用户操作和市场观察结果；本模型不表示真实账户盈亏。
 
     Attributes:
         record_id: 记录唯一标识（UUID）
@@ -36,8 +36,8 @@ class RetroRecord(BaseModel):
         price_at_debate: 辩论时的最新价（用于后续计算实际涨跌幅）
         user_action: 用户操作（buy/sell/hold 或 None）
         user_action_at: 用户操作时间
-        actual_return_pct: 实际涨跌幅（%）
-        actual_price: 实际价格（用于计算的实际价格）
+        actual_return_pct: 观察区间市场涨跌幅（%），不是账户真实盈亏
+        actual_price: 观察价格（用于计算市场涨跌幅）
         outcome: 结果（correct/wrong/pending）
         notes: 用户备注
     """

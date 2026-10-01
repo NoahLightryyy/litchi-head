@@ -59,7 +59,7 @@ last_updated: 2026-08-30 (前端体验收口与总清单恢复)
 | 🥇 | **ADR-013 / TD-069 K 线完整性** — KR-3A、KR-3B-1、KR-3B-2 完成；等待用户确认后续路线 | 数据、辩论、Agent、记忆、风控、交易、回测、后端、前端、基础设施、质量保障 |
 | 🥇 | **TD-074 决策 baseline 与影子验证** — 功能账和证据账分离；KR-6 后以冻结基线、不可变样本、成本后结果和安全拒答验证增量价值 | [跨部门协议](../../02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)；全部 11 部门 |
 | 🥇 | **FD-003 产业链修复** — 后端伪关系已安全封口；真实能力等待数据源与契约决策 | 后端 API 部 + 前端部 |
-| 🥇 | **RC-003 UB-TRACK 用户行为追踪** — InvestmentDecision 模型 + UserBehaviorStore + 操作理由记录 | 后端 API 部 + 前端部 + 数据管道部 |
+| 🥇 | **RC-003 UB-TRACK** — 后端不可变账本与 API 已完成；前端、认证、AI 快照核验和真实结果链待各部门承接 | 后端 API 部 + 前端部 + 数据/记忆/交易部 |
 | 🥈 | **RC-004 RP-TUNE 风险参数自适应** — 回测结果 → 自动调止损/仓位 | 风控管理部 + 回测研究部 |
 | 🥈 | **FD-004 供应链图谱（调研评估）** — 年报 PDF 解析前5大客户/供应商可行性 | 数据管道部 |
 | 🥈 | **RC-005 CALIBRATE 置信度校准** — Brier score 过高时动态校准 | 辩论引擎部 |
@@ -151,7 +151,8 @@ last_updated: 2026-08-30 (前端体验收口与总清单恢复)
 > RC-001/RC-002 已完成：反思入口收到实际结果后可通过 M3-EXT 写入 TrustTracker。下一步是用户行为、风控参数和复盘看板闭环。
 > 完整方案见 [docs/00-overview/ROADMAP.md](../../00-overview/ROADMAP.md) RC 轨道。
 
-> **UI 用户经验反馈闭环** — 架构图第 9 层的完整实施计划，把 RC 公式层 + DP-006 镜子层 + R4 RetroBoard 合为一条完整闭环。
+> **UI 用户经验反馈闭环** — 后端用户操作账本第一批已完成。DP-006A 大师观点镜子
+> 不等于 DP-006B 用户行为镜子；账户结果与影子效果仍未完成。
 > 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
 
 > FD 系列 = Financial Depth（基本面深度），基于 2026-06-23 机构级基本面分析调研结论。

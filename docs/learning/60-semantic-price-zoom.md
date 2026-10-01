@@ -23,3 +23,5 @@ API 参考：[ITimeScaleApi](https://tradingview.github.io/lightweight-charts/do
 4. 比较 `days` 与 `incomplete_days`：来源缺分钟时，为什么不能补成完整的 242 点？
 
 上一篇：[59｜本机记录](59-local-record-validation.md)
+
+下一篇：[61｜不可变用户操作账本](61-immutable-user-action-ledger.md)

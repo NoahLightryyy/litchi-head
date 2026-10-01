@@ -44,7 +44,8 @@ M2 反思（AI vs 市场）和 M3 信任度（大师权重统计）都只覆盖�
 - 2026-07-10：RC-001 核心分发器完成。`src/callback/engine.py` 已支持事件分发、回调注册、优先级、冷却、错误记录、自动禁用、执行记录持久化；`tests/test_callback/test_engine.py` 覆盖 5 条核心路径。
 - 2026-07-10：RC-002 回调层完成。`AgentOutcome.sector`、按板块胜率、`m3_ext` 结果回调已上线。
 - 2026-07-13：RC-002 编排器 dispatch 完成。`DebateOrchestrator.reflect_on_decision()` 收到 `ActualOutcome` 后分发 `ACTUAL_OUTCOME_RECEIVED`，M3-EXT 会把历史 `agent_analyses` 与实际结果写入 TrustTracker；复盘看板入口仍待接入。
-- 尚未关闭：RC-003 用户行为追踪、RC-004 风控参数自适应、R4 交易复盘等业务闭环尚未接入，系统还不能完整按用户操作和实际盈亏自动学习。
+- 2026-10-01：RC-003 后端第一批完成：不可变 SQLite 操作账本、幂等写入、用户逻辑隔离、查询及回调分发契约。身份认证、有效 AI 快照链接、真实账户结果和前端消费仍未完成。
+- 尚未关闭：RC-004 风控参数自适应、真实账户结果、影子配对和完整 R4 交易复盘尚未接入，系统不能宣称已按真实盈亏学习。
 
 ---
 

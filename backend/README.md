@@ -61,6 +61,8 @@ backend/
 | GET | `/api/stocks/{code}/kline` | K 线数据 | ✅ |
 | GET | `/api/stocks/{code}/news` | 个股新闻 | ✅ |
 | GET | `/api/stocks/{code}/capital-flow` | 资金流向（主力/散户/机构） | ✅ |
+| POST | `/api/user/action` | 幂等写入不可变用户操作事件 | ✅ |
+| GET | `/api/user/actions` | 按用户查询操作事件 | ✅ |
 | GET | `/api/stocks/{code}/technical-indicators` | 技术指标（MA/RSI/MACD/布林带） | ✅ |
 | POST | `/api/v1/evidence/news/aggregate` | 东方财富实时 + 新浪滚动缓存并发新闻证据信封 | ✅ |
 | POST | `/api/v1/evidence/quotes/aggregate` | 东方财富 + 新浪直连行情证据信封 | ✅ |

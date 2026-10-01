@@ -127,6 +127,7 @@ class TestListRecords:
         assert len(data) == 1
         assert data[0]["record_id"] == "retro_test_001"
         assert data[0]["stock_code"] == "000001"
+        assert data[0]["return_semantics"] == "market_move_not_account_pnl"
 
     def test_filter_by_stock_code(self, client):
         """按股票代码过滤"""
