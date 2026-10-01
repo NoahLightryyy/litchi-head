@@ -438,7 +438,7 @@ class TestFormatMarketBrief:
         # 规模(除以1亿)
         assert "🏢 规模:" in result
         assert "总资产 50000.00 亿元" in result
-        assert "主营利润 1500.00 亿元" in result
+        assert "营业收入 1500.00 亿元" in result
 
     def test_with_financials_empty_list(self):
         """空列表应回退到暂无基本面数据"""
@@ -618,85 +618,17 @@ class TestGetFinancials:
 
 
 class TestGetValuation:
-    """DataCollector.get_valuation 测试"""
+    """Never publish old YTD-EPS ratios without dated capitalization evidence."""
 
-    def test_returns_valuation_metrics(self, mock_empty_cache):
-        """正常返回估值比率：PE=10.0, PB=1.0 (股价12.5 / EPS1.25=10, / BVPS12.5=1)"""
-        result = mock_empty_cache.get_valuation("000001")
-        assert result is not None
-        assert result.stock_code == "000001"
-        assert result.pe == 10.0    # 12.50 / 1.25
-        assert result.pb == 1.0     # 12.50 / 12.50
-        assert result.report_date == "2024-12-31"
+    def test_unqualified_quote_does_not_generate_ratios(self, mock_empty_cache):
+        assert mock_empty_cache.get_valuation("000001") is None
 
-    def test_no_financials_returns_none(self, mock_empty_cache):
-        """无财务数据时返回 None"""
-        mock_empty_cache._source.get_financials = MagicMock(return_value=[])  # type:ignore
-        result = mock_empty_cache.get_valuation("000001")
-        assert result is None
+    def test_legacy_cached_ratio_is_not_reused(self, mock_empty_cache):
+        from src.data.models import ValuationMetrics
 
-    def test_no_quote_returns_none(self, mock_empty_cache):
-        """无实时行情时返回 None"""
-        mock_empty_cache._source.get_realtime_quotes = MagicMock(return_value=[])  # type:ignore
-        result = mock_empty_cache.get_valuation("000001")
-        assert result is None
-
-    def test_network_error_returns_none(self, failing_collector):
-        """网络异常时返回 None"""
-        result = failing_collector.get_valuation("000001")
-        assert result is None
-
-    def test_cache_hit_avoids_source_call(self, mock_empty_cache):
-        """缓存命中时不应再调用数据源"""
-        mock_empty_cache.get_valuation("000001")
-        # 第二次调用
-        original_get_financials = mock_empty_cache._source.get_financials
-        mock_empty_cache._source.get_financials = MagicMock(side_effect=AssertionError("不应调用"))
-        result = mock_empty_cache.get_valuation("000001")
-        assert result is not None
-        assert result.pe == 10.0
-        # 恢复
-        mock_empty_cache._source.get_financials = original_get_financials
-
-    def test_pe_zero_when_eps_negative(self, mock_empty_cache):
-        """负 EPS 时 PE 应为 0（亏损公司）"""
-        mock_empty_cache._source.get_financials = MagicMock(  # type:ignore
-            return_value=[FinancialMetrics(
-                stock_code="000001", report_date="2024-12-31",
-                eps=-0.5, book_value_per_share=10.0,
-            )]
-        )
-        result = mock_empty_cache.get_valuation("000001")
-        assert result is not None
-        assert result.pe == 0.0
-
-    def test_pb_calculation_known_value(self, mock_empty_cache):
-        """PB 验证：股价 1880 / BVPS 20 = 94"""
-        mock_empty_cache._source.get_financials = MagicMock(  # type:ignore
-            return_value=[FinancialMetrics(
-                stock_code="600519", report_date="2024-12-31",
-                eps=50.0, book_value_per_share=20.0,
-            )]
-        )
-        result = mock_empty_cache.get_valuation("600519")
-        assert result is not None
-        assert result.pe == 37.6   # 1880 / 50
-        assert result.pb == 94.0   # 1880 / 20
-
-    def test_ps_calculation_with_market_cap(self, mock_empty_cache):
-        """有 market_cap 时计算 PS"""
-        # 股价 12.5 的平安银行，设 market_cap 为 2.5e11
-        mock_empty_cache._source.get_realtime_quotes = MagicMock(  # type:ignore
-            return_value=[StockQuote(
-                code="000001", name="平安银行", price=12.50,
-                change=0.30, change_pct=2.46, volume=1000000,
-                amount=1.25e7, market_cap=2.5e11,
-            )]
-        )
-        result = mock_empty_cache.get_valuation("000001")
-        assert result is not None
-        assert result.ps == 5.0  # 2.5e11 / 5.0e10
-        assert result.market_cap == 2.5e11
+        mock_empty_cache.cache.set("valuation:000001", ValuationMetrics(
+            stock_code="000001", report_date="2024-12-31", pe=10), ttl=300)
+        assert mock_empty_cache.get_valuation("000001") is None
 
 
 # ── C2: 市场情绪数据 ────────────────────────────────────────────────

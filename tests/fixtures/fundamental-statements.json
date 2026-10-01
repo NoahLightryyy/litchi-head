@@ -1,0 +1,732 @@
+{
+  "300199": {
+    "lrb": {
+      "result": {
+        "data": {
+          "report_list": {
+            "20260630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260821",
+              "update_time": 1787229246,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "BIZINCO",
+                  "item_title": "营业收入",
+                  "item_value": "688286621.300000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.2527
+                },
+                {
+                  "item_field": "BIZCOST",
+                  "item_title": "营业成本",
+                  "item_value": "255260254.710000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.23766
+                },
+                {
+                  "item_field": "PARENETP",
+                  "item_title": "归属于母公司所有者的净利润",
+                  "item_value": "236700162.040000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.62716
+                }
+              ]
+            },
+            "20251231": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "是",
+              "audit_opinion": "标准无保留审计意见",
+              "publish_date": "20260429",
+              "update_time": 1777395363,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "BIZINCO",
+                  "item_title": "营业收入",
+                  "item_value": "966352079.700000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.63733
+                },
+                {
+                  "item_field": "BIZCOST",
+                  "item_title": "营业成本",
+                  "item_value": "402355317.170000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.58883
+                },
+                {
+                  "item_field": "PARENETP",
+                  "item_title": "归属于母公司所有者的净利润",
+                  "item_value": "36569897.150000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "lrb",
+                  "item_tongbi": 1.21059
+                }
+              ]
+            },
+            "20250630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260821",
+              "update_time": 1755766926,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "BIZINCO",
+                  "item_title": "营业收入",
+                  "item_value": "549442106.790000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "lrb",
+                  "item_tongbi": 1.1486
+                },
+                {
+                  "item_field": "BIZCOST",
+                  "item_title": "营业成本",
+                  "item_value": "206243861.320000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "lrb",
+                  "item_tongbi": 1.02065
+                },
+                {
+                  "item_field": "PARENETP",
+                  "item_title": "归属于母公司所有者的净利润",
+                  "item_value": "145468616.410000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "lrb",
+                  "item_tongbi": 15.04301
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "fzb": {
+      "result": {
+        "data": {
+          "report_list": {
+            "20260630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260821",
+              "update_time": 1787229246,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "TOTASSET",
+                  "item_title": "资产总计",
+                  "item_value": "3552308362.530000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.05346
+                },
+                {
+                  "item_field": "TOTLIAB",
+                  "item_title": "负债合计",
+                  "item_value": "2687153082.880000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 4,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.02142
+                },
+                {
+                  "item_field": "PARESHARRIGH",
+                  "item_title": "归属于母公司股东权益合计",
+                  "item_value": "850239797.840000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.17473
+                }
+              ]
+            },
+            "20251231": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "是",
+              "audit_opinion": "标准无保留审计意见",
+              "publish_date": "20260821",
+              "update_time": 1777395364,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "TOTASSET",
+                  "item_title": "资产总计",
+                  "item_value": "3153975023.780000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.04845
+                },
+                {
+                  "item_field": "TOTLIAB",
+                  "item_title": "负债合计",
+                  "item_value": "2524047412.150000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 4,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.04681
+                },
+                {
+                  "item_field": "PARESHARRIGH",
+                  "item_title": "归属于母公司股东权益合计",
+                  "item_value": "613951823.300000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.06105
+                }
+              ]
+            },
+            "20250630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20250822",
+              "update_time": 1755766926,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "TOTASSET",
+                  "item_title": "资产总计",
+                  "item_value": "3372049427.090000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.11296
+                },
+                {
+                  "item_field": "TOTLIAB",
+                  "item_title": "负债合计",
+                  "item_value": "2630806841.120000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 4,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.16934
+                },
+                {
+                  "item_field": "PARESHARRIGH",
+                  "item_title": "归属于母公司股东权益合计",
+                  "item_value": "723772170.750000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "fzb",
+                  "item_tongbi": -0.04014
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "llb": {
+      "result": {
+        "data": {
+          "report_list": {
+            "20260630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260821",
+              "update_time": 1787229248,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "MANANETR",
+                  "item_title": "经营活动产生的现金流量净额",
+                  "item_value": "305459354.850000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "llb",
+                  "item_tongbi": 0.94381
+                }
+              ]
+            },
+            "20251231": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "是",
+              "audit_opinion": "标准无保留审计意见",
+              "publish_date": "20260429",
+              "update_time": 1777395365,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "MANANETR",
+                  "item_title": "经营活动产生的现金流量净额",
+                  "item_value": "233903508.280000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "llb",
+                  "item_tongbi": 0.42013
+                }
+              ]
+            },
+            "20250630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260821",
+              "update_time": 1755766926,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "MANANETR",
+                  "item_title": "经营活动产生的现金流量净额",
+                  "item_value": "157144568.300000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "llb",
+                  "item_tongbi": 3.76418
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "600276": {
+    "lrb": {
+      "result": {
+        "data": {
+          "report_list": {
+            "20260630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260820",
+              "update_time": 1787139849,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "BIZINCO",
+                  "item_title": "营业收入",
+                  "item_value": "15455583728.110000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "lrb",
+                  "item_tongbi": -0.01939
+                },
+                {
+                  "item_field": "BIZCOST",
+                  "item_title": "营业成本",
+                  "item_value": "2113343029.350000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "lrb",
+                  "item_tongbi": -0.00077
+                },
+                {
+                  "item_field": "PARENETP",
+                  "item_title": "归属于母公司所有者的净利润",
+                  "item_value": "4465439428.100000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.00345
+                }
+              ]
+            },
+            "20251231": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "是",
+              "audit_opinion": "标准无保留审计意见",
+              "publish_date": "20260326",
+              "update_time": 1774442798,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "BIZINCO",
+                  "item_title": "营业收入",
+                  "item_value": "31629416193.830000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.13024
+                },
+                {
+                  "item_field": "BIZCOST",
+                  "item_title": "营业成本",
+                  "item_value": "4362655815.430000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.13369
+                },
+                {
+                  "item_field": "PARENETP",
+                  "item_title": "归属于母公司所有者的净利润",
+                  "item_value": "7711054811.980000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.21692
+                }
+              ]
+            },
+            "20250630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260820",
+              "update_time": 1755689770,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "BIZINCO",
+                  "item_title": "营业收入",
+                  "item_value": "15761193628.900000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.15885
+                },
+                {
+                  "item_field": "BIZCOST",
+                  "item_title": "营业成本",
+                  "item_value": "2114962169.180000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.129
+                },
+                {
+                  "item_field": "PARENETP",
+                  "item_title": "归属于母公司所有者的净利润",
+                  "item_value": "4450106384.460000",
+                  "item_display_type": 2,
+                  "item_display": "小类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "lrb",
+                  "item_tongbi": 0.29675
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "fzb": {
+      "result": {
+        "data": {
+          "report_list": {
+            "20260630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260820",
+              "update_time": 1787139845,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "TOTASSET",
+                  "item_title": "资产总计",
+                  "item_value": "70773121998.890000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.12528
+                },
+                {
+                  "item_field": "TOTLIAB",
+                  "item_title": "负债合计",
+                  "item_value": "5783381581.830000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 4,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.49684
+                },
+                {
+                  "item_field": "PARESHARRIGH",
+                  "item_title": "归属于母公司股东权益合计",
+                  "item_value": "64466430205.710000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.10265
+                }
+              ]
+            },
+            "20251231": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "是",
+              "audit_opinion": "标准无保留审计意见",
+              "publish_date": "20260820",
+              "update_time": 1774442798,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "TOTASSET",
+                  "item_title": "资产总计",
+                  "item_value": "69867315773.740000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.39357
+                },
+                {
+                  "item_field": "TOTLIAB",
+                  "item_title": "负债合计",
+                  "item_value": "8070492359.490000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 4,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.99498
+                },
+                {
+                  "item_field": "PARESHARRIGH",
+                  "item_title": "归属于母公司股东权益合计",
+                  "item_value": "61272068641.410000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.34605
+                }
+              ]
+            },
+            "20250630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20250821",
+              "update_time": 1755689771,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "TOTASSET",
+                  "item_title": "资产总计",
+                  "item_value": "62893517148.540000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 2,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.30535
+                },
+                {
+                  "item_field": "TOTLIAB",
+                  "item_title": "负债合计",
+                  "item_value": "3863719109.400000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 4,
+                  "item_source": "fzb",
+                  "item_tongbi": -0.22636
+                },
+                {
+                  "item_field": "PARESHARRIGH",
+                  "item_title": "归属于母公司股东权益合计",
+                  "item_value": "58464831216.780000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 5,
+                  "item_source": "fzb",
+                  "item_tongbi": 0.3717
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "llb": {
+      "result": {
+        "data": {
+          "report_list": {
+            "20260630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260820",
+              "update_time": 1787139845,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "MANANETR",
+                  "item_title": "经营活动产生的现金流量净额",
+                  "item_value": "1987003872.340000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "llb",
+                  "item_tongbi": -0.53795
+                }
+              ]
+            },
+            "20251231": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "是",
+              "audit_opinion": "标准无保留审计意见",
+              "publish_date": "20260326",
+              "update_time": 1774442780,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "MANANETR",
+                  "item_title": "经营活动产生的现金流量净额",
+                  "item_value": "11235378130.630000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "llb",
+                  "item_tongbi": 0.51364
+                }
+              ]
+            },
+            "20250630": {
+              "rType": "合并期末",
+              "rCurrency": "CNY",
+              "data_source": "定期报告",
+              "is_audit": "未审计",
+              "audit_opinion": "",
+              "publish_date": "20260820",
+              "update_time": 1755689771,
+              "is_exist_yoy": true,
+              "data": [
+                {
+                  "item_field": "MANANETR",
+                  "item_title": "经营活动产生的现金流量净额",
+                  "item_value": "4300453251.400000",
+                  "item_display_type": 6,
+                  "item_display": "中类",
+                  "item_precision": "f2",
+                  "item_group_no": 1,
+                  "item_source": "llb",
+                  "item_tongbi": 0.418
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
