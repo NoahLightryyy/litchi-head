@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 from slowapi.errors import RateLimitExceeded
 
 from backend.limiter import limiter
-from backend.routers import debate, evidence, financials, market, retro, stocks, trust
+from backend.routers import debate, evidence, financials, market, news, retro, stocks, trust
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(name)-24s  %(message)s")
 logger = logging.getLogger("backend")
@@ -160,6 +160,7 @@ app.state.limiter = limiter
 
 app.include_router(market.router)
 app.include_router(stocks.router)
+app.include_router(news.router)
 app.include_router(financials.router)
 app.include_router(debate.router)
 app.include_router(trust.router)

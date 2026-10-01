@@ -82,7 +82,7 @@ async def get_kline(
     }
 
 
-@router.get("/{code:str}/news")
+@router.get("/{code:str}/news", deprecated=True)
 async def get_news(code: str):
     """个股新闻"""
     t0 = time.time()
