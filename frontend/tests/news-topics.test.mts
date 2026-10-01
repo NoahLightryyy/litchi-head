@@ -42,4 +42,6 @@ test("过滤泛词噪声但保留领域主题与重复实体", () => {
   const result = summarizeNews(prepareNews([news('关键问题开始出现，美国美债收益率上行，特朗普发表讲话'), news('关键问题导致压力，美国债券收益率回落，特朗普回应')], now).items, 'all', now);
   assert.ok(result.topics.some(x => x.label === '债券' && x.ids.length === 2));
   assert.ok(result.topics.every(x => !['关键', '开始', '美国', '收益', '压力'].includes(x.label)));
+  const salary = summarizeNews(prepareNews([news('家庭年收入10万美元')], now).items, 'all', now);
+  assert.ok(!salary.topics.some(x => x.label === '汇率'), '币种金额不等于汇率报道');
 });
