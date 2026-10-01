@@ -6,7 +6,6 @@ import Link from "next/link";
 import { TrendingUp, DollarSign, MessageSquare, ShieldCheck, BarChart3 } from "lucide-react";
 import { useStockQuote, useStockNews } from "@/lib/hooks/use-stock";
 import { QuoteCard } from "@/components/stock/quote-card";
-import { KlineChart } from "@/components/stock/kline-chart";
 import { DebatePanel } from "@/components/stock/debate-panel";
 import { NewsFeed } from "@/components/stock/news-feed";
 import { CapitalFlowPanel } from "@/components/stock/capital-flow-panel";
@@ -62,10 +61,8 @@ export default function StockPage() {
       </div> : <QuoteCard quote={quote ?? null} loading={quoteLoading} />}
 
       {/* 真实盘中分钟结构与数据来源状态 */}
-      <IntradayBattlefieldPanel code={code} />
+      <IntradayBattlefieldPanel key={code} code={code} />
 
-      {/* K 线图 */}
-      <KlineChart code={code} />
 
       {/* Tab 切换 */}
       <div className="flex gap-1 border-b border-bg-tertiary">

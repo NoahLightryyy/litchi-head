@@ -1,5 +1,9 @@
 "use client";
 
+import { useMemo, useRef, useState } from "react";
+import { stepPriceWindow, type PriceWindow, type SemanticZoom } from "@/lib/chart-zoom";
+import { FiveDayChart } from "./five-day-chart";
+import { KlineChart } from "./kline-chart";
 import {
   Activity,
   AlertTriangle,
@@ -177,6 +181,13 @@ function LoadingState() {
 
 /** 盘中价格事实、指标解释与逐源诊断的正式展示面板。 */
 export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps) {
+  const [priceWindow, setPriceWindow] = useState<PriceWindow>("intraday");
+  const gesture = useRef({lastEvent: 0, switched: false, overscroll: 0});
+  const zoom = useMemo<SemanticZoom>(() => ({gesture,
+    onOut: priceWindow === "daily" ? undefined : () => setPriceWindow(v => stepPriceWindow(v, "out")),
+    onIn: priceWindow === "intraday" ? undefined : () => setPriceWindow(v => stepPriceWindow(v, "in")),
+    inThreshold: priceWindow === "five-day" ? 260 : 8,
+  }), [priceWindow]);
   const query = useIntradayBattlefield(code);
   const mode = resolveIntradayPanelMode({
     data: query.data,
@@ -204,21 +215,29 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
         <div>
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-accent-gold" />
-            <h2 className="text-sm font-semibold text-text-primary">盘中结构</h2>
+            <h2 className="text-sm font-semibold text-text-primary">价格走势</h2>
             {query.isFetching && !query.isLoading && (
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-blue" />
             )}
           </div>
           <p className="mt-1 text-xs text-text-muted">
-            真实分钟价格轨迹 · 每 30 秒刷新 · 不用示意曲线补空
+            滚轮向下扩大时间范围：当日 → 五日 → 日 K；向上放大细节
           </p>
         </div>
-        <SourceStatusBadge state={sourceState} />
+        {priceWindow === "intraday" && <SourceStatusBadge state={sourceState} />}
       </header>
 
-      {mode === "loading" && <LoadingState />}
+      <nav aria-label="走势时间范围" className="mb-4 flex flex-wrap items-center gap-2">
+        {([["intraday", "当日分时"], ["five-day", "五日分时"], ["daily", "日 K"]] as const).map(([value, label]) =>
+          <button key={value} aria-pressed={priceWindow === value} onClick={() => setPriceWindow(value)} className={`rounded px-3 py-2 text-sm ${priceWindow === value ? "bg-accent-blue text-white" : "bg-bg-tertiary text-text-secondary"}`}>{label}</button>)}
+        <button aria-label="放大时间范围一级" disabled={priceWindow === "intraday"} className="ml-auto rounded border border-bg-tertiary px-3 py-2 text-xs disabled:opacity-40" onClick={() => setPriceWindow(v => stepPriceWindow(v, "in"))}>＋ 放大</button>
+        <button aria-label="缩小时间范围一级" disabled={priceWindow === "daily"} className="rounded border border-bg-tertiary px-3 py-2 text-xs disabled:opacity-40" onClick={() => setPriceWindow(v => stepPriceWindow(v, "out"))}>－ 缩小</button>
+      </nav>
+      {priceWindow === "five-day" && <FiveDayChart code={code} zoom={zoom} />}
+      {priceWindow === "daily" && <KlineChart code={code} zoom={zoom} />}
+      {priceWindow === "intraday" && mode === "loading" && <LoadingState />}
 
-      {mode === "network_error" && (
+      {priceWindow === "intraday" && mode === "network_error" && (
         <div className="flex min-h-56 flex-col items-center justify-center rounded-md border border-bg-tertiary bg-bg-primary px-6 text-center">
           <WifiOff className="mb-3 h-7 w-7 text-accent-red" />
           <p className="text-sm font-medium text-text-primary">
@@ -238,7 +257,7 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
         </div>
       )}
 
-      {mode === "unavailable" && query.data && (
+      {priceWindow === "intraday" && mode === "unavailable" && query.data && (
         <>
           <div className="flex min-h-44 items-start gap-3 rounded-md border border-bg-tertiary bg-bg-primary p-5">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-accent-gold" />
@@ -255,7 +274,7 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
         </>
       )}
 
-      {(mode === "usable" || mode === "stale_error") && query.data && (
+      {priceWindow === "intraday" && (mode === "usable" || mode === "stale_error") && query.data && (
         <>
           {mode === "stale_error" && (
             <div
@@ -277,7 +296,7 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
           )}
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
             <div>
-              <IntradayLineChart points={query.data.price_points} />
+              <IntradayLineChart points={query.data.price_points} zoom={zoom} />
               <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
                 <span>折线仅表示分钟价格，不代表 K 线开高低收</span>
                 <span>{query.data.price_points.length} 个价格点</span>

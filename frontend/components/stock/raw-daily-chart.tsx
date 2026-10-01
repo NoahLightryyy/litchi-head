@@ -1,10 +1,11 @@
 "use client";
+import type { SemanticZoom } from "@/lib/chart-zoom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { parseRawDaily } from "@/lib/raw-daily";
 import { CandlestickChart } from "./candlestick-chart";
 
-export function RawDailyChart({code}: {code:string}) {
+export function RawDailyChart({code, zoom}: {code:string; zoom?: SemanticZoom}) {
   const query = useQuery({queryKey:["stocks",code,"raw-daily-display"],
     queryFn: async ({signal}) => parseRawDaily(await api.getRaw(`/stocks/${code}/kline-raw-display`, undefined,
       {signal:AbortSignal.any([signal,AbortSignal.timeout(15000)])}),code),
@@ -20,7 +21,7 @@ export function RawDailyChart({code}: {code:string}) {
     </div>
     {query.isPending ? <p role="status">正在获取备用日线…</p> : query.isError ? <p role="alert">备用日线也未取得有效数据，请稍后重试。</p> : <>
       <p className="text-xs text-text-muted">{query.data.start} — {query.data.end} · {query.data.bars.length} 根日线</p>
-      <CandlestickChart data={query.data.bars} />
+      <CandlestickChart data={query.data.bars} zoom={zoom} />
     </>}
     <button disabled={query.isFetching} className="text-sm text-accent-blue" onClick={() => void query.refetch()}>刷新备用日线</button>
   </section>;

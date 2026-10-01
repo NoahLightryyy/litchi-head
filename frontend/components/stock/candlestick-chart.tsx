@@ -1,5 +1,6 @@
 "use client";
 
+import { bindChartZoom, type SemanticZoom } from "@/lib/chart-zoom";
 import { useEffect, useRef } from "react";
 import {
   createChart,
@@ -11,6 +12,7 @@ import {
 import type { KLineData } from "@/lib/types/stock";
 
 interface CandlestickChartProps {
+  zoom?: SemanticZoom;
   data: Pick<KLineData, "date" | "open" | "high" | "low" | "close" | "volume">[];
 }
 
@@ -32,7 +34,7 @@ const THEME = {
  * 封装 TradingView Lightweight Charts，纯渲染层。
  * 不负责数据获取 — 数据由父组件传入。
  */
-export function CandlestickChart({ data }: CandlestickChartProps) {
+export function CandlestickChart({ data, zoom }: CandlestickChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -65,11 +67,12 @@ export function CandlestickChart({ data }: CandlestickChartProps) {
         borderColor: THEME.borderColor,
         timeVisible: false,
         secondsVisible: false,
-        rightOffset: 2,
+        rightOffset: 0,
         fixLeftEdge: true,
         fixRightEdge: true,
       },
-      handleScroll: { vertTouchDrag: false },
+      handleScroll: { vertTouchDrag: false, mouseWheel: false },
+      handleScale: { mouseWheel: !zoom },
     });
 
     // ── K 线序列 ────────────────────────────────────────────
@@ -127,15 +130,18 @@ export function CandlestickChart({ data }: CandlestickChartProps) {
     candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
 
+    const unbindZoom = zoom ? bindChartZoom(chart, container, data.length, zoom) : undefined;
+
     // ── 清理 ──────────────────────────────────────────────
     return () => {
+      unbindZoom?.();
       observer.disconnect();
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
     };
-  }, [data]);
+  }, [data, zoom]);
 
   return (
     <div className="space-y-2">

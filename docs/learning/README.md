@@ -107,3 +107,4 @@
 | 准备面试 | 全部通读一遍，重点练「自己试试」 |
 
 - [59 本机记录：校验、持久化与恢复](59-local-record-validation.md)
+- [60 时间范围缩放：换视图不等于造数据](60-semantic-price-zoom.md)
