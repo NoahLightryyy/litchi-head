@@ -7,8 +7,6 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  Target,
-  Activity,
   Trash2,
   CheckCircle2,
   XCircle,
@@ -28,14 +26,14 @@ export function RetroBoard() {
   const [outcomeFilter, setOutcomeFilter] = useState<string>("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { data: records = [], isLoading: recordsLoading } = useRetroRecords({
+  const { data: records = [], isLoading: recordsLoading, isError: recordsFailed, refetch: retryRecords } = useRetroRecords({
     outcome: outcomeFilter || undefined,
     limit: 200,
   });
-  const { data: summary, isLoading: summaryLoading } = useRetroSummary();
-  const { mutate: updateAction, isPending: actionUpdating } = useUpdateAction();
-  const { mutate: refreshAll, isPending: refreshing } = useRefreshRetro();
-  const { mutate: deleteRecord } = useDeleteRecord();
+  const { data: summary, isLoading: summaryLoading, isError: summaryFailed, refetch: retrySummary } = useRetroSummary();
+  const { mutate: updateAction, isPending: actionUpdating, isError: actionFailed } = useUpdateAction();
+  const { mutate: refreshAll, isPending: refreshing, isError: refreshFailed } = useRefreshRetro();
+  const { mutate: deleteRecord, isError: deleteFailed } = useDeleteRecord();
 
   const handleAction = (recordId: string, action: string) => {
     updateAction({ recordId, action });
@@ -47,39 +45,40 @@ export function RetroBoard() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold">研究记录</h1>
+        <p className="mt-2 text-sm text-text-muted">这里保留 AI 研究与后续市场变化。涨跌幅按辩论价到观察价计算，不是你的账户收益；操作标签不代表已成交。</p>
+        <p className="mt-1 text-xs text-text-muted">历史评分和置信度保留原始值；当前接口未提供样本有效性和校准证明，暂不以其均值评价研究质量。</p>
+      </div>
+      {summaryFailed && <div role="alert" className="text-sm text-accent-red">研究统计加载失败。<button className="ml-2 underline" onClick={() => void retrySummary()}>重试统计</button></div>}
+      {(actionFailed || refreshFailed || deleteFailed) && <p role="alert" className="text-sm text-accent-red">记录更新未成功确认，请重新加载记录核对后再操作。</p>}
       {/* 聚合统计卡片 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<BarChart3 className="w-4 h-4" />}
-          label="总记录"
-          value={summary?.total_records ?? "-"}
+          label="研究记录数"
+          value={summaryFailed ? "加载失败" : summary?.total_records ?? "-"}
           loading={summaryLoading}
           color="blue"
         />
         <StatCard
-          icon={<Target className="w-4 h-4" />}
-          label="准确率"
-          value={
-            summary?.closed_records
-              ? `${(summary.win_rate * 100).toFixed(0)}%`
-              : "暂无数据"
-          }
-          sub={`${summary?.win_count ?? 0} 正确 / ${summary?.loss_count ?? 0} 错误`}
+          icon={<CheckCircle2 className="w-4 h-4" />}
+          label="已标记结果"
+          value={summaryFailed ? "加载失败" : summary?.closed_records ?? "-"}
           loading={summaryLoading}
-          color={summary && summary.win_rate >= 0.6 ? "green" : "gold"}
+          color="green"
         />
         <StatCard
-          icon={<Activity className="w-4 h-4" />}
-          label="平均置信度"
-          value={summary ? `${(summary.avg_confidence * 100).toFixed(0)}%` : "-"}
+          icon={<Clock className="w-4 h-4" />}
+          label="待标记结果"
+          value={summaryFailed ? "加载失败" : summary ? summary.total_records - summary.closed_records : "-"}
           loading={summaryLoading}
           color="purple"
         />
         <StatCard
           icon={<BarChart3 className="w-4 h-4" />}
-          label="平均评分"
-          value={summary ? summary.avg_score.toFixed(1) : "-"}
-          sub={`今日 +${summary?.today_records ?? 0}`}
+          label="今日新增记录"
+          value={summaryFailed ? "加载失败" : summary?.today_records ?? "-"}
           loading={summaryLoading}
           color="blue"
         />
@@ -120,6 +119,11 @@ export function RetroBoard() {
             <div key={i} className="h-16 rounded-md bg-bg-secondary animate-pulse border border-bg-tertiary" />
           ))}
         </div>
+      ) : recordsFailed ? (
+        <div role="alert" className="rounded border border-accent-red/30 p-6 text-sm">
+          研究记录加载失败，无法确认是否有记录。
+          <button className="ml-3 text-accent-blue underline" onClick={() => void retryRecords()}>重新加载记录</button>
+        </div>
       ) : records.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-4xl mb-4">📋</div>
@@ -127,17 +131,17 @@ export function RetroBoard() {
           <p className="text-xs text-text-muted mt-1">触发 AI 辩论后会自动生成记录</p>
         </div>
       ) : (
-        <div className="border border-bg-tertiary rounded-md overflow-hidden">
+        <div className="border border-bg-tertiary rounded-md overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-bg-secondary border-b border-bg-tertiary">
                 <Th>时间</Th>
                 <Th>股票</Th>
                 <Th>共识</Th>
-                <Th>置信度</Th>
-                <Th>评分</Th>
-                <Th>用户操作</Th>
-                <Th>涨跌幅</Th>
+                <Th>原始置信度</Th>
+                <Th>原始评分</Th>
+                <Th>操作标签</Th>
+                <Th>研究后涨跌幅</Th>
                 <Th>结果</Th>
                 <Th className="text-right">操作</Th>
               </tr>
@@ -298,10 +302,10 @@ function DetailPanel({ record }: { record: RetroRecord }) {
         </div>
       </div>
       <div>
-        <h4 className="text-xs font-medium text-text-muted uppercase mb-2">用户操作 & 结果</h4>
+        <h4 className="text-xs font-medium text-text-muted uppercase mb-2">操作标签与市场观察</h4>
         <div className="space-y-1.5">
           <DetailRow
-            label="用户操作"
+            label="操作标签"
             value={
               record.user_action
                 ? { buy: "买入", sell: "卖出", hold: "持有", skip: "跳过" }[
@@ -310,7 +314,7 @@ function DetailPanel({ record }: { record: RetroRecord }) {
                 : "未记录"
             }
           />
-          <DetailRow label="实际价格" value={record.actual_price ? `¥${record.actual_price.toFixed(2)}` : "未更新"} />
+          <DetailRow label="观察价格" value={record.actual_price ? `¥${record.actual_price.toFixed(2)}` : "未更新"} />
           <DetailRow label="评级分布" value={formatRatingDist(record.rating_distribution)} />
         </div>
       </div>

@@ -18,7 +18,8 @@ export function useRetroRecords(params?: {
 }) {
   return useQuery({
     queryKey: ["retro", "records", params],
-    queryFn: () => fetchRetroRecords(params),
+    queryFn: ({signal}) => fetchRetroRecords(params, signal),
+    retry: false,
     staleTime: 30_000,
   });
 }
@@ -27,7 +28,8 @@ export function useRetroRecords(params?: {
 export function useRetroSummary() {
   return useQuery({
     queryKey: ["retro", "summary"],
-    queryFn: () => fetchRetroSummary(),
+    queryFn: ({signal}) => fetchRetroSummary(signal),
+    retry: false,
     staleTime: 30_000,
   });
 }
