@@ -1,3 +1,5 @@
+> 2026-10-01 运行修复：用户已批准产品分析临时使用 `deepseek-v4-pro` 非思考模式；Flash 实网仅返回保活消息。当前产品默认以 `src/utils/llm.py::DEFAULT_MODEL` 为准。下文快速模型策略为长期目标，不改变当前开发助手模型。
+
 # litchi-head — AI 项目指令
 
 > 多智能体投资决策平台（LangGraph + DeepSeek）
@@ -15,7 +17,7 @@
 5. **学习卡片同步** — 每次产出技术相关代码/设计，同步更新 `docs/learning/` 知识卡片。用完即学，不攒债。见下方「学习卡片」节。
 6. **Batch Loop 模式**（用户指方向 → 我自动跑）：见下方「Batch Loop 模式」节
 7. **上下文耗尽自动交接**：检测到上下文窗口接近上限时，立即执行交接流程（更新日志+债务+看板+提交），不继续推进新工作
-8. **模型策略**：日常用 `deepseek-chat`（快速，无思考），复杂任务才切 `deepseek-v4-pro`（推理）。见下方「模型策略」节。
+8. **模型策略**：日常用 `deepseek-flash`（快速，无思考），复杂任务才切 `deepseek-v4-pro`（推理）。见下方「模型策略」节。
 9. **遇技术报错先查 triage** — `docs/01-guides/triage/README.md` 症状速查表定位分类，按症状搜不用全读
 10. **CI 永不为红** — 推送前 `python scripts/check.py` 或 `make check` 必过；CI 红了优先修，不红不推新功能；详见 [CI 治理](docs/01-guides/ci/README.md)
 
@@ -51,12 +53,12 @@
 
 | 模型 | 定位 | 思考模式 | 适用场景 |
 |------|------|:---:|------|
-| `deepseek-chat` | **默认**（日常开发） | ❌ 无 | 代码编辑、Git、文件读写、简单问答、文档更新 |
+| `deepseek-flash` | **默认**（日常开发） | ❌ 无 | 代码编辑、Git、文件读写、简单问答、文档更新 |
 | `deepseek-v4-pro` | 按需切换（复杂任务） | ✅ 推理 | 架构设计、根因分析、复杂重构、安全审查、多模块影响评估 |
 
 ```bash
 # 日常开发（Windows 用户环境变量，默认值）
-ANTHROPIC_MODEL=deepseek-chat
+ANTHROPIC_MODEL=deepseek-flash
 
 # 遇到复杂任务时，临时改为 deepseek-v4-pro，重启 Claude Code
 ```

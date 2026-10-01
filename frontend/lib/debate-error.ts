@@ -4,6 +4,9 @@ export function debateErrorMessage(error: unknown): string {
   const value = error as { code?: unknown; status?: unknown; detail?: unknown };
   if (value.code === "NETWORK_ERROR") return "无法连接分析服务，请检查网络或后端连接。";
   if (value.status === 429) return "分析请求过于频繁，请稍后再试。";
+  if (value.code === "ANALYSIS_NOT_CONFIGURED") {
+    return "DeepSeek 分析服务尚未配置。请在后端配置有效的 API 凭据并重启服务，再启动分析；重复点击不会恢复。";
+  }
   if (value.code === "EVIDENCE_INCOMPLETE") {
     const detail = value.detail && typeof value.detail === "object"
       ? value.detail as Record<string, unknown> : {};

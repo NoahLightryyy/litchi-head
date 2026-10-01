@@ -14,7 +14,7 @@ from src.utils.llm import LLMService, LLMConfig
 
 service = LLMService()
 config = LLMConfig(
-    model="deepseek-chat",
+    model="deepseek-flash",
     temperature=0.7,
     max_tokens=4096,
 )
@@ -22,7 +22,7 @@ result = await service.agenerate(prompt, config=config)
 
 # ❌ 禁止：其他模块直接实例化 LLM 客户端
 from langchain_deepseek import ChatDeepSeek  # 禁止！
-llm = ChatDeepSeek(model="deepseek-chat")    # 禁止！
+llm = ChatDeepSeek(model="deepseek-flash")    # 禁止！
 result = llm.invoke(prompt)                  # 禁止！
 ```
 
@@ -53,7 +53,7 @@ api_key = "sk-xxx"  # 禁止！
 ```python
 # ✅ 正确：调用方传入参数
 config = LLMConfig(
-    model="deepseek-chat",
+    model="deepseek-flash",
     temperature=0.3,       # 分析类任务用低温度
     max_tokens=4096,
 )
@@ -174,7 +174,7 @@ def test_llm_timeout(mocker):
 ```python
 # ✅ 正确：当前支持的 Provider
 SUPPORTED_PROVIDERS = {
-    "deepseek": {"env_key": "DEEPSEEK_API_KEY", "model": "deepseek-chat"},
+    "deepseek": {"env_key": "DEEPSEEK_API_KEY", "model": "deepseek-flash"},
     "openai": {"env_key": "OPENAI_API_KEY", "model": "gpt-4o"},
     "anthropic": {"env_key": "ANTHROPIC_API_KEY", "model": "claude-sonnet-4-6"},
 }

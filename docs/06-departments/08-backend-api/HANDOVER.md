@@ -321,3 +321,16 @@ API字段、错误码、前端文案均未改。端到端验收未通过：行�
 [新闻检索计划](../00-cross-cutting/NEWS-RETRIEVAL-PLAN.md)：负责展示聚合Pydantic/OpenAPI、错误与重试、兼容清理；先契约再前端。协调NR-04稳定性与NR-07隔离审查，不放宽正式新闻证据门禁。任务已发送后端会话，实际承接以回执为准。
 
 修复更新：后端会话继续retro专项，本侧隔离worktree接管XI-007实现。3cd0644冻结[NewsDisplay v1](NEWS-DISPLAY-CONTRACT.md)，/stocks/{code}/news-display；两源有界查询/并发单飞/120秒缓存，200/503/422区分。32项相关Python测试通过；前端已消费，待主窗口3001集成。不重复开发新闻路由。
+## 2026-10-01 辩论启动修复（独立侧会话）
+
+`codex/debate-service-repair`基于1298ea4，未合并至预览工作树。
+修复名称解析下载全市场导致15秒超时，并冻结配置缺失503；前端已消费。
+34项后端测试、Ruff/Pyright、前端lint/build和缺配置浏览器验收通过。
+TD-088未关闭：用户新凭据已安全保存、模型列表200；SDK凭据接线已修，
+旧deepseek-chat已停用；Flash仅keep-alive，用户已批准临时Pro非思考，真实文本/结构化通过。
+辅助全市场扫描改有效缓存；复盘报价等待15秒；Next代理600秒。229项测试通过，
+浏览器最终结果验收通过：300199研究191.205秒，5分析师/5策略师/5交叉评审及
+独立评审齐全，run/result均200，复盘保存成功。报价/新闻限制可见，交易建议null。
+会话deb_4dbc931dd41d；当前3002页面保留结果。尚未集成用户3001，TD-088保持开放。
+见[日志](../../04-changelog/logs/2026-10-01/2026-10-01-debate-service-repair.md)
+及[契约](DEBATE-PREFLIGHT-CONTRACT.md)。独立3002/8002，不替换主窗口服务。

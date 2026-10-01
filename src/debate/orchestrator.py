@@ -244,6 +244,7 @@ def collect_data_node(
     news_evidence_envelope: EvidenceEnvelope | None = None
     evidence_limitations: list[dict[str, object]] = []
 
+    logger.info("Debate collection started: symbol=%s", code)
     if quote_evidence_service is not None:
         quote_request = EvidenceRequest(
             capability=EvidenceCapability.REALTIME_QUOTE,
@@ -264,6 +265,7 @@ def collect_data_node(
                 _evidence_limitation(quote_evidence_envelope)
             )
 
+    logger.info("Debate quote evidence collected: symbol=%s", code)
     if news_evidence_service is not None:
         end_at = datetime.now(UTC)
         request = EvidenceRequest(
@@ -287,6 +289,7 @@ def collect_data_node(
                 _evidence_limitation(news_evidence_envelope)
             )
 
+    logger.info("Debate news evidence collected: symbol=%s", code)
     quotes: list[StockQuote] = []
     klines: list[KLine] = []
     news: list[NewsItem] = []
@@ -319,11 +322,13 @@ def collect_data_node(
         except Exception as e:
             logger.exception("新闻数据获取失败 [%s]: %s", code, e)
 
+    logger.info("Debate klines collected; fetching financials: symbol=%s", code)
     try:
         financial_data = collector.get_financials(code)
     except Exception as e:
         logger.exception("财务数据获取失败 [%s]: %s", code, e)
 
+    logger.info("Debate financials collected; fetching indicators: symbol=%s", code)
     # PD-005: 获取行业分类 + 产业链位置 + 关键指标
     industry_name = ""
     chain_pos = ""
@@ -345,13 +350,15 @@ def collect_data_node(
             target_quote = q
             break
 
-    # 市场情绪数据（C2: 全市场涨跌比 + 情绪评分）
+    logger.info("Debate indicators collected; fetching sentiment: symbol=%s", code)
+    # 辅助市场情绪只读有效缓存；单股分析不能等待全市场目录/分页抓取。
     sentiment: object | None = None
     try:
-        sentiment = collector.get_market_sentiment()
+        sentiment = collector.get_cached_market_sentiment()
     except Exception as e:
         logger.exception("市场情绪获取失败: %s", e)
 
+    logger.info("Debate collection finished: symbol=%s", code)
     # 生成市场简报（含 PD-005 行业分析层 + C2 情绪层）
     brief = format_market_brief(
         stock_code=code,

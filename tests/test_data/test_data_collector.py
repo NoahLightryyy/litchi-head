@@ -743,3 +743,25 @@ def test_empty_kline_result_does_not_block_retry(mock_empty_cache, mocker):
     assert mock_empty_cache.get_klines("300913") == []
     assert mock_empty_cache.get_klines("300913") == []
     assert upstream.call_count == 2
+
+
+class TestCachedMarketSentiment:
+    def test_missing_cache_never_calls_market_provider(self, mock_empty_cache):
+        source = MagicMock(side_effect=AssertionError("must not fetch whole market"))
+        mock_empty_cache._source.get_realtime_quotes = source
+        assert mock_empty_cache.get_cached_market_sentiment() is None
+        source.assert_not_called()
+
+    def test_expired_cache_does_not_become_current_sentiment(self, mock_empty_cache):
+        mock_empty_cache.cache.set("all_quotes", [], ttl=-1)
+        assert mock_empty_cache.get_cached_market_sentiment() is None
+
+    def test_valid_cache_is_used_without_network(self, mock_empty_cache):
+        quotes = mock_empty_cache.get_realtime_quotes()
+        assert quotes
+        mock_empty_cache._source.get_realtime_quotes = MagicMock(
+            side_effect=AssertionError("must not fetch whole market"),
+        )
+        result = mock_empty_cache.get_cached_market_sentiment()
+        assert result is not None
+        assert result.up_count + result.down_count + result.flat_count == len(quotes)

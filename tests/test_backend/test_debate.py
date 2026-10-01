@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import BaseModel, Field
 
+from backend.routers.debate import _analysis_is_configured
 from src.data.evidence import (
     EvidenceAssessment,
     EvidenceCapability,
@@ -26,9 +27,9 @@ from src.debate.evidence_gate import EvidenceIncompleteError
 @pytest.fixture(autouse=True)
 def mock_stock_name_lookup():
     """Keep backend route tests independent from the live AKShare network."""
-    with patch(
-        "backend.routers.debate.resolve_stock_name",
-        return_value="平安银行",
+    with (
+        patch("backend.routers.debate.resolve_stock_name", return_value="平安银行"),
+        patch("backend.routers.debate._analysis_is_configured", return_value=True),
     ):
         yield
 
@@ -61,6 +62,49 @@ class _MockOrchestrator:
 
 class TestRunDebate:
     """触发辩论"""
+
+    def test_configuration_failure_stops_before_data_or_model_calls(self, client):
+        with (
+            patch("backend.routers.debate._analysis_is_configured", return_value=False),
+            patch("backend.routers.debate.resolve_stock_name") as lookup,
+            patch("backend.routers.debate._get_orchestrator") as engine,
+        ):
+            response = client.post("/api/debate/run", json={"stock_code": "300199"})
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "ANALYSIS_NOT_CONFIGURED"
+        assert response.json()["error"]["detail"]["retryable"] is False
+        lookup.assert_not_called()
+        engine.assert_not_called()
+
+    def test_identity_timeout_is_dependency_failure_not_internal_error(self, client):
+        with (
+            patch("backend.routers.debate.resolve_stock_name", side_effect=TimeoutError),
+            patch("backend.routers.debate._get_orchestrator") as engine,
+        ):
+            response = client.post("/api/debate/run", json={"stock_code": "300199"})
+        assert response.status_code == 503
+        assert response.json()["error"]["detail"]["capability"] == "stock_identity"
+        engine.assert_not_called()
+
+    def test_invalid_identity_is_rejected_before_upstream(self, client):
+        with patch("backend.routers.debate.resolve_stock_name") as lookup:
+            response = client.post("/api/debate/run", json={"stock_code": "bad"})
+        assert response.status_code == 422
+        lookup.assert_not_called()
+
+    def test_configuration_presence_and_public_error_contract(self, client, monkeypatch):
+        from src.utils.config import settings
+
+        monkeypatch.setattr(settings, "deepseek_api_key", "   ")
+        assert not _analysis_is_configured()
+        monkeypatch.setattr(settings, "deepseek_api_key", "test-only-not-a-secret")
+        monkeypatch.setattr(settings, "llm_provider", "deepseek")
+        # This pre-fixture import retains the real helper while routing is mocked.
+        assert _analysis_is_configured()
+        schema = client.get("/openapi.json").json()
+        properties = schema["components"]["schemas"]["DebateUnavailableError"]["properties"]
+        codes = properties["code"]["enum"]
+        assert "ANALYSIS_NOT_CONFIGURED" in codes
 
     def test_run_debate_success(self, client):
         mock_orch = _MockOrchestrator()
@@ -290,3 +334,24 @@ class TestRateLimit:
 
         result_resp = client.get("/api/debate/result/test_session")
         assert result_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_retro_quote_timeout_does_not_lose_completed_analysis():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from backend.routers.debate import _auto_create_retro_record
+
+    result = SimpleNamespace(vote_summary=SimpleNamespace(), stock_name="测试股票")
+    put = AsyncMock()
+    with (
+        patch("backend.routers.debate._retro_quote_runner.run",
+              new_callable=AsyncMock, side_effect=TimeoutError),
+        patch("src.retro.store.RetroStore") as store,
+        patch("src.data.collector.DataCollector"),
+    ):
+        store.return_value.put = put
+        await _auto_create_retro_record("test-retro-timeout", result, "300199")
+    put.assert_awaited_once()
+    assert put.call_args.args[0].price_at_debate is None

@@ -1,3 +1,5 @@
+> 2026-10-01 运行修复：用户已批准产品分析临时使用 `deepseek-v4-pro` 非思考模式；Flash 实网仅返回保活消息。当前产品默认以 `src/utils/llm.py::DEFAULT_MODEL` 为准。下文快速模型策略为长期目标，不改变当前开发助手模型。
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/荔枝头-Litchi%20Head-FF6B35?style=for-the-badge">
@@ -210,7 +212,7 @@ python scripts/check.py --full   # 强制全量子集
 make check                       # Linux/macOS 同 --full
 ```
 
-> 只需要 **DeepSeek API Key**（[平台申请](https://platform.deepseek.com/)），每月免费额度足够个人使用。
+> 只需要 **DeepSeek API Key**（[平台申请](https://platform.deepseek.com/)），按供应商实际用量计费。
 
 ## 项目状态
 
@@ -269,7 +271,7 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 |:----|:------|
 | **核心语言** | Python 3.12+ |
 | **AI 编排** | LangGraph (StateGraph) |
-| **LLM** | DeepSeek-Chat（默认）+ DeepSeek-Reasoner（复杂任务，单 Provider 策略） |
+| **LLM** | DeepSeek-Flash（默认，非思考）+ DeepSeek-V4-Pro（复杂任务，显式思考） |
 | **数据访问** | Pydantic (v2) + akshare |
 | **检索** | 自研 RAG（n-gram TF + 语义向量） |
 | **测试** | pytest + VCR.py（真实 LLM 请求录制回放） |
