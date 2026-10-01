@@ -55,3 +55,11 @@ existing = connection.execute(
 **上一篇：[时间范围缩放](60-semantic-price-zoom.md)**
 
 **下一篇：待补充**
+
+## 前端怎样避免重试变成第二笔事实？
+
+`frontend/components/retro/user-action-board.tsx` 在发送前将归属、幂等标识和原始草稿保存到当前标签页的 sessionStorage。响应未知时锁住事实，只能按原标识重试；刷新后由用户主动恢复，不自动发送。`frontend/lib/user-action-ledger.ts` 校验返回归属与原事实，并用整数系数/指数比较十进制字符串，避免 JS 浮点数将两个不同价格误判相等。
+
+React Query 的查询键包含归属与分页位置；切换归属不能复用上一人的列表。归属隔离不等于身份认证。界面时间控件还要经真实键盘/日期选择验收：仅设置 DOM value 不证明框架的 change 处理器已接收值。
+
+自己试试：运行 `node --experimental-transform-types --test tests/user-action-ledger.test.mts`（frontend目录），将响应价格末位改掉，观察消费者拒绝保存成功；在 /retro 用两个 QA 归属验证记录互不串用。

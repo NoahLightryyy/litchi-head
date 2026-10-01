@@ -4,9 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchRetroRecords,
   fetchRetroSummary,
-  updateRetroAction,
-  updateRetroOutcome,
-  refreshRetroRecords,
   deleteRetroRecord,
 } from "@/lib/api/retro";
 
@@ -31,48 +28,6 @@ export function useRetroSummary() {
     queryFn: ({signal}) => fetchRetroSummary(signal),
     retry: false,
     staleTime: 30_000,
-  });
-}
-
-/* ── 更新用户操作 ── */
-export function useUpdateAction() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ recordId, action }: { recordId: string; action: string }) =>
-      updateRetroAction(recordId, action),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["retro"] });
-    },
-  });
-}
-
-/* ── 更新实际结果 ── */
-export function useUpdateOutcome() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      recordId,
-      returnPct,
-      price,
-    }: {
-      recordId: string;
-      returnPct: number;
-      price: number;
-    }) => updateRetroOutcome(recordId, returnPct, price),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["retro"] });
-    },
-  });
-}
-
-/* ── 批量刷新 ── */
-export function useRefreshRetro() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => refreshRetroRecords(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["retro"] });
-    },
   });
 }
 

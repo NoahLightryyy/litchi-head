@@ -23,11 +23,11 @@ async function request<T>(
 
   try {
     const res = await fetch(url, {
+      ...options,
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
       },
-      ...options,
     });
 
     const body = await res.json();
@@ -74,6 +74,10 @@ export const api = {
       body: data ? JSON.stringify(data) : undefined,
     });
   },
+
+  postRaw: <T>(path: string, data: unknown, options?: RequestInit) => request<T>(path, {
+    ...options, method: "POST", body: JSON.stringify(data),
+  }, false),
 
   put: <T>(path: string, data?: unknown) => {
     return request<T>(path, {

@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { RetroRecord, RetroSummary, RefreshResult } from "@/lib/types/retro";
+import type { RetroRecord, RetroSummary } from "@/lib/types/retro";
 
 /** 查询复盘记录列表 */
 export async function fetchRetroRecords(
@@ -24,31 +24,6 @@ export async function fetchRetroRecords(
 export async function fetchRetroSummary(signal?: AbortSignal): Promise<RetroSummary> {
   return api.get("/retro/summary", undefined,
     {signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(15000)])});
-}
-
-/** 更新用户操作 */
-export async function updateRetroAction(
-  recordId: string,
-  action: string
-): Promise<RetroRecord> {
-  return api.put(`/retro/${recordId}/action`, { action });
-}
-
-/** 更新实际结果 */
-export async function updateRetroOutcome(
-  recordId: string,
-  returnPct: number,
-  price: number
-): Promise<RetroRecord> {
-  return api.put(`/retro/${recordId}/outcome`, {
-    return_pct: returnPct,
-    price,
-  });
-}
-
-/** 批量刷新 pending 记录 */
-export async function refreshRetroRecords(): Promise<RefreshResult> {
-  return api.post("/retro/refresh");
 }
 
 /** 删除复盘记录 */

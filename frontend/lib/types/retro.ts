@@ -33,9 +33,3 @@ export interface RetroSummary {
   avg_score: number;
   last_record_at: string | null;
 }
-
-export interface RefreshResult {
-  total_pending: number;
-  updated: number;
-  errors: number;
-}

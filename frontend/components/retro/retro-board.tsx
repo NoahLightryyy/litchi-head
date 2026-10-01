@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   BarChart3,
-  RefreshCw,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -15,8 +14,6 @@ import {
 import {
   useRetroRecords,
   useRetroSummary,
-  useUpdateAction,
-  useRefreshRetro,
   useDeleteRecord,
 } from "@/lib/hooks/use-retro";
 import type { RetroRecord } from "@/lib/types/retro";
@@ -31,17 +28,7 @@ export function RetroBoard() {
     limit: 200,
   });
   const { data: summary, isLoading: summaryLoading, isError: summaryFailed, refetch: retrySummary } = useRetroSummary();
-  const { mutate: updateAction, isPending: actionUpdating, isError: actionFailed } = useUpdateAction();
-  const { mutate: refreshAll, isPending: refreshing, isError: refreshFailed } = useRefreshRetro();
   const { mutate: deleteRecord, isError: deleteFailed } = useDeleteRecord();
-
-  const handleAction = (recordId: string, action: string) => {
-    updateAction({ recordId, action });
-  };
-
-  const handleRefresh = () => {
-    refreshAll();
-  };
 
   return (
     <div className="space-y-6">
@@ -51,7 +38,7 @@ export function RetroBoard() {
         <p className="mt-1 text-xs text-text-muted">历史评分和置信度保留原始值；当前接口未提供样本有效性和校准证明，暂不以其均值评价研究质量。</p>
       </div>
       {summaryFailed && <div role="alert" className="text-sm text-accent-red">研究统计加载失败。<button className="ml-2 underline" onClick={() => void retrySummary()}>重试统计</button></div>}
-      {(actionFailed || refreshFailed || deleteFailed) && <p role="alert" className="text-sm text-accent-red">记录更新未成功确认，请重新加载记录核对后再操作。</p>}
+      {deleteFailed && <p role="alert" className="text-sm text-accent-red">记录更新未成功确认，请重新加载记录核对后再操作。</p>}
       {/* 聚合统计卡片 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -102,14 +89,7 @@ export function RetroBoard() {
             </button>
           ))}
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="flex items-center gap-2 px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 disabled:opacity-50 transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-          {refreshing ? "刷新中..." : "更新涨跌幅"}
-        </button>
+
       </div>
 
       {/* 记录列表 */}
@@ -157,9 +137,7 @@ export function RetroBoard() {
                       expandedId === record.record_id ? null : record.record_id
                     )
                   }
-                  onAction={handleAction}
                   onDelete={(id) => deleteRecord(id)}
-                  actionUpdating={actionUpdating}
                 />
               ))}
             </tbody>
@@ -192,16 +170,12 @@ function RetroRow({
   record,
   expanded,
   onToggle,
-  onAction,
   onDelete,
-  actionUpdating,
 }: {
   record: RetroRecord;
   expanded: boolean;
   onToggle: () => void;
-  onAction: (id: string, action: string) => void;
   onDelete: (id: string) => void;
-  actionUpdating: boolean;
 }) {
   const timeStr = record.created_at
     ? new Date(record.created_at).toLocaleString("zh-CN", {
@@ -237,11 +211,7 @@ function RetroRow({
           </span>
         </td>
         <td className="px-4 py-3">
-          <ActionChips
-            current={record.user_action}
-            disabled={actionUpdating}
-            onChange={(action) => onAction(record.record_id, action)}
-          />
+          {record.user_action ? ({buy:"买入",sell:"卖出",hold:"持有",skip:"跳过"}[record.user_action] ?? record.user_action) : "未记录"}
         </td>
         <td className="px-4 py-3">
           {record.actual_return_pct !== null ? (
@@ -369,45 +339,6 @@ function OutcomeBadge({ outcome }: { outcome: string }) {
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-text-muted bg-bg-tertiary">
       <Clock className="w-3 h-3" /> 待判定
     </span>
-  );
-}
-
-/* ── 用户操作按钮组 ── */
-function ActionChips({
-  current,
-  disabled,
-  onChange,
-}: {
-  current: string | null;
-  disabled: boolean;
-  onChange: (action: string) => void;
-}) {
-  const actions = [
-    { key: "buy", label: "买入", color: "text-accent-green" },
-    { key: "sell", label: "卖出", color: "text-accent-red" },
-    { key: "hold", label: "持有", color: "text-accent-gold" },
-    { key: "skip", label: "跳过", color: "text-text-muted" },
-  ];
-  return (
-    <div className="flex gap-1">
-      {actions.map((a) => (
-        <button
-          key={a.key}
-          onClick={(e) => {
-            e.stopPropagation();
-            onChange(a.key);
-          }}
-          disabled={disabled}
-          className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors ${
-            current === a.key
-              ? `${a.color} border-current bg-current/10`
-              : "text-text-muted border-transparent hover:border-bg-tertiary hover:text-text-secondary"
-          } disabled:opacity-50`}
-        >
-          {a.label}
-        </button>
-      ))}
-    </div>
   );
 }
 
