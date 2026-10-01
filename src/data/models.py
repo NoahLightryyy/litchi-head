@@ -201,7 +201,7 @@ class FinancialMetrics(BaseModel):
         inventory_turnover: 存货周转率(次)
         asset_turnover: 总资产周转率(次)
         total_assets: 总资产(元)
-        operating_revenue: 主营业务利润(元)
+        operating_revenue: 营业收入(元)，缺失为 None
     """
 
     stock_code: str
@@ -215,7 +215,7 @@ class FinancialMetrics(BaseModel):
     # ── 盈利能力 ──
     roe: float = Field(default=0.0, description="净资产收益率(%)")
     roa: float = Field(default=0.0, description="总资产利润率(%)")
-    gross_margin: float = Field(default=0.0, description="销售毛利率(%)")
+    gross_margin: float | None = Field(default=None, description="销售毛利率(%)")
     net_profit_margin: float = Field(default=0.0, description="销售净利率(%)")
 
     # ── 增长能力 ──
@@ -233,19 +233,22 @@ class FinancialMetrics(BaseModel):
 
     # ── 规模 ──
     total_assets: float = Field(default=0.0, ge=0.0, description="总资产(元)")
-    operating_revenue: float = Field(default=0.0, description="主营业务利润(元)")
+    operating_revenue: float | None = Field(
+        default=None, description="营业收入(元)，非主营业务利润",
+    )
 
 
 class ValuationMetrics(BaseModel):
     """个股估值比率（由财务指标 + 股价计算）
 
     基于最新财报指标和当前股价计算关键估值比率。
-    PE = 股价 / EPS（市盈率）
+    历史结构仅供兼容；collector 未取得合格市值证据时返回 None。
+    新研究口径：PE = 总市值 / 归母净利润TTM
     PB = 股价 / 每股净资产（市净率）
     PS = 总市值 / 主营业务收入（市销率）
 
     所有字段 ge=0.0：负估值（亏损公司）标记为 0.0 而非负值。
-    连续亏损公司 PE = 0.0（负 PE 无经济含义）。
+    亏损或证据缺失不应填零；新研究接口用 null 和原因表达。
     """
 
     stock_code: str

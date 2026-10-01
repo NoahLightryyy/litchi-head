@@ -90,7 +90,7 @@ export interface FinancialMetrics {
   operating_cf_per_share: number;
   roe: number;
   roa: number;
-  gross_margin: number;
+  gross_margin: number | null;
   net_profit_margin: number;
   revenue_growth: number;
   net_profit_growth: number;
@@ -100,7 +100,7 @@ export interface FinancialMetrics {
   inventory_turnover: number;
   asset_turnover: number;
   total_assets: number;
-  operating_revenue: number;
+  operating_revenue: number | null;
 }
 
 export interface ValuationMetrics {

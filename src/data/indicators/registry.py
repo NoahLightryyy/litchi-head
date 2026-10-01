@@ -40,7 +40,7 @@ _IndicatorCategory = Literal[
     "health",         # 财务健康（负债率/流动/速动比率）
     "per_share",      # 每股指标（EPS/每股净资产/每股经营现金流）
     "efficiency",     # 运营效率（存货/资产周转率）
-    "scale",          # 规模（总资产/主营利润）
+    "scale",          # 规模（总资产/营业收入）
 ]
 
 
@@ -139,7 +139,7 @@ INDICATOR_DEFS: list[IndicatorDef] = [
                  description="公司资产总规模，衡量体量",
                  field="total_assets", category="scale", unit="亿元",
                  priority=4),
-    IndicatorDef(id="operating_revenue", name="主营业务收入",
+    IndicatorDef(id="operating_revenue", name="营业收入",
                  description="公司主营业务产生的收入",
                  field="operating_revenue", category="scale", unit="亿元",
                  priority=5),

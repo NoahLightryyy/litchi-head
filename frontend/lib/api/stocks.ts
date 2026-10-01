@@ -55,8 +55,8 @@ export async function fetchValuation(code: string, signal?: AbortSignal): Promis
 }
 
 /** 个股动态关键指标（按行业注册表） */
-export async function fetchIndicators(code: string): Promise<DynamicIndicators> {
-  return api.get(`/stocks/${code}/indicators`);
+export async function fetchIndicators(code: string, signal?: AbortSignal): Promise<DynamicIndicators> {
+  return api.get(`/stocks/${code}/indicators`, undefined, { signal });
 }
 
 /** 分时曲线、战况与数据源诊断。 */

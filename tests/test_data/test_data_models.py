@@ -220,7 +220,7 @@ class TestFinancialMetrics:
         assert fm.operating_cf_per_share == -0.3
 
     def test_negative_operating_revenue_allowed(self):
-        """主营业务利润允许负值"""
+        """营业收入保留供应商负值，研究层单独判断适用性"""
         fm = FinancialMetrics(
             stock_code="000001", report_date="2024-12-31",
             operating_revenue=-1e8,
