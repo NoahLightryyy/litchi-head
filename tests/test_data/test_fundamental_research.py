@@ -128,3 +128,17 @@ def test_legacy_profit_never_becomes_revenue():
     zero = _row_to_financial(pd.Series({"销售毛利率(%)": 0, "营业收入(元)": 0}), "300199")
     assert zero.gross_margin == 0
     assert zero.operating_revenue == 0
+
+
+@pytest.mark.parametrize(
+    "period,published",
+    [("20240229", "20240301"), ("20260630", "20260101"), ("20990630", "20990801")],
+)
+def test_reject_invalid_reporting_dates(period, published):
+    raw = copy.deepcopy(FIXTURE["300199"]["lrb"])
+    reports = raw["result"]["data"]["report_list"]
+    report = reports.pop("20260630")
+    report["publish_date"] = published
+    reports[period] = report
+    with pytest.raises(ValueError):
+        research.parse_statements(raw, "lrb", research.URL)

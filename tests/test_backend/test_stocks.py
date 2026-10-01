@@ -367,3 +367,23 @@ class TestGetIndicators:
         assert all("name" in i for i in indicators)
         assert all("display" in i for i in indicators)
         assert all("value" in i for i in indicators)
+
+
+class TestFundamentalResearchContract:
+    def test_unavailable_has_version_and_reason(self, client):
+        from src.data.fundamental_research import FundamentalResearch
+
+        value = FundamentalResearch(stock_code="300199", status="unavailable",
+                                    warnings=["source timeout"], retryable=True)
+        with patch("backend.routers.stocks.get_fundamental_research", return_value=value):
+            response = client.get("/api/stocks/300199/fundamental-research")
+        assert response.status_code == 200
+        assert response.json()["schema_version"] == 1
+        assert response.json()["status"] == "unavailable"
+        assert response.json()["metrics"] == {}
+        assert response.json()["retryable"] is True
+
+    def test_invalid_identity_does_not_fetch(self, client):
+        with patch("backend.routers.stocks.get_fundamental_research") as fetch:
+            assert client.get("/api/stocks/bad/fundamental-research").status_code == 422
+            fetch.assert_not_called()

@@ -1,20 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { latestFinancial, checkedValuation, displayMetric } from "../lib/sector-fundamentals.ts";
-const row = (day: string) => ({stock_code:"300199",report_date:day,roe:-1,gross_margin:0,revenue_growth:2,net_profit_growth:-3,operating_cf_per_share:1,debt_ratio:70});
-test("乱序财报取实际最新一期，不变更源数组", () => {
-  const rows=[row("2024-03-31"),row("2026-06-30"),row("2025-12-31")];
-  assert.equal(latestFinancial(rows,"300199")?.report_date,"2026-06-30");
-  assert.equal(rows[0].report_date,"2024-03-31");
-  assert.equal(latestFinancial([],"300199"),null);
+import { checkedResearch, displayMetric, publicationDate, FUNDAMENTAL_ROWS, type Research } from "../lib/sector-fundamentals.ts";
+function sample(): Research {
+  return {schema_version:1, stock_code:"300199",status:"partial",report_date:"2026-06-30",fetched_at:"2026-10-01T00:00:00Z",source:"sina_consolidated_statements",verification:"single_source",retryable:false,warnings:[],
+    statements:[{kind:"lrb",report_date:"2026-06-30",published_at:"2026-08-21",scope:"合并期末",currency:"CNY",source_url:"https://quotes.sina.cn/report",amounts:{}}],
+    metrics:Object.fromEntries(FUNDAMENTAL_ROWS.map(({key}) => [key,{value:null,unit:"%",basis:"formula",reason:"missing"}]))};
+}
+test("reject incompatible contracts, identity, dates, numbers and source URLs", () => {
+  assert.equal(checkedResearch(sample(),"300199").report_date,"2026-06-30");
+  for (const change of [{schema_version:2},{stock_code:"600276"},{report_date:"2026-02-30"}]) assert.throws(()=>checkedResearch({...sample(),...change},"300199"));
+  const bad=sample(); bad.metrics.gross_margin!.value=NaN;
+  assert.throws(()=>checkedResearch(bad,"300199"));
+  bad.metrics.gross_margin!.value=0;bad.statements[0].source_url="javascript:alert(1)";
+  assert.throws(()=>checkedResearch(bad,"300199"));
 });
-test("拒绝串股、无效日期和非有限指标", () => {
-  for(const rows of [[row("2026-02-30")],[{...row("2026-06-30"),stock_code:"000001"}], [{...row("2026-06-30"),roe:NaN}]]) assert.throws(()=>latestFinancial(rows,"300199"));
+test("distinguish real zero, negative, missing and currency units", () => {
+  const metric={value:0,unit:"%",basis:"formula",reason:null};
+  assert.equal(displayMetric(metric),"0.00%");
+  assert.equal(displayMetric({...metric,value:-1.5}),"-1.50%");
+  assert.equal(displayMetric({...metric,value:688286621.3,unit:"元"}),"6.88亿");
+  assert.equal(displayMetric({...metric,value:null,reason:"missing"}),"—");
 });
-test("缺失估值不补零，零值不伪装有效", () => {
-  assert.equal(checkedValuation(null,"300199"),null);
-  assert.equal(displayMetric(undefined),"—");
-  assert.equal(displayMetric(0),"0（待核验）");
-  assert.equal(displayMetric(-1.5,"%"),"-1.50%");
-  assert.throws(()=>checkedValuation({stock_code:"000001",report_date:"2026-06-30",pe:1,pb:1,ps:1,market_cap:10},"300199"));
+test("publication is never substituted by retrieval time; preserve stale status", () => {
+  const data=sample();
+  assert.equal(publicationDate(data),"2026-08-21");
+  data.statements[0].published_at=null;
+  assert.equal(publicationDate(data),"未提供");
+  data.status="stale";
+  assert.equal(checkedResearch(data,"300199").status,"stale");
 });

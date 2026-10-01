@@ -54,7 +54,7 @@ class FinancialMetrics(BaseModel):
     # ── 盈利能力 ──
     roe: float = Field(default=0.0, description="净资产收益率(%)")
     roa: float = Field(default=0.0, description="总资产利润率(%)")
-    gross_margin: float = Field(default=0.0, description="销售毛利率(%)")
+    gross_margin: float | None = Field(default=None, description="销售毛利率(%)")
     net_profit_margin: float = Field(default=0.0, description="销售净利率(%)")
 
     # ── 增长能力 ──
@@ -72,11 +72,11 @@ class FinancialMetrics(BaseModel):
 
     # ── 规模 ──
     total_assets: float = Field(default=0.0, ge=0.0, description="总资产(元)")
-    operating_revenue: float = Field(default=0.0, description="主营业务利润(元)")
+    operating_revenue: float | None = Field(default=None, description="营业收入(元)")
 ```
 
 **关键设计决策：**
-- 约束不是一刀切 `ge=0.0`：EPS、增长率、主营业务利润都可能为负（亏损公司），所以允许负值
+- 约束不是一刀切 `ge=0.0`：EPS、增长率可能为负；营业收入保留源值并单独校验适用性，不能把主营利润当成收入
 - `debt_ratio` 有 `ge=0.0, le=100.0`：资产负债率定义上就在 0~100% 之间
 - 字段名称用英文（`eps` 而非 `摊薄每股收益`），`description` 写中文——代码可读性和人机界面分离
 
@@ -187,13 +187,13 @@ def format_market_brief(
 🚀 增长能力: 营收增长 +8.50% | 净利润增长 +15.20%
 🛡️ 财务健康: 资产负债率 55.0% | 流动比率 1.80 | 速动比率 1.20
 ⚙️ 运营效率: 存货周转率 4.50 | 总资产周转率 0.85
-🏢 规模: 总资产 50000.00 亿元 | 主营利润 1500.00 亿元
+🏢 规模: 总资产 50000.00 亿元 | 营业收入 1500.00 亿元
 ```
 
 **关键设计：**
 - 零值字段自动跳过（`if latest.eps != 0.0`）—— 避免满屏 `0.00`
 - 负值正确显示负号（`growth:+.2f` → `-5.30%`）
-- 总资产/主营利润除以 1 亿以「亿元」显示，避免长数字不可读
+- 总资产/营业收入除以 1 亿以「亿元」显示，避免长数字不可读
 - 取最新一期而非多期（简报足够辅助决策，多期对比留给专项分析）
 
 ### collect_data_node 接驳
@@ -265,7 +265,7 @@ if brief:
    df = ak.stock_financial_analysis_indicator(symbol="000001", start_year="2024")
    list(df.columns)  # 看看 86 列里有哪些我们没用上的
    ```
-3. 思考题：为什么 PE（市盈率）不放在 `FinancialMetrics` 里而需要单独定义？（提示：PE = 股价 / EPS，股价每秒都在变）
+3. 思考题：为什么 PE（市盈率）不放在 `FinancialMetrics` 里而需要单独定义？（提示：PE需要带时间及股本口径的市值与归母净利润TTM；不能用半年EPS直接相除）
 
 ---
 
@@ -349,3 +349,5 @@ DataSource.get_realtime_quotes() → StockQuote
 |:-----|:----:|:---------|
 | ValuationMetrics 模型 | 9 | 构造/约束/序列化/边界 |
 | DataCollector.get_valuation | 8 | 正常/无数据/网络失败/缓存/负EPS/PS计算 |
+
+2026-10-01口径修正：`gross_margin`和`operating_revenue`允许null；本站新的板块财务研究见卡57与`src/data/fundamental_research.py`。旧模型其余默认0仍属迁移债务TD-089，不能用于新研究缺值推断。

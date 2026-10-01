@@ -70,7 +70,7 @@ function SinaSector({ code }: { code: string }) {
           涨跌幅反映价格变化，净流入反映来源口径下的资金差额，两项分开观察，不合成为买卖评级。</p>
         <p className="text-xs text-text-muted mt-3">比较范围仅包含同一来源、同一分类的板块，同值并列。<a href="#fundamentals" className="text-accent-blue underline">查看成分股基本面研究</a></p>
       </section>
-      <SectorFundamentals members={data?.stocks ?? []} />
+      <SectorFundamentals members={data?.stocks ?? []} membersLoading={members.isLoading} />
       <details className="text-xs text-text-muted rounded-lg border border-bg-tertiary p-4">
         <summary className="cursor-pointer">数据口径与更新时间{sector.service_updated_at ? ` · ${date(sector.service_updated_at)}（北京时间）` : ""}</summary>
         <div className="mt-3"><MarketDataNotice meta={boards.data?.meta} refreshError={boards.isError} />

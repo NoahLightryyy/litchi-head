@@ -35,7 +35,7 @@ class Statement(BaseModel):
 
 
 class ResearchMetric(BaseModel):
-    value: float | None = None
+    value: float | None = Field(default=None, allow_inf_nan=False)
     unit: str
     basis: str
     reason: str | None = None
@@ -66,6 +66,8 @@ def parse_statements(
         if raw.get("rType") != "合并期末" or raw.get("rCurrency") != "CNY":
             continue
         period = datetime.strptime(raw_period, "%Y%m%d").date()
+        if raw_period[4:] not in {"0331", "0630", "0930", "1231"}:
+            raise ValueError("Not a quarterly/yearly reporting period")
         published = raw.get("publish_date")
         published_at = datetime.strptime(published, "%Y%m%d").date() if published else None
         if period > today or (published_at and not period <= published_at <= today):
@@ -248,12 +250,24 @@ def get_fundamental_research(code: str) -> FundamentalResearch:
             for kind, future in pending.items():
                 try:
                     tables[kind] = future.result()
+                    if not tables[kind]:
+                        logger.warning("No consolidated CNY statements: %s %s", code, kind)
+                        warnings.append(f"{kind}未返回合并人民币报表")
                 except Exception:
                     logger.exception(
                         "Financial statement retrieval failed: code=%s kind=%s", code, kind
                     )
                     warnings.append(f"{kind}报表暂未取得，可手动重试")
-        result = build_research(code, tables, warnings)
+        try:
+            result = build_research(code, tables, warnings)
+        except (ValueError, ArithmeticError):
+            logger.exception("Invalid financial calculation: code=%s", code)
+            result = FundamentalResearch(
+                stock_code=code,
+                status="unavailable",
+                retryable=True,
+                warnings=[*warnings, "报表计算未通过校验，请重试"],
+            )
         if result.status == "unavailable" and entry.value is not None:
             old = entry.value
             if old.fetched_at and datetime.now(timezone.utc) - old.fetched_at < timedelta(hours=24):
