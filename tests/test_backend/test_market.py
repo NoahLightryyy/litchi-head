@@ -409,6 +409,7 @@ class TestGetSectors:
             "as_of": "2026-09-04T15:39:32+08:00",
             "source": "eastmoney",
             "snapshot_may_be_delayed": True,
+            "net_flow": None, "service_updated_at": None,
         }
         assert {item["code"] for item in body["meta"]["limitations"]} == {
             "BOARD_SNAPSHOT_MAY_BE_DELAYED",

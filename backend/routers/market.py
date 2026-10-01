@@ -35,6 +35,7 @@ from src.data.providers.eastmoney_boards import (
     BoardSnapshot,
     board_snapshots,
 )
+from src.data.providers.sina_boards import sina_boards
 
 logger = logging.getLogger("backend.market")
 router = APIRouter(prefix="/api/market")
@@ -134,7 +135,9 @@ class SectorItemResp(BaseModel):
     rank: int = 0
     category: Literal["industry", "concept"]
     as_of: datetime | None = None
-    source: Literal["eastmoney"] = "eastmoney"
+    source: Literal["eastmoney", "sina"] = "eastmoney"
+    net_flow: float | None = Field(default=None, description="来源口径资金净流入，亿元；非主力")
+    service_updated_at: datetime | None = None
     snapshot_may_be_delayed: bool = False
 
 
@@ -599,14 +602,55 @@ async def get_indices():
     }
 
 
+async def _sina_sectors(sort: str, started_at: float) -> dict | JSONResponse:
+    try:
+        snapshot = await run_sync(sina_boards.fetch)
+    except Exception:
+        logger.exception("Sina alternative board collection failed")
+        return _market_failed("MARKET_SECTORS_FAILED", "备用板块行情暂时不可用", started_at,
+                              failed_sources=["sina"])
+    items = [SectorItemResp(
+        id=f"sina:{board.code}", name=board.name, category=board.category,
+        change_pct=board.change_pct, fund_flow=None, net_flow=board.net_flow / 100_000_000,
+        source="sina", service_updated_at=snapshot.service_updated_at,
+        as_of=None, snapshot_may_be_delayed=True,
+        top_stocks=[board.leader] if board.leader else [],
+    ) for board in snapshot.boards]
+    applied = sort if sort in ("change_pct", "net_flow") else "upstream_order"
+    if applied == "change_pct":
+        items.sort(key=lambda item: item.change_pct, reverse=True)
+    elif applied == "net_flow":
+        items.sort(key=lambda item: item.net_flow or 0, reverse=True)
+    for rank, item in enumerate(items, 1):
+        item.rank = rank
+    limitations = [
+        MarketLimitation(code="SINA_BOARD_BASIS",
+                         message="新浪备用榜单：分类与东财不同，未跨源拼接涨跌幅；板块链接查看新浪来源"),
+        MarketLimitation(code="FUND_FLOW_UNAVAILABLE",
+                         message="新浪资金净流入不等于主力净流入，主力字段仍缺失"),
+        MarketLimitation(code="SOURCE_SERVICE_TIME_ONLY", message=(
+            f"资金服务更新时间 {snapshot.service_updated_at.isoformat()}；"
+            "该时间不是逐板块行情时间，不能据此确认实时性")),
+    ]
+    return {"data": [item.model_dump() for item in items], "meta": _market_meta(
+        "partial", started_at, cached=snapshot.cached, limitations=limitations,
+        sort_requested=sort, sort_applied=applied,
+    )}
+
+
 @router.get(
     "/sectors",
     response_model=SectorsEnvelope,
     responses={503: {"model": MarketErrorResponse}},
 )
-async def get_sectors(sort: str = Query("fund_flow", description="排序维度")):
+async def get_sectors(
+    sort: str = Query("fund_flow", description="排序维度"),
+    source: Literal["eastmoney", "sina"] = Query("eastmoney"),
+):
     """板块排行（行业 + 概念），含真实涨跌幅和资金流向"""
     t0 = time.time()
+    if source == "sina":
+        return await _sina_sectors(sort, t0)
     items: list[SectorItemResp] = []
     fund_flow_missing_sources: list[str] = []
     board_frames, failed_sources = await _fetch_board_perf_sources(
