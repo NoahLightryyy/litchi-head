@@ -318,3 +318,5 @@ API字段、错误码、前端文案均未改。端到端验收未通过：行�
 ## 2026-10-01 XI-007 / NR-03主管
 
 [新闻检索计划](../00-cross-cutting/NEWS-RETRIEVAL-PLAN.md)：负责展示聚合Pydantic/OpenAPI、错误与重试、兼容清理；先契约再前端。协调NR-04稳定性与NR-07隔离审查，不放宽正式新闻证据门禁。任务已发送后端会话，实际承接以回执为准。
+
+修复更新：后端会话继续retro专项，本侧隔离worktree接管XI-007实现。3cd0644冻结[NewsDisplay v1](NEWS-DISPLAY-CONTRACT.md)，/stocks/{code}/news-display；两源有界查询/并发单飞/120秒缓存，200/503/422区分。32项相关Python测试通过；前端已消费，待主窗口3001集成。不重复开发新闻路由。

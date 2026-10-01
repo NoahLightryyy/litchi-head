@@ -114,3 +114,11 @@ for call_id, task in tasks.items():
 
 个股旧新闻路由调用DataCollector，而news_runtime维护双源完整性证据。展示可用单源条目需要独立且明确的状态契约，不能为了让页面有内容去放宽正式证据门禁。空实现也不是备用源。来源发布时间、抓取时间和缓存覆盖范围分别描述不同事实。
 自己试试（3分钟）：对照backend/routers/stocks.py的get_news与backend/routers/evidence.py的aggregate_news，画出各自调用路径；在src/data/news_runtime.py找出滚动覆盖不足的状态，解释为什么不能简单换一个前端URL。实现跟踪见[XI-007](../06-departments/00-cross-cutting/NEWS-RETRIEVAL-PLAN.md)。
+
+### 展示检索的总截止与时间精度
+
+`backend/news_display.py`为展示层使用异步HTTP和每源总截止：逐次3秒超时无法限制多页总时长，必须再套10秒总预算；取消协程关闭异步I/O，避免同步工作线程在请求结束后持续占用。两源并发、同key单飞，失败不覆盖已有成功缓存；正式证据适配及门禁不改变。
+
+`frontend/lib/news-display.ts`将公告日期和新闻时刻分开。日期不能直接按UTC零点与北京时间凌晨比较，否则今天的公告会被错误当作未来。页面同时展示原始发布日期和独立检索时间；`NewsFeed`刷新失败保留已有条目并明确未更新。标题关联与摘要提及分组，不把所有候选当作公司事实。
+
+自己试试（3分钟）：运行`tests/test_backend/test_news_display.py`中的来源截止与缓存测试，再运行`frontend/tests/news-display.test.mts`；将fetched_at改成北京时间00:30，比较同日公告日期与次日日期的校验差别。在独立预览关闭自己的后端，点击刷新，确认旧内容及原检索时间仍保留。

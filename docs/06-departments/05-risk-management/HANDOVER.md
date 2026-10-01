@@ -124,3 +124,5 @@ last_updated: 2026-08-26 (生产封口协调会：SAFE-1/PRICE-1 下发)
 ## 2026-10-01 XI-007 / NR-07待审读
 
 [新闻检索计划](../00-cross-cutting/NEWS-RETRIEVAL-PLAN.md)：审查展示搜索候选、单源及缓存与正式证据链隔离。后端须交调用路径影响清单；当前未确认独立风控接单，不等于门禁已验收。
+
+修复影响清单：新backend/news_display.py→东方财富搜索/巨潮公告→NewsDisplay(purpose=display_only)→NewsFeed；未改NEWS_EVIDENCE_POLICY、news_runtime、正式provider或辩论消费，不写evidence数据库。摘要提及单列，不输出利好利空/评级/生成式结论。既有来源回归与新契约共32项通过，独立风控审读仍待签收。

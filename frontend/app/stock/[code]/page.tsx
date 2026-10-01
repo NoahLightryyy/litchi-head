@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { TrendingUp, DollarSign, MessageSquare, ShieldCheck, BarChart3 } from "lucide-react";
-import { useStockQuote, useStockNews } from "@/lib/hooks/use-stock";
+import { useStockQuote } from "@/lib/hooks/use-stock";
 import { QuoteCard } from "@/components/stock/quote-card";
 import { KlineChart } from "@/components/stock/kline-chart";
 import { DebatePanel } from "@/components/stock/debate-panel";
@@ -34,7 +34,6 @@ export default function StockPage() {
 
   // ── 数据 ──
   const { data: quote, isLoading: quoteLoading, isError: quoteError, refetch: refreshQuote, isFetching: quoteFetching } = useStockQuote(code);
-  const { data: news, isLoading: newsLoading, isError: newsError, refetch: refreshNews, isFetching: newsFetching } = useStockNews(code);
   const { data: trustReports, isLoading: trustLoading } = useTrustLeaderboard();
 
   const stockName = quote?.name ?? code;
@@ -108,8 +107,7 @@ export default function StockPage() {
       </div>
 
       {/* 新闻 */}
-      {newsError ? <div role="alert" className="rounded-lg border border-bg-tertiary p-5">关联新闻请求失败</div> : <NewsFeed items={news ?? []} loading={newsLoading} />}
-      {!newsLoading && (newsError || !news?.length) && <button disabled={newsFetching} onClick={() => void refreshNews()} className="self-start text-sm text-accent-blue">{newsFetching ? "正在获取…" : "重新获取关联新闻"}</button>}
+      <NewsFeed key={code} code={code} />
     </div>
   );
 }
