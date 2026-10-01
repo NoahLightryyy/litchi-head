@@ -101,3 +101,6 @@ for call_id, task in tasks.items():
 首页恢复示例：backend/routers/market.py 的 get_sectors 只在展示边界读取持久快照；stale 与原始 as_of 一起保留。缓存恢复不能放在共享 Provider.fetch 内，否则其他调用方可能把历史数据当实时证据。首次无缓存和损坏仍失败，见 tests/test_backend/test_board_display_restore.py。
 
 2026-10-01实网验证补充：HTTP200只说明端点响应，必须继续解析字段、查分页和时间。新浪板块可达而新浪报价超时，不能按供应商品牌整体判断；同花顺第一页有表但第二页401，不能发布“完整快照”。跨源ID、资金口径、来源时间要分别核验；6秒阶段超时不等于6秒总预算。
+
+### 补字段不等于补事实
+本项目src/data/providers/sina_boards.py对分页前后服务时间做稳定性检查，但该时间只证明服务更新标记没变，不证明每条报价同时产生。backend/routers/market.py明确把它放在service_updated_at，as_of仍null；netamount进入net_flow，主力fund_flow仍null。frontend/lib/sector-feed.ts只对明确上游失败切换分类源，不能把所有异常都吞成备用成功。自己试试：运行tests/test_data/test_sina_boards.py查看缺页、重复、nan、错分类、跨刷新时间的拒绝路径，再运行frontend/tests/sector-feed.test.mts观察取消与后端断连为什么不触发换源。

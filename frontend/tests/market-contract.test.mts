@@ -273,3 +273,19 @@ test("断源历史榜单保留时间、排序和用户可见限制", async () =>
   assert.equal(parsed.meta.status, "stale");
   assert.ok(marketNoticeFacts(parsed.meta).includes("历史排名不代表当前行情"));
 });
+
+
+test("新浪补充字段必须区分主力、净流入和服务时间", () => {
+  const data = [{ id: "sina:new_test", name: "测试", change_pct: 1.2, fund_flow: null,
+    net_flow: 2, service_updated_at: "2026-09-30T15:01:48+08:00", source: "sina",
+    as_of: null, category: "industry", snapshot_may_be_delayed: true,
+    heat: "medium", top_stocks: [], rank: 1 }];
+  const meta = { ...baseMeta, status: "partial", sort_applied: "net_flow", limitations:
+    ["SINA_BOARD_BASIS", "FUND_FLOW_UNAVAILABLE", "SOURCE_SERVICE_TIME_ONLY"].map(code => ({ code, message: code, index_code: null })) };
+  assert.equal(parseSectorsEnvelope({data, meta}).data[0].net_flow, 2);
+  for (const changes of [{ fund_flow: 2 }, { as_of: data[0].service_updated_at },
+    { net_flow: NaN }, { service_updated_at: null }, { id: "BK0001" }]) {
+    assert.throws(() => parseSectorsEnvelope({data: [{...data[0], ...changes}], meta}), MarketContractError);
+  }
+  assert.throws(() => parseSectorsEnvelope({data, meta: {...meta, status: "success"}}), MarketContractError);
+});

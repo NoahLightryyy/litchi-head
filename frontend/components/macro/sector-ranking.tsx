@@ -22,6 +22,8 @@ interface SectorRankingProps {
 
 /** 板块排行表格 */
 export function SectorRanking({ sectors, loading, error, meta, refreshError, onRetry, onSortChange }: SectorRankingProps) {
+  const isSina = sectors.length > 0 && sectors.every((item) => item.source === "sina");
+  const flowSort = isSina ? "net_flow" : "fund_flow";
   const heatLabels = { high: "🔥", medium: "📌", low: "—" } as const;
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
@@ -99,25 +101,26 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
             </th>
             <th
               className="text-right px-4 py-3 font-medium cursor-pointer hover:text-text-primary"
-              aria-sort={meta?.sort_applied === "fund_flow" ? "descending" : "none"}
+              aria-sort={meta?.sort_applied === flowSort ? "descending" : "none"}
             >
-              <button type="button" onClick={() => handleSortChange("fund_flow")} className="focus-visible:outline-2 focus-visible:outline-accent-blue">主力净流入(亿) {meta?.sort_applied === "fund_flow" ? "↓" : ""}</button>
+              <button type="button" onClick={() => handleSortChange(flowSort)} className="focus-visible:outline-2 focus-visible:outline-accent-blue">{isSina ? "新浪净流入(亿)" : "主力净流入(亿)"} {meta?.sort_applied === flowSort ? "↓" : ""}</button>
             </th>
             <th className="text-right px-4 py-3 font-medium">热度</th>
           </tr>
         </thead>
         <tbody>
-          {view.items.map((s) => (
-            <tr
+          {view.items.map((s) => {
+            const flow = isSina ? s.net_flow ?? null : s.fund_flow;
+            return <tr
               key={`${s.id}-${s.rank}`}
               className="border-b border-bg-tertiary last:border-0 hover:bg-bg-tertiary/50 cursor-pointer transition-colors"
             >
               <td className="px-4 py-3 text-text-muted text-xs">{s.rank}</td>
               <td className="px-4 py-3">
                 <div className="flex flex-col">
-                  <Link href={`/sector/${s.id}`} className="text-text-primary font-medium hover:underline focus-visible:outline-2 focus-visible:outline-accent-blue">{s.name}</Link>
+                  {s.source === "sina" ? <a href={`https://money.finance.sina.com.cn/moneyflow/#!bk!${s.category === "industry" ? "0" : "1"}/${s.id.slice(5)}`} target="_blank" rel="noopener noreferrer" className="text-text-primary font-medium hover:underline">{s.name} ↗</a> : <Link href={`/sector/${s.id}`} className="text-text-primary font-medium hover:underline focus-visible:outline-2 focus-visible:outline-accent-blue">{s.name}</Link>}
                   <span className="text-xs text-text-muted">
-                    {s.category === "industry" ? "行业" : "概念"}
+                    {s.category === "industry" ? "行业" : "概念"}{s.source === "sina" && " · 新浪"}
                     {s.top_stocks.length > 0 && ` · ${s.top_stocks.slice(0, 2).join(" · ")}`}
                   </span>
                 </div>
@@ -132,12 +135,12 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
                   }} />
                 </div>
               </td>
-              <td className={`px-4 py-3 text-right font-number ${s.fund_flow === null ? "text-text-muted" : s.fund_flow >= 0 ? "text-accent-green" : "text-accent-red"}`}>
-                {s.fund_flow === null ? "—" : `${s.fund_flow >= 0 ? "+" : ""}${s.fund_flow.toFixed(1)}`}
+              <td className={`px-4 py-3 text-right font-number ${flow === null ? "text-text-muted" : flow >= 0 ? "text-accent-green" : "text-accent-red"}`}>
+                {flow === null ? "—" : `${flow >= 0 ? "+" : ""}${flow.toFixed(1)}`}
               </td>
-              <td className="px-4 py-3 text-right">{heatLabels[s.heat]}</td>
-            </tr>
-          ))}
+              <td className="px-4 py-3 text-right">{isSina ? "—" : heatLabels[s.heat]}</td>
+            </tr>;
+          })}
         </tbody>
       </table>
       </div>

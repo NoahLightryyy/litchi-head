@@ -59,7 +59,9 @@ export interface MarketIndex {
 export interface SectorItem {
   category: "industry" | "concept";
   as_of: string | null;
-  source: "eastmoney";
+  source: "eastmoney" | "sina";
+  net_flow?: number | null;
+  service_updated_at?: string | null;
   snapshot_may_be_delayed: boolean;
   id: string;
   name: string;

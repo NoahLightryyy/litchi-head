@@ -157,7 +157,10 @@ function isSector(value: unknown): value is SectorItem {
     isRecord(value) &&
     (value.category === "industry" || value.category === "concept") &&
     (value.as_of === null || isTimestamp(value.as_of)) &&
-    value.source === "eastmoney" &&
+    (value.source === "eastmoney" || (value.source === "sina" &&
+      typeof value.id === "string" && /^sina:(new_|gn_)[A-Za-z0-9_]+$/.test(value.id) &&
+      value.fund_flow === null && value.as_of === null &&
+      isFiniteNumber(value.net_flow) && isTimestamp(value.service_updated_at))) &&
     typeof value.snapshot_may_be_delayed === "boolean" &&
     isNonEmptyString(value.id) &&
     isNonEmptyString(value.name) &&
@@ -218,6 +221,13 @@ export function parseSectorsEnvelope(value: unknown): MarketEnvelope<SectorItem[
     (data) => parseArray(data, isSector),
     (data) => data.length === 0,
   );
+  const sina = envelope.data.some((item) => item.source === "sina");
+  if (sina && (envelope.data.some((item) => item.source !== "sina") ||
+    envelope.meta.status !== "partial" ||
+    !["SINA_BOARD_BASIS", "SOURCE_SERVICE_TIME_ONLY"].every((code) =>
+      envelope.meta.limitations.some((item) => item.code === code)))) {
+    throw new MarketContractError();
+  }
   const hasUnknownFundFlow = envelope.data.some((item) => item.fund_flow === null);
   const hasFundFlowLimitation = envelope.meta.limitations.some(
     (item) => item.code === "FUND_FLOW_UNAVAILABLE",

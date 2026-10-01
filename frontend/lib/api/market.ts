@@ -1,3 +1,4 @@
+import { loadSectorFeed } from "@/lib/sector-feed";
 import { api } from "./client";
 import type { MarketEnvelope, MarketIndex, SectorItem, MacroBrief, SectorDetail, HotNewsItem } from "@/lib/types/market";
 import {
@@ -23,7 +24,11 @@ export async function fetchSectors(
   sort: string = "fund_flow",
   signal?: AbortSignal,
 ): Promise<MarketEnvelope<SectorItem[]>> {
-  return parseSectorsEnvelope(await api.getRaw("/market/sectors", { sort }, { signal }));
+  return loadSectorFeed(
+    async () => parseSectorsEnvelope(await api.getRaw("/market/sectors", { sort }, { signal })),
+    async () => parseSectorsEnvelope(await api.getRaw("/market/sectors", { sort, source: "sina" }, { signal })),
+    signal,
+  );
 }
 
 /** 板块详情 + 产业链分析 */

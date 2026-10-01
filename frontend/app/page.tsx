@@ -35,6 +35,8 @@ export default function MacroPage() {
       ? "按主力资金流向排序"
       : sectorsQuery.data?.meta.sort_applied === "change_pct"
         ? "按涨跌幅排序"
+        : sectorsQuery.data?.meta.sort_applied === "net_flow"
+          ? "按新浪资金净流入排序"
         : sectorsQuery.data
           ? "按数据源顺序"
           : null;

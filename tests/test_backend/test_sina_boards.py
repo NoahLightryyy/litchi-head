@@ -17,3 +17,12 @@ def test_api_never_labels_total_flow_as_main_or_service_time_as_quote(client):
     assert datetime.fromisoformat(item["service_updated_at"]).year == 2026
     assert body["meta"]["sort_applied"] == "net_flow"
     assert body["meta"]["status"] == "partial"
+
+
+def test_preview_frontend_cors_preflight(client):
+    response = client.options("/api/market/sectors", headers={
+        "Origin": "http://localhost:3001", "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "content-type",
+    })
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3001"
