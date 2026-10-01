@@ -1,5 +1,6 @@
 "use client";
 
+import type { SemanticZoom } from "@/lib/chart-zoom";
 import { useState, useCallback } from "react";
 import { useKline } from "@/lib/hooks/use-stock";
 import { CandlestickChart } from "@/components/stock/candlestick-chart";
@@ -8,6 +9,7 @@ import { RawDailyChart } from "./raw-daily-chart";
 
 interface KlineChartProps {
   code: string;
+  zoom?: SemanticZoom;
 }
 
 const PERIOD_MAP = [
@@ -22,7 +24,7 @@ const PERIOD_MAP = [
  * 管理周期切换 + 数据获取，将数据传给 CandlestickChart 渲染。
  * 自包含 — 只需传入股票 code。
  */
-export function KlineChart({ code }: KlineChartProps) {
+export function KlineChart({ code, zoom }: KlineChartProps) {
   const [period, setPeriod] = useState<string>("daily");
 
   const { data: klines, isLoading, isError, isFetching, refetch } = useKline(code, period);
@@ -70,7 +72,7 @@ export function KlineChart({ code }: KlineChartProps) {
           <div className="text-sm text-text-muted animate-pulse">加载中...</div>
         </div>
       ) : period === "daily" && (isError || !klines?.length) ? (
-        <RawDailyChart code={code} />
+        <RawDailyChart code={code} zoom={zoom} />
       ) : isError ? (
         <div className="h-80 rounded-md bg-bg-primary flex items-center justify-center border border-bg-tertiary">
           <div className="text-center">
@@ -80,7 +82,7 @@ export function KlineChart({ code }: KlineChartProps) {
           </div>
         </div>
       ) : klines && klines.length > 0 ? (
-        <CandlestickChart data={klines} />
+        <CandlestickChart data={klines} zoom={period === "daily" ? zoom : undefined} />
       ) : (
         <div className="h-80 rounded-md bg-bg-primary flex items-center justify-center border border-bg-tertiary">
           <div className="text-center">

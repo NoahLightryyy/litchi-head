@@ -111,7 +111,7 @@ export function resolveIntradayPanelMode({
 
 /** Converts only timestamp and close into line-series data; OHLC is never inferred. */
 export function toIntradayLineData(
-  points: readonly IntradayPricePoint[],
+  points: readonly Pick<IntradayPricePoint, "timestamp" | "close">[],
 ): IntradayLineDatum[] {
   const bySecond = new Map<number, IntradayLineDatum>();
   for (const point of points) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef } from "react";
+import { bindChartZoom, type SemanticZoom } from "@/lib/chart-zoom";
 import {
   ColorType,
   CrosshairMode,
@@ -17,7 +18,9 @@ import {
 import type { IntradayPricePoint } from "@/lib/types/stock";
 
 interface IntradayLineChartProps {
-  points: readonly IntradayPricePoint[];
+  points: readonly Pick<IntradayPricePoint, "timestamp" | "close">[];
+  multiDay?: boolean;
+  zoom?: SemanticZoom;
 }
 
 const CHART_THEME = {
@@ -31,7 +34,7 @@ const CHART_THEME = {
 };
 
 /** 只接收真实分钟价格点；该组件不会构造或暗示 OHLC。 */
-export function IntradayLineChart({ points }: IntradayLineChartProps) {
+export function IntradayLineChart({ points, multiDay = false, zoom }: IntradayLineChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
@@ -55,7 +58,7 @@ export function IntradayLineChart({ points }: IntradayLineChartProps) {
       localization: {
         priceFormatter: (price: number) => price.toFixed(2),
         timeFormatter: (time: Time) =>
-          formatShanghaiChartTime(Number(time)),
+          multiDay ? new Date(Number(time) * 1000).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false}) : formatShanghaiChartTime(Number(time)),
       },
       grid: {
         vertLines: { color: CHART_THEME.grid },
@@ -70,11 +73,15 @@ export function IntradayLineChart({ points }: IntradayLineChartProps) {
         borderColor: CHART_THEME.border,
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 2,
+        rightOffset: 0,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        minBarSpacing: 0.1,
         tickMarkFormatter: (time: Time) =>
-          formatShanghaiChartTime(Number(time)),
+          multiDay ? new Date(Number(time) * 1000).toLocaleDateString("zh-CN", {timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit"}) : formatShanghaiChartTime(Number(time)),
       },
-      handleScroll: { vertTouchDrag: false },
+      handleScroll: { vertTouchDrag: false, mouseWheel: false },
+      handleScale: { mouseWheel: !zoom },
     });
 
     const series = chart.addAreaSeries({
@@ -98,7 +105,7 @@ export function IntradayLineChart({ points }: IntradayLineChartProps) {
       seriesRef.current = null;
       didFitRef.current = false;
     };
-  }, [hasData]);
+  }, [hasData, multiDay, zoom]);
 
   useEffect(() => {
     const series = seriesRef.current;
@@ -110,11 +117,25 @@ export function IntradayLineChart({ points }: IntradayLineChartProps) {
         value: point.value,
       })),
     );
+    if (multiDay) {
+      const seen = new Set<string>();
+      series.setMarkers(lineData.filter(point => {
+        const day = new Date(point.time * 1000).toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});
+        if (seen.has(day)) return false;
+        seen.add(day); return true;
+      }).map(point => ({time: point.time as Time, position: "aboveBar", color: CHART_THEME.line,
+        shape: "circle", text: new Date(point.time * 1000).toLocaleDateString("zh-CN", {timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit"}), size: 0.5})));
+    }
     if (!didFitRef.current) {
       chart.timeScale().fitContent();
       didFitRef.current = true;
     }
-  }, [lineData]);
+  }, [lineData, multiDay, zoom]);
+
+  useEffect(() => {
+    if (!chartRef.current || !containerRef.current || !zoom || !lineData.length) return;
+    return bindChartZoom(chartRef.current, containerRef.current, lineData.length, zoom);
+  }, [lineData, zoom]);
 
   if (lineData.length === 0) {
     return (
@@ -126,11 +147,12 @@ export function IntradayLineChart({ points }: IntradayLineChartProps) {
 
   return (
     <>
+      <div className="flex justify-end mb-2"><button className="text-xs text-accent-blue hover:underline" onClick={() => chartRef.current?.timeScale().fitContent()}>适应全部数据</button></div>
       <div
         ref={containerRef}
         className="h-72 w-full overflow-hidden rounded-md border border-bg-tertiary bg-[#f8f6f0]"
         role="img"
-        aria-label="盘中价格折线图"
+        aria-label={multiDay ? "五日分时连续折线图" : "盘中价格折线图"}
         aria-describedby={descriptionId}
       />
       <p id={descriptionId} className="sr-only">

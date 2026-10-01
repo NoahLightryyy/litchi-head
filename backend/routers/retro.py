@@ -24,7 +24,7 @@ class ActionUpdateRequest(BaseModel):
 
 
 class OutcomeUpdateRequest(BaseModel):
-    """更新实际结果"""
+    """兼容字段：记录市场观察结果，不代表真实账户盈亏。"""
     return_pct: float
     price: float
 
@@ -73,6 +73,7 @@ def _record_to_dict(record: object) -> dict[str, Any]:
         ),
         "actual_return_pct": getattr(r, "actual_return_pct"),
         "actual_price": getattr(r, "actual_price"),
+        "return_semantics": "market_move_not_account_pnl",
         "outcome": getattr(r, "outcome", "pending"),
         "notes": getattr(r, "notes", ""),
     }
@@ -134,9 +135,9 @@ async def get_summary():
         raise HTTPException(status_code=500, detail="获取复盘统计失败")
 
 
-@router.put("/{record_id}/action")
+@router.put("/{record_id}/action", deprecated=True)
 async def update_action(record_id: str, req: ActionUpdateRequest):
-    """记录用户操作"""
+    """旧可变入口；新消费方应使用 POST /api/user/action 不可变账本。"""
     if req.action not in ("buy", "sell", "hold", "skip"):
         raise HTTPException(status_code=422, detail="无效操作，须为 buy/sell/hold/skip")
 
@@ -153,9 +154,9 @@ async def update_action(record_id: str, req: ActionUpdateRequest):
         raise HTTPException(status_code=500, detail="更新用户操作失败")
 
 
-@router.put("/{record_id}/outcome")
+@router.put("/{record_id}/outcome", deprecated=True)
 async def update_outcome(record_id: str, req: OutcomeUpdateRequest):
-    """更新实际结果（手动录入）"""
+    """记录观察区间涨跌；不包含成交、费用或账户真实盈亏。"""
     try:
         store = _get_store()
         record = await store.update_outcome(
@@ -173,12 +174,13 @@ async def update_outcome(record_id: str, req: OutcomeUpdateRequest):
         raise HTTPException(status_code=500, detail="更新实际结果失败")
 
 
-@router.post("/refresh")
+@router.post("/refresh", deprecated=True)
 async def refresh_pending():
-    """刷新所有 pending 记录的实际涨跌幅
+    """刷新 pending 记录的观察市场涨跌幅（兼容入口）。
 
     对每个 pending 记录，获取当前行情价，
-    与 debate 时价格比较，自动判定 outcome。
+    与 debate 时价格比较，自动判定 AI 方向是否符合市场变化。
+    该结果不是用户账户收益，不能进入真实行为绩效统计。
     """
     try:
         store = _get_store()
@@ -218,7 +220,8 @@ async def refresh_pending():
                 "total_pending": len(all_records),
                 "updated": updated,
                 "errors": errors,
-            }
+            },
+            "meta": {"return_semantics": "market_move_not_account_pnl"},
         }
     except Exception:
         logger.exception("批量刷新复盘失败")

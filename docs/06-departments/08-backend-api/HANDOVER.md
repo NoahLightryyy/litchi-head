@@ -119,16 +119,17 @@ last_updated: 2026-09-06 (TD-081 详情真实恢复，待前端集成复验)
 
 | RC | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **RC-003** 🥇 | **UB-TRACK 用户行为追踪 API** — 提供端点 `POST /api/user/action` 接收用户操作（buy/sell/hold/watch + 理由 + 分类），转发到 callback engine dispatch | 记忆系统部 RC-001 | ~1h |
+| **RC-003** ✅ | **UB-TRACK 用户行为追踪 API** — `POST /api/user/action` + `GET /api/user/actions`，不可变、幂等、重启恢复、按用户逻辑隔离；AI 样本仍为未核验 | 前端接线 + 身份认证 + 结果链待续 | 后端基础完成 |
 
 ### 用户经验反馈闭环（UI 系列，2026-06-23 新增 — 架构第9层）
 
 > 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
-> 后端 API 部在闭环中负责：`POST /api/user/action` 端点 + RetroBoard API + 实际盈亏追踪。
+> 后端 API 部在闭环中负责：用户操作写入/查询契约与 RetroBoard API。真实账户盈亏由
+> 成交、费用和结果协议共同决定，后端不得用行情观察值代替。
 
 | UI | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **UI-1b** 🥇 | **`POST /api/user/action` 端点** — 接收前端用户操作 → dispatch USER_ACTION_RECORDED | RC-001 + RC-003 模型 | ~1h |
+| **UI-1b** ✅ | **用户操作写入/查询契约** — 写入成功后 dispatch；相同幂等键安全重试，冲突显式 409 | RC-001 | 后端基础完成 |
 | **UI-3a** 🥈 | **RetroBoard 后端 API** — `GET /api/retro/` 查询历史记录 + 聚合统计（准确率/胜率/最佳Agent） | UI-1 全部（数据积累） | ~2h |
 
 ### 基本面深度（FD 系列，2026-06-23 新增）

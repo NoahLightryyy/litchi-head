@@ -33,3 +33,8 @@
 备用数据也要验证语义：frontend/lib/raw-daily.ts同时核对代码、raw口径、1d周期、严格日期顺序及OHLC。backend/kline_display.py通过独立信封保留来源和日期，不把备用RAW塞入既有前复权接口。图表只接收真实OHLC与成交量，不将未知成交额补零。
 
 图表也有默认视窗状态：candlestick-chart.tsx在setData之后调用timeScale().fitContent()，否则64根默认宽度的K线会集中在右侧。成交量独立比例尺隐藏最后值/价格线，避免体量标签与价格轴混读。数据语义标签留在图旁，长限制移到details。
+# 下一篇
+
+复盘接入边界：`frontend/app/portfolio/page.tsx` 保存金额快照，不能据此重建成交数量、买入价或费用。`frontend/components/retro/retro-board.tsx` 的历史研究结果保留原始值，但接口没有样本有效性证明时不能把默认0的均值当校准质量。新事实账本应从明确的用户操作记录开始；失败和无记录必须分开，否则用户可能重复录入。
+
+[60｜时间范围缩放](60-semantic-price-zoom.md)

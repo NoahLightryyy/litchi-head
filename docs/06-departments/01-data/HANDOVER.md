@@ -128,12 +128,13 @@ last_updated: 2026-08-27 (首页指数双源汇总与健康脱敏)
 ### 用户经验反馈闭环（UI 系列，2026-06-23 新增）
 
 > 完整方案见 [USER_FEEDBACK_LOOP.md](../../02-requirements/USER_FEEDBACK_LOOP.md)。
-> 数据管道部在闭环中负责：UserBehaviorStore 存储层 + 实际盈亏追踪。
+> 数据管道部在闭环中负责：真实操作事件与行情/结果关联。账户盈亏必须以成交事实、
+> 费用和滑点协议为准，不能用辩论价到现价替代。
 
 | UI | 事项 | 依赖 | 预估 |
 |:--:|:-----|:----|:----:|
-| **UI-1d** 🥇 | **UserBehaviorStore 存储层** — `data/user_profiles/` 目录 + JSONL 写入接口，按用户 ID 隔离（`src/callback/callbacks/ub_track.py` 中的 `UserBehaviorStore` 类归数据管道部维护）| RC-001 引擎 | ~1h |
-| **UI-2b** 🥇 | **实际盈亏追踪** — 用户卖出时回填 `actual_outcome` / `actual_return_pct` / `holding_days`；定时扫描未了结交易计算浮动盈亏 | UI-1d | ~1h |
+| **UI-1d** 🟡 | **用户行为账本数据边界** — 后端已交不可变 SQLite 基础；数据部待承接行情/结果关联与身份主数据审查 | RC-001 引擎 | 待承接 |
+| **UI-2b** 🥇 | **真实账户结果事件** — 成交事实、费用、滑点和持仓配对；不得复用旧 `actual_return_pct` 冒充账户盈亏 | UI-1d + 交易协议 | 待用户冻结口径 |
 
 ### 产品定位新任务（PD 系列，2026-07-23 新增 → 2026-07-24 全部完成 ✅）
 
