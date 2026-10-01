@@ -36,3 +36,8 @@ price_at_debate=null并写日志，不阻断已完成结果。分析辅助市场
 all_quotes有效缓存，失效/空缓存为None，简报沿用“暂无数据”，不查询整个市场。
 成功run接口仍同步返回completed。Next代理等待600秒匹配多轮研究，后台任务化
 与断线重连属于后续改造，不声称本次已经实现。
+
+最终真实浏览器验收：300199 / deb_4dbc931dd41d，run与result均200，研究191.205秒；
+5份分析师报告、5位策略师成功、5份交叉评审和独立评审返回。evidence_limitations
+明确包含realtime_quote/news；trade_recommendation=null，前端显示有限信息研究。
+复盘报价超时仍保存记录，price_at_debate=null。独立3002/8002通过，未集成3001。
