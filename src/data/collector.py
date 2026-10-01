@@ -18,6 +18,7 @@
 import logging
 import time
 from collections import defaultdict
+from datetime import date
 from threading import RLock
 from typing import Literal
 
@@ -503,6 +504,10 @@ class DataCollector:
         t0 = time.time()
         try:
             result = self._source.get_financials(code)
+            # Providers do not consistently return reverse chronology. Normalize
+            # before caching/API truncation and valuation's latest-period lookup.
+            result = sorted(result, key=lambda item: date.fromisoformat(item.report_date),
+                            reverse=True)
             self.cache.set(cache_key, result, ttl=TTL_FINANCIALS)
             _health_stats.record_call(
                 "financials", (time.time() - t0) * 1000, empty=not result,

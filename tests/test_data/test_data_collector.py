@@ -569,6 +569,21 @@ class TestFormatMarketBrief:
 class TestGetFinancials:
     """DataCollector.get_financials 测试"""
 
+    def test_ascending_source_is_sorted_before_cache(self, mock_empty_cache):
+        rows = [FinancialMetrics(stock_code="000001", report_date=day)
+                for day in ("2024-03-31", "2025-12-31", "2024-09-30")]
+        mock_empty_cache._source.get_financials = MagicMock(return_value=rows)
+        result = mock_empty_cache.get_financials("000001")
+        assert [r.report_date for r in result] == ["2025-12-31", "2024-09-30", "2024-03-31"]
+        assert mock_empty_cache.get_financials("000001") == result
+        assert rows[0].report_date == "2024-03-31"
+
+    def test_bad_report_date_is_not_published(self, mock_empty_cache):
+        mock_empty_cache._source.get_financials = MagicMock(return_value=[
+            FinancialMetrics(stock_code="000001", report_date="not-a-date"),
+        ])
+        assert mock_empty_cache.get_financials("000001") == []
+
     def test_returns_financial_metrics(self, mock_empty_cache):
         """正常返回财务指标"""
         result = mock_empty_cache.get_financials("000001")
