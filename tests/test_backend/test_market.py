@@ -1048,7 +1048,7 @@ def test_homepage_market_openapi_freezes_status_and_failed_response(client):
     assert sector["properties"]["fund_flow"]["description"] == "主力净流入，单位亿元"
     assert sector["properties"]["category"]["enum"] == ["industry", "concept"]
     assert "anyOf" in sector["properties"]["as_of"]
-    assert sector["properties"]["source"]["const"] == "eastmoney"
+    assert sector["properties"]["source"]["enum"] == ["eastmoney", "sina"]
     assert sector["properties"]["snapshot_may_be_delayed"]["type"] == "boolean"
 
     for path in (

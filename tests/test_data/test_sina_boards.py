@@ -51,4 +51,3 @@ def test_bad_enrichment_is_not_published(mode):
     with pytest.raises(ValueError):
         p.fetch()
     assert p._cache is None
-
