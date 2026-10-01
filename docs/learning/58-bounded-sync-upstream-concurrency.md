@@ -99,3 +99,5 @@ for call_id, task in tasks.items():
 自己试试：运行tests/test_data/test_board_store.py，查看断源后重开、损坏校验和关闭等待测试。
 
 首页恢复示例：backend/routers/market.py 的 get_sectors 只在展示边界读取持久快照；stale 与原始 as_of 一起保留。缓存恢复不能放在共享 Provider.fetch 内，否则其他调用方可能把历史数据当实时证据。首次无缓存和损坏仍失败，见 tests/test_backend/test_board_display_restore.py。
+
+2026-10-01实网验证补充：HTTP200只说明端点响应，必须继续解析字段、查分页和时间。新浪板块可达而新浪报价超时，不能按供应商品牌整体判断；同花顺第一页有表但第二页401，不能发布“完整快照”。跨源ID、资金口径、来源时间要分别核验；6秒阶段超时不等于6秒总预算。
