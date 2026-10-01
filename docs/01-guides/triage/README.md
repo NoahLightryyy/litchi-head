@@ -11,6 +11,7 @@
 
 你看到什么报错 → 看这列 | → 去这个分类
 :---|:---|:---
+`resolve_stock_name` 超时 / `ANALYSIS_NOT_CONFIGURED` | 辩论启动前置依赖或模型配置缺失 | [辩论前置契约](../../06-departments/08-backend-api/DEBATE-PREFLIGHT-CONTRACT.md)
 `RemoteProtocolError` / AKShare `ProxyError` | 东方财富断连与 Windows 注册表代理 | [首页实测与限制](../../06-departments/08-backend-api/HEALTH-RECOVERY-INTEGRATION.md#实网上游证据与未解决限制)
 `Recv failure: Connection was reset` | git push 网络问题 | [🌐 Git 网络](git-network.md)
 `Could not connect to server` | git push 连不上 | [🌐 Git 网络](git-network.md)

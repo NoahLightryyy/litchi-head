@@ -109,3 +109,21 @@ for call_id, task in tasks.items():
 ### 来源链接不应替代产品导航
 `frontend/lib/sector-navigation.ts`以来源命名空间生成内部URL；新浪new_*/gn_*不强行转换成BK。`src/data/providers/sina_members.py`使用官方bankuai=分类/代码并分页，逐页校验数值和服务标记，但不把分页之和当作整板块事实。`frontend/app/sector/sina/[code]/page.tsx`将概览与成员错误隔离。确定性统计与LLM输出应使用不同标签：当前/brief只汇总指数，显示“指数摘要”。
 自己试试：运行frontend/tests/sector-navigation.test.mts，确认同名跨源板块不混排；请求 `/api/market/sina/sector/new_swzz/stocks?page=8` 并观察20条上限和余数；比较服务时间字段与行情as_of，解释为什么前者不能填进后者。
+## 2026-10-01：前置查询不应依赖全市场下载
+
+`backend/stock_identity.py`直接复用现有单股适配器取名称；缓存只保存身份，
+不能把成功名称查询当成行情交叉验证。信号量限制超时后仍在运行的同步请求，
+路由超时仅停止等待，不会杀掉底层线程。
+
+`backend/routers/debate.py`先检查模型配置，再准备股票身份，再运行证据门禁和
+推理。配置缺失属于需要修复环境的故障，盲目重试无效；身份查询超时属于
+依赖暂不可用，不应归为未知程序错误。凭据检查仅返回是否配置，禁止返回密钥。
+
+凭据加载与SDK初始化是两个边界：settings读到了Windows凭据，不代表SDK能从
+环境变量读到它。`src/utils/llm.py`显式传入SecretStr；回归测试清除环境变量并
+以测试凭据构造真实SDK，验证不依赖shell泄漏密钥。模型列表200也不证明生成成功，
+模型名称、思考模式及结构化调用仍须分别验收。
+
+自己试试：运行tests/test_backend/test_stock_identity.py与test_debate.py，
+观察饱和时零上游调用、缺配置时零身份/模型调用、超时503的区别。
+最后在已配置模型的环境验收真实结果；mock成功和明确失败提示都不能证明推理完成。

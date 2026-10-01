@@ -6,11 +6,21 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import SecretStr
 
 from src.utils.llm import LLMConfig, LLMService, _build_llm, _record_usage
 
 
 class TestBuildLLM:
+    def test_credential_manager_value_reaches_sdk_without_environment_key(self, monkeypatch):
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+        with patch("src.utils.llm.settings") as config:
+            config.llm_provider = "deepseek"
+            config.deepseek_api_key = "test-only-credential"
+            model = _build_llm()
+        assert model.api_key.get_secret_value() == "test-only-credential"
+        assert "test-only-credential" not in repr(model)
+
     def test_invalid_provider_raises_value_error(self):
         with pytest.raises(ValueError, match="不支持的 LLM provider.*仅支持 deepseek"):
             _build_llm("openai")
@@ -261,7 +271,7 @@ class TestBuildLLMWithConfig:
                 _build_llm("deepseek", LLMConfig())
                 mock_ds.assert_called_once_with(
                     model="deepseek-chat", temperature=0.3,
-                    max_tokens=8192,
+                    max_tokens=8192, api_key=SecretStr("sk-test"),
                 )
 
     def test_build_with_custom_temperature(self):
@@ -272,7 +282,7 @@ class TestBuildLLMWithConfig:
                 _build_llm("deepseek", LLMConfig(temperature=0.7, max_tokens=4096))
                 mock_ds.assert_called_once_with(
                     model="deepseek-chat", temperature=0.7,
-                    max_tokens=4096,
+                    max_tokens=4096, api_key=SecretStr("sk-test"),
                 )
 
     def test_build_with_model_override(self):
@@ -284,7 +294,7 @@ class TestBuildLLMWithConfig:
                 # deepseek-reasoner 不传 temperature（API 不支持）
                 mock_ds.assert_called_once_with(
                     model="deepseek-reasoner",
-                    max_tokens=8192,
+                    max_tokens=8192, api_key=SecretStr("sk-test"),
                 )
 
     def test_build_without_config_uses_defaults(self):
@@ -295,7 +305,7 @@ class TestBuildLLMWithConfig:
                 _build_llm("deepseek")
                 mock_ds.assert_called_once_with(
                     model="deepseek-chat", temperature=0.3,
-                    max_tokens=8192,
+                    max_tokens=8192, api_key=SecretStr("sk-test"),
                 )
 
 

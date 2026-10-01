@@ -35,7 +35,7 @@ from typing import Any
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_deepseek import ChatDeepSeek
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 from tenacity import (
     after_log,
     before_log,
@@ -143,6 +143,7 @@ def _build_llm(
     kwargs: dict[str, Any] = {
         "model": model,
         "max_tokens": cfg.max_tokens,
+        "api_key": SecretStr(settings.deepseek_api_key),
     }
     # deepseek-reasoner 不支持 temperature 参数
     if "reasoner" not in model:

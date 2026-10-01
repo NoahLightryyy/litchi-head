@@ -115,3 +115,7 @@ frontend/
 自选和持仓保存在当前站点的浏览器存储，换设备或端口须使用备份迁移。预览3001在构建时设置`NEXT_PUBLIC_API_URL=/api`，通过现有Next代理访问8000。
 
 新浪备用板块入口 `/sector/sina/[code]`：本站行情比较、源生成分股分页和站内个股分析链接；来源网站仅在“查看原始数据”打开。指数摘要为确定性行情汇总，不是AI生成。
+独立预览可在构建时设置 `NEXT_PUBLIC_API_URL=/api` 与
+`API_PROXY_TARGET=http://127.0.0.1:8002`，让该前端只代理对应的隔离后端。
+未设置API_PROXY_TARGET时默认8000。辩论返回ANALYSIS_NOT_CONFIGURED时需
+恢复后端DeepSeek配置后重启，前端重试不会修复服务凭据。
