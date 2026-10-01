@@ -1,6 +1,6 @@
 """市场数据路由 —— /api/market/*
 
-提供指数行情、板块排行、板块详情、AI 宏观简报等接口。
+提供指数行情、板块排行、板块详情、指数摘要等接口。
 
 TD-020: 板块数据增强层 —— heat/chain_map/ai_analysis 接入真实数据源。
 """
@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Literal
 
 import pandas as pd
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Path, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,7 @@ from src.data.providers.eastmoney_boards import (
     board_snapshots,
 )
 from src.data.providers.sina_boards import sina_boards
+from src.data.providers.sina_members import SinaMemberPage, sina_members
 
 logger = logging.getLogger("backend.market")
 router = APIRouter(prefix="/api/market")
@@ -179,7 +180,7 @@ class SectorDetailResp(BaseModel):
 
 
 class MacroBriefResp(BaseModel):
-    """AI 宏观简报（匹配 MacroBrief 类型）"""
+    """指数摘要（匹配 MacroBrief 类型）"""
     summary: str = Field(min_length=1)
     generated_at: str = ""
     market_style: str = ""
@@ -625,7 +626,7 @@ async def _sina_sectors(sort: str, started_at: float) -> dict | JSONResponse:
         item.rank = rank
     limitations = [
         MarketLimitation(code="SINA_BOARD_BASIS",
-                         message="新浪备用榜单：分类与东财不同，未跨源拼接涨跌幅；板块链接查看新浪来源"),
+                         message="新浪备用榜单：分类与东财不同，未跨源拼接涨跌幅；按新浪原生分类展示"),
         MarketLimitation(code="FUND_FLOW_UNAVAILABLE",
                          message="新浪资金净流入不等于主力净流入，主力字段仍缺失"),
         MarketLimitation(code="SOURCE_SERVICE_TIME_ONLY", message=(
@@ -1014,7 +1015,7 @@ def _calc_rating(change_pct: float) -> str:
     responses={503: {"model": MarketErrorResponse}},
 )
 async def get_macro_brief():
-    """AI 宏观简报"""
+    """指数摘要"""
     t0 = time.time()
     try:
         result = await run_sync(index_quote_service.collect)
@@ -1219,3 +1220,31 @@ async def get_hot_news():
             "HOT_NEWS_FAILED", "热点新闻暂时不可用", t0,
             failed_sources=["caixin"],
         )
+
+
+class SinaMembersEnvelope(BaseModel):
+    data: SinaMemberPage
+    meta: MarketMeta
+
+
+@router.get("/sina/sector/{code}/stocks", response_model=SinaMembersEnvelope,
+            responses={503: {"model": MarketErrorResponse}})
+async def get_sina_members(
+    code: str = Path(pattern=r"^(new_|gn_)[A-Za-z0-9_]+$"),
+    page: int = Query(default=1, ge=1, le=500),
+) -> SinaMembersEnvelope | JSONResponse:
+    """Source-native constituents, 20/page, net-flow order; manual retries only."""
+    started = time.time()
+    try:
+        result = await run_sync(sina_members.fetch, code, page)
+    except Exception:
+        logger.exception("Sina sector members unavailable: %s page=%s", code, page)
+        return _market_failed("SINA_MEMBERS_FAILED", "板块成分股暂时加载失败，请重试", started,
+                              failed_sources=["sina"])
+    return SinaMembersEnvelope(data=result, meta=MarketMeta(
+        status="partial" if result.stocks else "empty", cached=result.cached,
+        latency_ms=round((time.time()-started)*1000),
+        sort_requested="net_flow", sort_applied="net_flow",
+        limitations=[MarketLimitation(code="SINA_MEMBER_BASIS",
+            message="成分归属和净流入采用新浪口径；净流入不是主力净流入，服务更新时间不是逐股报价时间")],
+    ))

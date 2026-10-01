@@ -26,3 +26,23 @@ def test_preview_frontend_cors_preflight(client):
     })
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:3001"
+
+
+def test_member_api_contract_errors_and_bounds(client):
+    from backend.routers import market
+    from tests.test_data.test_sina_members import provider as members_provider
+    result = members_provider()[0].fetch("new_swzz", 2)
+    with patch.object(market.sina_members, "fetch", return_value=result) as fetch:
+        response = client.get("/api/market/sina/sector/new_swzz/stocks?page=2")
+        assert response.status_code == 200
+        assert response.json()["data"]["stocks"][0]["code"] == "300199"
+        assert response.json()["meta"]["status"] == "partial"
+        fetch.assert_called_once_with("new_swzz", 2)
+    assert client.get("/api/market/sina/sector/BK1629/stocks").status_code == 422
+    assert client.get("/api/market/sina/sector/new_swzz/stocks?page=0").status_code == 422
+    with patch.object(market.sina_members, "fetch", side_effect=TimeoutError):
+        response = client.get("/api/market/sina/sector/new_swzz/stocks")
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "SINA_MEMBERS_FAILED"
+    schema = client.get("/openapi.json").json()
+    assert "SinaMembersEnvelope" in schema["components"]["schemas"]
