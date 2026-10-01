@@ -72,7 +72,7 @@ export function CandlestickChart({ data, zoom }: CandlestickChartProps) {
         fixRightEdge: true,
       },
       handleScroll: { vertTouchDrag: false, mouseWheel: false },
-      handleScale: { mouseWheel: !zoom },
+      handleScale: { mouseWheel: false },
     });
 
     // ── K 线序列 ────────────────────────────────────────────
@@ -130,7 +130,7 @@ export function CandlestickChart({ data, zoom }: CandlestickChartProps) {
     candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
 
-    const unbindZoom = zoom ? bindChartZoom(chart, container, data.length, zoom) : undefined;
+    const unbindZoom = zoom ? bindChartZoom(chart, data.length, zoom) : undefined;
 
     // ── 清理 ──────────────────────────────────────────────
     return () => {
@@ -147,7 +147,7 @@ export function CandlestickChart({ data, zoom }: CandlestickChartProps) {
     <div className="space-y-2">
       <div className="flex items-center justify-between text-xs text-text-muted">
         <span>价格（元） · 下方为成交量（股）</span>
-        <button className="rounded border border-bg-tertiary px-2 py-1 hover:bg-bg-tertiary" onClick={() => chartRef.current?.timeScale().fitContent()}>适应全部数据</button>
+        <button className="rounded border border-bg-tertiary px-2 py-1 hover:bg-bg-tertiary" onClick={() => zoom?.controls.current ? zoom.controls.current.reset() : chartRef.current?.timeScale().fitContent()}>适应全部数据</button>
       </div>
       <div ref={containerRef} className="w-full h-[360px] sm:h-[420px] rounded-md overflow-hidden" />
     </div>

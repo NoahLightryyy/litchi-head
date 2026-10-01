@@ -81,7 +81,7 @@ export function IntradayLineChart({ points, multiDay = false, zoom }: IntradayLi
           multiDay ? new Date(Number(time) * 1000).toLocaleDateString("zh-CN", {timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit"}) : formatShanghaiChartTime(Number(time)),
       },
       handleScroll: { vertTouchDrag: false, mouseWheel: false },
-      handleScale: { mouseWheel: !zoom },
+      handleScale: { mouseWheel: false },
     });
 
     const series = chart.addAreaSeries({
@@ -134,7 +134,7 @@ export function IntradayLineChart({ points, multiDay = false, zoom }: IntradayLi
 
   useEffect(() => {
     if (!chartRef.current || !containerRef.current || !zoom || !lineData.length) return;
-    return bindChartZoom(chartRef.current, containerRef.current, lineData.length, zoom);
+    return bindChartZoom(chartRef.current, lineData.length, zoom);
   }, [lineData, zoom]);
 
   if (lineData.length === 0) {
@@ -147,7 +147,7 @@ export function IntradayLineChart({ points, multiDay = false, zoom }: IntradayLi
 
   return (
     <>
-      <div className="flex justify-end mb-2"><button className="text-xs text-accent-blue hover:underline" onClick={() => chartRef.current?.timeScale().fitContent()}>适应全部数据</button></div>
+      <div className="flex justify-end mb-2"><button className="text-xs text-accent-blue hover:underline" onClick={() => zoom?.controls.current ? zoom.controls.current.reset() : chartRef.current?.timeScale().fitContent()}>适应全部数据</button></div>
       <div
         ref={containerRef}
         className="h-72 w-full overflow-hidden rounded-md border border-bg-tertiary bg-[#f8f6f0]"

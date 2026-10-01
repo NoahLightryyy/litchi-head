@@ -1,7 +1,7 @@
 import type { IChartApi } from "lightweight-charts";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { boundaryIntent, stepPriceWindow, bindChartZoom } from "../lib/chart-zoom.ts";
+import { nextZoomRange, stepPriceWindow, bindChartZoom, type ZoomControls } from "../lib/chart-zoom.ts";
 import { parseFiveDay } from "../lib/five-day-display.ts";
 
 test("时间层级双向切换并在两端停止", () => {
@@ -12,31 +12,48 @@ test("时间层级双向切换并在两端停止", () => {
   assert.equal(stepPriceWindow("five-day", "in"), "intraday");
   assert.equal(stepPriceWindow("intraday", "in"), "intraday");
 });
-test("连续惯性不跨两层，停止后新手势允许切换", () => {
-  const gate = {lastEvent: 0, switched: false, overscroll: 0};
-  assert.equal(boundaryIntent(gate, 100, 1000), true);
-  gate.switched = true;
-  assert.equal(boundaryIntent(gate, 100, 1100), false);
-  assert.equal(boundaryIntent(gate, 100, 1200), false);
-  assert.equal(boundaryIntent(gate, 100, 1501), true);
+test("按钮连续缩放，到边界才换层；历史位置不跳到最新日", () => {
+  assert.equal(nextZoomRange({from:0,to:99},100,"out",8,true,true), "out");
+  assert.equal(nextZoomRange({from:90,to:99},100,"in",8,true,true), "in");
+  const old = nextZoomRange({from:10,to:19},100,"in",8,true,true);
+  assert.equal(typeof old,"object");
+  if (typeof old === "object") assert.equal(old.to,19);
+  const edge=nextZoomRange({from:0,to:98.5},100,"in",8,true,true);
+  if(typeof edge === "object") { assert.equal(edge.to,99.5); assert.ok(edge.from>0); }
+  const end=nextZoomRange({from:0,to:99},100,"out",8,false,false);
+  if(typeof end === "object") assert.ok(end.from>=-0.5 && end.to<=99.5);
 });
-test("滚轮越界切换模式，日K放大返回五日，平移旧日不误切", () => {
-  let listener: (e: WheelEvent) => void = () => { throw new Error("not attached"); };
-  let out = 0, into = 0;
-  let range = {from: 0, to: 99};
-  const chart = {timeScale: () => ({getVisibleLogicalRange: () => range,
-    fitContent: () => {}, setVisibleLogicalRange: (v: {from: number; to: number}) => {range = v;}})};
-  const element = {addEventListener: (_: string, f: (e: WheelEvent) => void) => {listener = f;}, removeEventListener: () => {}};
-  const gesture = {lastEvent: 0, switched: false, overscroll: 0};
-  const cleanup = bindChartZoom(chart as unknown as IChartApi, element as unknown as HTMLElement, 100, {gesture: {current: gesture}, onOut: () => out++, onIn: () => into++});
-  const send = (deltaY: number) => listener({deltaY, deltaX: 0, deltaMode: 0, preventDefault() {}, stopPropagation() {}} as WheelEvent);
-  send(120); send(120); assert.equal(out, 1);
-  gesture.switched = false; range = {from: 0, to: 98.5}; send(-150);
-  assert.equal(range.to, 99.5, "最新窗口缩放始终锚定最后一根K线");
-  gesture.switched = false; range = {from: 90, to: 99}; send(-150); assert.equal(into, 1);
-  gesture.switched = false; range = {from: 10, to: 19}; send(-150); assert.equal(into, 1);
-  assert.ok(range.from >= 0 && range.to < 100); cleanup();
+
+test("控制器动画、边界防重复切换、入场尺度和卸载清理", () => {
+  const originals = ["window","requestAnimationFrame","cancelAnimationFrame"].map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)] as const);
+  let frame: FrameRequestCallback | null=null;
+  Object.defineProperty(globalThis,"window",{configurable:true,value:{matchMedia:()=>({matches:false})}});
+  Object.defineProperty(globalThis,"requestAnimationFrame",{configurable:true,value:(f:FrameRequestCallback)=>{frame=f;return 1;}});
+  Object.defineProperty(globalThis,"cancelAnimationFrame",{configurable:true,value:()=>{frame=null;}});
+  try {
+    let range={from:0,to:99}, out=0, ready=false;
+    const chart={timeScale:()=>({getVisibleLogicalRange:()=>range,setVisibleLogicalRange:(v:typeof range)=>{range=v;},fitContent:()=>{range={from:0,to:99};}})};
+    const controls:{current:ZoomControls|null}={current:null};
+    const zoom={controls,entry:{current:null},window:"five-day" as const,onReady:(r:boolean)=>{ready=r;},onOut:()=>{out++;}};
+    const cleanup=bindChartZoom(chart as unknown as IChartApi,100,zoom);
+    assert.equal(ready,true);
+    controls.current!.step("in");
+    assert.equal(range.from,0);
+    assert.ok(frame);
+    (frame as FrameRequestCallback)(performance.now()+200);
+    assert.ok(range.from>0);
+    controls.current!.reset();
+    controls.current!.step("out");controls.current!.step("out");
+    assert.equal(out,1);assert.equal(ready,false);
+    cleanup();assert.equal(controls.current,null);assert.equal(frame,null);
+    const cleanupNext=bindChartZoom(chart as unknown as IChartApi,100,zoom);
+    assert.ok(range.to-range.from<50);
+    cleanupNext();
+  } finally {
+    for(const [key,descriptor] of originals) {if(descriptor) Object.defineProperty(globalThis,key,descriptor);else Reflect.deleteProperty(globalThis,key);}
+  }
 });
+
 test("五日契约拒绝错股票、重复点、缺交易日身份和冒充已核验", () => {
   const v = {symbol: "300199", source: "tencent", price_basis: "unverified_raw", verification: "single_source",
     status: "partial", fetched_at: "2026-10-01T10:00:00+08:00", days: ["2026-09-30"],

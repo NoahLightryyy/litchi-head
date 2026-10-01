@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { stepPriceWindow, type PriceWindow, type SemanticZoom } from "@/lib/chart-zoom";
+import { stepPriceWindow, type PriceWindow, type SemanticZoom, type ZoomControls, type ZoomDirection } from "@/lib/chart-zoom";
 import { FiveDayChart } from "./five-day-chart";
 import { KlineChart } from "./kline-chart";
 import {
@@ -182,8 +182,10 @@ function LoadingState() {
 /** 盘中价格事实、指标解释与逐源诊断的正式展示面板。 */
 export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps) {
   const [priceWindow, setPriceWindow] = useState<PriceWindow>("intraday");
-  const gesture = useRef({lastEvent: 0, switched: false, overscroll: 0});
-  const zoom = useMemo<SemanticZoom>(() => ({gesture,
+  const controls = useRef<ZoomControls | null>(null);
+  const entry = useRef<ZoomDirection | null>(null);
+  const [zoomReady, setZoomReady] = useState(false);
+  const zoom = useMemo<SemanticZoom>(() => ({controls, entry, window: priceWindow, onReady: setZoomReady,
     onOut: priceWindow === "daily" ? undefined : () => setPriceWindow(v => stepPriceWindow(v, "out")),
     onIn: priceWindow === "intraday" ? undefined : () => setPriceWindow(v => stepPriceWindow(v, "in")),
     inThreshold: priceWindow === "five-day" ? 260 : 8,
@@ -221,7 +223,7 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
             )}
           </div>
           <p className="mt-1 text-xs text-text-muted">
-            滚轮向下扩大时间范围：当日 → 五日 → 日 K；向上放大细节
+            用 ＋ / － 连续缩放视野，衔接当日 ↔ 五日 ↔ 日 K；滚轮用于滚动页面
           </p>
         </div>
         {priceWindow === "intraday" && <SourceStatusBadge state={sourceState} />}
@@ -229,9 +231,9 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
 
       <nav aria-label="走势时间范围" className="mb-4 flex flex-wrap items-center gap-2">
         {([["intraday", "当日分时"], ["five-day", "五日分时"], ["daily", "日 K"]] as const).map(([value, label]) =>
-          <button key={value} aria-pressed={priceWindow === value} onClick={() => setPriceWindow(value)} className={`rounded px-3 py-2 text-sm ${priceWindow === value ? "bg-accent-blue text-white" : "bg-bg-tertiary text-text-secondary"}`}>{label}</button>)}
-        <button aria-label="放大时间范围一级" disabled={priceWindow === "intraday"} className="ml-auto rounded border border-bg-tertiary px-3 py-2 text-xs disabled:opacity-40" onClick={() => setPriceWindow(v => stepPriceWindow(v, "in"))}>＋ 放大</button>
-        <button aria-label="缩小时间范围一级" disabled={priceWindow === "daily"} className="rounded border border-bg-tertiary px-3 py-2 text-xs disabled:opacity-40" onClick={() => setPriceWindow(v => stepPriceWindow(v, "out"))}>－ 缩小</button>
+          <button key={value} aria-pressed={priceWindow === value} onClick={() => { entry.current = null; setPriceWindow(value); }} className={`rounded px-3 py-2 text-sm ${priceWindow === value ? "bg-accent-blue text-white" : "bg-bg-tertiary text-text-secondary"}`}>{label}</button>)}
+        <button aria-label="放大图表" disabled={!zoomReady} className="ml-auto rounded border border-bg-tertiary px-3 py-2 text-xs disabled:opacity-40" onClick={() => controls.current?.step("in")}>＋ 放大</button>
+        <button aria-label="缩小图表" disabled={!zoomReady} className="rounded border border-bg-tertiary px-3 py-2 text-xs disabled:opacity-40" onClick={() => controls.current?.step("out")}>－ 缩小</button>
       </nav>
       {priceWindow === "five-day" && <FiveDayChart code={code} zoom={zoom} />}
       {priceWindow === "daily" && <KlineChart code={code} zoom={zoom} />}

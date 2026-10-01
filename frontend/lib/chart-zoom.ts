@@ -1,55 +1,80 @@
 import type { IChartApi } from "lightweight-charts";
 
 export type PriceWindow = "intraday" | "five-day" | "daily";
+export type ZoomDirection = "in" | "out";
 export const PRICE_WINDOWS: PriceWindow[] = ["intraday", "five-day", "daily"];
-export function stepPriceWindow(current: PriceWindow, direction: "in" | "out"): PriceWindow {
+export function stepPriceWindow(current: PriceWindow, direction: ZoomDirection): PriceWindow {
   const index = PRICE_WINDOWS.indexOf(current) + (direction === "out" ? 1 : -1);
   return PRICE_WINDOWS[Math.max(0, Math.min(2, index))];
 }
-export interface ZoomGesture { lastEvent: number; switched: boolean; overscroll: number }
-export function boundaryIntent(gate: ZoomGesture, delta: number, now: number): boolean {
-  if (now - gate.lastEvent > 250) { gate.switched = false; gate.overscroll = 0; }
-  gate.lastEvent = now;
-  return !gate.switched && delta !== 0;
-}
+export interface ZoomControls { step: (direction: ZoomDirection) => void; reset: () => void }
 export interface SemanticZoom {
-  gesture: {current: ZoomGesture};
+  controls: {current: ZoomControls | null};
+  entry: {current: ZoomDirection | null};
+  window: PriceWindow;
+  onReady: (ready: boolean) => void;
   onOut?: () => void;
   onIn?: () => void;
   inThreshold?: number;
 }
+interface Range { from: number; to: number }
+/** Explicit zoom never consumes wheel input. Preserve the viewed end in history. */
+export function nextZoomRange(range: Range, count: number, direction: ZoomDirection,
+  inThreshold: number, canIn: boolean, canOut: boolean): Range | ZoomDirection {
+  const span = Math.max(1, range.to - range.from + 1);
+  if (direction === "out" && span >= count * 0.98 && canOut) return "out";
+  const minimum = Math.min(5, count);
+  const next = Math.min(count, Math.max(minimum, span * (direction === "out" ? 1.55 : 1 / 1.55)));
+  if (direction === "in" && next <= inThreshold && range.to >= count - 2 && canIn) return "in";
+  const end = range.to >= count - 2 ? count - 0.5 : Math.max(next - 1, Math.min(count - 1, range.to));
+  return {from: Math.max(-0.5, end - next + 1), to: end};
+}
 
-/** Keep all scaling inside actual data; a continuous wheel gesture changes level at most once. */
-export function bindChartZoom(chart: IChartApi, element: HTMLElement, count: number, zoom: SemanticZoom) {
-  const wheel = (event: WheelEvent) => {
-    if (!event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1);
-    if (!boundaryIntent(zoom.gesture.current, delta, performance.now())) return;
-    const range = chart.timeScale().getVisibleLogicalRange();
-    if (!range) return;
-    const span = Math.max(1, range.to - range.from + 1);
-    if (delta > 0 && span >= count * 0.98) {
-      zoom.gesture.current.overscroll += delta;
-      if (zoom.onOut && zoom.gesture.current.overscroll >= 100) {
-        zoom.gesture.current.switched = true;
-        zoom.onOut();
-      } else chart.timeScale().fitContent();
-      return;
-    }
-    zoom.gesture.current.overscroll = 0;
-    const next = Math.min(count, Math.max(5, span * Math.exp(Math.max(-150, Math.min(150, delta)) * 0.003)));
-    if (delta < 0 && next <= (zoom.inThreshold ?? 8) && range.to >= count - 2 && zoom.onIn) {
-      zoom.gesture.current.switched = true;
-      zoom.onIn();
-      return;
-    }
-    // Keep a latest-window zoom anchored to the last candle, including its half-bar.
-    // Otherwise fitContent/edge rounding can progressively move the end into history.
-    const end = range.to >= count - 2 ? count - 0.5 : Math.max(next - 1, Math.min(count - 1, range.to));
-    chart.timeScale().setVisibleLogicalRange({from: Math.max(0, end - next + 1), to: end});
+/** Register buttons against the live chart; animate only viewport, never prices. */
+export function bindChartZoom(chart: IChartApi, count: number, zoom: SemanticZoom) {
+  let frame = 0, switching = false;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const animate = (target: Range) => {
+    cancelAnimationFrame(frame);
+    const start = chart.timeScale().getVisibleLogicalRange();
+    if (!start || reduced) { chart.timeScale().setVisibleLogicalRange(target); return; }
+    const since = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - since) / 180), ease = 1 - (1 - t) ** 3;
+      chart.timeScale().setVisibleLogicalRange({from: start.from + (target.from - start.from) * ease,
+        to: start.to + (target.to - start.to) * ease});
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
   };
-  element.addEventListener("wheel", wheel, {passive: false, capture: true});
-  return () => element.removeEventListener("wheel", wheel, {capture: true});
+  const controls: ZoomControls = {
+    step(direction) {
+      if (switching) return;
+      const range = chart.timeScale().getVisibleLogicalRange();
+      if (!range) return;
+      const next = nextZoomRange(range, count, direction, zoom.inThreshold ?? 8, !!zoom.onIn, !!zoom.onOut);
+      if (typeof next === "string") {
+        switching = true;
+        cancelAnimationFrame(frame);
+        zoom.entry.current = next;
+        zoom.onReady(false);
+        (next === "in" ? zoom.onIn : zoom.onOut)?.();
+      } else animate(next);
+    },
+    reset() { cancelAnimationFrame(frame); chart.timeScale().fitContent(); },
+  };
+  // A boundary handoff enters the next dataset near the previous scale, not fully zoomed out.
+  if (zoom.entry.current) {
+    const direction = zoom.entry.current;
+    zoom.entry.current = null;
+    const span = direction === "out" ? Math.min(count, zoom.window === "five-day" ? count / 5 * 1.55 : 12) : count;
+    const to = count - 0.5;
+    chart.timeScale().setVisibleLogicalRange({from: Math.max(-0.5, to - span + 1), to});
+  }
+  zoom.controls.current = controls;
+  zoom.onReady(true);
+  return () => {
+    cancelAnimationFrame(frame);
+    if (zoom.controls.current === controls) { zoom.controls.current = null; zoom.onReady(false); }
+  };
 }
