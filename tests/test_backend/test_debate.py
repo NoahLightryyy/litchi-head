@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import BaseModel, Field
 
+from backend.routers.debate import _analysis_is_configured
 from src.data.evidence import (
     EvidenceAssessment,
     EvidenceCapability,
@@ -90,6 +91,20 @@ class TestRunDebate:
             response = client.post("/api/debate/run", json={"stock_code": "bad"})
         assert response.status_code == 422
         lookup.assert_not_called()
+
+    def test_configuration_presence_and_public_error_contract(self, client, monkeypatch):
+        from src.utils.config import settings
+
+        monkeypatch.setattr(settings, "deepseek_api_key", "   ")
+        assert not _analysis_is_configured()
+        monkeypatch.setattr(settings, "deepseek_api_key", "test-only-not-a-secret")
+        monkeypatch.setattr(settings, "llm_provider", "deepseek")
+        # This pre-fixture import retains the real helper while routing is mocked.
+        assert _analysis_is_configured()
+        schema = client.get("/openapi.json").json()
+        properties = schema["components"]["schemas"]["DebateUnavailableError"]["properties"]
+        codes = properties["code"]["enum"]
+        assert "ANALYSIS_NOT_CONFIGURED" in codes
 
     def test_run_debate_success(self, client):
         mock_orch = _MockOrchestrator()

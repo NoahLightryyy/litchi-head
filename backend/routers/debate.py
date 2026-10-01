@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
@@ -100,6 +100,16 @@ class DebateRequest(BaseModel):
     question: str = ""
 
 
+class DebateUnavailableError(BaseModel):
+    code: Literal["ANALYSIS_NOT_CONFIGURED", "EVIDENCE_INCOMPLETE"]
+    message: str
+    detail: dict[str, Any]
+
+
+class DebateUnavailableResponse(BaseModel):
+    error: DebateUnavailableError
+
+
 # ── 惰性导入 ──────────────────────────────────────────────────
 
 
@@ -129,7 +139,7 @@ def _analysis_is_configured() -> bool:
     return settings.llm_provider == "deepseek" and bool(settings.deepseek_api_key.strip())
 
 
-@router.post("/run")
+@router.post("/run", responses={503: {"model": DebateUnavailableResponse}})
 @limiter.limit(RATE_LIMIT_DEBATE_RUN)
 async def run_debate(request: Request, req: DebateRequest):
     """触发一次辩论"""
