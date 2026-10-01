@@ -334,3 +334,24 @@ class TestRateLimit:
 
         result_resp = client.get("/api/debate/result/test_session")
         assert result_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_retro_quote_timeout_does_not_lose_completed_analysis():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from backend.routers.debate import _auto_create_retro_record
+
+    result = SimpleNamespace(vote_summary=SimpleNamespace(), stock_name="测试股票")
+    put = AsyncMock()
+    with (
+        patch("backend.routers.debate._retro_quote_runner.run",
+              new_callable=AsyncMock, side_effect=TimeoutError),
+        patch("src.retro.store.RetroStore") as store,
+        patch("src.data.collector.DataCollector"),
+    ):
+        store.return_value.put = put
+        await _auto_create_retro_record("test-retro-timeout", result, "300199")
+    put.assert_awaited_once()
+    assert put.call_args.args[0].price_at_debate is None

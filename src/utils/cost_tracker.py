@@ -2,7 +2,7 @@
 
 import json
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -26,7 +26,7 @@ class CostTracker:
 
     PRICES = {
         # 2026-07-28 官方人民币价格，单位：元 / 1M tokens。
-        # deepseek-chat / reasoner 兼容映射到 V4 Flash。
+        # 已退役名称仅保留用于历史日志成本回放，不再用于模型调用。
         "deepseek-chat": {"cache_hit": 0.02, "cache_miss": 1.0, "output": 2.0},
         "deepseek-reasoner": {
             "cache_hit": 0.02,
@@ -46,6 +46,23 @@ class CostTracker:
     }
     _FALLBACK_PRICES = {"cache_hit": 0.02, "cache_miss": 1.0, "output": 2.0}
 
+    # 2026-10-01 核验的空闲价格；高峰为北京时间工作日 9–12、14–18。
+    # https://api-docs.deepseek.com/zh-cn/quick_start/pricing/
+    CURRENT_OFF_PEAK_PRICES = {
+        "deepseek-flash": {"cache_hit": 0.02, "cache_miss": 1.0, "output": 4.0},
+        "deepseek-v4-pro": {"cache_hit": 0.15, "cache_miss": 4.5, "output": 13.5},
+    }
+
+    @classmethod
+    def prices_at(cls, model: str, at: datetime) -> dict[str, float]:
+        """Estimate by completion time; the provider invoice remains authoritative."""
+        current = cls.CURRENT_OFF_PEAK_PRICES.get(model)
+        if current is None:
+            return cls.PRICES.get(model, cls._FALLBACK_PRICES)
+        beijing = at.astimezone(timezone(timedelta(hours=8)))
+        peak = beijing.weekday() < 5 and (9 <= beijing.hour < 12 or 14 <= beijing.hour < 18)
+        return {key: value * (2 if peak else 1) for key, value in current.items()}
+
     def __init__(self, log_dir: str = "data/cost_logs"):
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -62,7 +79,7 @@ class CostTracker:
         prompt_cache_miss_tokens: int | None = None,
     ) -> None:
         """记录一次 LLM 调用"""
-        prices = self.PRICES.get(model, self._FALLBACK_PRICES)
+        prices = self.prices_at(model, datetime.now(UTC))
         cache_hit = max(prompt_cache_hit_tokens, 0)
         cache_miss = (
             max(prompt_tokens - cache_hit, 0)

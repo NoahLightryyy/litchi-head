@@ -172,23 +172,23 @@ class TestDetectEdgeCases:
 class TestGetLLMConfig:
     def test_simple_returns_chat_model(self, router: ComplexityRouter) -> None:
         config = router.get_llm_config(TaskComplexity.SIMPLE)
-        assert config.model == "deepseek-chat"
+        assert config.model == "deepseek-v4-pro"
         assert config.reasoning_effort is None
 
     def test_moderate_returns_chat_model(self, router: ComplexityRouter) -> None:
         config = router.get_llm_config(TaskComplexity.MODERATE)
-        assert config.model == "deepseek-chat"
+        assert config.model == "deepseek-v4-pro"
         assert config.reasoning_effort is None
 
     def test_complex_returns_reasoner_model(self, router: ComplexityRouter) -> None:
         config = router.get_llm_config(TaskComplexity.COMPLEX)
-        assert config.model == "deepseek-reasoner"
+        assert config.model == "deepseek-v4-pro"
         assert config.reasoning_effort == "medium"
 
     def test_complex_preserves_custom_max_tokens(self, router: ComplexityRouter) -> None:
         base = LLMConfig(max_tokens=4096)
         config = router.get_llm_config(TaskComplexity.COMPLEX, base_config=base)
-        assert config.model == "deepseek-reasoner"
+        assert config.model == "deepseek-v4-pro"
         assert config.max_tokens == 4096  # 自定义值保留
 
     def test_complex_bumps_default_max_tokens(self, router: ComplexityRouter) -> None:
@@ -198,7 +198,7 @@ class TestGetLLMConfig:
     def test_simple_not_default_config(self, router: ComplexityRouter) -> None:
         """显式 model 的 config 不是默认配置（不缓存）"""
         config = router.get_llm_config(TaskComplexity.SIMPLE)
-        # model 被显式设为 "deepseek-chat" → is_default=False
+        # model 被显式设为 "deepseek-v4-pro" → is_default=False
         assert not config.is_default
 
 
@@ -214,14 +214,14 @@ class TestRoute:
     def test_route_simple_uses_chat(self, router: ComplexityRouter) -> None:
         config, result = router.route("列出所有文件")
         assert result.complexity == TaskComplexity.SIMPLE
-        assert config.model == "deepseek-chat"
+        assert config.model == "deepseek-v4-pro"
 
     def test_route_complex_uses_reasoner(self, router: ComplexityRouter) -> None:
         config, result = router.route(
             "对系统架构进行全面分析和性能瓶颈诊断，给出重构方案"
         )
         assert result.complexity == TaskComplexity.COMPLEX
-        assert config.model == "deepseek-reasoner"
+        assert config.model == "deepseek-v4-pro"
         assert config.reasoning_effort == "medium"
 
     def test_route_respects_base_config_temperature(self, router: ComplexityRouter) -> None:
@@ -240,11 +240,11 @@ class TestLLMConfigIsDefault:
         assert config.is_default
 
     def test_explicit_model_not_default(self) -> None:
-        config = LLMConfig(model="deepseek-chat")
+        config = LLMConfig(model="deepseek-v4-pro")
         assert not config.is_default
 
     def test_explicit_reasoner_not_default(self) -> None:
-        config = LLMConfig(model="deepseek-reasoner")
+        config = LLMConfig(model="deepseek-v4-pro")
         assert not config.is_default
 
     def test_custom_temperature_not_default(self) -> None:

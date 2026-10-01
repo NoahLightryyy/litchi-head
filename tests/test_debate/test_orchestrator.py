@@ -37,6 +37,21 @@ from src.debate.orchestrator import (
 from src.memory.skill_disk import SkillDisk
 
 
+@pytest.fixture(autouse=True)
+def isolate_live_review_calls():
+    """Unit tests must not use a credential newly saved on the developer machine."""
+    from src.debate.models import IndependentReview, RebuttalAnalysis
+
+    with (
+        patch("src.debate.orchestrator._run_independent_review",
+              new_callable=AsyncMock, return_value=IndependentReview()),
+        patch("src.debate.orchestrator._run_review_for_master",
+              new_callable=AsyncMock,
+              return_value=RebuttalAnalysis(agent_name="master.test")),
+    ):
+        yield
+
+
 @pytest.fixture
 def sample_debate_input() -> DebateInput:
     return DebateInput(
@@ -53,7 +68,7 @@ def mock_collector() -> MagicMock:
     col.get_news.return_value = []
     col.get_financials.return_value = []
     col.get_dynamic_indicators.return_value = {}
-    col.get_market_sentiment.return_value = None
+    col.get_cached_market_sentiment.return_value = None
     return col
 
 # ═══════════════════════════════════════════════════════════════════
@@ -130,6 +145,8 @@ class TestCollectDataNode:
         result = collect_data_node(state, mock_collector)
         assert "market_data" in result
         assert mock_collector.get_realtime_quotes.called
+        mock_collector.get_market_sentiment.assert_not_called()
+        mock_collector.get_cached_market_sentiment.assert_called_once()
 
     def test_collect_data_failure(self):
         """采集失败时降级"""
@@ -138,7 +155,7 @@ class TestCollectDataNode:
         failing.get_klines.side_effect = ConnectionError("网络不可用")
         failing.get_news.side_effect = ConnectionError("网络不可用")
         failing.get_financials.side_effect = ConnectionError("网络不可用")
-        failing.get_market_sentiment.return_value = None
+        failing.get_cached_market_sentiment.return_value = None
 
         state: DebateState = {
             "session_id": "test-s2",

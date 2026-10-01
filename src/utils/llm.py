@@ -24,7 +24,7 @@
     reply = await llm_service.ainvoke_auto("分析市场情绪", agent_name="analyst")
 
     # 强制使用推理模式（复杂任务）
-    config = LLMConfig(model="deepseek-reasoner", reasoning_effort="medium")
+    config = LLMConfig(model="deepseek-v4-pro", reasoning_effort="medium")
     reply = await llm_service.ainvoke("深度分析", llm_config=config)
 """
 
@@ -50,6 +50,9 @@ from src.utils.cost_tracker import cost_tracker
 from src.utils.logger import AgentLogger
 
 logger = AgentLogger("llm_service")
+
+# 2026-10-01 用户批准临时使用 Pro：Flash 实网仅返回保活消息。
+DEFAULT_MODEL = "deepseek-v4-pro"
 
 
 # ── LLMConfig ──────────────────────────────────────────────
@@ -139,18 +142,19 @@ def _build_llm(
         raise RuntimeError(
             "DEEPSEEK_API_KEY 未设置，请在 .env 中配置"
         )
-    model = cfg.model or "deepseek-chat"
+    model = cfg.model or DEFAULT_MODEL
     kwargs: dict[str, Any] = {
         "model": model,
         "max_tokens": cfg.max_tokens,
         "api_key": SecretStr(settings.deepseek_api_key),
     }
-    # deepseek-reasoner 不支持 temperature 参数
-    if "reasoner" not in model:
+    # V4 默认开启思考；必须显式关闭，维持日常快速调用及命名工具兼容性。
+    thinking = cfg.reasoning_effort is not None
+    kwargs["extra_body"] = {"thinking": {"type": "enabled" if thinking else "disabled"}}
+    if thinking:
+        kwargs["reasoning_effort"] = cfg.reasoning_effort
+    else:
         kwargs["temperature"] = cfg.temperature
-    # reasoning_effort 仅对 reasoner 模型生效
-    if cfg.reasoning_effort and "reasoner" in model:
-        kwargs["model_kwargs"] = {"reasoning_effort": cfg.reasoning_effort}
     return ChatDeepSeek(**kwargs)
 
 
@@ -338,8 +342,8 @@ class LLMService:
     ) -> str:
         """自动检测复杂度 + 路由到最优模型（TD-014）
 
-        简单问题 → deepseek-chat（快速，无推理开销）
-        复杂问题 → deepseek-reasoner（深度推理模式）
+        简单问题 → 默认模型非思考模式（临时 Pro，无推理开销）
+        复杂问题 → deepseek-v4-pro（深度推理模式）
 
         仅对 DeepSeek provider 生效。
 
@@ -359,7 +363,7 @@ class LLMService:
             reply = await llm_service.ainvoke_auto("分析市场情绪")
 
             # 需要强制推理模式时，显式传入 LLMConfig
-            config = LLMConfig(model="deepseek-reasoner", reasoning_effort="high")
+            config = LLMConfig(model="deepseek-v4-pro", reasoning_effort="high")
             reply = await llm_service.ainvoke("复杂分析", llm_config=config)
         """
         provider = provider or settings.llm_provider
@@ -427,7 +431,27 @@ class LLMService:
         messages.append(HumanMessage(content=prompt))
 
         try:
-            response = await self._call_with_retry(structured_llm, messages)
+            for attempt in range(2):
+                response = await self._call_with_retry(structured_llm, messages)
+                # Provider may finish without the forced tool call. Retry once;
+                # never coerce plain prose into a successful research result.
+                if (
+                    isinstance(response, dict)
+                    and response.get("parsed") is None
+                    and response.get("parsing_error") is None
+                    and isinstance(response.get("raw"), BaseMessage)
+                ):
+                    raw = response["raw"]
+                    if agent_name != "unknown":
+                        _record_usage(llm, raw, agent_name, session_id)
+                    logger.warning(
+                        f"Structured tool output missing: schema={output_model.__name__} "
+                        f"attempt={attempt + 1} "
+                        f"finish_reason={raw.response_metadata.get('finish_reason', 'unknown')}"
+                    )
+                    if attempt == 0:
+                        continue
+                break
         except Exception as e:
             raise ValueError(
                 f"LLM 结构化输出解析失败 for {output_model.__name__}: {e}"

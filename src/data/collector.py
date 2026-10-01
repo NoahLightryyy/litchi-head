@@ -673,13 +673,23 @@ class DataCollector:
             ],
         }
 
+    def get_cached_market_sentiment(self) -> MarketSentiment | None:
+        """Use only unexpired market quotes; never block a stock debate on a market scan."""
+        quotes = self._cached_or_none("all_quotes")
+        if not quotes:
+            return None
+        return self._sentiment_from_quotes(quotes)
+
     def get_market_sentiment(self) -> MarketSentiment:
         """计算全市场情绪指标
 
         利用已缓存的 get_realtime_quotes() 数据计算市场涨跌比和情绪评分。
         涨停/跌停家数需额外 API 调用，暂为 0。
         """
-        quotes = self.get_realtime_quotes()
+        return self._sentiment_from_quotes(self.get_realtime_quotes())
+
+    @staticmethod
+    def _sentiment_from_quotes(quotes: list[StockQuote]) -> MarketSentiment:
         up = sum(1 for q in quotes if q.change_pct > 0)
         down = sum(1 for q in quotes if q.change_pct < 0)
         flat = sum(1 for q in quotes if q.change_pct == 0)

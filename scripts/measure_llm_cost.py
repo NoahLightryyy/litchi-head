@@ -9,7 +9,7 @@
     - 每层 LLM 调用次数
     - 总调用次数
     - 估算 token 消耗（基于平均输入/输出长度）
-    - 估算费用（基于 DeepSeek-Chat 定价）
+    - 估算费用（基于当前默认模型高峰定价）
 
 原理：
     用 CountingLLMService 包装真实/模拟 LLM 服务，
@@ -31,15 +31,17 @@ if _root not in sys.path:
 
 from src.debate.models import DebateInput  # noqa: E402 — sys.path 修改后导入
 from src.debate.orchestrator import DebateOrchestrator  # noqa: E402
+from src.utils.llm import DEFAULT_MODEL  # noqa: E402
 
 # ═══════════════════════════════════════════════════════════════════
 # 配置
 # ═══════════════════════════════════════════════════════════════════
 
-# DeepSeek-Chat 定价（每 1K tokens，单位：人民币分）
+# 按官方高峰价估算上界，元 / 1K tokens；实际账单取决于时段和缓存。
+# 2026-10-01: https://api-docs.deepseek.com/zh-cn/quick_start/pricing/
 PRICING = {
-    "deepseek-chat": {"input": 0.05, "output": 0.15},  # 元/1K tokens
-    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    "deepseek-flash": {"input": 0.002, "output": 0.008},
+    "deepseek-v4-pro": {"input": 0.009, "output": 0.027},
 }
 
 # 各层估算 token 消耗（基于实际 prompt 模板长度 + 预期输出长度）
@@ -54,7 +56,6 @@ ESTIMATED_TOKENS_PER_CALL = {
     "pm": (3000, 400),            # PM：全部上下文 + 裁决指令
 }
 
-DEFAULT_MODEL = "deepseek-chat"
 
 # ═══════════════════════════════════════════════════════════════════
 # 调用计数器
@@ -202,7 +203,7 @@ async def measure():
     print(f"     +-- review_report:  {review_report_count} 次（1 位独立评审）")
 
     cost_basic = _estimate_layer_cost(basic_calls, ESTIMATED_TOKENS_PER_CALL)
-    print(f"\n  [估算费用]: {cost_basic:.4f} 元（按 DeepSeek-Chat = {_cost_str(cost_basic)}）")
+    print(f"\n  [估算费用]: {cost_basic:.4f} 元（按 DeepSeek-Flash = {_cost_str(cost_basic)}）")
     print(f"  [若用 GPT-4o-mini]: {cost_basic * 3:.4f} 元")
 
     # ═══════════════════ 场景 2: 全 9 层 ═══════════════════
@@ -254,7 +255,7 @@ async def measure():
         print(f"     +-- {name}:  {count} 次")
 
     cost_all = _estimate_layer_cost(all_calls, ESTIMATED_TOKENS_PER_CALL)
-    print(f"\n  [估算费用]: {cost_all:.4f} 元（按 DeepSeek-Chat = {_cost_str(cost_all)}）")
+    print(f"\n  [估算费用]: {cost_all:.4f} 元（按 DeepSeek-Flash = {_cost_str(cost_all)}）")
 
     # ═══════════════════ 总结 ═══════════════════
     print(f"\n{'=' * 60}")
@@ -264,7 +265,7 @@ async def measure():
     print(f"  全 9 层:    {all_calls} 次调用 ~= {cost_all:.4f} 元")
     print(f"  增量:       {all_calls - basic_calls} 次调用（风控+交易员+PM）")
     print()
-    print("  按 DeepSeek-Chat 定价:")
+    print("  按 DeepSeek-Flash 定价:")
     print(f"     每日 10 次决策 ~= {cost_all * 10:.2f} 元")
     print(f"     每月 20交易日 x 5次/日 ~= {cost_all * 100:.2f} 元")
     print("\n  实际成本会因实际 token 长度、是否启用 M2 反思等因素浮动")

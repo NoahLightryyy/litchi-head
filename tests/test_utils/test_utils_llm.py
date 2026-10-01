@@ -21,6 +21,25 @@ class TestBuildLLM:
         assert model.api_key.get_secret_value() == "test-only-credential"
         assert "test-only-credential" not in repr(model)
 
+    @pytest.mark.parametrize("effort", [None, "high"])
+    def test_v4_request_explicitly_selects_thinking_mode(self, effort):
+        from langchain_core.messages import HumanMessage
+
+        with patch("src.utils.llm.settings") as config:
+            config.llm_provider = "deepseek"
+            config.deepseek_api_key = "test-only-credential"
+            model = _build_llm(config=LLMConfig(reasoning_effort=effort))
+        payload = model._get_request_payload([HumanMessage(content="hello")])
+        assert payload["model"] == "deepseek-v4-pro"
+        assert payload["extra_body"] == {
+            "thinking": {"type": "enabled" if effort else "disabled"},
+        }
+        if effort:
+            assert payload["reasoning_effort"] == effort
+            assert "temperature" not in payload
+        else:
+            assert payload["temperature"] == 0.3
+
     def test_invalid_provider_raises_value_error(self):
         with pytest.raises(ValueError, match="不支持的 LLM provider.*仅支持 deepseek"):
             _build_llm("openai")
@@ -36,7 +55,7 @@ class TestBuildLLM:
 class TestRecordUsage:
     def test_record_with_metadata(self):
         mock_llm = MagicMock()
-        mock_llm.model = "deepseek-chat"
+        mock_llm.model = "deepseek-v4-pro"
         mock_response = MagicMock()
         mock_response.response_metadata = {
             "token_usage": {
@@ -48,7 +67,7 @@ class TestRecordUsage:
         with patch("src.utils.llm.cost_tracker") as mock_ct:
             _record_usage(mock_llm, mock_response, "test_agent", "s1")
             mock_ct.record.assert_called_once_with(
-                model="deepseek-chat",
+                model="deepseek-v4-pro",
                 prompt_tokens=100,
                 completion_tokens=50,
                 agent="test_agent",
@@ -59,7 +78,7 @@ class TestRecordUsage:
 
     def test_record_without_metadata_uses_zero(self):
         mock_llm = MagicMock()
-        mock_llm.model = "deepseek-chat"
+        mock_llm.model = "deepseek-v4-pro"
         mock_response = MagicMock()
         mock_response.response_metadata = {}
 
@@ -71,7 +90,7 @@ class TestRecordUsage:
 
     def test_record_with_explicit_tokens(self):
         mock_llm = MagicMock()
-        mock_llm.model = "deepseek-chat"
+        mock_llm.model = "deepseek-v4-pro"
         mock_response = MagicMock()
 
         with patch("src.utils.llm.cost_tracker") as mock_ct:
@@ -80,7 +99,7 @@ class TestRecordUsage:
                 prompt_tokens=200, completion_tokens=100,
             )
             mock_ct.record.assert_called_once_with(
-                model="deepseek-chat",
+                model="deepseek-v4-pro",
                 prompt_tokens=200,
                 completion_tokens=100,
                 agent="agent",
@@ -240,10 +259,10 @@ class TestLLMConfig:
         assert config.reasoning_effort is None
 
     def test_custom_values(self):
-        config = LLMConfig(temperature=0.7, max_tokens=4096, model="deepseek-reasoner")
+        config = LLMConfig(temperature=0.7, max_tokens=4096, model="deepseek-v4-pro")
         assert config.temperature == 0.7
         assert config.max_tokens == 4096
-        assert config.model == "deepseek-reasoner"
+        assert config.model == "deepseek-v4-pro"
 
     def test_frozen_cannot_be_mutated(self):
         config = LLMConfig(temperature=0.5)
@@ -270,8 +289,9 @@ class TestBuildLLMWithConfig:
             with patch("src.utils.llm.ChatDeepSeek") as mock_ds:
                 _build_llm("deepseek", LLMConfig())
                 mock_ds.assert_called_once_with(
-                    model="deepseek-chat", temperature=0.3,
+                    model="deepseek-v4-pro", temperature=0.3,
                     max_tokens=8192, api_key=SecretStr("sk-test"),
+                    extra_body={"thinking": {"type": "disabled"}},
                 )
 
     def test_build_with_custom_temperature(self):
@@ -281,8 +301,9 @@ class TestBuildLLMWithConfig:
             with patch("src.utils.llm.ChatDeepSeek") as mock_ds:
                 _build_llm("deepseek", LLMConfig(temperature=0.7, max_tokens=4096))
                 mock_ds.assert_called_once_with(
-                    model="deepseek-chat", temperature=0.7,
+                    model="deepseek-v4-pro", temperature=0.7,
                     max_tokens=4096, api_key=SecretStr("sk-test"),
+                    extra_body={"thinking": {"type": "disabled"}},
                 )
 
     def test_build_with_model_override(self):
@@ -290,11 +311,12 @@ class TestBuildLLMWithConfig:
             mock_s.llm_provider = "deepseek"
             mock_s.deepseek_api_key = "sk-test"
             with patch("src.utils.llm.ChatDeepSeek") as mock_ds:
-                _build_llm("deepseek", LLMConfig(model="deepseek-reasoner"))
-                # deepseek-reasoner 不传 temperature（API 不支持）
+                _build_llm("deepseek", LLMConfig(model="deepseek-v4-pro"))
+                # 显式选择 Pro 也保持非思考；推理模式由 reasoning_effort 开启。
                 mock_ds.assert_called_once_with(
-                    model="deepseek-reasoner",
+                    model="deepseek-v4-pro", temperature=0.3,
                     max_tokens=8192, api_key=SecretStr("sk-test"),
+                    extra_body={"thinking": {"type": "disabled"}},
                 )
 
     def test_build_without_config_uses_defaults(self):
@@ -304,8 +326,9 @@ class TestBuildLLMWithConfig:
             with patch("src.utils.llm.ChatDeepSeek") as mock_ds:
                 _build_llm("deepseek")
                 mock_ds.assert_called_once_with(
-                    model="deepseek-chat", temperature=0.3,
+                    model="deepseek-v4-pro", temperature=0.3,
                     max_tokens=8192, api_key=SecretStr("sk-test"),
+                    extra_body={"thinking": {"type": "disabled"}},
                 )
 
 
@@ -535,3 +558,32 @@ class TestLLMServiceStream:
                 chunks = [c async for c in svc.astream(prompt="test")]
                 assert chunks == ["data"]
                 mock_record.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_missing_forced_tool_output_retries_once_without_accepting_prose():
+    from langchain_core.messages import AIMessage
+    from pydantic import BaseModel
+
+    class Probe(BaseModel):
+        answer: str
+
+    structured = AsyncMock()
+    missing = {"raw": AIMessage(content="not structured"), "parsed": None,
+               "parsing_error": None}
+    structured.ainvoke.side_effect = [missing, {
+        "raw": AIMessage(content=""), "parsed": Probe(answer="OK"), "parsing_error": None,
+    }]
+    model = MagicMock()
+    model.with_structured_output.return_value = structured
+    service = LLMService()
+    with patch.object(service, "get_llm", return_value=model):
+        result = await service.invoke_structured("probe", Probe)
+    assert result.answer == "OK"
+    assert structured.ainvoke.await_count == 2
+    structured.ainvoke.reset_mock(side_effect=True)
+    structured.ainvoke.side_effect = [missing, missing]
+    with patch.object(service, "get_llm", return_value=model):
+        with pytest.raises(ValueError, match="返回类型不匹配"):
+            await service.invoke_structured("probe", Probe)
+    assert structured.ainvoke.await_count == 2

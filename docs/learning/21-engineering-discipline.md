@@ -35,7 +35,7 @@ description: 为什么写再多规则也不如养成"先判断再行动"的习�
 |:-----|:---------|:---------|
 | 改 utils | 跑 `tests/test_utils/`（47 tests, 6s） | 跑全部（943 tests, 12min） |
 | 改 debate | 跑 `tests/test_debate/` | 跑全部 |
-| 简单任务 | 用 deepseek-chat 快速响应 | 想切 deepseek-v4-pro |
+| 简单任务 | 用 deepseek-flash 快速响应 | 想切 deepseek-v4-pro |
 
 "不知道就选最重的那条"是一种防御性思维，但在这个项目里，**正确的默认是"按范围选最轻的"**。
 

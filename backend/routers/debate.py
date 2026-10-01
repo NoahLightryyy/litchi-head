@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any, Literal
@@ -14,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from backend.async_utils import run_sync
+from backend.async_utils import DATA_TIMEOUT, BoundedSyncRunner, run_sync
 from backend.config import (
     RATE_LIMIT_DEBATE_RESULT,
     RATE_LIMIT_DEBATE_RUN,
@@ -25,6 +26,7 @@ from backend.stock_identity import resolve_stock_name
 
 logger = logging.getLogger("backend.debate")
 router = APIRouter(prefix="/api/debate")
+_retro_quote_runner = BoundedSyncRunner(max_workers=2, thread_name_prefix="retro-quote")
 
 
 async def _auto_create_retro_record(
@@ -56,13 +58,16 @@ async def _auto_create_retro_record(
         price_at_debate: float | None = None
         try:
             collector = DataCollector()
-            quote = collector.get_realtime_quote(stock_code)
+            quote = await asyncio.wait_for(
+                _retro_quote_runner.run(collector.get_realtime_quote, stock_code),
+                timeout=DATA_TIMEOUT,
+            )
             if quote is not None:
                 price_at_debate = float(quote.price)
             if price_at_debate is not None and price_at_debate <= 0:
                 price_at_debate = None
         except Exception:
-            pass
+            logger.warning("Retro entry price unavailable: symbol=%s", stock_code)
 
         record = RetroRecord(
             record_id=f"retro_{_uuid4().hex[:12]}",

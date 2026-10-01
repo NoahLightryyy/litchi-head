@@ -28,7 +28,7 @@
 |:-----|:-----|
 | **LangGraph** | Agent 编排框架，StateGraph 驱动工作流 |
 | **Pydantic** | 全栈数据校验层，所有模块间数据传输使用 |
-| **DeepSeek** | 主力 LLM 模型（deepseek-chat 日常 / v4-pro 复杂任务） |
+| **DeepSeek** | 主力 LLM 模型（deepseek-flash 日常 / v4-pro 复杂任务） |
 | **akshare** | 免费 A 股数据源 |
 | **StateGraph** | LangGraph 的状态图，节点=Agent，边=消息传递 |
 | **AgentResult[T]** | 泛型 Agent 输出，T 为具体 Pydantic 输出模型 |

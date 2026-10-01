@@ -1,11 +1,32 @@
 """费用跟踪业务测试（TD-004 追认）"""
 
+from datetime import datetime
 from pathlib import Path
+
+import pytest
 
 from src.utils.cost_tracker import CostTracker
 
 
 class TestCostTracker:
+    @pytest.mark.parametrize(("at", "output"), [
+        ("2026-10-01T08:59:00+08:00", 4.0),
+        ("2026-10-01T09:00:00+08:00", 8.0),
+        ("2026-10-01T12:00:00+08:00", 4.0),
+        ("2026-10-01T06:00:00+00:00", 8.0),
+        ("2026-10-01T18:00:00+08:00", 4.0),
+        ("2026-10-03T10:00:00+08:00", 4.0),
+    ])
+    def test_current_flash_pricing_uses_beijing_peak_hours(self, at, output):
+        prices = CostTracker.prices_at("deepseek-flash", datetime.fromisoformat(at))
+        assert prices["output"] == output
+        assert prices["cache_miss"] == output / 4
+
+    def test_current_pro_price_is_not_retired_promotional_price(self):
+        assert CostTracker.prices_at(
+            "deepseek-v4-pro", datetime.fromisoformat("2026-10-03T10:00:00+08:00"),
+        ) == {"cache_hit": 0.15, "cache_miss": 4.5, "output": 13.5}
+
     def test_init_empty(self):
         tracker = CostTracker(log_dir="/tmp/_test_cost_logs")
         assert tracker._records == []
@@ -36,7 +57,7 @@ class TestCostTracker:
             agent="a",
             session_id="s1",
         )
-        # deepseek-chat 兼容映射到 V4 Flash：缓存未命中输入 1/M、输出 2/M
+        # 退役模型保留历史价格用于日志回放：缓存未命中输入 1/M、输出 2/M
         assert tracker._records[0]["cost_yuan"] == 3.0
 
     def test_record_uses_cache_hit_and_miss_prices(self):
@@ -65,7 +86,7 @@ class TestCostTracker:
             agent="a",
             session_id="s1",
         )
-        # 未知模型安全回退到当前 Flash 的未命中输入/输出价格
+        # 未知模型沿用历史回退价格；不能视为当前供应商账单
         assert tracker._records[0]["cost_yuan"] == 3.0
 
     def test_session_cost(self):

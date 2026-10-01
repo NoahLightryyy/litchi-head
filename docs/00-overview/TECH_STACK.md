@@ -1,3 +1,5 @@
+> 2026-10-01 运行修复：用户已批准产品分析临时使用 `deepseek-v4-pro` 非思考模式；Flash 实网仅返回保活消息。当前产品默认以 `src/utils/llm.py::DEFAULT_MODEL` 为准。下文快速模型策略为长期目标，不改变当前开发助手模型。
+
 # 🛠️ 技术栈
 
 ## 核心运行时
@@ -7,7 +9,7 @@
 | 语言 | Python | 3.12+ | 主力开发语言 |
 | 编排 | LangGraph | — | Agent 工作流编排（StateGraph） |
 | 数据契约 | Pydantic | 2.x | 全栈数据校验（ADR-001） |
-| 主力 LLM | DeepSeek | deepseek-chat / deepseek-reasoner | 快慢分离策略，单 Provider（ADR-007） |
+| 主力 LLM | DeepSeek | deepseek-flash / deepseek-v4-pro | 快慢分离策略，单 Provider（ADR-007） |
 
 ## 数据层
 
@@ -38,7 +40,7 @@
 
 | 模型 | 定位 | 思考模式 | 适用场景 |
 |:-----|:-----|:--------:|:---------|
-| `deepseek-chat` | 默认（日常开发） | ❌ 无 | 代码编辑、Git、简单问答 |
+| `deepseek-flash` | 默认（日常开发） | ❌ 无 | 代码编辑、Git、简单问答 |
 | `deepseek-v4-pro` | 按需切换（复杂任务） | ✅ 推理 | 架构设计、根因分析、多模块影响评估 |
 
-**核心原则**：日常用 `deepseek-chat` 快速迭代，遇到复杂任务时才切 `v4-pro`。
+**核心原则**：日常用 `deepseek-flash` 快速迭代，遇到复杂任务时才切 `v4-pro`。

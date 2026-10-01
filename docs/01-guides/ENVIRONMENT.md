@@ -1,3 +1,5 @@
+> 2026-10-01 运行修复：用户已批准产品分析临时使用 `deepseek-v4-pro` 非思考模式；Flash 实网仅返回保活消息。当前产品默认以 `src/utils/llm.py::DEFAULT_MODEL` 为准。下文快速模型策略为长期目标，不改变当前开发助手模型。
+
 # 环境变量配置指南
 
 > 详细说明 litchi-head 的双 Key 体系 + 模型快慢分离策略。日常开发不需要读此文档 — 只在配置变更时参考。
@@ -8,7 +10,7 @@
 
 | 环境变量 | 日常值 | 复杂任务值 | 说明 |
 |------|------|------|------|
-| `ANTHROPIC_MODEL` | `deepseek-chat` | `deepseek-v4-pro` | 默认用快速模型 |
+| `ANTHROPIC_MODEL` | `deepseek-flash` | `deepseek-v4-pro` | 默认用快速模型 |
 | `ANTHROPIC_BASE_URL` | `https://api.deepseek.com/anthropic` | 不变 | DeepSeek 端点 |
 | `CLAUDE_CODE_EFFORT_LEVEL` | **删除/不设** | 可选 `max` | 日常不需要 |
 
@@ -23,7 +25,7 @@
 DEEPSEEK_API_KEY=sk-你的DeepSeek密钥
 ANTHROPIC_AUTH_TOKEN=sk-你的DeepSeek密钥
 ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
-ANTHROPIC_MODEL=deepseek-chat
+ANTHROPIC_MODEL=deepseek-flash
 # CLAUDE_CODE_EFFORT_LEVEL — 不设，日常无需推理
 ```
 

@@ -1,6 +1,6 @@
 """复杂度感知的 DeepSeek 模型路由层
 
-在 deepseek-chat（快速，无推理）和 deepseek-reasoner（深度推理，较慢）
+在 默认模型（临时 Pro，无推理）和 deepseek-v4-pro（深度推理，较慢）
 之间自动切换，解决「简单问题也慢」的痛点。
 
 用法:
@@ -17,16 +17,16 @@
     reply = await llm_service.ainvoke(prompt, llm_config=config)
 
 决策逻辑:
-    - SIMPLE（<100 字，无复杂关键词）    → deepseek-chat, temperature=0.3
-    - MODERATE（中等长度，1-2 个复杂词） → deepseek-chat, temperature=0.3
-    - COMPLEX（>2000 字 或 ≥3 个复杂词）→ deepseek-reasoner, reasoning_effort="medium"
+    - SIMPLE（<100 字，无复杂关键词）    → 默认模型非思考, temperature=0.3
+    - MODERATE（中等长度，1-2 个复杂词） → 默认模型非思考, temperature=0.3
+    - COMPLEX（>2000 字 或 ≥3 个复杂词）→ deepseek-v4-pro, reasoning_effort="medium"
 
 启发式规则的局限性:
     关键词匹配无法 100% 准确判断任务复杂度。以下场景可能误判：
     - 包含"分析"但实际是简单查询 → 可能被高估为 MODERATE
     - 短提示但实际需要深度推理 → 可能被低估为 SIMPLE
     - 非中文/英文混合场景 → 关键词覆盖不全
-    建议：关键业务调用显式传入 LLMConfig(model="deepseek-reasoner") 而非依赖自动检测。
+    建议：关键业务调用显式传入 LLMConfig(model="deepseek-v4-pro", reasoning_effort="high") 而非依赖自动检测。
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
-from src.utils.llm import LLMConfig
+from src.utils.llm import DEFAULT_MODEL, LLMConfig
 
 
 class TaskComplexity(Enum):
@@ -123,9 +123,9 @@ class ComplexityRouter:
     COMPLEX_SCORE_THRESHOLD: float = 0.6
     MODERATE_SCORE_THRESHOLD: float = 0.3
 
-    # deepseek-reasoner 不支持 temperature
-    REASONER_MODEL = "deepseek-reasoner"
-    CHAT_MODEL = "deepseek-chat"
+    # 思考模式不传 temperature；同一模型可在两种模式间切换。
+    REASONER_MODEL = "deepseek-v4-pro"
+    CHAT_MODEL = DEFAULT_MODEL
     DEFAULT_REASONING_EFFORT = "medium"  # low | medium | high
 
     def detect(
@@ -258,17 +258,17 @@ class ComplexityRouter:
         base = base_config or LLMConfig()
 
         if complexity == TaskComplexity.COMPLEX:
-            # deepseek-reasoner：深度推理模式
-            # 注意：reasoner 不支持 temperature，使用默认即可
+            # deepseek-v4-pro：深度推理模式
+            # 思考模式下统一层不发送 temperature。
             return LLMConfig(
-                temperature=base.temperature,  # reasoner 会忽略
+                temperature=base.temperature,  # 思考模式不发送
                 max_tokens=base.max_tokens if base.max_tokens != 8192 else 16384,
                 model=self.REASONER_MODEL,
                 stream=base.stream,
                 reasoning_effort=self.DEFAULT_REASONING_EFFORT,
             )
         else:
-            # deepseek-chat：快速模式
+            # 默认模型：非思考模式
             return LLMConfig(
                 temperature=base.temperature,
                 max_tokens=base.max_tokens,

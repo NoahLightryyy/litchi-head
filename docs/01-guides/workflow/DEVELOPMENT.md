@@ -1,3 +1,5 @@
+> 2026-10-01 运行修复：用户已批准产品分析临时使用 `deepseek-v4-pro` 非思考模式；Flash 实网仅返回保活消息。当前产品默认以 `src/utils/llm.py::DEFAULT_MODEL` 为准。下文快速模型策略为长期目标，不改变当前开发助手模型。
+
 # 🔨 日常开发流程
 
 > 启动完成、加载了部门角色之后的日常开发参考。按需查阅，不用全读。
@@ -270,12 +272,12 @@
 
 | 模型 | 默认/按需 | 思考模式 | 适用场景 |
 |------|:---:|:---:|------|
-| `deepseek-chat` | **当前默认** | ❌ 无 | 产品内日常 Agent 调用、简单分析、低成本批量任务 |
-| `deepseek-v4-pro` / `deepseek-reasoner` | 按需切换 | ✅ 推理 | 产品内复杂分析、辩论、根因分析、多模块影响评估 |
+| `deepseek-flash` | **当前默认** | ❌ 无 | 产品内日常 Agent 调用、简单分析、低成本批量任务 |
+| `deepseek-v4-pro` / `deepseek-v4-pro` | 按需切换 | ✅ 推理 | 产品内复杂分析、辩论、根因分析、多模块影响评估 |
 
 ```bash
 # 旧开发环境变量：仅在继续使用 DeepSeek/Claude-Code 兼容开发会话时相关
-ANTHROPIC_MODEL=deepseek-chat
+ANTHROPIC_MODEL=deepseek-flash
 
 # 当前 ChatGPT/Codex 接手开发时，不需要通过该变量切换开发代理。
 ```
@@ -312,7 +314,7 @@ reply = await llm_service.ainvoke_auto("分析市场情绪", agent_name="analyst
 from src.utils.llm import LLMConfig
 
 # 显式强制推理模式
-config = LLMConfig(model="deepseek-reasoner", reasoning_effort="high")
+config = LLMConfig(model="deepseek-v4-pro", reasoning_effort="high")
 reply = await llm_service.ainvoke("复杂分析", llm_config=config)
 ```
 

@@ -18,7 +18,7 @@ result = llm.invoke("分析茅台")
 
 # 文件 B  
 from langchain_deepseek import ChatDeepSeek
-llm2 = ChatDeepSeek(model="deepseek-chat", temperature=0.3)
+llm2 = ChatDeepSeek(model="deepseek-flash", temperature=0.3)
 result2 = llm2.invoke("分析五粮液")
 
 # 文件 C
@@ -149,3 +149,20 @@ from langchain_deepseek import ChatDeepSeek  # ❌ 违规！
 **上一篇：[LangGraph StateGraph 编排](02-langgraph-stategraph.md)**
 
 **下一篇：[FastAPI 桥接层架构](04-fastapi-bridge.md)** — Python 后端怎么和前端通信
+
+## 当前模型与真实调用验收（2026-10-01）
+
+旧 chat/reasoner 名称不能继续当作稳定接口。通过统一层显式设置
+`extra_body={"thinking": {"type": "disabled"}}`；只有显式 reasoning_effort 才启用思考，
+此时不发 temperature。用户已批准暂用 V4 Pro 非思考，待 Flash 恢复再切回。
+Windows 凭据必须经 settings 转为 SecretStr 传 SDK；保存成功不等于请求已使用它。
+
+模型列表200只证明可列出模型，生成端可能只发送保活消息。验收分四层：
+列表、文本生成、Pydantic结构化输出、真实辩论结果。10月1日 Pro 文本5.6秒、
+结构化5.55秒成功；Flash 结构化180秒超时，不能用“200”宣称成功。
+当前成本使用官方北京时间峰谷估算，实际账单为准；旧模型价格仅保留历史回放。
+
+自己试试：查看 `_build_llm` 对默认/推理配置的请求体测试；检查 `prices_at`
+在北京时间09:00、12:00与周末的差异；不要打印密钥或把真实密钥写入测试。
+依据：[思考模式](https://api-docs.deepseek.com/guides/thinking_mode/) 与
+[价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)。
