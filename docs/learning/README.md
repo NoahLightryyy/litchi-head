@@ -110,4 +110,9 @@
 - [60 时间范围缩放：换视图不等于造数据](60-semantic-price-zoom.md)
 - [61 不可变用户操作账本：点击一次，事实只能追加一次](61-immutable-user-action-ledger.md)
 - [62 决策血缘失败关闭：有分数，不等于可验证](62-fail-closed-decision-provenance.md)
-- [62 新闻热点：词频不是市场方向](62-news-topic-counting.md)
+- [63 新闻热点：词频不是市场方向](63-news-topic-counting.md)
+
+- [53 多窗口工作树与契约集成](53-worktree-contract-integration.md)
+- [64 异步结果必须绑定当前请求](64-request-bound-fail-closed-ui.md)
+- [65 原子健康快照](65-atomic-health-snapshot.md)
+- [66 四层行情进入 LLM](66-four-layer-evidence-to-llm.md)

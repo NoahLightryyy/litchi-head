@@ -182,7 +182,9 @@ docs/06-departments/{id}/
 - [ ] 阅读最新工作日志（前次会话做了什么）
 
 ### 快速检查
-- [ ] 检查当前 git 状态（是否有未提交变更）
+- [ ] 执行 `git rev-parse --show-toplevel`、`git branch --show-current`、`git worktree list`、`git status --short`
+- [ ] 确认当前绝对目录、分支和 worktree 由本窗口独占；只读任务除外
+- [ ] 为已有未提交文件标注任务/窗口归属；来源不明时停止写入和 Git 切换/合并
 - [ ] 确认 `.env` 配置是否完整（API Key 等）
 - [ ] 确认 `.gitignore` 包含 `.env`（防误上传）
 - [ ] 确认 `.env` 未被 Git 追踪（`git check-ignore .env`）
@@ -196,6 +198,7 @@ docs/06-departments/{id}/
 - [按需] [CLOSING.md](CLOSING.md) — 会话结束流程
 - [按需] [EMERGENCIES.md](EMERGENCIES.md) — 审视/突发情况
 - [按需] [CI 治理体系](../ci/README.md) — 要查 CI 状态、修 CI 时
+- [必读：多窗口] [CONCURRENT-DEVELOPMENT.md](CONCURRENT-DEVELOPMENT.md) — worktree、契约交接、集成与安全提交
 ```
 
 ### 4.2 第 2 步：理解上下文
@@ -204,6 +207,7 @@ docs/06-departments/{id}/
 - [ ] 明确本次会话的目标任务
 - [ ] 确认依赖的模块是否已经就绪
 - [ ] 如果涉及跨模块变更，先确认接口契约（Pydantic 模型）
+- [ ] 如果涉及前后端并行，确认后端契约是否已冻结；未冻结则前端标记 `🔒 待上游`
 - [ ] 如果涉及技术选型，先查阅 ADR 避免重复决策
 ```
 

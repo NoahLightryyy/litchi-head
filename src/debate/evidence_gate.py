@@ -1,6 +1,7 @@
 """Domain error for evidence that is corrupted or conflicting and cannot be used."""
 
 from src.data.evidence import EvidenceEnvelope
+from src.data.kline_business import KlineBusinessFailure
 
 
 class EvidenceIncompleteError(RuntimeError):
@@ -8,7 +9,7 @@ class EvidenceIncompleteError(RuntimeError):
 
     def __init__(
         self,
-        envelope: EvidenceEnvelope,
+        envelope: EvidenceEnvelope | KlineBusinessFailure | dict[str, object],
         *,
         retry_after_seconds: int = 300,
     ) -> None:
@@ -17,6 +18,19 @@ class EvidenceIncompleteError(RuntimeError):
         self.retry_after_seconds = retry_after_seconds
 
     def detail(self) -> dict[str, object]:
+        if isinstance(self.envelope, KlineBusinessFailure):
+            return {
+                "capability": "kline_business",
+                "error_codes": list(self.envelope.error_codes),
+                "layer_diagnostics": [
+                    item.model_dump(mode="json")
+                    for item in self.envelope.layer_diagnostics
+                ],
+                "retry_after_seconds": self.retry_after_seconds,
+                "collected_at": self.envelope.as_of.isoformat(),
+            }
+        if isinstance(self.envelope, dict):
+            return {**self.envelope, "retry_after_seconds": self.retry_after_seconds}
         assessment = self.envelope.assessment
         missing = set(assessment.missing_required_upstream_ids)
         for result in self.envelope.source_results:

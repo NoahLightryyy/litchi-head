@@ -12,7 +12,7 @@
 | `ruff check .` 报错 | 代码风格/导入/未使用变量 | `ruff check --fix .` 自动修，剩的手动 |
 | `pyright src/` 报错 | 类型不匹配/属性不存在 | 看具体 error line 修 |
 | `pytest --tb=short -q` FAIL | 测试破坏 | `--tb=long` 看完整错误定位 |
-| CI main 上常绿，本地不绿 | 文件没 add | `git stash` 再 `git pull` 再检查 |
+| CI main 上常绿，本地不绿 | 本地改动、分支或依赖与 CI 不一致 | 先查 `git status --short`、当前分支和依赖；共享脏树禁止整体 stash/pull，按[并行开发规则](../workflow/CONCURRENT-DEVELOPMENT.md)隔离后复现 |
 
 ---
 

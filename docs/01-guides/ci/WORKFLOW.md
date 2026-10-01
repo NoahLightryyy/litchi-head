@@ -98,8 +98,11 @@ curl -s "https://api.github.com/repos/NoahLightryyy/litchi-head/actions/runs/RUN
 # 1. 本地全量检查
 python scripts/check.py --full
 
-# 2. 提交并推送
-git add -A
+# 2. 仅暂存本次 CI 修复拥有的明确路径，并审查 staged diff
+git status --short
+git add -- path/to/ci-fix path/to/related-test path/to/related-doc
+git diff --cached --name-only
+git diff --cached
 git commit -m "fix: <CI 错误描述>"
 
 # 3. 推送后等 CI 跑完
@@ -107,7 +110,8 @@ git push
 # 检查 Actions 页面确认变绿
 ```
 
-**严格禁止**：未等待 CI 结果就推送下一个提交。
+**严格禁止**：未等待 CI 结果就推送下一个提交；多窗口/来源不明的脏工作树中使用
+`git add -A`。并行开发规则见 [CONCURRENT-DEVELOPMENT.md](../workflow/CONCURRENT-DEVELOPMENT.md)。
 
 ---
 
@@ -133,4 +137,4 @@ git push
 
 ---
 
-> **最后更新**: 2026-06-21
+> **最后更新**: 2026-08-26 — 增加多窗口安全暂存规则

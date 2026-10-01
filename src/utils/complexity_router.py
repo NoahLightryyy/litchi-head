@@ -26,7 +26,8 @@
     - 包含"分析"但实际是简单查询 → 可能被高估为 MODERATE
     - 短提示但实际需要深度推理 → 可能被低估为 SIMPLE
     - 非中文/英文混合场景 → 关键词覆盖不全
-    建议：关键业务调用显式传入 LLMConfig(model="deepseek-v4-pro", reasoning_effort="high") 而非依赖自动检测。
+    建议：关键业务调用显式传入
+    LLMConfig(model="deepseek-v4-pro", reasoning_effort="high")，而非依赖自动检测。
 """
 
 from __future__ import annotations

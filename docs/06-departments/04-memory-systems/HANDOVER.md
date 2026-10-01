@@ -154,8 +154,8 @@ await memory.write(
 | 隔离原始事实与学习结果 | Trust/反思/回调更新不得覆盖原始 DecisionSnapshot 或历史结果 |
 | 支持重启恢复与重复报告 | 相同冻结账本可重复生成相同样本集合和统计输入 |
 
-**依赖闸门**：KR-3B-2 已完成；具体 DecisionSnapshot 字段和启动顺序等待用户转段确认；不得
-自行冻结新的 baseline、成本或标签口径。
+**依赖闸门**：用户已确认继续 KR-4，KR-4A 已把 K 线版本引用写入现有决策记忆；完整
+DecisionSnapshot 字段仍待 KR-6A 冻结，不得自行定义新的 baseline、成本或标签口径。
 
 ## 决策 baseline / 影子验证责任（TD-074）
 

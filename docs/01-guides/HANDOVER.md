@@ -1,5 +1,8 @@
 # 🔄 AI 会话交接文档
 
+> **2026-10-01 项目集成更新**：现行集成分支 `codex/integration-project-20261001`，未 push。新闻、UA-03、主题云、财务板块、辩论修复及 KR-4A 适配层已聚合。全量闸门 5/5，Python 1939 passed、前端 90 passed、构建通过。预览 3041/8041；生产血缘及 KR-4 运行时注入仍待完成。以下旧测试数字和旧分支状态为历史快照。
+
+
 > **用途**：上下文窗口达到上限，需要切换对话时，新会话从本文档恢复工作状态。
 >
 > **人类速查**：看 [HANDOVER_TIP.md](HANDOVER_TIP.md)（一页纸，扫一眼就够）。
@@ -79,7 +82,7 @@ docs/06-departments/02-debate-engine/DEBT.md
 | 🔬 回测研究部 | `src/backtest/` | ✅ | 0 | [HANDOVER](../06-departments/07-backtesting/HANDOVER.md) |
 | 🌐 后端 API 部 | `backend/` | 🟡 | 4 | [HANDOVER](../06-departments/08-backend-api/HANDOVER.md) |
 | 🎨 前端部 | `frontend/` | ✅ | 1 | [HANDOVER](../06-departments/09-frontend/HANDOVER.md) |
-| ⚙️ 基础设施部 | `src/utils/` | 🟡 | 7 | [HANDOVER](../06-departments/10-infrastructure/HANDOVER.md) |
+| ⚙️ 基础设施部 | `src/utils/` | 🟡 | 5 | [HANDOVER](../06-departments/10-infrastructure/HANDOVER.md) |
 | 🔄 质量保障部 | `.github/workflows/` + CI 文档 | 🟢 | 2 | [HANDOVER](../06-departments/11-quality-assurance/HANDOVER.md) |
 
 **全代码库开放债务**: 35 条（紧急指数待重算）→ [债务路由](debt/ROUTER.md)
@@ -303,5 +306,5 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 ## 2026-10-01 跨聊天统一状态
 
-最新跨分支任务状态见[当日统一总表](../06-departments/00-cross-cutting/DAILY-TASKS-2026-10-01.md)。新闻c00e1a0和UA-03 01edeac已独立交付但尚未进入本前端基线；不得重复实现或误标已集成。TD-081/088继续开放，TD-090详见UA-03分支；共享main整理沿用XI-001，不新增同义债务。历史段落与本日状态冲突时以总表的分支范围和验收边界为准。
-2026-10-01 财务侧集成：`codex/integration-sector-fundamentals`将预览7d96ddf与财务e70a95b合并验收；预览3013/后端8013。main共享脏工作区未触碰，待既有任务收尾后由集成窗口最终合入。见[财务日志](../04-changelog/logs/2026-10-01/2026-10-01-sector-fundamentals.md)。财务债务编号为TD-090/091，与前端088/089区分。
+最新跨分支任务状态见[当日统一总表](../06-departments/00-cross-cutting/DAILY-TASKS-2026-10-01.md)。新闻c00e1a0、UA-03 01edeac及其余已完成工作流已进入codex/integration-project-20261001集成分支；尚未push或安装到原3001。TD-081/088/090继续开放；共享main整理沿用XI-001，不新增同义债务。历史段落与本日状态冲突时以总表的分支范围和验收边界为准。
+2026-10-01 财务侧集成：`codex/integration-sector-fundamentals`将预览7d96ddf与财务e70a95b合并验收；预览3013/后端8013。main共享脏工作区未触碰，待既有任务收尾后由集成窗口最终合入。见[财务日志](../04-changelog/logs/2026-10-01/2026-10-01-sector-fundamentals.md)。财务债务编号为TD-092/091，与前端088/089区分。

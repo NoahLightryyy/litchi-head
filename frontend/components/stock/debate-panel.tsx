@@ -6,6 +6,7 @@ import { useRunDebate, useDebateResult } from "@/lib/hooks/use-debate";
 import type { AgentAnalysis, VoteSummary } from "@/lib/types/debate";
 import { debateErrorMessage } from "@/lib/debate-error";
 import { AgentAnalysisList } from "./agent-analysis-list";
+import { DEBATE_FAILURE_MESSAGE, DEBATE_TIMEOUT_MESSAGE } from "@/lib/debate-session";
 import { debateLimitations } from "@/lib/debate-limitations";
 
 interface DebatePanelProps {
@@ -19,7 +20,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [triggered, setTriggered] = useState(false);
 
-  const { data: debateResult, isLoading: polling, error: resultError } = useDebateResult(sessionId);
+  const { data: debateResult, isError: resultQueryFailed, isTimedOut } = useDebateResult(sessionId);
 
   const handleDebate = async () => {
     setError(null);
@@ -31,8 +32,19 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
     }
   };
 
-  const isRunning = running || polling;
-  const results = debateResult?.vote_summary
+  const resultIdentityMismatch = Boolean(
+    sessionId && debateResult && debateResult.session_id !== sessionId,
+  );
+  const resultFailed = resultQueryFailed || resultIdentityMismatch;
+  const visibleError = error
+    ?? (isTimedOut ? DEBATE_TIMEOUT_MESSAGE : null)
+    ?? (resultFailed ? DEBATE_FAILURE_MESSAGE : null);
+  const awaitingResult = Boolean(
+    sessionId && !debateResult?.vote_summary && !resultFailed && !isTimedOut,
+  );
+  const isRunning = running || awaitingResult;
+  const results = !visibleError && !running && sessionId
+    && debateResult?.session_id === sessionId && debateResult.vote_summary
     ? {
         voteSummary: debateResult.vote_summary as VoteSummary,
         analyses: (debateResult.analyses ?? []) as AgentAnalysis[],
@@ -65,9 +77,9 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       </div>
 
       {/* 错误态 */}
-      {(error || resultError) && (
+      {visibleError && (
         <div className="p-3 rounded-md bg-accent-red/10 border border-accent-red/20 text-sm text-accent-red mb-3">
-          {error || "研究结果读取失败，请重试；尚不能确认本次各流派分析结果。"}
+          {visibleError}
         </div>
       )}
 
@@ -190,7 +202,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       )}
 
       {/* 空态 */}
-      {!triggered && !error && !results && (
+      {!triggered && !visibleError && !results && (
         <div className="text-center py-8">
           <div className="text-3xl mb-3">🤖</div>
           <p className="text-sm text-text-muted">

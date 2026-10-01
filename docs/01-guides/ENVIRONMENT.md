@@ -2,7 +2,22 @@
 
 # 环境变量配置指南
 
-> 详细说明 litchi-head 的双 Key 体系 + 模型快慢分离策略。日常开发不需要读此文档 — 只在配置变更时参考。
+> 说明 litchi-head 的本地工具链、凭据隔离和模型快慢分离策略。日常开发不需要读此文档 — 只在配置变更时参考。
+
+## 本地工具链基线
+
+| 工具 | 项目要求 | 2026-08-25 Windows 验证版本 |
+|------|----------|----------------------------|
+| Git | 必需 | 2.55.0 |
+| Python | 3.12+，使用 `litchi` Conda 环境 | 3.12.14 |
+| Node.js | Next.js 16 支持版本，优先 LTS | 24.19.0 LTS |
+| pnpm | 使用 `frontend/pnpm-lock.yaml` | 10.33.0 |
+| fnm | Windows 用户级 Node 版本管理（推荐） | 1.39.0，默认 Node 24.19.0 |
+| Docker / Make | 可选；Windows 本地开发不要求 | 未安装也可通过闸门 |
+
+Python 依赖从根目录安装：`pip install -e ".[dev]"`。前端依赖在 `frontend/`
+执行 `pnpm install --frozen-lockfile`。Windows 中文控制台运行 Python 工具前建议设置
+`$env:PYTHONUTF8 = "1"`；项目的 `start_dev.ps1` 已包含该设置。
 
 ---
 
@@ -16,7 +31,7 @@
 
 > **修改后必须完全退出并重启 Claude Code**。
 
-## 两套 Key，不可混用
+## 两类运行环境，不可混用
 
 ### Claude Code 主会话（DeepSeek 开发）
 
@@ -31,20 +46,30 @@ ANTHROPIC_MODEL=deepseek-flash
 
 > 若把 `ANTHROPIC_BASE_URL` 设为 `lingsuan.top`，主会话会把 DeepSeek Key 发到灵算 → **401 API Key 无效**。
 
-### Python 应用代码（`.env`）
+### Python 应用代码（Windows 凭据管理器 + `.env`）
 
-`src/utils/llm.py` 的 `provider="anthropic"` 分支走灵算，与 Claude Code 主会话隔离：
+Python 应用当前只使用 DeepSeek。真实 Key 写入 Windows Credential Manager，`.env`
+只保留非敏感运行配置：
 
 ```bash
-DEEPSEEK_API_KEY=sk-你的DeepSeek密钥
+# 在已激活的 litchi 环境中交互录入，不会回显或写入仓库文件
+python scripts/store-api-keys.py --set DEEPSEEK_API_KEY
+
+# .env
+DEEPSEEK_API_KEY=
 LLM_PROVIDER=deepseek
-ANTHROPIC_AUTH_TOKEN=sk-你的灵算密钥
-ANTHROPIC_BASE_URL=https://lingsuan.top
+DEBUG=true
+LOG_LEVEL=DEBUG
 ```
+
+可用 `python scripts/store-api-keys.py --status` 检查是否已配置；该命令只显示状态，
+不会输出密钥明文。
 
 ### 子 Agent（Claude Code 内置）
 
-Claude Code 的 `ANTHROPIC_BASE_URL` 是**会话级**配置，同一进程内主会话与子 Agent 共用同一端点。当前版本**无法**在同一 Claude Code 会话中做到「主会话 DeepSeek + 子 Agent 灵算 Claude」。子 Agent 会跟随主会话走 DeepSeek；灵算 Key 仅用于 `.env` 中 Python 代码显式指定 `provider="anthropic"` 时。
+Claude Code 的 `ANTHROPIC_BASE_URL` 是**会话级**配置，同一进程内主会话与子 Agent
+共用同一端点，子 Agent 会跟随主会话。Python 应用的 DeepSeek 凭据与开发工具主会话
+配置相互独立，禁止把开发工具的端点或 Token 复制进项目 `.env`。
 
 ---
 

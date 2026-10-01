@@ -129,10 +129,10 @@ frontend/
 价格走势图使用＋/－按钮平滑调整视野，到完整数据边界后切换当日→五日→日 K；最新窗口持续放大后反向切换。普通滚轮仅滚动页面，不再缩放图表。时间页签可直接选范围，日 K 内保留周线/月线。五日数据使用冻结的 [展示契约](../docs/06-departments/08-backend-api/FIVE-DAY-DISPLAY-CONTRACT.md)，只连接真实分钟点，日期标记区分各交易日。单源和缺失状态保留；此接口不参与交易证据认证。
 首页快讯使用 `NewsTopics` 提供热点词云、报道关注点、时间范围和原文筛选。只统计当前返回的去重标题；缺失/无效发布时间不进入时间窗。规则提取不调用AI、不输出多空判断；Provider 数据质量问题仍须独立修复。
 板块页“基本面研究”可从当前页选择最多4家公司，通过版本化fundamental-research合并报表接口并列查看；披露日、公式、原始来源可展开。真实零/负数保留，缺值为—。估值TTM分母可见，缺可靠市值时PE/PB/PS不计算。行业指标接口仅提供定义，完整行业AI报告尚未接入。不将所选公司当作整个行业。
-独立联调可在构建时设置`NEXT_PUBLIC_API_URL=/api`及`BACKEND_API_URL=http://127.0.0.1:8010`，默认后端地址保持8000。
+独立联调可在构建时设置`NEXT_PUBLIC_API_URL=/api`及`LITCHI_BACKEND_URL=http://127.0.0.1:8010`，默认后端地址保持8000。
 独立预览可在构建时设置 `NEXT_PUBLIC_API_URL=/api` 与
-`API_PROXY_TARGET=http://127.0.0.1:8002`，让该前端只代理对应的隔离后端。
-未设置API_PROXY_TARGET时默认8000。辩论返回ANALYSIS_NOT_CONFIGURED时需
+`LITCHI_BACKEND_URL=http://127.0.0.1:8002`，让该前端只代理对应的隔离后端。
+未设置LITCHI_BACKEND_URL时默认8000。辩论返回ANALYSIS_NOT_CONFIGURED时需
 恢复后端DeepSeek配置后重启，前端重试不会修复服务凭据。
 
 ### 辩论修复验收（2026-10-01）

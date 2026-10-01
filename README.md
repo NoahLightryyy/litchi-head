@@ -189,6 +189,10 @@
 
 ## 快速开始
 
+本地开发环境已验证使用 Git 2.55、Python 3.12（项目支持 3.12+）、Node.js
+24 LTS 和 pnpm 10。Windows 推荐使用 Miniconda 隔离 Python 环境；Docker 和
+`make` 不是本地开发的硬依赖。
+
 ```bash
 # 克隆
 git clone https://github.com/NoahLightryyy/litchi-head.git
@@ -201,9 +205,17 @@ conda activate litchi
 # 安装（含开发依赖）
 pip install -e ".[dev]"
 
-# 配置 API Key
+# 安装前端依赖（Node.js 安装后先启用 pnpm）
+corepack enable
+corepack prepare pnpm@10.33.0 --activate
+cd frontend
+pnpm install --frozen-lockfile
+cd ..
+
+# 创建本地配置；Windows PowerShell 使用 Copy-Item
 cp .env.example .env
-# 编辑 .env 填入 DEEPSEEK_API_KEY
+# 将 DeepSeek Key 安全写入系统凭据管理器，不要写进 .env
+python scripts/store-api-keys.py --set DEEPSEEK_API_KEY
 # 可选：将 LITCHI_KLINE_AUDIT_ROOT 设为绝对路径，迁移 K 线审计快照目录
 
 # 运行全部测试
@@ -213,6 +225,7 @@ make check                       # Linux/macOS 同 --full
 ```
 
 > 只需要 **DeepSeek API Key**（[平台申请](https://platform.deepseek.com/)），按供应商实际用量计费。
+> Windows PowerShell 可运行 `./start_dev.ps1` 激活 `litchi` 环境并加载本地配置。
 
 ## 项目状态
 

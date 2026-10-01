@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
@@ -352,6 +352,26 @@ class EvidenceLimitation(BaseModel):
     missing_independent_upstreams: int = 0
     source_statuses: dict[str, str] = Field(default_factory=dict)
     collected_at: datetime
+    affected_layers: list[str] = Field(default_factory=list)
+    error_codes: list[str] = Field(default_factory=list)
+    retry_dispositions: dict[str, str] = Field(default_factory=dict)
+
+
+class EvidenceReference(BaseModel):
+    """Immutable evidence/version reference saved with a completed decision."""
+
+    capability: Literal["kline_business"]
+    symbol: str = Field(pattern=r"^\d{6}$")
+    market: str
+    as_of: datetime
+    trading_phase: str
+    raw_snapshot_id: str
+    factor_version: str
+    reference_date: date
+    price_basis: Literal["raw"]
+    daily_upstream_ids: list[str]
+    intraday_upstream_ids: list[str]
+    quote_upstream_ids: list[str]
 
 
 class DebateResult(BaseModel):
@@ -384,6 +404,7 @@ class DebateResult(BaseModel):
     trade_recommendation: dict | None = None  # 序列化的 TradeRecommendation
     mirror_report: MirrorReport | None = None  # DP-006: 镜子反思报告
     evidence_limitations: list[EvidenceLimitation] = Field(default_factory=list)
+    evidence_references: list[EvidenceReference] = Field(default_factory=list)
     total_latency_ms: float = 0.0
 
     def to_summary_dict(self) -> dict[str, Any]:
@@ -414,6 +435,10 @@ class DebateResult(BaseModel):
         if self.evidence_limitations:
             result["证据限制"] = [
                 item.model_dump(mode="json") for item in self.evidence_limitations
+            ]
+        if self.evidence_references:
+            result["证据引用"] = [
+                item.model_dump(mode="json") for item in self.evidence_references
             ]
         if self.review_round is not None:
             result["交叉审阅"] = len(self.review_round) > 0
@@ -517,6 +542,7 @@ __all__ = [
     "DebateInput",
     "DebateResult",
     "EvidenceLimitation",
+    "EvidenceReference",
     "IndependentReview",
     "MirrorEntry",
     "MirrorReport",

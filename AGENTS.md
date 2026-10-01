@@ -20,6 +20,8 @@
 8. **模型策略**：日常用 `deepseek-flash`（快速，无思考），复杂任务才切 `deepseek-v4-pro`（推理）。见下方「模型策略」节。
 9. **遇技术报错先查 triage** — `docs/01-guides/triage/README.md` 症状速查表定位分类，按症状搜不用全读
 10. **CI 永不为红** — 推送前 `python scripts/check.py` 或 `make check` 必过；CI 红了优先修，不红不推新功能；详见 [CI 治理](docs/01-guides/ci/README.md)
+11. **多窗口必须隔离** — 一个可写窗口对应一个独立 worktree + `codex/` 分支；禁止多个窗口在同一工作目录并行修改。共享/来源不明的脏工作树禁止 `git add -A`、切分支、合并、变基或整体 stash；只允许按本任务明确路径暂存。详见 [并行开发规则](docs/01-guides/workflow/CONCURRENT-DEVELOPMENT.md)
+12. **前后端契约交接** — 后端先冻结 Pydantic/OpenAPI、错误码、状态和重试语义并提交；前端未拿到冻结契约时标记 `🔒 待上游`，不得猜字段。两端经集成分支和消费者/浏览器验收后才能进入 `main`
 
 ## 技术栈关键约定
 
@@ -147,7 +149,8 @@ ANTHROPIC_MODEL=deepseek-flash
 │  docs/01-guides/HANDOVER.md（🏢各部门一览 + 🎯优先级）│
 │  → 同步当前阶段、完成度、下一步优先级                  │
 ├─ 4. 提交当前工作 ──────────────────────────────┤
-│  git add -A && git commit -m "..."              │
+│  git add -- <本任务明确路径...>                  │
+│  git diff --cached && git commit -m "..."       │
 │  → 提交信息注明「context-exhausted-handover」    │
 │  → **不 push**（等你确认）                       │
 ├─ 5. 通知你继续 ────────────────────────────────┤

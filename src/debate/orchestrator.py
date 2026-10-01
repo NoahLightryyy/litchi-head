@@ -66,6 +66,10 @@ from src.data.evidence import (  # noqa: E402
     SourceStatus,
 )
 from src.data.evidence_service import DataEvidenceService  # noqa: E402
+from src.data.kline_business import (  # noqa: E402
+    KlineBusinessEnvelope,
+    KlineBusinessFailure,
+)
 from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote  # noqa: E402
 from src.data.news_runtime import NEWS_EVIDENCE_POLICY, NEWS_WINDOW  # noqa: E402
 from src.data.quote_runtime import (  # noqa: E402
@@ -75,6 +79,13 @@ from src.data.quote_runtime import (  # noqa: E402
 )
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
 from src.debate.evidence_gate import EvidenceIncompleteError  # noqa: E402
+from src.debate.kline_context import (  # noqa: E402
+    KlineBusinessProvider,
+    classify_kline_business_result,
+    format_kline_business_context,
+    kline_evidence_reference,
+    kline_failure_limitation,
+)
 from src.debate.mirror import generate_mirror_report  # noqa: E402
 from src.debate.models import (  # noqa: E402
     AgentAnalysis,
@@ -83,6 +94,7 @@ from src.debate.models import (  # noqa: E402
     DebateInput,
     DebateResult,
     EvidenceLimitation,
+    EvidenceReference,
     IndependentReview,
     MirrorReport,
     PeerReviewRound,
@@ -154,8 +166,14 @@ def _format_evidence_limitation_notice(
             missing_ids.update(str(upstream_id) for upstream_id in raw_missing)
     missing = sorted(missing_ids)
     missing_text = ", ".join(missing) if missing else "独立来源数量不足"
+    kline_notice = (
+        "K 线四层证据不可用；"
+        if any(item.get("capability") == "kline_business" for item in limitations)
+        else ""
+    )
     return (
-        f"⚠️ 证据不完整：{capabilities}；缺失或不可用上游：{missing_text}。\n"
+        f"⚠️ 证据不完整：{kline_notice}{capabilities}；"
+        f"缺失或不可用上游：{missing_text}。\n"
         "以下推理仅基于当前可用信息，结论必须连同本证据限制标注一起使用。"
     )
 
@@ -218,6 +236,8 @@ class DebateState(TypedDict):
     mirror_report: dict  # DP-006: 序列化的 MirrorReport
     evidence_envelope: dict  # 当前失败或最终证据信封；不完整时用于显式终止
     evidence_limitations: list[dict]  # 可继续推理的不完整证据标注
+    evidence_references: list[dict]  # 完整证据的不可变版本引用
+    evidence_failure_kind: str  # 阻断证据类型，用于恢复正确 Pydantic 联合成员
 
 
 # ── 节点函数 ──────────────────────────────────────────────────────
@@ -228,6 +248,7 @@ def collect_data_node(
     collector: DataCollector,
     news_evidence_service: DataEvidenceService | None = None,
     quote_evidence_service: RealtimeQuoteEvidenceService | None = None,
+    kline_business_provider: KlineBusinessProvider | None = None,
 ) -> dict:
     """数据采集节点 —— 从 DataCollector 获取行情 + K线 + 新闻
 
@@ -243,9 +264,40 @@ def collect_data_node(
     quote_evidence_envelope: EvidenceEnvelope | None = None
     news_evidence_envelope: EvidenceEnvelope | None = None
     evidence_limitations: list[dict[str, object]] = []
+    evidence_references: list[dict[str, object]] = []
+    kline_business_envelope: KlineBusinessEnvelope | None = None
+    kline_context = ""
+
+    if kline_business_provider is not None:
+        kline_result = kline_business_provider(code)
+        if kline_result.symbol != code:
+            return {
+                "evidence_failure_kind": "detail",
+                "evidence_envelope": {
+                    "capability": "kline_business",
+                    "error_codes": ["instrument_identity_conflict"],
+                    "requested_symbol": code,
+                    "received_symbol": kline_result.symbol,
+                    "collected_at": kline_result.as_of.isoformat(),
+                },
+                "errors": ["EVIDENCE_INCOMPLETE"],
+            }
+        kline_classification = classify_kline_business_result(kline_result)
+        if kline_classification == "blocked":
+            return {
+                "evidence_failure_kind": "kline_business",
+                "evidence_envelope": kline_result.model_dump(mode="json"),
+                "errors": ["EVIDENCE_INCOMPLETE"],
+            }
+        if isinstance(kline_result, KlineBusinessFailure):
+            evidence_limitations.append(kline_failure_limitation(kline_result))
+        else:
+            kline_business_envelope = kline_result
+            kline_context = format_kline_business_context(kline_result)
+            evidence_references.append(kline_evidence_reference(kline_result))
 
     logger.info("Debate collection started: symbol=%s", code)
-    if quote_evidence_service is not None:
+    if quote_evidence_service is not None and kline_business_provider is None:
         quote_request = EvidenceRequest(
             capability=EvidenceCapability.REALTIME_QUOTE,
             stock_code=code,
@@ -295,7 +347,9 @@ def collect_data_node(
     news: list[NewsItem] = []
     financial_data: list[FinancialMetrics] = []
 
-    if quote_evidence_envelope is not None:
+    if kline_business_envelope is not None:
+        quotes = [kline_business_envelope.live_quote]
+    elif quote_evidence_envelope is not None:
         quotes = [
             StockQuote.model_validate(item)
             for item in quote_evidence_envelope.items
@@ -306,10 +360,15 @@ def collect_data_node(
         except Exception as e:
             logger.exception("行情数据获取失败: %s", e)
 
-    try:
-        klines = collector.get_klines(code, period="daily", start="", end="")
-    except Exception as e:
-        logger.exception("K线数据获取失败 [%s]: %s", code, e)
+    if kline_business_envelope is not None:
+        # Do not coerce the Decimal QFQ series into the legacy integer-volume KLine
+        # model. The exact frozen series is rendered by format_kline_business_context.
+        klines = []
+    elif kline_business_provider is None:
+        try:
+            klines = collector.get_klines(code, period="daily", start="", end="")
+        except Exception as e:
+            logger.exception("K线数据获取失败 [%s]: %s", code, e)
 
     if news_evidence_envelope is not None:
         news = [
@@ -372,6 +431,8 @@ def collect_data_node(
         key_indicators=key_indicators,
         sentiment=sentiment,
     )
+    if kline_context:
+        brief = f"{kline_context}\n\n{brief}"
     if evidence_limitations:
         brief = f"{_format_evidence_limitation_notice(evidence_limitations)}\n\n{brief}"
 
@@ -385,6 +446,11 @@ def collect_data_node(
             "klines": [k.model_dump() for k in klines],
             "news": [n.model_dump() for n in news],
             "financials": [f.model_dump() for f in financial_data],
+            "kline_business": (
+                kline_business_envelope.model_dump(mode="json")
+                if kline_business_envelope is not None
+                else None
+            ),
         },
     }
     evidence_envelope = news_evidence_envelope or quote_evidence_envelope
@@ -392,6 +458,8 @@ def collect_data_node(
         result["evidence_envelope"] = evidence_envelope.model_dump(mode="json")
     if evidence_limitations:
         result["evidence_limitations"] = evidence_limitations
+    if evidence_references:
+        result["evidence_references"] = evidence_references
     return result
 
 
@@ -1568,6 +1636,7 @@ class DebateOrchestrator:
         quote_evidence_service: RealtimeQuoteEvidenceService | None | object = (
             _DEFAULT_QUOTE_EVIDENCE_SERVICE
         ),
+        kline_business_provider: KlineBusinessProvider | None = None,
     ):
         """初始化辩论编排器
 
@@ -1618,6 +1687,7 @@ class DebateOrchestrator:
                 quote_evidence_service,
             )
         )
+        self.kline_business_provider = kline_business_provider
         self.callback_engine = callback_engine
         self.min_trust_factor = min_trust_factor
         if self.callback_engine is None and enable_trust:
@@ -1657,6 +1727,7 @@ class DebateOrchestrator:
                 self.data_collector,
                 self.news_evidence_service,
                 self.quote_evidence_service,
+                self.kline_business_provider,
             ),
         )
         graph.set_entry_point("collect_data")
@@ -1937,6 +2008,9 @@ class DebateOrchestrator:
             "evidence_limitations": [
                 item.model_dump(mode="json") for item in result.evidence_limitations
             ],
+            "evidence_references": [
+                item.model_dump(mode="json") for item in result.evidence_references
+            ],
         }
         if result.review_report is not None:
             decision["review_report"] = {
@@ -2033,15 +2107,24 @@ class DebateOrchestrator:
             "mirror_report": {},
             "evidence_envelope": {},
             "evidence_limitations": [],
+            "evidence_references": [],
+            "evidence_failure_kind": "",
         }
 
         final_state = await app.ainvoke(initial_state)
         total_latency = (time.monotonic() - overall_start) * 1000
 
         if "EVIDENCE_INCOMPLETE" in final_state.get("errors", []):
-            envelope = EvidenceEnvelope.model_validate(
-                final_state.get("evidence_envelope", {})
-            )
+            failure_payload = final_state.get("evidence_envelope", {})
+            failure_kind = final_state.get("evidence_failure_kind", "")
+            if failure_kind == "kline_business":
+                envelope: EvidenceEnvelope | KlineBusinessFailure | dict[str, object] = (
+                    KlineBusinessFailure.model_validate(failure_payload)
+                )
+            elif failure_kind == "detail":
+                envelope = failure_payload
+            else:
+                envelope = EvidenceEnvelope.model_validate(failure_payload)
             raise EvidenceIncompleteError(envelope)
 
         analyses = list(final_state.get("analyses", {}).values())
@@ -2111,6 +2194,10 @@ class DebateOrchestrator:
             EvidenceLimitation.model_validate(item)
             for item in final_state.get("evidence_limitations", [])
         ]
+        evidence_references = [
+            EvidenceReference.model_validate(item)
+            for item in final_state.get("evidence_references", [])
+        ]
         result = DebateResult(
             session_id=debate_input.session_id,
             stock_code=debate_input.stock_code,
@@ -2126,6 +2213,7 @@ class DebateOrchestrator:
             trade_recommendation=trade_rec,
             mirror_report=mirror_report_result,
             evidence_limitations=evidence_limitations,
+            evidence_references=evidence_references,
             total_latency_ms=round(total_latency, 0),
         )
 

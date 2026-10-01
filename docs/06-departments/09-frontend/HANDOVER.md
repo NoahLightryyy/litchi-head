@@ -1,4 +1,7 @@
 ---
+
+> **2026-10-01 项目集成更新**：现行集成分支 `codex/integration-project-20261001`，未 push。新闻、UA-03、主题云、财务板块、辩论修复及 KR-4A 适配层已聚合。全量闸门 5/5，Python 1939 passed、前端 90 passed、构建通过。预览 3041/8041；生产血缘及 KR-4 运行时注入仍待完成。以下旧测试数字和旧分支状态为历史快照。
+
 department: 前端部
 codebase: frontend/
 last_updated: 2026-09-04 (TD-081 后端冻结待集成复验)

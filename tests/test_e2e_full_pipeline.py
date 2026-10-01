@@ -42,7 +42,7 @@ def mock_collector():
     col.get_news.return_value = []
     col.get_financials.return_value = []
     col.get_dynamic_indicators.return_value = {}
-    col.get_market_sentiment.return_value = None
+    col.get_cached_market_sentiment.return_value = None
     return col
 
 
