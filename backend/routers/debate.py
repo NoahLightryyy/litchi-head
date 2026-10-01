@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.async_utils import run_sync
 from backend.config import (
@@ -21,7 +21,7 @@ from backend.config import (
     RATE_LIMIT_DEBATE_STATUS,
 )
 from backend.limiter import limiter
-from backend.routers.evidence import resolve_stock_name
+from backend.stock_identity import resolve_stock_name
 
 logger = logging.getLogger("backend.debate")
 router = APIRouter(prefix="/api/debate")
@@ -96,7 +96,7 @@ async def _auto_create_retro_record(
 
 class DebateRequest(BaseModel):
     """辩论请求"""
-    stock_code: str
+    stock_code: str = Field(pattern=r"^[0-9]{6}$")
     question: str = ""
 
 
@@ -122,16 +122,34 @@ def _get_orchestrator():
 _debate_sessions: dict[str, dict[str, Any]] = {}
 
 
+def _analysis_is_configured() -> bool:
+    """Check presence only; never log or return credentials."""
+    from src.utils.config import settings  # noqa: PLC0415
+
+    return settings.llm_provider == "deepseek" and bool(settings.deepseek_api_key.strip())
+
+
 @router.post("/run")
 @limiter.limit(RATE_LIMIT_DEBATE_RUN)
 async def run_debate(request: Request, req: DebateRequest):
     """触发一次辩论"""
+    if not _analysis_is_configured():
+        logger.warning("Analysis configuration unavailable; inference not started")
+        return JSONResponse(status_code=503, content={"error": {
+            "code": "ANALYSIS_NOT_CONFIGURED",
+            "message": "DeepSeek 分析服务尚未配置，AI 分析未启动",
+            "detail": {"capability": "analysis_service", "retryable": False},
+        }})
     t0 = time.time()
     session_id = f"deb_{uuid4().hex[:12]}"
     _debate_sessions[session_id] = {"status": "running", "progress": 0}
 
     try:
-        stock_name = await run_sync(resolve_stock_name, req.stock_code)
+        try:
+            stock_name = await run_sync(resolve_stock_name, req.stock_code)
+        except TimeoutError:
+            logger.warning("Stock identity lookup timed out: symbol=%s", req.stock_code)
+            stock_name = ""
         if not stock_name:
             detail = {
                 "capability": "stock_identity",

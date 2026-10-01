@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 from backend.async_utils import run_sync
 from backend.config import RATE_LIMIT_QUOTE_AGGREGATE
 from backend.limiter import limiter
-from src.data.collector import DataCollector
+from backend.stock_identity import resolve_stock_name
 from src.data.evidence import (
     EvidenceCapability,
     EvidenceEnvelope,
@@ -37,7 +37,6 @@ from src.data.quote_runtime import (
 
 logger = logging.getLogger("backend.evidence")
 router = APIRouter(prefix="/api/v1/evidence")
-collector = DataCollector()
 
 news_evidence_service = get_news_evidence_runtime().service
 quote_evidence_service = get_realtime_quote_evidence_runtime().service
@@ -73,19 +72,6 @@ class IntradayBattlefieldRequest(BaseModel):
     """单只股票 L1 分时战况请求。"""
 
     symbol: str = Field(pattern=r"^\d{6}$")
-
-
-def resolve_stock_name(stock_code: str) -> str:
-    """从现有股票主数据解析名称；失败时保留代码匹配能力。"""
-    try:
-        stocks = collector.get_all_stocks()
-    except Exception:
-        logger.exception("股票名称解析失败: stock_code=%s", stock_code)
-        return ""
-    return next(
-        (stock.name for stock in stocks if stock.code == stock_code),
-        "",
-    )
 
 
 @router.post("/news/aggregate", response_model=EvidenceEnvelope)

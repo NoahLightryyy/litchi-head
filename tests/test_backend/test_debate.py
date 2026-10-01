@@ -26,9 +26,9 @@ from src.debate.evidence_gate import EvidenceIncompleteError
 @pytest.fixture(autouse=True)
 def mock_stock_name_lookup():
     """Keep backend route tests independent from the live AKShare network."""
-    with patch(
-        "backend.routers.debate.resolve_stock_name",
-        return_value="平安银行",
+    with (
+        patch("backend.routers.debate.resolve_stock_name", return_value="平安银行"),
+        patch("backend.routers.debate._analysis_is_configured", return_value=True),
     ):
         yield
 
@@ -61,6 +61,35 @@ class _MockOrchestrator:
 
 class TestRunDebate:
     """触发辩论"""
+
+    def test_configuration_failure_stops_before_data_or_model_calls(self, client):
+        with (
+            patch("backend.routers.debate._analysis_is_configured", return_value=False),
+            patch("backend.routers.debate.resolve_stock_name") as lookup,
+            patch("backend.routers.debate._get_orchestrator") as engine,
+        ):
+            response = client.post("/api/debate/run", json={"stock_code": "300199"})
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "ANALYSIS_NOT_CONFIGURED"
+        assert response.json()["error"]["detail"]["retryable"] is False
+        lookup.assert_not_called()
+        engine.assert_not_called()
+
+    def test_identity_timeout_is_dependency_failure_not_internal_error(self, client):
+        with (
+            patch("backend.routers.debate.resolve_stock_name", side_effect=TimeoutError),
+            patch("backend.routers.debate._get_orchestrator") as engine,
+        ):
+            response = client.post("/api/debate/run", json={"stock_code": "300199"})
+        assert response.status_code == 503
+        assert response.json()["error"]["detail"]["capability"] == "stock_identity"
+        engine.assert_not_called()
+
+    def test_invalid_identity_is_rejected_before_upstream(self, client):
+        with patch("backend.routers.debate.resolve_stock_name") as lookup:
+            response = client.post("/api/debate/run", json={"stock_code": "bad"})
+        assert response.status_code == 422
+        lookup.assert_not_called()
 
     def test_run_debate_success(self, client):
         mock_orch = _MockOrchestrator()
