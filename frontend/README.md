@@ -114,6 +114,16 @@ frontend/
 
 自选和持仓保存在当前站点的浏览器存储，换设备或端口须使用备份迁移。预览3001在构建时设置`NEXT_PUBLIC_API_URL=/api`，通过现有Next代理访问8000。
 
+独立预览可以在构建时设置`LITCHI_BACKEND_URL=http://127.0.0.1:8027`，控制Next的`/api/*`代理目标；默认仍为`http://localhost:8000`。生产构建后变更代理目标需要重建，不能仅在`next start`时改变量。
+
+## 个股新闻展示（XI-007）
+
+`NewsFeed`按股票代码调用`/api/stocks/{code}/news-display?days=30`。新消费者位于`lib/api/news-display.ts`和`lib/news-display.ts`，严格校验身份、版本、来源、时间和状态；已删除旧`useStockNews`、`fetchNews`和`NewsItem`消费链。后端旧`/news`仅为外部旧客户端保留兼容。
+
+东方财富搜索与巨潮公告分别采集；页面分相关新闻、公司公告、提及该股，支持7/30/90天窗口、已取得内容的关键词过滤及每页10条。原文单独打开，搜索结果不自动进入AI证据。刷新失败保留本页上次成功结果及原检索时间；此为页面缓存，不承诺浏览器重启后恢复。来源故障、局部结果、真正查无匹配分别呈现。
+
+消费者验证：`node --experimental-strip-types --test tests/news-display.test.mts`。冻结契约见[API新闻展示契约](../docs/06-departments/08-backend-api/NEWS-DISPLAY-CONTRACT.md)。
+
 新浪备用板块入口 `/sector/sina/[code]`：本站行情比较、源生成分股分页和站内个股分析链接；来源网站仅在“查看原始数据”打开。指数摘要为确定性行情汇总，不是AI生成。
 
 价格走势图使用＋/－按钮平滑调整视野，到完整数据边界后切换当日→五日→日 K；最新窗口持续放大后反向切换。普通滚轮仅滚动页面，不再缩放图表。时间页签可直接选范围，日 K 内保留周线/月线。五日数据使用冻结的 [展示契约](../docs/06-departments/08-backend-api/FIVE-DAY-DISPLAY-CONTRACT.md)，只连接真实分钟点，日期标记区分各交易日。单源和缺失状态保留；此接口不参与交易证据认证。

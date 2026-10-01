@@ -29,15 +29,6 @@ export interface KLineData {
   fetched_at: string | null;
 }
 
-export interface NewsItem {
-  code: string;
-  title: string;
-  date: string;
-  content: string;
-  source: string;
-  url: string;
-}
-
 export interface CapitalFlow {
   date: string;
   main_net_inflow: number;

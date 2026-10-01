@@ -28,6 +28,7 @@ from backend.routers import (
     evidence,
     financials,
     market,
+    news,
     retro,
     stocks,
     trust,
@@ -169,6 +170,7 @@ app.state.limiter = limiter
 
 app.include_router(market.router)
 app.include_router(stocks.router)
+app.include_router(news.router)
 app.include_router(financials.router)
 app.include_router(debate.router)
 app.include_router(trust.router)

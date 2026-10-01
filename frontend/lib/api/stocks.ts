@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { StockQuote, KLineData, NewsItem, CapitalFlow, StockSearchResult, TechnicalIndicators, FinancialMetrics, ValuationMetrics, DynamicIndicators, IntradayBattlefield } from "@/lib/types/stock";
+import type { StockQuote, KLineData, CapitalFlow, StockSearchResult, TechnicalIndicators, FinancialMetrics, ValuationMetrics, DynamicIndicators, IntradayBattlefield } from "@/lib/types/stock";
 import { parseIntradayBattlefield } from "@/lib/intraday-contract";
 
 /** 搜索股票/板块 */
@@ -24,11 +24,6 @@ export async function fetchKline(
   if (start) params.start = start;
   if (end) params.end = end;
   return api.get(`/stocks/${code}/kline`, params, {signal});
-}
-
-/** 个股新闻 */
-export async function fetchNews(code: string): Promise<NewsItem[]> {
-  return api.get(`/stocks/${code}/news`);
 }
 
 /** 资金流向 */

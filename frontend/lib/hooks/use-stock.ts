@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchQuote, fetchKline, fetchNews, fetchCapitalFlow, fetchTechnicalIndicators, fetchFinancials, fetchValuation, fetchIndicators, fetchIntradayBattlefield, searchStocks } from "@/lib/api/stocks";
+import { fetchQuote, fetchKline, fetchCapitalFlow, fetchTechnicalIndicators, fetchFinancials, fetchValuation, fetchIndicators, fetchIntradayBattlefield, searchStocks } from "@/lib/api/stocks";
 import { useDebounce } from "./use-debounce";
 
 /* ── 搜索（300ms 防抖） ── */
@@ -33,16 +33,6 @@ export function useKline(code: string, period: string = "daily") {
     queryFn: ({signal}) => fetchKline(code, period, undefined, undefined, AbortSignal.any([signal, AbortSignal.timeout(15000)])),
     retry: false,
     staleTime: 60_000,
-    enabled: !!code,
-  });
-}
-
-/* ── 个股新闻 ── */
-export function useStockNews(code: string) {
-  return useQuery({
-    queryKey: ["stocks", code, "news"],
-    queryFn: () => fetchNews(code),
-    staleTime: 120_000,
     enabled: !!code,
   });
 }

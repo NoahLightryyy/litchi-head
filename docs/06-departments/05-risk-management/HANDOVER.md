@@ -120,3 +120,9 @@ last_updated: 2026-08-26 (生产封口协调会：SAFE-1/PRICE-1 下发)
 ## 2026-09-29 数据可靠性专项下发
 
 主责：DR-06 数据时效与门禁审查。职责、上下游、状态与验收统一见[专项计划](../00-cross-cutting/DATA-RELIABILITY-PLAN.md)。当前为已登记待接单（前端正式接线待新契约）；不能把本条当作实现完成。复用现有ADR-012与TD-081，禁止未经批准改新源/阈值/交易门禁；反馈执行会话、隔离分支、输入版本、交付与阻塞。
+
+## 2026-10-01 XI-007 / NR-07待审读
+
+[新闻检索计划](../00-cross-cutting/NEWS-RETRIEVAL-PLAN.md)：审查展示搜索候选、单源及缓存与正式证据链隔离。后端须交调用路径影响清单；当前未确认独立风控接单，不等于门禁已验收。
+
+修复影响清单：新backend/news_display.py→东方财富搜索/巨潮公告→NewsDisplay(purpose=display_only)→NewsFeed；未改NEWS_EVIDENCE_POLICY、news_runtime、正式provider或辩论消费，不写evidence数据库。摘要提及单列，不输出利好利空/评级/生成式结论。既有来源回归与新契约共32项通过，独立风控审读仍待签收。
