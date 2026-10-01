@@ -109,3 +109,8 @@ for call_id, task in tasks.items():
 ### 来源链接不应替代产品导航
 `frontend/lib/sector-navigation.ts`以来源命名空间生成内部URL；新浪new_*/gn_*不强行转换成BK。`src/data/providers/sina_members.py`使用官方bankuai=分类/代码并分页，逐页校验数值和服务标记，但不把分页之和当作整板块事实。`frontend/app/sector/sina/[code]/page.tsx`将概览与成员错误隔离。确定性统计与LLM输出应使用不同标签：当前/brief只汇总指数，显示“指数摘要”。
 自己试试：运行frontend/tests/sector-navigation.test.mts，确认同名跨源板块不混排；请求 `/api/market/sina/sector/new_swzz/stocks?page=8` 并观察20条上限和余数；比较服务时间字段与行情as_of，解释为什么前者不能填进后者。
+
+### 2026-10-01：检索能力与页面接通是两件事
+
+个股旧新闻路由调用DataCollector，而news_runtime维护双源完整性证据。展示可用单源条目需要独立且明确的状态契约，不能为了让页面有内容去放宽正式证据门禁。空实现也不是备用源。来源发布时间、抓取时间和缓存覆盖范围分别描述不同事实。
+自己试试（3分钟）：对照backend/routers/stocks.py的get_news与backend/routers/evidence.py的aggregate_news，画出各自调用路径；在src/data/news_runtime.py找出滚动覆盖不足的状态，解释为什么不能简单换一个前端URL。实现跟踪见[XI-007](../06-departments/00-cross-cutting/NEWS-RETRIEVAL-PLAN.md)。
