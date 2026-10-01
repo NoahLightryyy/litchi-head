@@ -11,6 +11,7 @@ import time
 from fastapi import APIRouter, Path, Query
 
 from backend.async_utils import run_sync
+from backend.intraday_display import FiveDayDisplay, get_five_day_display
 from backend.kline_display import RawDailyDisplay, get_raw_daily_display
 from src.data.collector import DataCollector
 
@@ -133,3 +134,9 @@ async def get_capital_flow(code: str):
         "data": [i.model_dump() for i in items],
         "meta": {"cached": cached, "latency_ms": latency},
     }
+
+
+@router.get("/{code}/intraday-five-day-display", response_model=FiveDayDisplay)
+async def five_day_display(code: str = Path(pattern=r"^\d{6}$")) -> FiveDayDisplay:
+    """Display only; single-source minute history is not verified research evidence."""
+    return await run_sync(get_five_day_display, code)
