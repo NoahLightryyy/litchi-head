@@ -56,6 +56,15 @@ export interface VoteSummary {
   bias_report: BiasReport;
 }
 
+export interface EvidenceLimitation {
+  status: "limited";
+  capability: string;
+  missing_upstream_ids: string[];
+  missing_independent_upstreams: number;
+  source_statuses: Record<string, string>;
+  collected_at: string;
+}
+
 export interface DebateResult {
   session_id: string;
   stock_code: string;
@@ -63,6 +72,8 @@ export interface DebateResult {
   question: string;
   vote_summary: VoteSummary;
   analyses: AgentAnalysis[];
+  evidence_limitations?: EvidenceLimitation[];
+  review_report?: { overall_quality: number } | null;
   total_latency_ms: number;
   created_at: string;
 }

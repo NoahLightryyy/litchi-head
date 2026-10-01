@@ -5,6 +5,7 @@ import { MessageSquare, RefreshCw, Info } from "lucide-react";
 import { useRunDebate, useDebateResult } from "@/lib/hooks/use-debate";
 import type { AgentAnalysis, VoteSummary } from "@/lib/types/debate";
 import { debateErrorMessage } from "@/lib/debate-error";
+import { debateLimitations } from "@/lib/debate-limitations";
 
 interface DebatePanelProps {
   stockCode: string;
@@ -36,6 +37,8 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
         analyses: (debateResult.analyses ?? []) as AgentAnalysis[],
       }
     : null;
+
+  const limitations = debateLimitations(debateResult);
 
   return (
     <div>
@@ -69,7 +72,8 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
 
       {/* 加载中 — 骨架屏 */}
       {isRunning && !results && (
-        <div className="space-y-2">
+        <div className="space-y-2" role="status">
+          <p className="text-sm text-text-muted">正在进行多轮分析与交叉审阅，可能需要数分钟，请勿重复提交。</p>
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
@@ -89,6 +93,14 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       {/* 结果 — 来自后端真实辩论数据 */}
       {results && (
         <>
+          {limitations.length > 0 && (
+            <div role="status" className="p-3 mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 text-sm text-text-primary">
+              <p className="font-semibold">本次研究的限制</p>
+              <ul className="mt-1 space-y-1 list-disc pl-4">
+                {limitations.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          )}
           {/* 共识卡片 */}
           <div className="p-4 rounded-md bg-accent-green/5 border border-accent-green/20 mb-3">
             <div className="flex items-center justify-between mb-2">

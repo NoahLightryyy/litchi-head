@@ -119,3 +119,12 @@ frontend/
 `API_PROXY_TARGET=http://127.0.0.1:8002`，让该前端只代理对应的隔离后端。
 未设置API_PROXY_TARGET时默认8000。辩论返回ANALYSIS_NOT_CONFIGURED时需
 恢复后端DeepSeek配置后重启，前端重试不会修复服务凭据。
+
+### 辩论修复验收（2026-10-01）
+
+`next.config.ts` 将研究请求代理等待从默认30秒延长到600秒，以匹配当前同步
+多轮分析接口。此为同步接口兼容修复，不等于已实现异步作业/断线恢复。
+结果展示消费已有 `evidence_limitations` / `review_report` / `analyses.success`；
+部分成功不掩盖缺失证据。消费者测试：
+`node --experimental-strip-types --test tests/debate-error.test.mts tests/debate-limitations.test.mts`。
+独立修复预览3002→8002，主窗口3001的图表开发不在本分支替换范围内。
