@@ -3,13 +3,15 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export class ApiError extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public status: number,
-    public detail?: unknown
-  ) {
+  code: string;
+  status: number;
+  detail?: unknown;
+
+  constructor(code: string, message: string, status: number, detail?: unknown) {
     super(message);
+    this.code = code;
+    this.status = status;
+    this.detail = detail;
     this.name = "ApiError";
   }
 }

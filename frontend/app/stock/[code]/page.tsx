@@ -19,7 +19,7 @@ const TABS = [
   { id: "technical", label: "技术分析", icon: TrendingUp },
   { id: "capital", label: "资金流向", icon: DollarSign },
   { id: "financial", label: "财务分析", icon: BarChart3 },
-  { id: "debate", label: "AI 辩论", icon: MessageSquare },
+  { id: "debate", label: "流派分析", icon: MessageSquare },
   { id: "trust", label: "信任度", icon: ShieldCheck },
 ] as const;
 

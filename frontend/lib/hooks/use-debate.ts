@@ -11,6 +11,7 @@ export function useRunDebate() {
   const [running, setRunning] = useState(false);
 
   const trigger = useCallback(async (req: DebateRequest) => {
+    setSessionId(null);
     setRunning(true);
     try {
       const { session_id } = await runDebate(req);

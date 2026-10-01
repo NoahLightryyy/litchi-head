@@ -114,3 +114,11 @@ print(f"偏斜度={r3.overall_bias}, 共识={r3.consensus_type}")
 **上一篇：[21 工程纪律](21-engineering-discipline.md)** ← 链接
 
 **下一篇：待编写**
+
+## 从群体统计回到逐流派依据（2026-10-01）
+
+前端 `components/stock/agent-analysis-list.tsx` 使用已有 AgentAnalysis 契约，分别呈现摘要、分析正文、key_evidence 与 risk_warning。分数只是一种输出，不能替代论证；置信度不是胜率。success=false 的默认 Neutral、0 分或0置信度不能当成研究意见展示。原始错误可能含服务细节，界面只展示未成功状态，不透传错误正文。
+
+`tests/agent-analysis-list.test.mts` 将真实叶组件编译并服务端渲染，核对成功、失败、缺字段与脚本转义；这是明确的测试夹具，不是300199的真实研究结果。无API凭据时仍可验证展示逻辑，但不能声称已跑通个股AI分析。
+
+自己试试：在 frontend 运行 `node --test tests/agent-analysis-list.test.mts`，比较success=false和true渲染；观察失败状态是否误露出中性评分。

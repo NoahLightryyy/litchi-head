@@ -62,7 +62,7 @@ frontend/
 |:----|:-----|:----:|:---------|
 | 技术分析 | `TechnicalIndicatorsPanel` | ✅ MA/RSI/MACD/布林带 | `technical-indicators` |
 | 资金流向 | `CapitalFlowPanel` | ✅ 主力/机构/散户净流入 | `capital-flow` |
-| AI 辩论 | `DebatePanel` | ✅ 触发→轮询→结果展示 | `debate/*` |
+| 流派分析 | `DebatePanel` / `AgentAnalysisList` | 逐流派摘要、论证、依据、风险与独立失败态；真实运行依赖凭据及证据可用 | `debate/*` |
 | 信任度 | `TrustChart` | ✅ 大师排行榜（胜率/Brier/趋势） | `trust/*` |
 
 ## 技术栈

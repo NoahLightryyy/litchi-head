@@ -62,4 +62,4 @@ existing = connection.execute(
 
 React Query 的查询键包含归属与分页位置；切换归属不能复用上一人的列表。归属隔离不等于身份认证。界面时间控件还要经真实键盘/日期选择验收：仅设置 DOM value 不证明框架的 change 处理器已接收值。
 
-自己试试：运行 `node --experimental-transform-types --test tests/user-action-ledger.test.mts`（frontend目录），将响应价格末位改掉，观察消费者拒绝保存成功；在 /retro 用两个 QA 归属验证记录互不串用。
+自己试试：运行 `node --test tests/user-action-ledger.test.mts`（frontend目录），将响应价格末位改掉，观察消费者拒绝保存成功；在 /retro 用两个 QA 归属验证记录互不串用。

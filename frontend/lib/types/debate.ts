@@ -23,6 +23,9 @@ export interface AgentAnalysis {
   score: number;
   summary: string;
   analysis: string;
+  key_evidence?: string[];
+  risk_warning?: string | null;
+  error?: string | null;
   confidence: number;
   direction: string;
   success: boolean;

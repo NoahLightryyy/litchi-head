@@ -5,6 +5,7 @@ import { MessageSquare, RefreshCw, Info } from "lucide-react";
 import { useRunDebate, useDebateResult } from "@/lib/hooks/use-debate";
 import type { AgentAnalysis, VoteSummary } from "@/lib/types/debate";
 import { debateErrorMessage } from "@/lib/debate-error";
+import { AgentAnalysisList } from "./agent-analysis-list";
 
 interface DebatePanelProps {
   stockCode: string;
@@ -17,7 +18,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [triggered, setTriggered] = useState(false);
 
-  const { data: debateResult, isLoading: polling } = useDebateResult(sessionId);
+  const { data: debateResult, isLoading: polling, error: resultError } = useDebateResult(sessionId);
 
   const handleDebate = async () => {
     setError(null);
@@ -42,9 +43,9 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       {/* 头部 */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-text-primary">AI 多大师辩论决策</h3>
+          <h3 className="text-sm font-semibold text-text-primary">各流派分析与辩论</h3>
           <p className="text-xs text-text-muted mt-0.5">
-            {stockName} · 后端 LangGraph 多 Agent 辩论
+            {stockName} · 逐流派查看摘要、论证、依据与风险
           </p>
         </div>
         <button
@@ -61,9 +62,9 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       </div>
 
       {/* 错误态 */}
-      {error && (
+      {(error || resultError) && (
         <div className="p-3 rounded-md bg-accent-red/10 border border-accent-red/20 text-sm text-accent-red mb-3">
-          {error}
+          {error || "研究结果读取失败，请重试；尚不能确认本次各流派分析结果。"}
         </div>
       )}
 
@@ -90,7 +91,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       {results && (
         <>
           {/* 共识卡片 */}
-          <div className="p-4 rounded-md bg-accent-green/5 border border-accent-green/20 mb-3">
+          {results.analyses.some((a) => a.success === true) && <div className="p-4 rounded-md bg-accent-green/5 border border-accent-green/20 mb-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-accent-green">共识结果</span>
               <span className="text-xs text-text-muted">
@@ -104,7 +105,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
                 className={`text-2xl font-bold ${
                   results.voteSummary.consensus === "看涨"
                     ? "text-accent-green"
-                    : "text-accent-red"
+                    : results.voteSummary.consensus === "看跌" ? "text-accent-red" : "text-text-secondary"
                 }`}
               >
                 {results.voteSummary.consensus}
@@ -121,7 +122,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
                       {`${(results.voteSummary.confidence * 100).toFixed(0)}%`}
                     </span>
                     <span className="text-[10px] text-text-muted bg-bg-tertiary px-1 rounded">
-                      校准
+                      非胜率
                     </span>
                   </div>
                 </div>
@@ -150,71 +151,9 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
                 />
               </div>
             </div>
-          </div>
+          </div>}
 
-          {/* 大师分析列表 */}
-          {results.analyses.map((a, i) => (
-            <div
-              key={a.agent_name ?? i}
-              className="flex items-center justify-between p-3 rounded-md bg-bg-primary/50 border border-bg-tertiary mb-2"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-bg-tertiary flex items-center justify-center text-sm">
-                  {["🦅", "🦊", "🐺", "🦉", "🦄", "🐻", "🐯"][i] ?? "🤖"}
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-text-primary">
-                    {a.skill_name || a.agent_name}
-                  </span>
-                  <span className="text-xs text-text-muted ml-2">
-                    {a.agent_name.replace("master.", "")}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                {/* 方向 */}
-                <span
-                  className={`font-number text-sm ${
-                    a.direction === "Bullish"
-                      ? "text-accent-green"
-                      : a.direction === "Bearish"
-                        ? "text-accent-red"
-                        : "text-accent-gold"
-                  }`}
-                >
-                  {a.direction === "Bullish"
-                    ? "看涨"
-                    : a.direction === "Bearish"
-                      ? "看跌"
-                      : "中性"}
-                </span>
-                {/* 评分 */}
-                <span className="font-number text-sm text-text-secondary">
-                  {a.score}/100
-                </span>
-                {/* 置信度条 */}
-                <div className="flex items-center gap-1.5 min-w-[80px]">
-                  <div className="flex-1 h-1.5 rounded-full bg-bg-tertiary overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${a.confidence * 100}%`,
-                        backgroundColor:
-                          a.confidence >= 0.7
-                            ? "rgb(34, 197, 94)"
-                            : a.confidence >= 0.4
-                              ? "rgb(234, 179, 8)"
-                              : "rgb(239, 68, 68)",
-                      }}
-                    />
-                  </div>
-                  <span className="font-number text-xs text-text-muted w-8 text-right">
-                    {(a.confidence * 100).toFixed(0)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+          <AgentAnalysisList analyses={results.analyses} />
 
           {/* 偏斜公示 */}
           {results.voteSummary.bias_report && (
@@ -239,11 +178,11 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       )}
 
       {/* 空态 */}
-      {!triggered && !error && (
+      {!triggered && !error && !results && (
         <div className="text-center py-8">
           <div className="text-3xl mb-3">🤖</div>
           <p className="text-sm text-text-muted">
-            点击「触发辩论」调用后端 LangGraph 开始 AI 多大师分析
+            点击「触发辩论」生成该股各流派分析；成功返回后可逐个展开依据和风险。
           </p>
         </div>
       )}
