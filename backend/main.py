@@ -30,6 +30,7 @@ from backend.routers import (
     market,
     news,
     retro,
+    sector_chain,
     stocks,
     trust,
     user_actions,
@@ -169,6 +170,7 @@ app.state.limiter = limiter
 # ── 路由注册 ──────────────────────────────────────────────────
 
 app.include_router(market.router)
+app.include_router(sector_chain.router)
 app.include_router(stocks.router)
 app.include_router(news.router)
 app.include_router(financials.router)

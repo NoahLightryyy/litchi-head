@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "sector_code": "BK1106",
+  "sector_name": "创新药",
+  "scope": "依据2020年药品注册管理办法梳理的研发、注册及上市后活动示意；不覆盖完整商业产业链，不代表全部企业、当前具体品种审批要求或公司供货关系。流程可能并行或迭代，箭头仅表示资料中的一般衔接。",
+  "sources": [
+    {
+      "id": "samr-drug-registration-2020",
+      "title": "药品注册管理办法（2020年公布）",
+      "publisher": "国家市场监督管理总局",
+      "url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/fgs/art/2023/art_3275cb2a929d4c34ac8c0421b2a9c257.html",
+      "published_on": "2020-03-30",
+      "checked_on": "2026-10-06",
+      "locator": "第十条、第二十至二十三条、第三十四条、第三十八至三十九条、第七十六条"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "research",
+      "stage": "药学与非临床研究",
+      "label": "研究药物质量、药理和毒理，为临床试验及上市注册准备研究资料。",
+      "kind": "industry_activity",
+      "source_ids": [
+        "samr-drug-registration-2020"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "clinical",
+      "stage": "临床研究",
+      "label": "在人体验证安全性与有效性；研究分期与方案须结合药物特点和研究目的。",
+      "kind": "industry_activity",
+      "source_ids": [
+        "samr-drug-registration-2020"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "process",
+      "stage": "生产工艺验证",
+      "label": "申请上市许可前，确定质量标准并完成商业规模生产工艺验证。",
+      "kind": "industry_activity",
+      "source_ids": [
+        "samr-drug-registration-2020"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "review",
+      "stage": "上市许可审评",
+      "label": "提交研究资料，接受安全性、有效性和质量可控性审评及相关核查检验。",
+      "kind": "industry_activity",
+      "source_ids": [
+        "samr-drug-registration-2020"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "postmarket",
+      "stage": "上市后研究",
+      "label": "持有人继续开展上市后研究，持续管理药品质量、安全性和有效性。",
+      "kind": "industry_activity",
+      "source_ids": [
+        "samr-drug-registration-2020"
+      ],
+      "stock_code": null
+    }
+  ],
+  "edges": [
+    {
+      "source_node": "research",
+      "target_node": "clinical",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "samr-drug-registration-2020"
+      ],
+      "description": "药学与非临床研究与临床研究的流程衔接示意；并非公司供应关系或所有项目的固定顺序。"
+    },
+    {
+      "source_node": "clinical",
+      "target_node": "process",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "samr-drug-registration-2020"
+      ],
+      "description": "临床研究与生产工艺验证的流程衔接示意；并非公司供应关系或所有项目的固定顺序。"
+    },
+    {
+      "source_node": "process",
+      "target_node": "review",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "samr-drug-registration-2020"
+      ],
+      "description": "生产工艺验证与上市许可审评的流程衔接示意；并非公司供应关系或所有项目的固定顺序。"
+    },
+    {
+      "source_node": "review",
+      "target_node": "postmarket",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "samr-drug-registration-2020"
+      ],
+      "description": "上市许可审评与上市后研究的流程衔接示意；并非公司供应关系或所有项目的固定顺序。"
+    }
+  ]
+}

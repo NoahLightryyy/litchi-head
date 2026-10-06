@@ -76,3 +76,15 @@ def test_communication_catalog_has_only_sourced_industry_edges():
     assert all(edge.relation == "industry_sequence" for edge in graph.edges)
     assert get_sector_chain("../BK1650", "通信技术") is None
     assert get_sector_chain("BK9999", "未知") is None
+
+
+def test_innovative_drug_catalog_is_sourced_process_not_company_supply_chain():
+    from src.data.chain_evidence import get_sector_chain
+
+    graph = get_sector_chain("BK1106", "创新药")
+    assert graph is not None
+    assert len(graph.nodes) == 5 and len(graph.edges) == 4
+    assert all(node.kind == "industry_activity" and node.stock_code is None for node in graph.nodes)
+    assert all(edge.relation == "industry_sequence" for edge in graph.edges)
+    assert "不覆盖完整商业产业链" in graph.scope
+    assert graph.sources[0].url.host == "www.samr.gov.cn"
