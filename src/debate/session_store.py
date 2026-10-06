@@ -1,4 +1,4 @@
-"""Durable debate session contract and SQLite recovery prototype."""
+"""Durable debate session contract and SQLite recovery."""
 
 from __future__ import annotations
 
@@ -46,6 +46,8 @@ class DebateSessionRecord(BaseModel):
         if self.status == "completed":
             if self.result is None or self.progress != 100:
                 raise ValueError("completed session requires result and progress=100")
+            if self.result.stock_code != self.stock_code:
+                raise ValueError("completed result stock_code must match envelope")
             if self.result.session_id != self.session_id:
                 raise ValueError("completed result session_id must match envelope")
         if self.status == "failed" and not self.error:
@@ -91,7 +93,7 @@ def measure_session_snapshot(record: DebateSessionRecord) -> SessionSnapshotMeas
 
 
 class SqliteDebateSessionStore:
-    """SQLite WAL prototype for durable, idempotent debate session recovery."""
+    """SQLite WAL store for durable, idempotent debate session recovery."""
 
     def __init__(self, database_path: str | Path):
         self._database_path = Path(database_path)
@@ -158,8 +160,7 @@ class SqliteDebateSessionStore:
                         allowed = _ALLOWED_TRANSITIONS.get(previous_status, frozenset())
                         if record.status not in allowed:
                             raise SessionStoreError(
-                                "invalid session transition: "
-                                f"{previous_status} -> {record.status}"
+                                f"invalid session transition: {previous_status} -> {record.status}"
                             )
                         if record.progress < previous_progress:
                             raise SessionStoreError(
@@ -197,9 +198,7 @@ class SqliteDebateSessionStore:
         except SessionStoreError:
             raise
         except sqlite3.Error as exc:
-            raise SessionStoreError(
-                f"failed to persist session: {record.session_id}"
-            ) from exc
+            raise SessionStoreError(f"failed to persist session: {record.session_id}") from exc
 
     async def get(self, session_id: str) -> DebateSessionRecord | None:
         """Recover and integrity-check one session."""
@@ -230,6 +229,61 @@ class SqliteDebateSessionStore:
         except (ValueError, TypeError) as exc:
             raise SessionStoreError(f"corrupt session payload: {session_id}") from exc
 
+    async def list_records(
+        self,
+        stock_code: str | None = None,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        unfinished: bool = False,
+    ) -> list[DebateSessionRecord]:
+        """Read ordered, integrity-checked history without loading all result bodies."""
+        return await asyncio.to_thread(self._list_sync, stock_code, limit, offset, unfinished)
+
+    def _list_sync(
+        self,
+        stock_code: str | None,
+        limit: int,
+        offset: int,
+        unfinished: bool,
+    ) -> list[DebateSessionRecord]:
+        clauses: list[str] = []
+        params: list[object] = []
+        if stock_code:
+            clauses.append("stock_code = ?")
+            params.append(stock_code)
+        if unfinished:
+            clauses.append("status IN ('queued', 'running')")
+        where = " WHERE " + " AND ".join(clauses) if clauses else ""
+        try:
+            with closing(self._connect()) as connection:
+                ids = connection.execute(
+                    "SELECT session_id FROM debate_sessions"
+                    + where
+                    + " ORDER BY created_at DESC, session_id DESC LIMIT ? OFFSET ?",
+                    (*params, limit, offset),
+                ).fetchall()
+        except sqlite3.Error as exc:
+            raise SessionStoreError("failed to list sessions") from exc
+        return [record for row in ids if (record := self._get_sync(str(row[0]))) is not None]
+
+    async def recover_interrupted(self) -> int:
+        """Single-process startup: mark interrupted work failed; never spend again automatically."""
+        count = 0
+        while pending := await self.list_records(unfinished=True):
+            for record in pending:
+                await self.save(
+                    record.model_copy(
+                        update={
+                            "status": "failed",
+                            "error": "服务重启导致分析中断，请手动重新分析。",
+                            "updated_at": datetime.now(timezone.utc),
+                        }
+                    )
+                )
+                count += 1
+        return count
+
     async def count(self) -> int:
         """Return the number of durable sessions."""
         return await asyncio.to_thread(self._count_sync)
@@ -237,9 +291,7 @@ class SqliteDebateSessionStore:
     def _count_sync(self) -> int:
         try:
             with closing(self._connect()) as connection:
-                row = connection.execute(
-                    "SELECT COUNT(*) FROM debate_sessions"
-                ).fetchone()
+                row = connection.execute("SELECT COUNT(*) FROM debate_sessions").fetchone()
         except sqlite3.Error as exc:
             raise SessionStoreError("failed to count sessions") from exc
         return int(row[0]) if row is not None else 0

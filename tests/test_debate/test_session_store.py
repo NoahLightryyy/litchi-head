@@ -119,9 +119,7 @@ async def test_terminal_session_cannot_be_reopened(tmp_path: Path) -> None:
     completed = _completed_record()
     await store.save(completed)
 
-    reopened = completed.model_copy(
-        update={"status": "running", "progress": 50, "result": None}
-    )
+    reopened = completed.model_copy(update={"status": "running", "progress": 50, "result": None})
     with pytest.raises(SessionStoreError, match="terminal"):
         await store.save(reopened)
 
@@ -248,3 +246,28 @@ async def test_store_closes_every_sqlite_connection(tmp_path: Path) -> None:
 
     assert opened
     assert all(connection.was_closed for connection in opened)
+
+
+@pytest.mark.asyncio
+async def test_restart_marks_unfinished_failed_and_preserves_completed(tmp_path):
+    store = SqliteDebateSessionStore(tmp_path / "sessions.db")
+    await store.save(
+        DebateSessionRecord(session_id="running", stock_code="000001", status="running", progress=0)
+    )
+    result = _debate_result()
+    await store.save(
+        DebateSessionRecord(
+            session_id=result.session_id,
+            stock_code="000001",
+            status="completed",
+            progress=100,
+            result=result,
+        )
+    )
+    reopened = SqliteDebateSessionStore(tmp_path / "sessions.db")
+    assert await reopened.recover_interrupted() == 1
+    assert await reopened.recover_interrupted() == 0
+    assert (await reopened.get("running")).status == "failed"
+    assert (await reopened.get(result.session_id)).result == result
+    assert len(await reopened.list_records("000001", limit=1)) == 1
+    assert not await reopened.list_records("920344")

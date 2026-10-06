@@ -59,3 +59,13 @@ all_quotes有效缓存，失效/空缓存为None，简报沿用“暂无数据�
 - 新浪仍按原有源分页补采。未覆盖近3天时，STALE结果保留实际缓存范围及匹配条目，研究仅使用该范围内、同股票的新闻。匹配0条只表示已覆盖范围内未匹配，不能声称近3天无新闻。
 - `_evidence_limitation` 补传已有 `error_codes` 字段，避免后续只剩笼统 stale/failed。
 - 前端优先展示 `research_note`，其余缺失能力保留旧通用说明；有具体说明时仍明确有限信息研究、未进入交易决策。
+
+## 完整研究历史与断线恢复（2026-10-06 用户批准）
+
+- 路由正式使用 `data/debate/sessions.db` 的 SQLite WAL 会话存储，结果、证据限制、时间戳与校验和一同保存。保存失败返回服务错误，不能声称成功；完成的结果不可覆盖。
+- `GET /api/debate/history?stock_code=六位代码&limit=50&offset=0`：`data` 按 created_at 降序返回 session_id、stock_code、status（queued/running/completed/failed）、created_at、updated_at、error；limit 1–100。
+- 原 status/result 路径从持久库读取，状态新增可空 error；result 仍为完整 DebateResult 或 null。身份必须同时匹配会话与股票。
+- 创建分析时先保存 running，再执行原同步流程；断线不会删除持久记录，可通过个股历史查询找到进行中/已完成的分析。前端独立轮询历史恢复，无需重复提交。
+- 单进程启动把上次未完成会话标为 failed，error 明示服务重启中断；不自动再次调用模型。此交付不代表 durable queue / 跨进程续算 / 全局并发预算已实现。
+- 个股页默认展示最新完整结果，可选择更早记录；刷新保留历史可见性。新分析期间旧结果须明确标为历史，不能冒充本次输出。失败或超时后可手动选择已完成历史。
+- 旧复盘摘要保留在研究与复盘；只有现存可核验完整结果迁入本库，不从摘要伪造完整结果。

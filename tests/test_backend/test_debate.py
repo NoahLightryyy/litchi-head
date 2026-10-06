@@ -8,12 +8,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from backend.routers.debate import _analysis_is_configured
+from backend.routers.debate import _analysis_is_configured, _auto_create_retro_record
 from src.data.evidence import (
     EvidenceAssessment,
     EvidenceCapability,
@@ -22,21 +22,30 @@ from src.data.evidence import (
     EvidenceRequest,
 )
 from src.debate.evidence_gate import EvidenceIncompleteError
+from src.debate.models import DebateResult
+from src.debate.session_store import SqliteDebateSessionStore
 
 
 @pytest.fixture(autouse=True)
-def mock_stock_name_lookup():
+def mock_stock_name_lookup(tmp_path):
     """Keep backend route tests independent from the live AKShare network."""
     with (
+        patch(
+            "backend.routers.debate._session_store",
+            SqliteDebateSessionStore(tmp_path / "sessions.db"),
+        ),
+        patch("backend.routers.debate._auto_create_retro_record", new_callable=AsyncMock),
         patch("backend.routers.debate.resolve_stock_name", return_value="平安银行"),
         patch("backend.routers.debate._analysis_is_configured", return_value=True),
     ):
         yield
 
 
-class _MockDebateResult(BaseModel):
+class _MockDebateResult(DebateResult):
     """模拟 DebateOutput"""
+
     session_id: str
+    stock_name: str = "平安银行"
     stock_code: str = "000001"
     question: str = "测试问题"
     summary: str = "辩论总结"
@@ -117,10 +126,11 @@ class TestRunDebate:
                 evidence_limitations=[
                     {
                         "status": "limited",
+                        "collected_at": "2026-10-06T08:00:00+00:00",
                         "capability": "news",
                         "missing_upstream_ids": ["sina"],
                     }
-                ]
+                ],
             )
 
         mock_orch.run = _run_limited  # type: ignore[method-assign]
@@ -299,9 +309,8 @@ class TestGetDebateResult:
         resp = client.get(f"/api/debate/result/{session_id}")
         data = resp.json()["data"]
         assert data is not None
-        assert "summary" in data
-        assert "consensus" in data
-        assert "confidence" in data
+        assert "vote_summary" in data
+        assert data["stock_name"] == "平安银行"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -321,7 +330,7 @@ class TestRateLimit:
             # 前 6 次 POST 成功
             for i in range(6):
                 resp = client.post("/api/debate/run", json={"stock_code": "000001"})
-                assert resp.status_code == 200, f"第 {i+1} 次请求应成功"
+                assert resp.status_code == 200, f"第 {i + 1} 次请求应成功"
 
             # 第 7 次 POST → 429
             resp = client.post("/api/debate/run", json={"stock_code": "000001"})
@@ -346,13 +355,14 @@ async def test_retro_quote_timeout_does_not_lose_completed_analysis():
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
 
-    from backend.routers.debate import _auto_create_retro_record
-
     result = SimpleNamespace(vote_summary=SimpleNamespace(), stock_name="测试股票")
     put = AsyncMock()
     with (
-        patch("backend.routers.debate._retro_quote_runner.run",
-              new_callable=AsyncMock, side_effect=TimeoutError),
+        patch(
+            "backend.routers.debate._retro_quote_runner.run",
+            new_callable=AsyncMock,
+            side_effect=TimeoutError,
+        ),
         patch("src.retro.store.RetroStore") as store,
         patch("src.data.collector.DataCollector"),
     ):
@@ -360,3 +370,19 @@ async def test_retro_quote_timeout_does_not_lose_completed_analysis():
         await _auto_create_retro_record("test-retro-timeout", result, "300199")
     put.assert_awaited_once()
     assert put.call_args.args[0].price_at_debate is None
+
+
+def test_history_and_result_survive_store_reopen(client, tmp_path):
+    from backend.routers import debate
+
+    orch = _MockOrchestrator()
+    with patch("backend.routers.debate._get_orchestrator", return_value=orch):
+        response = client.post("/api/debate/run", json={"stock_code": "000001"})
+    sid = response.json()["data"]["session_id"]
+    debate._session_store = SqliteDebateSessionStore(tmp_path / "sessions.db")
+    records = client.get("/api/debate/history?stock_code=000001").json()["data"]
+    assert records[0]["session_id"] == sid
+    assert records[0]["status"] == "completed"
+    assert client.get("/api/debate/history?stock_code=920344").json()["data"] == []
+    assert client.get(f"/api/debate/result/{sid}").json()["data"]["session_id"] == sid
+    assert client.get("/api/debate/history?stock_code=bad").status_code == 422

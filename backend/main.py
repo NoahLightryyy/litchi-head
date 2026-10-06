@@ -93,6 +93,10 @@ async def lifespan(app: FastAPI):
     logger.info("FastAPI 桥接层启动 — http://localhost:8000")
     logger.info("API 文档: http://localhost:8000/docs")
 
+    from backend.routers.debate import _session_store  # noqa: PLC0415
+
+    await _session_store.recover_interrupted()
+
     # ── 生产数据源配置 ──
     try:
         from backend.config import setup_production_source  # noqa: PLC0415

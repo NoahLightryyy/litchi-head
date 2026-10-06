@@ -8,10 +8,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -23,6 +24,7 @@ from backend.config import (
 )
 from backend.limiter import limiter
 from backend.stock_identity import resolve_stock_name
+from src.debate.session_store import DebateSessionRecord, SqliteDebateSessionStore
 
 logger = logging.getLogger("backend.debate")
 router = APIRouter(prefix="/api/debate")
@@ -96,11 +98,13 @@ async def _auto_create_retro_record(
     except Exception:
         logger.exception("自动创建复盘记录失败（静默）: session=%s", session_id)
 
+
 # ── 请求模型 ──────────────────────────────────────────────────
 
 
 class DebateRequest(BaseModel):
     """辩论请求"""
+
     stock_code: str = Field(pattern=r"^[0-9]{6}$")
     question: str = ""
 
@@ -132,9 +136,47 @@ def _get_orchestrator():
     )
 
 
-# ── 内存状态存储（简化版，生产环境应换 Redis） ──────────────
+# Local deployment uses one backend process; completed results survive restarts.
+_session_store = SqliteDebateSessionStore("data/debate/sessions.db")
 
-_debate_sessions: dict[str, dict[str, Any]] = {}
+
+async def _save_session(session_id: str, req: DebateRequest, data: dict[str, Any]) -> None:
+    previous = await _session_store.get(session_id)
+    await _session_store.save(
+        DebateSessionRecord(
+            session_id=session_id,
+            stock_code=req.stock_code,
+            question=req.question or "",
+            created_at=previous.created_at if previous else datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+            **{key: value for key, value in data.items() if key != "detail"},
+        )
+    )
+
+
+class DebateHistoryItem(BaseModel):
+    session_id: str
+    stock_code: str
+    status: Literal["queued", "running", "completed", "failed"]
+    created_at: datetime
+    updated_at: datetime
+    error: str | None = None
+
+
+class DebateHistoryResponse(BaseModel):
+    data: list[DebateHistoryItem]
+
+
+@router.get("/history", response_model=DebateHistoryResponse)
+@limiter.limit(RATE_LIMIT_DEBATE_STATUS)
+async def debate_history(
+    request: Request,
+    stock_code: str = Query(pattern=r"^\d{6}$"),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    records = await _session_store.list_records(stock_code, limit=limit, offset=offset)
+    return {"data": [DebateHistoryItem.model_validate(record.model_dump()) for record in records]}
 
 
 def _analysis_is_configured() -> bool:
@@ -150,14 +192,19 @@ async def run_debate(request: Request, req: DebateRequest):
     """触发一次辩论"""
     if not _analysis_is_configured():
         logger.warning("Analysis configuration unavailable; inference not started")
-        return JSONResponse(status_code=503, content={"error": {
-            "code": "ANALYSIS_NOT_CONFIGURED",
-            "message": "DeepSeek 分析服务尚未配置，AI 分析未启动",
-            "detail": {"capability": "analysis_service", "retryable": False},
-        }})
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": {
+                    "code": "ANALYSIS_NOT_CONFIGURED",
+                    "message": "DeepSeek 分析服务尚未配置，AI 分析未启动",
+                    "detail": {"capability": "analysis_service", "retryable": False},
+                }
+            },
+        )
     t0 = time.time()
     session_id = f"deb_{uuid4().hex[:12]}"
-    _debate_sessions[session_id] = {"status": "running", "progress": 0}
+    await _save_session(session_id, req, {"status": "running", "progress": 0})
 
     try:
         try:
@@ -171,12 +218,16 @@ async def run_debate(request: Request, req: DebateRequest):
                 "missing_fields": ["stock_name"],
                 "retry_after_seconds": 300,
             }
-            _debate_sessions[session_id] = {
-                "status": "failed",
-                "progress": 0,
-                "error": "EVIDENCE_INCOMPLETE",
-                "detail": detail,
-            }
+            await _save_session(
+                session_id,
+                req,
+                {
+                    "status": "failed",
+                    "progress": 0,
+                    "error": "EVIDENCE_INCOMPLETE",
+                    "detail": detail,
+                },
+            )
             return JSONResponse(
                 status_code=503,
                 content={
@@ -199,11 +250,15 @@ async def run_debate(request: Request, req: DebateRequest):
                 question=req.question or "",
             )
         )
-        _debate_sessions[session_id] = {
-            "status": "completed",
-            "progress": 100,
-            "result": result.model_dump() if hasattr(result, "model_dump") else result,
-        }
+        await _save_session(
+            session_id,
+            req,
+            {
+                "status": "completed",
+                "progress": 100,
+                "result": result.model_dump() if hasattr(result, "model_dump") else result,
+            },
+        )
 
         # ── 自动记录复盘 ──────────────────────────────
         await _auto_create_retro_record(session_id, result, req.stock_code)
@@ -221,12 +276,16 @@ async def run_debate(request: Request, req: DebateRequest):
                 req.stock_code,
                 detail,
             )
-            _debate_sessions[session_id] = {
-                "status": "failed",
-                "progress": 0,
-                "error": "EVIDENCE_INCOMPLETE",
-                "detail": detail,
-            }
+            await _save_session(
+                session_id,
+                req,
+                {
+                    "status": "failed",
+                    "progress": 0,
+                    "error": "EVIDENCE_INCOMPLETE",
+                    "detail": detail,
+                },
+            )
             return JSONResponse(
                 status_code=503,
                 content={
@@ -239,7 +298,11 @@ async def run_debate(request: Request, req: DebateRequest):
                 headers={"Retry-After": str(exc.retry_after_seconds)},
             )
         logger.exception("辩论执行失败: stock_code=%s", req.stock_code)
-        _debate_sessions[session_id] = {"status": "failed", "progress": 0}
+        await _save_session(
+            session_id,
+            req,
+            {"status": "failed", "progress": 0, "error": "分析执行失败，请检查数据状态后重试。"},
+        )
         raise HTTPException(status_code=500, detail=f"辩论执行失败: {req.stock_code}")
 
 
@@ -247,7 +310,8 @@ async def run_debate(request: Request, req: DebateRequest):
 @limiter.limit(RATE_LIMIT_DEBATE_STATUS)
 async def get_debate_status(request: Request, session_id: str):
     """查询辩论状态"""
-    session = _debate_sessions.get(session_id)
+    record = await _session_store.get(session_id)
+    session = record.model_dump(mode="json") if record else None
     if session is None:
         return {"data": {"status": "not_found", "progress": 0}}
     return {
@@ -255,6 +319,7 @@ async def get_debate_status(request: Request, session_id: str):
             "session_id": session_id,
             "status": session.get("status", "unknown"),
             "progress": session.get("progress", 0),
+            "error": session.get("error"),
         }
     }
 
@@ -263,7 +328,8 @@ async def get_debate_status(request: Request, session_id: str):
 @limiter.limit(RATE_LIMIT_DEBATE_RESULT)
 async def get_debate_result(request: Request, session_id: str):
     """获取辩论结果"""
-    session = _debate_sessions.get(session_id)
+    record = await _session_store.get(session_id)
+    session = record.model_dump(mode="json") if record else None
     if session is None:
         return {"data": None}
     return {
