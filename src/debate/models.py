@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
 
+from src.debate.research_scope import HorizonOpinion
+
 if TYPE_CHECKING:
     pass
 
@@ -107,6 +109,8 @@ class AgentAnalysis(BaseModel):
     无论分析成功或失败，均使用此结构（success=False 时含错误信息）。
     """
 
+    research_generated_at: datetime | None = None
+    horizons: list[HorizonOpinion] = Field(default_factory=list)
     agent_name: str
     skill_id: str
     skill_name: str

@@ -24,11 +24,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
 from pydantic import BaseModel, Field
 
 from src.agents.base import AgentContext, AgentResult, BaseAgent
+from src.debate.research_scope import HorizonOpinion, scope_prompt
 from src.memory.knowledge_base import DEFAULT_BASE_PATH, KnowledgeBase
 from src.memory.skill_disk import MasterSkill, SkillDisk
 from src.utils.llm import llm_service
@@ -41,6 +43,10 @@ class InvestmentAnalysis(BaseModel):
     direction 字段要求大师必须给出明确的 Bullish/Bearish/Neutral 方向判断，
     不可留空或输出其他值。Neutral 必须在分析中说明理由。
     """
+
+    horizons: list[HorizonOpinion] = Field(
+        default_factory=list, description="short/medium/long三周期条件研究，恰好各一项"
+    )
 
     rating: str = Field(description="投资评级：看涨 / 看跌 / 中性 / 谨慎 / 观望")
     score: int = Field(description="信心评分（1-100）", ge=1, le=100)
@@ -181,6 +187,8 @@ class MasterAgent(BaseAgent):
             "- Neutral —— 中性，无明显方向偏好\n"
             "若选择 Neutral（中性），必须在分析正文中说明保持中立的理由。"
         )
+
+        prompt += scope_prompt(datetime.now(timezone(timedelta(hours=8))).date())
 
         # ── 4. LLM 结构化调用 ──────────────────────────────
         system_prompt = self.get_system_prompt()

@@ -805,6 +805,8 @@ async def _run_single_master(
             analysis=analysis_text,
             key_evidence=list(key_evidence),
             risk_warning=risk_warning,
+            research_generated_at=datetime.now(UTC),
+            horizons=analysis_raw.get("horizons", []) if isinstance(analysis_raw, dict) else [],
             confidence=result.confidence,
             latency_ms=elapsed,
             direction=direction,
