@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "map_kind": "market_structure",
+  "sector_code": "BK0499",
+  "sector_name": "AH股",
+  "scope": "AH股按同一发行人在内地与香港上市这一特征归类，不对应统一的实体产业链。本图解释A+H上市关系；连线不是供货、资金流向或股票转换路径。研究具体公司的产品、客户及产业链，请进入右侧成分股的公司生态位模块。所引历史交易所资料用于基本概念说明，不作为当前港股通名单或交易资格依据。",
+  "sources": [
+    {
+      "id": "sse-ah-2019",
+      "title": "沪深港交易所就科创板A+H公司股票纳入沪深港通股票范围安排达成共识",
+      "publisher": "上海证券交易所",
+      "url": "https://www.sse.com.cn/aboutus/mediacenter/hotandd/c/c_20190726_4870010.shtml",
+      "published_on": "2019-07-26",
+      "checked_on": "2026-10-06",
+      "locator": "正文关于A+H上市公司A股及其对应H股的说明；不将当年的纳入安排当作当前资格清单"
+    },
+    {
+      "id": "hkex-h-2001",
+      "title": "Amendments to the Exchange Main Board Listing Rules Chapter 19A",
+      "publisher": "香港交易所",
+      "url": "https://www.hkex.com.hk/News/News-Release/2001/0105171news?sc_lang=en",
+      "published_on": "2001-05-17",
+      "checked_on": "2026-10-06",
+      "locator": "H股定义及允许使用港元以外货币认购和交易的段落；不据此限定所有H股仅用港元交易"
+    }
+  ],
+  "nodes": [
+    {"id": "issuer", "stage": "同一发行人", "label": "A+H公司的两地上市股份对应同一家公司；具体主营业务应按公司分别研究。", "kind": "market_entity", "source_ids": ["sse-ah-2019"]},
+    {"id": "a-share", "stage": "内地A股", "label": "公司在内地市场上市的A股，是A+H结构中的内地上市部分。", "kind": "market_entity", "source_ids": ["sse-ah-2019"]},
+    {"id": "h-share", "stage": "香港H股", "label": "公司在香港市场上市的H股；应分别核对交易货币、报价时间与适用规则。", "kind": "market_entity", "source_ids": ["sse-ah-2019", "hkex-h-2001"]}
+  ],
+  "edges": [
+    {"source_node": "issuer", "target_node": "a-share", "relation": "listing_relationship", "description": "同一发行人的内地A股上市关系，不是上下游供货关系。", "source_ids": ["sse-ah-2019"]},
+    {"source_node": "issuer", "target_node": "h-share", "relation": "listing_relationship", "description": "同一发行人的香港H股上市关系；这条连线不表示A股可以沿图转换为H股。", "source_ids": ["sse-ah-2019"]}
+  ]
+}

@@ -33,7 +33,7 @@ class ChainEvidenceNode(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     id: str = Field(min_length=1)
     label: str = Field(min_length=1)
-    kind: Literal["industry_activity", "company"]
+    kind: Literal["industry_activity", "company", "market_entity"]
     stage: str = Field(min_length=1)
     source_ids: tuple[str, ...] = Field(min_length=1)
     stock_code: str | None = Field(default=None, pattern=r"^\d{6}$")
@@ -49,7 +49,7 @@ class ChainEvidenceEdge(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     source_node: str
     target_node: str
-    relation: Literal["industry_sequence", "supplies"]
+    relation: Literal["industry_sequence", "supplies", "listing_relationship"]
     source_ids: tuple[str, ...] = Field(min_length=1)
     description: str = Field(min_length=1)
 
@@ -57,6 +57,7 @@ class ChainEvidenceEdge(BaseModel):
 class ChainEvidenceMap(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     schema_version: Literal[1] = 1
+    map_kind: Literal["industry_chain", "market_structure"] = "industry_chain"
     sector_code: str = Field(pattern=r"^BK\d{4}$")
     sector_name: str = Field(min_length=1)
     scope: str = Field(min_length=1)
@@ -71,6 +72,8 @@ class ChainEvidenceMap(BaseModel):
         if len(sources) != len(self.sources) or len(nodes) != len(self.nodes):
             raise ValueError("duplicate source or node id")
         for node in self.nodes:
+            if (node.kind == "market_entity") != (self.map_kind == "market_structure"):
+                raise ValueError("market entities must belong to a market structure")
             if not set(node.source_ids) <= sources:
                 raise ValueError("node references unknown evidence")
         edge_keys: set[tuple[str, str, str]] = set()
@@ -85,7 +88,10 @@ class ChainEvidenceMap(BaseModel):
             if key in edge_keys:
                 raise ValueError("duplicate edge")
             edge_keys.add(key)
-            expected = "company" if edge.relation == "supplies" else "industry_activity"
+            expected = {
+                "supplies": "company", "industry_sequence": "industry_activity",
+                "listing_relationship": "market_entity",
+            }[edge.relation]
             if any(nodes[item].kind != expected for item in (edge.source_node, edge.target_node)):
                 raise ValueError("industry stages cannot be promoted to company supply edges")
         return self

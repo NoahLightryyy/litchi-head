@@ -29,6 +29,26 @@ def test_sector_identity_must_match():
         load_chain_evidence(CATALOG, sector_code="BK1650", sector_name="通信技术")
 
 
+def test_ah_map_is_market_structure_not_supply_chain():
+    from src.data.chain_evidence import get_sector_chain
+
+    graph = get_sector_chain("BK0499", "AH股")
+    assert graph is not None and graph.map_kind == "market_structure"
+    assert len(graph.nodes) == 3 and len(graph.edges) == 2
+    assert all(node.kind == "market_entity" for node in graph.nodes)
+    assert all(edge.relation == "listing_relationship" for edge in graph.edges)
+    assert {edge.source_node for edge in graph.edges} == {"issuer"}
+    assert {edge.target_node for edge in graph.edges} == {"a-share", "h-share"}
+    data = graph.model_dump(mode="json")
+    data["edges"][0]["relation"] = "supplies"
+    with pytest.raises(ValidationError):
+        ChainEvidenceMap.model_validate(data)
+    data = graph.model_dump(mode="json")
+    data["map_kind"] = "industry_chain"
+    with pytest.raises(ValidationError):
+        ChainEvidenceMap.model_validate(data)
+
+
 @pytest.mark.parametrize(
     "failure", ["duplicate", "missing_source", "no_source", "future", "unsafe_url"],
 )
