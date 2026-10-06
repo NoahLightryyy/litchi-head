@@ -201,3 +201,27 @@ def test_out_of_order_poll_does_not_regress_coverage(tmp_path: Path) -> None:
         start_at=latest,
         end_at=latest,
     )
+
+
+def test_partial_window_retains_items_and_exact_coverage_for_research(tmp_path: Path) -> None:
+    now = datetime(2026, 10, 6, 8, 0, tzinfo=UTC)
+    start = now - timedelta(hours=2)
+    store = SqliteRollingNewsStore(tmp_path / "partial.db")
+    store.record_success(
+        source_id="sina-finance-feed",
+        items=[_item("partial", start, "三元基因发布公告")],
+        collected_at=now,
+    )
+    result = RollingNewsSource(store).fetch(
+        EvidenceRequest(
+            capability=EvidenceCapability.NEWS,
+            stock_code="920344",
+            stock_name="三元基因",
+            start_at=now - timedelta(days=3),
+            end_at=now,
+        )
+    )
+    assert result.status is SourceStatus.STALE
+    assert result.error_code == "rolling_window_not_fully_covered"
+    assert result.coverage_start_at == start and result.coverage_end_at == now
+    assert result.items[0].code == "920344"

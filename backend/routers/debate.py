@@ -193,6 +193,7 @@ async def run_debate(request: Request, req: DebateRequest):
 
         result = await orch.run(
             DebateInput(
+                session_id=session_id,
                 stock_code=req.stock_code,
                 stock_name=stock_name,
                 question=req.question or "",

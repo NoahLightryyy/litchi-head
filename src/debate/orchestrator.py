@@ -108,6 +108,10 @@ from src.debate.reflection import (  # noqa: E402
     _load_decision_from_memory,
     generate_reflection,
 )
+from src.debate.research_evidence import (  # noqa: E402
+    closing_research_quotes,
+    partial_research_news,
+)
 from src.debate.trust import TrustTracker, calibrate_confidence, compute_weight_factor  # noqa: E402
 from src.memory.skill_disk import MasterSkill, SkillDisk  # noqa: E402
 from src.memory.store import MemoryItem, MemoryStore  # noqa: E402
@@ -151,6 +155,7 @@ def _evidence_limitation(envelope: EvidenceEnvelope) -> dict[str, object]:
         "missing_upstream_ids": sorted(missing),
         "missing_independent_upstreams": assessment.missing_independent_upstreams,
         "source_statuses": dict(sorted(source_statuses.items())),
+        "error_codes": sorted({r.error_code for r in envelope.source_results if r.error_code}),
         "collected_at": envelope.collected_at,
     }
 
@@ -171,7 +176,10 @@ def _format_evidence_limitation_notice(
         if any(item.get("capability") == "kline_business" for item in limitations)
         else ""
     )
+    research_notes = "\n".join(str(item["research_note"]) for item in limitations
+                               if item.get("research_note"))
     return (
+        f"{research_notes}\n"
         f"⚠️ 证据不完整：{kline_notice}{capabilities}；"
         f"缺失或不可用上游：{missing_text}。\n"
         "以下推理仅基于当前可用信息，结论必须连同本证据限制标注一起使用。"
@@ -354,6 +362,13 @@ def collect_data_node(
             StockQuote.model_validate(item)
             for item in quote_evidence_envelope.items
         ]
+        if not quote_evidence_envelope.complete:
+            research = closing_research_quotes(quote_evidence_envelope, datetime.now(UTC))
+            if research.quotes:
+                quotes = research.quotes
+            for limitation in evidence_limitations:
+                if limitation["capability"] == "realtime_quote" and research.note:
+                    limitation["research_note"] = research.note
     else:
         try:
             quotes = collector.get_realtime_quotes()
@@ -375,6 +390,12 @@ def collect_data_node(
             NewsItem.model_validate(item)
             for item in news_evidence_envelope.items
         ]
+        partial_news = partial_research_news(news_evidence_envelope)
+        existing = {(item.code, item.title) for item in news}
+        news.extend(item for item in partial_news.items if (item.code, item.title) not in existing)
+        for limitation in evidence_limitations:
+            if limitation["capability"] == "news" and partial_news.note:
+                limitation["research_note"] = partial_news.note
     else:
         try:
             news = collector.get_news(code)

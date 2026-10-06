@@ -181,6 +181,20 @@ class SqliteRollingNewsStore:
                 f"failed to record rolling news: {source_id}"
             ) from exc
 
+    def coverage(self, source_id: str) -> tuple[datetime, datetime] | None:
+        """Return observed continuous coverage, without claiming future freshness."""
+        try:
+            with closing(self._connect()) as connection:
+                row = connection.execute(
+                    "SELECT continuous_since, last_success_at FROM rolling_news_coverage "
+                    "WHERE source_id = ?", (source_id,),
+                ).fetchone()
+        except sqlite3.Error as exc:
+            raise RollingNewsStoreError("failed to read rolling coverage") from exc
+        if row is None:
+            return None
+        return datetime.fromisoformat(row[0]), datetime.fromisoformat(row[1])
+
     def covers(
         self,
         *,

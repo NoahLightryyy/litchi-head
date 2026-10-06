@@ -64,20 +64,6 @@ class RollingNewsSource:
                 error_code="rolling_window_required",
                 error_message="滚动新闻证据必须指定完整时间窗口",
             )
-        if not self._store.covers(
-            source_id=self.descriptor.source_id,
-            start_at=request.start_at,
-            end_at=request.end_at,
-        ):
-            return SourceResult[NewsItem](
-                source_id=self.descriptor.source_id,
-                upstream_id=self.descriptor.upstream_id,
-                capability=request.capability,
-                status=SourceStatus.STALE,
-                error_code="rolling_window_not_fully_covered",
-                error_message="新浪滚动缓存尚未连续覆盖请求时间窗口",
-            )
-
         items = self._store.query(
             source_id=self.descriptor.source_id,
             stock_code=request.stock_code,
@@ -85,6 +71,24 @@ class RollingNewsSource:
             start_at=request.start_at,
             end_at=request.end_at,
         )
+        if not self._store.covers(
+            source_id=self.descriptor.source_id,
+            start_at=request.start_at,
+            end_at=request.end_at,
+        ):
+            coverage = self._store.coverage(self.descriptor.source_id)
+            return SourceResult[NewsItem](
+                source_id=self.descriptor.source_id,
+                upstream_id=self.descriptor.upstream_id,
+                capability=request.capability,
+                status=SourceStatus.STALE,
+                items=items,
+                coverage_start_at=coverage[0] if coverage else None,
+                coverage_end_at=coverage[1] if coverage else None,
+                error_code="rolling_window_not_fully_covered",
+                error_message="新浪滚动缓存尚未连续覆盖请求时间窗口",
+            )
+
         return SourceResult[NewsItem](
             source_id=self.descriptor.source_id,
             upstream_id=self.descriptor.upstream_id,

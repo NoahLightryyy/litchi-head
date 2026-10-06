@@ -80,6 +80,8 @@ class SourceResult(BaseModel, Generic[ItemT]):
     fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     error_code: str | None = None
     error_message: str | None = None
+    coverage_start_at: datetime | None = None
+    coverage_end_at: datetime | None = None
 
     @model_validator(mode="after")
     def validate_status_payload(self) -> "SourceResult[ItemT]":

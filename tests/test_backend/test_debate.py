@@ -36,6 +36,7 @@ def mock_stock_name_lookup():
 
 class _MockDebateResult(BaseModel):
     """模拟 DebateOutput"""
+    session_id: str
     stock_code: str = "000001"
     question: str = "测试问题"
     summary: str = "辩论总结"
@@ -52,7 +53,7 @@ class _MockOrchestrator:
 
     async def run(self, debate_input: object) -> _MockDebateResult:
         self.last_input = debate_input
-        return _MockDebateResult()
+        return _MockDebateResult(session_id=getattr(debate_input, "session_id"))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -112,6 +113,7 @@ class TestRunDebate:
         async def _run_limited(debate_input: object) -> _MockDebateResult:
             mock_orch.last_input = debate_input
             return _MockDebateResult(
+                session_id=getattr(debate_input, "session_id"),
                 evidence_limitations=[
                     {
                         "status": "limited",
@@ -191,6 +193,9 @@ class TestRunDebate:
         result_resp = client.get(f"/api/debate/result/{session_id}")
         assert result_resp.status_code == 200
         assert result_resp.json()["data"] is not None
+        assert result_resp.json()["data"]["session_id"] == session_id
+        assert status_resp.json()["data"]["session_id"] == session_id
+        assert getattr(mock_orch.last_input, "session_id") == session_id
 
     def test_run_debate_error(self, client):
         """orchestrator 异常时返回 500"""

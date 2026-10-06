@@ -41,3 +41,21 @@ all_quotes有效缓存，失效/空缓存为None，简报沿用“暂无数据�
 5份分析师报告、5位策略师成功、5份交叉评审和独立评审返回。evidence_limitations
 明确包含realtime_quote/news；trade_recommendation=null，前端显示有限信息研究。
 复盘报价超时仍保存记录，price_at_debate=null。独立3002/8002通过，未集成3001。
+
+## 会话身份一致性修复（2026-10-06）
+
+`POST /run` 创建的 `deb_*` ID 必须显式传入 `DebateInput.session_id`，贯穿编排、结果与复盘。
+`GET /status/{id}` 与 `GET /result/{id}` 返回的 session_id 必须等于启动返回值；前端继续拒绝不匹配结果。
+实测 920344：启动 ID deb_c14996d54447，而原结果 ID 为 b9d08532-ea5c-4296-9d32-f86a2bce21aa。
+两请求均 200、5份大师分析已生成，但前端按既有防串线规则隐藏。根因是路由遗漏输入 ID，触发模型默认 UUID。
+修复只传递同一 ID，不调整数据门禁、置信度或错误文案。路由测试以前的 mock 未模拟 session_id，现增加全链一致断言。
+
+## 休市研究契约（2026-10-06，用户确认）
+
+- 新增可选 `evidence_limitations[].research_note: string | null`：后端生成的研究范围说明，同时写入模型简报；旧结果缺省 null。
+- 数据层 `SourceResult` 可携带 `coverage_start_at` / `coverage_end_at`，表示缓存实际连续观察范围；不把缓存数据条数当作完整覆盖证明。
+- 仅研究层采用官方年度交易日历核验的最近已结束交易日、15:00以后的报价。拒绝未来时间、过旧交易日、午休/竞价期间旧报价和未知日历覆盖。多源价格相差超过1个最小价位时不使用，收盘时间戳秒差不作为冲突。
+- 保留原实时证据信封及其 `complete=false`，单源明确标注，休市数据不进入交易决策。实时 API 和交易门禁不放宽。
+- 新浪仍按原有源分页补采。未覆盖近3天时，STALE结果保留实际缓存范围及匹配条目，研究仅使用该范围内、同股票的新闻。匹配0条只表示已覆盖范围内未匹配，不能声称近3天无新闻。
+- `_evidence_limitation` 补传已有 `error_codes` 字段，避免后续只剩笼统 stale/failed。
+- 前端优先展示 `research_note`，其余缺失能力保留旧通用说明；有具体说明时仍明确有限信息研究、未进入交易决策。

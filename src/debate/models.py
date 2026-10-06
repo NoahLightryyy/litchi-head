@@ -352,6 +352,7 @@ class EvidenceLimitation(BaseModel):
     missing_independent_upstreams: int = 0
     source_statuses: dict[str, str] = Field(default_factory=dict)
     collected_at: datetime
+    research_note: str | None = None
     affected_layers: list[str] = Field(default_factory=list)
     error_codes: list[str] = Field(default_factory=list)
     retry_dispositions: dict[str, str] = Field(default_factory=dict)
