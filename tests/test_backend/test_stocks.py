@@ -76,36 +76,31 @@ class TestSearchStocks:
 
 
 class TestGetQuote:
-    """个股实时行情"""
+    def test_returns_direct_quote_with_null_enrichment(self, client):
+        from datetime import datetime
 
-    def test_returns_quote(self, client, mock_collector):
-        with patch("backend.routers.stocks.collector", mock_collector):
-            resp = client.get("/api/stocks/000001/quote")
+        from backend.quote_display import DisplayQuote
+        quote = DisplayQuote(
+            code="920344", name="三元基因", price=24.35, change=3.32, change_pct=15.79,
+            high=26.46, low=20.88, prev_close=21.03, open_=21.11,
+            volume=13381057, amount=319936958.76,
+            fetched_at=datetime.fromisoformat("2026-09-30T15:30:00+08:00"), source="sina",
+        )
+        with patch("backend.routers.stocks.get_display_quote", return_value=quote), \
+                patch("backend.routers.stocks.collector") as collector:
+            response = client.get("/api/stocks/920344/quote")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["name"] == "三元基因" and data["price"] == 24.35
+        assert data["open"] == 21.11 and "open_" not in data
+        assert data["source"] == "sina" and data["verification_status"] == "single_source"
+        assert data["fund_flow"] is None and data["turnover_rate"] is None
+        collector.get_realtime_quote.assert_not_called()
 
-        assert resp.status_code == 200
-        data = resp.json()["data"]
-        assert data is not None
-        assert data["code"] == "000001"
-        assert data["price"] == 3200.0
-
-    def test_enrich_fields(self, client, mock_collector):
-        """补充前端字段"""
-        with patch("backend.routers.stocks.collector", mock_collector):
-            resp = client.get("/api/stocks/000001/quote")
-
-        data = resp.json()["data"]
-        assert "turnover_rate" in data
-        assert "fund_flow" in data
-        assert "market_cap" in data
-        assert "open" in data  # open_ → open
-
-    def test_not_found(self, client, mock_collector):
-        """不存在的股票返回 data=None"""
-        with patch("backend.routers.stocks.collector", mock_collector):
-            resp = client.get("/api/stocks/999999/quote")
-
-        assert resp.status_code == 200
-        assert resp.json()["data"] is None
+    def test_not_found(self, client):
+        with patch("backend.routers.stocks.get_display_quote", return_value=None):
+            response = client.get("/api/stocks/999999/quote")
+        assert response.status_code == 200 and response.json()["data"] is None
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -9,10 +9,12 @@ import logging
 import time
 
 from fastapi import APIRouter, Path, Query
+from pydantic import BaseModel
 
 from backend.async_utils import run_sync
 from backend.intraday_display import FiveDayDisplay, get_five_day_display
 from backend.kline_display import RawDailyDisplay, get_raw_daily_display
+from backend.quote_display import DisplayQuote, get_display_quote
 from src.data.collector import DataCollector
 from src.data.fundamental_research import FundamentalResearch, get_fundamental_research
 
@@ -43,25 +45,24 @@ async def search_stocks(q: str = Query("", description="搜索关键词")):
     }
 
 
-@router.get("/{code:str}/quote")
-async def get_quote(code: str):
-    """个股实时行情（含 enrich 字段）"""
-    t0 = time.time()
-    quote = await run_sync(collector.get_realtime_quote, code)
-    if quote is None:
-        return {"data": None, "meta": {"cached": False, "latency_ms": 0}}
-    d = quote.model_dump()
-    # 补充前端需要的字段（akshare 不直接提供）
-    d["turnover_rate"] = d.get("turnover_rate", 0.0)
-    d["fund_flow"] = d.get("fund_flow", 0.0)
-    d["market_cap"] = d.get("market_cap", 0.0)
-    d["open"] = d.pop("open_", 0.0)  # 对齐前端类型
-    cached = collector.cache_hit.get("all_quotes", False)
-    latency = round((time.time() - t0) * 1000)
-    return {
-        "data": d,
-        "meta": {"cached": cached, "latency_ms": latency},
-    }
+class QuoteDisplayMeta(BaseModel):
+    cached: bool = False
+    latency_ms: int
+
+
+class QuoteDisplayResponse(BaseModel):
+    data: DisplayQuote | None
+    meta: QuoteDisplayMeta
+
+
+@router.get("/{code}/quote", response_model=QuoteDisplayResponse)
+async def get_quote(code: str = Path(pattern=r"^\d{6}$")) -> QuoteDisplayResponse:
+    """Single-source dated display; never depends on fetching the entire market."""
+    started = time.monotonic()
+    quote = await run_sync(get_display_quote, code)
+    return QuoteDisplayResponse(
+        data=quote, meta=QuoteDisplayMeta(latency_ms=round((time.monotonic() - started) * 1000)),
+    )
 
 
 @router.get("/{code:str}/kline")
