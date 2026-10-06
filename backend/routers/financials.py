@@ -5,20 +5,23 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 
 from fastapi import APIRouter
 
-from backend.async_utils import run_sync
+from backend.async_utils import BoundedSyncRunner, run_sync
+from backend.financial_display import FinancialResponse, enrich, income_statements
 from src.data.collector import DataCollector
 
 logger = logging.getLogger("backend.financials")
 router = APIRouter(prefix="/api/stocks")
 collector = DataCollector()
+margin_runner = BoundedSyncRunner(max_workers=2, thread_name_prefix="margin-display")
 
 
-@router.get("/{code:str}/financials")
+@router.get("/{code:str}/financials", response_model=FinancialResponse)
 async def get_financials(code: str):
     """个股财务指标（ROE/毛利率/负债率等）
 
@@ -26,8 +29,15 @@ async def get_financials(code: str):
     """
     t0 = time.time()
     items = await run_sync(collector.get_financials, code)
+    items = items[:10]
+    statements = []
+    if any(i.gross_margin is None for i in items):
+        try:
+            statements = await asyncio.wait_for(margin_runner.run(income_statements, code), 12)
+        except TimeoutError:
+            logger.warning("Gross margin enrichment timed out: %s", code)
     return {
-        "data": [i.model_dump() for i in items[:10]],
+        "data": enrich(items, statements),
         "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000)},
     }
 
@@ -58,6 +68,9 @@ async def get_valuation(code: str):
     val = await run_sync(collector.get_valuation, code)
     return {
         "data": val.model_dump() if val is not None else None,
-        "meta": {"cached": False, "latency_ms": round((time.time() - t0) * 1000),
-                 "reason": "缺少可核验时点及股本范围的总市值，暂不计算" if val is None else None},
+        "meta": {
+            "cached": False,
+            "latency_ms": round((time.time() - t0) * 1000),
+            "reason": "缺少可核验时点及股本范围的总市值，暂不计算" if val is None else None,
+        },
     }
