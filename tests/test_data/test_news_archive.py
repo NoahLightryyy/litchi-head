@@ -40,3 +40,17 @@ def test_repeated_history_stops_without_fabricating_coverage(tmp_path):
     source = next(s for s in store.query(days=1095).coverage if s.channel == "cls")
     assert source.count == 1 and source.error and source.history_status == "failed"
     assert source.last_success and not source.complete
+
+
+def test_followup_keyword_is_applied_before_limit_and_company_boundary(tmp_path):
+    from src.debate.archive_research import retrieve
+
+    store = NewsArchive(tmp_path / "archive.db")
+    store.store([article(f"a{i}") for i in range(210)])
+    older = article("critical").model_copy(
+        update={"title": "三元基因临床关键变化", "date": "2026-09-01T00:00:00+00:00"}
+    )
+    store.store([older])
+    with patch("src.debate.archive_research.archive", store):
+        found = retrieve("920344", "三元基因", 1095, datetime(2026, 10, 3, tzinfo=UTC), "临床")
+    assert len(found) == 1 and found[0].external_id == "critical"

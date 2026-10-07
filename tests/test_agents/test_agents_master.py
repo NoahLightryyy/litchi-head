@@ -232,7 +232,10 @@ class TestMasterAgentRunWithMockLLM:
             assert result.confidence <= 0.95
 
     async def test_run_sets_confidence_without_knowledge(  # noqa: E501
-        self, agent_with_skill, ctx, make_analysis,
+        self,
+        agent_with_skill,
+        ctx,
+        make_analysis,
     ):
         """无知识命中 + 低 LLM 评分时 confidence 较低"""
         with patch(
@@ -268,7 +271,10 @@ class TestMasterAgentRunWithMockLLM:
             assert result.data["analysis"]["score"] == 90
 
     async def test_reasoning_contains_skill_name_and_rating(  # noqa: E501
-        self, agent_with_skill, ctx, make_analysis,
+        self,
+        agent_with_skill,
+        ctx,
+        make_analysis,
     ):
         """reasoning 字段包含大师名和评级"""
         with patch(
@@ -316,7 +322,10 @@ class TestMasterAgentDifferentSkills:
             assert result.data.get("skill_name") == "查理·芒格"
 
     async def test_different_skills_have_different_system_prompts_in_llm_call(  # noqa: E501
-        self, buffet_lite, munger_lite, make_analysis,
+        self,
+        buffet_lite,
+        munger_lite,
+        make_analysis,
     ):
         """不同大师的 system_prompt 传递到 LLM 调用不同"""
         buffett_agent = MasterAgent(skill=buffet_lite)
@@ -373,3 +382,29 @@ class TestMasterAgentRunSafe:
             result = await agent_with_skill.run_safe(ctx)
             assert result.success is False
             assert "LLM 调用异常" in (result.error or "")
+
+
+@pytest.mark.asyncio
+async def test_master_requests_one_followup_and_attaches_retrieval_record(
+    agent_with_skill, make_analysis
+):
+    first = make_analysis()
+    first.research_queries = ["临床"]
+    second = make_analysis()
+    ctx = AgentContext(
+        session_id="followup",
+        input_data={"question": "研究三元基因", "stock_code": "920344", "stock_name": "三元基因"},
+    )
+    with (
+        patch(
+            "src.agents.master_agent.llm_service.invoke_structured",
+            new=AsyncMock(side_effect=[first, second]),
+        ) as invoke,
+        patch(
+            "src.debate.archive_research.followup_context", return_value="补证原文与时间链接"
+        ) as retrieve,
+    ):
+        result = await agent_with_skill.run(ctx)
+    assert result.success and invoke.await_count == 2
+    retrieve.assert_called_once_with("920344", "三元基因", ["临床"])
+    assert "补证原文与时间链接" in result.data["analysis"]["analysis"]

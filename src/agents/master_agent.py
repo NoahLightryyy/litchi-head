@@ -24,6 +24,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 
@@ -47,6 +49,9 @@ class InvestmentAnalysis(BaseModel):
     horizons: list[HorizonOpinion] = Field(
         default_factory=list, description="short/medium/long三周期条件研究，恰好各一项"
     )
+
+    research_queries: list[str] = Field(default_factory=list, max_length=3,
+        description="证据缺失或冲突时要求补查的最多3个具体关键词，无需补查则为空")
 
     rating: str = Field(description="投资评级：看涨 / 看跌 / 中性 / 谨慎 / 观望")
     score: int = Field(description="信心评分（1-100）", ge=1, le=100)
@@ -139,6 +144,7 @@ class MasterAgent(BaseAgent):
                 - skill_name: 大师名称
                 - knowledge_sources: 知识来源列表
         """
+        started = time.monotonic()
         question = ctx.input_data.get("question", "").strip()
         if not question:
             return AgentResult(
@@ -188,6 +194,8 @@ class MasterAgent(BaseAgent):
             "若选择 Neutral（中性），必须在分析正文中说明保持中立的理由。"
         )
 
+        prompt += ("\n若关键证据缺失或冲突，在research_queries给出最多3个具体检索词。"
+                   "缺证时周期状态应为insufficient，不猜测。")
         prompt += scope_prompt(datetime.now(timezone(timedelta(hours=8))).date())
 
         # ── 4. LLM 结构化调用 ──────────────────────────────
@@ -200,6 +208,39 @@ class MasterAgent(BaseAgent):
             session_id=ctx.session_id,
         )
         analysis = cast(InvestmentAnalysis, raw_analysis)
+        if analysis.research_queries and ctx.input_data.get("stock_code"):
+            from src.debate.archive_research import followup_context
+            from src.utils.config import settings
+
+            try:
+                supplement = await asyncio.to_thread(
+                    followup_context, ctx.input_data["stock_code"],
+                    ctx.input_data.get("stock_name", ""), analysis.research_queries,
+                )
+                remaining = settings.debate_timeout_seconds - (time.monotonic() - started) - 5
+                if remaining > 10:
+                    revised = await asyncio.wait_for(llm_service.invoke_structured(
+                        prompt=prompt + "\n\n" + supplement +
+                        "\n这是最后一轮补证。只根据检索到的资料修订；未解决缺口保留insufficient，research_queries置空。",
+                        output_model=InvestmentAnalysis, system_prompt=system_prompt,
+                        agent_name=self.name, session_id=ctx.session_id,
+                    ), timeout=remaining)
+                    analysis = cast(InvestmentAnalysis, revised)
+                    analysis.analysis += "\n\n" + supplement
+                else:
+                    analysis.analysis += "\n\n" + supplement
+                    analysis.analysis += "\n本轮时间预算不足，未完成补证复核。"
+            except Exception:
+                self.logger.warning("新闻补证未完成，保留初稿和缺口")
+                analysis.analysis += "\n补证检索或复核未完成，本结论仍存在待核验资料缺口。"
+
+
+        if analysis.research_queries and ctx.input_data.get("stock_code"):
+            # Unresolved follow-up must not become a supported horizon conclusion.
+            analysis.horizons = [opinion.model_copy(update={
+                "status": "insufficient", "direction": None,
+                "limitations": [*opinion.limitations, "补证尚未完成，需核验后重新研究"],
+            }) for opinion in analysis.horizons]
 
         # ── 4. 组装结果 ───────────────────────────────────
         # 方向验证

@@ -456,6 +456,15 @@ def collect_data_node(
         key_indicators=key_indicators,
         sentiment=sentiment,
     )
+    from src.debate.archive_research import research_context
+
+    archive_coverage: list[dict] = []
+    try:
+        archive_context, archive_coverage = research_context(code, inp.get("stock_name", ""))
+        brief += "\n\n" + archive_context
+    except Exception:
+        logger.exception("Archive research retrieval failed: %s", code)
+        brief += "\n新闻历史库检索失败，不能假定历史新闻覆盖完整。"
     if kline_context:
         brief = f"{kline_context}\n\n{brief}"
     if evidence_limitations:
@@ -470,6 +479,7 @@ def collect_data_node(
             "quotes": [q.model_dump() for q in quotes],
             "klines": [k.model_dump() for k in klines],
             "news": [n.model_dump() for n in news],
+            "news_archive_coverage": archive_coverage,
             "financials": [f.model_dump() for f in financial_data],
             "kline_business": (
                 kline_business_envelope.model_dump(mode="json")
