@@ -13,6 +13,8 @@ interface MarketIndicesProps {
   onRetry?: () => void;
 }
 
+const sourceNames: Record<string, string> = { sina: "新浪", eastmoney: "东方财富", tencent: "腾讯" };
+
 /** 三大指数卡片 */
 export function MarketIndices({ indices, loading, error, meta, refreshError, onRetry }: MarketIndicesProps) {
   if (loading) {
@@ -55,7 +57,10 @@ export function MarketIndices({ indices, loading, error, meta, refreshError, onR
       <MarketDataNotice meta={meta} refreshError={refreshError} />
       <div className="grid grid-cols-3 gap-4">
         {indices.map((idx) => (
-          <MarketIndexCard key={idx.code} index={idx} conflicted={meta?.limitations.some(
+          <MarketIndexCard key={idx.code} index={idx} verifiedSources={idx.cached ? [] : [...new Set(
+            meta?.source_diagnostics.filter((source) => source.index_code === idx.code && source.status === "success_data")
+              .map((source) => source.upstream_id) ?? [],
+          )]} conflicted={meta?.limitations.some(
             (item) => item.index_code === idx.code && ["INDEX_PRICE_CONFLICT", "INDEX_TIMESTAMP_CONFLICT"].includes(item.code),
           )} />
         ))}
@@ -64,7 +69,9 @@ export function MarketIndices({ indices, loading, error, meta, refreshError, onR
   );
 }
 
-function MarketIndexCard({ index, conflicted }: { index: MarketIndex; conflicted?: boolean }) {
+function MarketIndexCard({ index, conflicted, verifiedSources }: {
+  index: MarketIndex; conflicted?: boolean; verifiedSources: string[];
+}) {
   const isUp = index.change_pct >= 0;
   const dataTime = new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Shanghai",
@@ -88,7 +95,10 @@ function MarketIndexCard({ index, conflicted }: { index: MarketIndex; conflicted
       <div className="mt-2 flex flex-wrap gap-x-2 text-[11px] text-text-muted">
         <span>数据时间 {dataTime}</span>
         <span>{conflicted ? "来源冲突" : index.source_count >= 2 ? `${index.source_count} 源一致` : "单源可用"}</span>
-        {index.display_source && <span>{({ sina: "新浪", eastmoney: "东方财富" } as Record<string, string>)[index.display_source] ?? index.display_source}</span>}
+        {index.display_source && <span>{sourceNames[index.display_source] ?? index.display_source}</span>}
+        {!conflicted && index.source_count >= 2 && verifiedSources.length === index.source_count && (
+          <span>{verifiedSources.map((source) => sourceNames[source] ?? source).join("＋")}</span>
+        )}
         {index.cached && <span>缓存</span>}
       </div>
     </div>
