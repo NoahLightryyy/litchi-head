@@ -142,3 +142,55 @@ def test_report_identity_and_publication_date(change):
         html = html.replace("2025-08-26", "2099-08-26")
     with pytest.raises(ValueError):
         parse_report(html, "测试药业股份有限公司", "半年报", "https://example.com", "r")
+
+
+def test_invalid_output_is_repaired_once(client):
+    bad = interpretation()
+    bad.niche.source_ids = ["invented"]
+    with patch.object(module, "fetch_evidence", AsyncMock(return_value=evidence())), \
+            patch.object(module.llm_service, "invoke_structured",
+                         AsyncMock(side_effect=[bad, interpretation()])) as generate:
+        response = client.post("/api/stocks/920344/company-research")
+    assert response.status_code == 200
+    assert generate.await_count == 2
+    assert "上次输出未通过" in generate.call_args.kwargs["prompt"]
+    assert module.store.get("920344") is not None
+
+
+def test_exhausted_validation_has_specific_error_without_fake_history(client):
+    with patch.object(module, "fetch_evidence", AsyncMock(return_value=evidence())), \
+            patch.object(module.llm_service, "invoke_structured",
+                         AsyncMock(side_effect=ValueError("invalid schema"))) as generate:
+        response = client.post("/api/stocks/920344/company-research")
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "COMPANY_RESEARCH_INVALID_OUTPUT"
+    assert "已保存" not in response.json()["error"]["message"]
+    assert generate.await_count == 2
+    assert module.store.get("920344") is None
+
+
+def test_wrapped_provider_error_is_not_retried_as_validation(client):
+    failure = ValueError("LLM invocation failed")
+    failure.__cause__ = ConnectionError("upstream unavailable")
+    with patch.object(module, "fetch_evidence", AsyncMock(return_value=evidence())), \
+            patch.object(module.llm_service, "invoke_structured",
+                         AsyncMock(side_effect=failure)) as generate:
+        response = client.post("/api/stocks/920344/company-research")
+    assert response.json()["error"]["code"] == "COMPANY_RESEARCH_GENERATION_FAILED"
+    assert generate.await_count == 1
+    assert not module._busy
+
+
+def test_storage_failure_is_distinct_and_preserves_snapshot(client):
+    snapshot = CompanyResearch(**evidence().model_dump(), generated_at=datetime.now(UTC),
+                               model="test", interpretation=interpretation())
+    module.store.save(snapshot)
+    with patch.object(module, "fetch_evidence", AsyncMock(return_value=evidence())), \
+            patch.object(module.llm_service, "invoke_structured",
+                         AsyncMock(return_value=interpretation())), \
+            patch.object(module.store, "save", side_effect=OSError("disk full")):
+        response = client.post("/api/stocks/920344/company-research")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "COMPANY_RESEARCH_SAVE_FAILED"
+    assert module.store.get("920344") == snapshot
+    assert not module._busy
