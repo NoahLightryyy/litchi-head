@@ -6,6 +6,7 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from datetime import time as wall_time
 from typing import Literal, Protocol
 from zoneinfo import ZoneInfo
 
@@ -19,6 +20,8 @@ from src.data.evidence import (
     SourceResult,
     SourceStatus,
 )
+from src.data.kline import MarketCode
+from src.data.kline_calendar import CalendarCoverageError, official_a_share_calendar_2026
 from src.data.models import StockQuote
 from src.data.providers.quotes import (
     EastmoneyIndexQuoteSource,
@@ -35,6 +38,32 @@ INDEX_DEFINITIONS: tuple[tuple[str, str], ...] = (
     ("399006", "创业板指"),
 )
 IndexCollectionStatus = Literal["success", "partial", "empty", "stale", "failed"]
+_INDEX_CALENDAR = official_a_share_calendar_2026()
+
+
+def _same_completed_session(code: str, timestamps: list[datetime], now: datetime) -> bool:
+    """Align last-session closing quotes without relaxing intraday evidence."""
+    local_now = now.astimezone(SHANGHAI)
+    local_times = [stamp.astimezone(SHANGHAI) for stamp in timestamps]
+    day = local_times[0].date()
+    if any(
+        stamp.date() != day or stamp.time() < wall_time(15) or stamp > local_now
+        for stamp in local_times
+    ):
+        return False
+    market = MarketCode.SSE if code == "000001" else MarketCode.SZSE
+    try:
+        opened = _INDEX_CALENDAR.open_dates(market, day, local_now.date())
+    except CalendarCoverageError:
+        return False
+    if not opened:
+        return False
+    if opened[-1] == local_now.date() and local_now.time() < wall_time(15):
+        # Include auction and lunch in the strict intraday window.
+        if local_now.time() >= wall_time(9, 15):
+            return False
+        opened = opened[:-1]
+    return bool(opened) and opened[-1] == day
 
 
 class IndexEvidenceSource(Protocol):
@@ -145,7 +174,7 @@ class IndexQuoteService:
                             "error_message": "指数来源身份、价格或时间无效",
                         })
             reconciled, code_limitations, conflicted = self._reconcile_pair(
-                code, name, timed,
+                code, name, timed, now,
             )
             limitations.extend(code_limitations)
             any_conflict = any_conflict or conflicted
@@ -273,6 +302,7 @@ class IndexQuoteService:
         code: str,
         name: str,
         timed: list[_TimedSourceResult],
+        now: datetime,
     ) -> tuple[IndexConsensusQuote | None, list[IndexLimitation], bool]:
         successful = [
             item.result for item in timed
@@ -295,7 +325,10 @@ class IndexQuoteService:
                 )], True
             aware_timestamps = [item for item in timestamps if item is not None]
             skew = max(aware_timestamps) - min(aware_timestamps)
-            if skew.total_seconds() > INDEX_TIMESTAMP_TOLERANCE_SECONDS:
+            if (
+                skew.total_seconds() > INDEX_TIMESTAMP_TOLERANCE_SECONDS
+                and not _same_completed_session(code, aware_timestamps, now)
+            ):
                 return IndexQuoteService._display_quote(successful, name), [IndexLimitation(
                     code="INDEX_TIMESTAMP_CONFLICT",
                     index_code=code,
