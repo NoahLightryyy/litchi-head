@@ -24,3 +24,14 @@
 - 集成只应用本轮增量：不要重复应用`6f08744`父会话休市基线；父会话正在修改market路由及文档，
   必须在集成窗口按提交增量处理，禁止用此隔离分支整文件覆盖共享目录。
 - 未合入共享分支，未push；3000主预览尚未启用本轮三源实现。
+
+## 最终闸门
+
+`python scripts/check.py --diff 6f08744` 最终5/5通过：Ruff、Pyright、1098后端测试
+（4 skipped）、前端ESLint和TypeScript。前端消费者测试91项通过。
+
+代码与测试增量补丁：`/private/tmp/litchi-index-multi-source.patch`。只读预检发现父会话
+`frontend/tests/market-contract.test.mts`已有新追加内容，完整补丁不能直接应用；
+排除此文件的`git apply --check`通过。集成时将本轮新增的“指数三源兼容”测试
+追加到现有测试末尾，再对源码增量复核并跑闸门；文档按本日志和后端提交增量合入。
+本侧会话没有执行任何共享目录补丁写入。
