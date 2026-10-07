@@ -82,7 +82,10 @@ def enrich(items: list[FinancialMetrics], statements: list[Statement]) -> list[D
                 cost=cost,
                 reason="新浪合并人民币利润表：按同报告期营业收入与营业成本计算，单源，未交叉验证。"
                 if valid
-                else "原指标源未提供毛利率；同期合并利润表的营业收入或营业成本缺失或不适用，暂不能计算。",
+                else (
+                    "原指标源未提供毛利率；同期合并利润表的营业收入或营业成本"
+                    "缺失或不适用，暂不能计算。"
+                ),
             )
         result.append(row)
     return result

@@ -4,22 +4,21 @@ import { useSearchParams } from "next/navigation";
 import { useQueries } from "@tanstack/react-query";
 import Link from "next/link";
 import { fetchFinancials, fetchValuation } from "@/lib/api/stocks";
-import { useStockSearch } from "@/lib/hooks/use-stock";
+import { ScreeningSearch } from "@/components/stock/screening-search";
+import { addComparisonCompany, type ComparisonCompany } from "@/lib/screening";
 import { useResearchList } from "@/lib/hooks/use-research-list";
 export default function ScreeningPage() { return <Suspense fallback={<p>正在加载选股区…</p>}><Screening /></Suspense>; }
 function Screening() {
   const params = useSearchParams();
   const initial = params.get("code") ?? "";
-  const [codes, setCodes] = useState<string[]>(/^\d{6}$/.test(initial) ? [initial] : []);
-  const [input, setInput] = useState("");
-  const [message, setMessage] = useState("");
+  const [selected, setSelected] = useState<ComparisonCompany[]>(/^\d{6}$/.test(initial) ? [{code: initial, name: initial}] : []);
+  const codes = selected.map(company => company.code);
   const { entries } = useResearchList();
-  const search = useStockSearch(input);
-  function add(code: string) {
-    if (!/^\d{6}$/.test(code)) { setMessage("请输入6位股票代码，或从搜索结果选择。"); return; }
-    if (codes.includes(code)) { setMessage("已在对比中"); return; }
-    if (codes.length >= 4) { setMessage("每次最多比较4家公司，请先移除一项。"); return; }
-    setCodes([...codes, code]); setMessage(""); setInput("");
+  function add(company: ComparisonCompany) {
+    setSelected(current => addComparisonCompany(current, company));
+  }
+  function remove(code: string) {
+    setSelected(current => current.filter(company => company.code !== code));
   }
   const financials = useQueries({ queries: codes.map((code) => ({ queryKey: ["stocks", code, "financials"], queryFn: ({ signal }: { signal: AbortSignal }) => fetchFinancials(code, AbortSignal.any([signal, AbortSignal.timeout(15000)])), retry: false, staleTime: 300000 })) });
   const valuations = useQueries({ queries: codes.map((code) => ({ queryKey: ["stocks", code, "valuation"], queryFn: ({ signal }: { signal: AbortSignal }) => fetchValuation(code, AbortSignal.any([signal, AbortSignal.timeout(15000)])), retry: false, staleTime: 300000 })) });
@@ -34,18 +33,22 @@ function Screening() {
   const format = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value === 0 ? "0.00（待核验）" : value.toFixed(2) : "未知";
   return <div className="mx-auto max-w-7xl space-y-5">
     <h1 className="text-2xl font-semibold">选股与对比</h1>
-    <p className="text-sm text-text-muted">按代码或名称加入公司，分别比较盈利、成长、财务风险与估值。不同报告期和行业指标不可直接等同；本表不生成综合评级。</p>
+    <p className="text-sm text-text-muted">先搜索股票、行业或概念，再选择公司加入对比，分别比较盈利、成长、财务风险与估值。不同报告期和行业指标不可直接等同；本表不生成综合评级。</p>
     <p className="rounded border border-bg-tertiary p-3 text-sm text-text-muted">当前为既有接口的原始指标对照：报告期可能较早，尚不能确认是最新披露；零值无法区分真实为零与上游缺值，已标为待核验。估值行情时点与公司产业映射尚未补齐。</p>
-    <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); add(input.trim()); }}>
-      <input aria-label="搜索对比股票" value={input} onChange={(e) => setInput(e.target.value)} placeholder="股票名称或6位代码" className="min-w-0 flex-1 rounded border border-bg-tertiary bg-bg-secondary p-3" />
-      <button className="rounded bg-accent-blue px-4 text-white">加入对比</button>
-    </form>
-    {message && <p role="status">{message}</p>}
-    {search.isError && input.length >= 2 && <p role="alert">搜索暂不可用，可输入已知股票代码。</p>}
-    {input.length >= 2 && search.data && <div className="flex flex-wrap gap-2">{search.data.filter((item) => item.type === "stock").slice(0, 8).map((item) => <button key={item.code} onClick={() => add(item.code)} className="rounded border border-bg-tertiary p-2 text-sm">{item.name} · {item.code}</button>)}</div>}
-    {entries.length > 0 && <div className="flex flex-wrap gap-2"><span className="text-sm text-text-muted">从自选加入</span>{entries.slice(0, 20).map((item) => <button key={item.code} onClick={() => add(item.code)} className="text-sm text-accent-blue">{item.name}</button>)}</div>}
-    {!codes.length ? <p className="rounded-lg border border-bg-tertiary bg-bg-secondary p-8 text-center">加入公司后展示并列指标；也可先到行业研究中筛选板块。</p> : <div className="overflow-x-auto rounded-lg border border-bg-tertiary bg-bg-secondary">
-      <table className="w-full min-w-[600px] text-sm"><thead><tr><th className="p-3 text-left">维度 / 指标</th>{codes.map((code) => <th key={code} className="p-3"><Link href={`/stock/${code}`} className="text-accent-blue">{entries.find((entry) => entry.code === code)?.name ?? code}</Link><button aria-label={`移除对比${code}`} className="ml-3 text-text-muted" onClick={() => setCodes(codes.filter((item) => item !== code))}>×</button></th>)}</tr></thead>
+    <ScreeningSearch selected={selected} onAdd={add} />
+    <section aria-label="已选对比公司" className="rounded-lg border border-bg-tertiary p-4">
+      <h2 className="text-lg font-semibold">2. 已选公司 · {selected.length} / 4</h2>
+      <p className="mt-1 text-sm text-text-muted">最多比较四家公司；加入后在下方查看指标，移除一项后可继续添加。</p>
+      <ul className="mt-3 flex flex-wrap gap-2">{selected.map(company => <li key={company.code} className="rounded border border-bg-tertiary p-2">
+        {company.name} {company.name !== company.code && company.code}
+        <button aria-label={`移除对比${company.code}`} className="ml-3 text-accent-blue" onClick={() => remove(company.code)}>移除</button>
+      </li>)}</ul>
+      {entries.length > 0 && <div className="mt-3 flex flex-wrap gap-2"><span className="text-sm text-text-muted">从自选加入</span>{entries.slice(0, 20).map(item => <button key={item.code}
+        disabled={codes.includes(item.code) || selected.length >= 4} onClick={() => add(item)} className="text-sm text-accent-blue disabled:opacity-50">{item.name}{codes.includes(item.code) ? "（已加入）" : ""}</button>)}</div>}
+    </section>
+    <h2 id="screening-comparison" className="scroll-mt-4 text-lg font-semibold">3. 查看指标对比</h2>
+    {!codes.length ? <p className="rounded-lg border border-bg-tertiary bg-bg-secondary p-8 text-center">从上方搜索结果加入公司后，在这里展示并列指标。</p> : <div className="overflow-x-auto rounded-lg border border-bg-tertiary bg-bg-secondary">
+      <table className="w-full min-w-[600px] text-sm"><thead><tr><th className="p-3 text-left">维度 / 指标</th>{codes.map((code) => <th key={code} className="p-3"><Link href={`/stock/${code}`} className="text-accent-blue">{selected.find(company => company.code === code)?.name ?? code}</Link><button aria-label={`从表格移除对比${code}`} className="ml-3 text-text-muted" onClick={() => remove(code)}>×</button></th>)}</tr></thead>
       <tbody>
         <tr><th className="p-3 text-left">财务报告期 / 状态</th>{codes.map((code, index) => <td key={code} className="p-3 text-center">{financials[index].isPending ? "加载中…" : financials[index].isError ? <button className="text-accent-red" onClick={() => void financials[index].refetch()}>加载失败，重试</button> : financials[index].data?.[0]?.report_date ?? "暂无财务数据"}</td>)}</tr>
         {metrics.map((metric) => <tr key={metric.key} className="border-t border-bg-tertiary"><th className="p-3 text-left font-normal">{metric.label}</th>{codes.map((code, index) => <td key={code} className="p-3 text-center font-number">{format(financials[index].data?.[0]?.[metric.key])}</td>)}</tr>)}

@@ -79,7 +79,7 @@ Content-Type: application/json
 
 | 方法 | 路径 | 说明 |
 |:----|:-----|:-----|
-| GET | `/api/stocks/search?q=` | 搜索股票/板块 |
+| GET | `/api/stocks/search?q=` | 按代码/名称搜索股票；返回 StockInfo，无 type 字段，最多 20 条 |
 | GET | `/api/stocks/{code}/quote` | 个股实时行情 |
 | GET | `/api/stocks/{code}/kline` | K 线数据 |
 | GET | `/api/stocks/{code}/news` | 个股新闻 |
@@ -331,3 +331,17 @@ ws://localhost:8000/ws/quotes?codes=000001,300750
 `FUND_FLOW_UNAVAILABLE`，`sort_applied=upstream_order`，不能按资金流排序。
 
 2026-09-05：hot-news的date保留财新公开API原始time（Unix秒），以Asia/Shanghai的ISO8601字符串返回；非法/缺失保持null，不使用抓取时刻。API契约不变。
+
+
+### 选股页搜索流程（2026-10-07）
+
+`/screening` 先提交搜索，再显示公司与相关板块，最后逐个加入最多四家公司的对比。
+复用既有接口，无新增后端字段、数据源或 AI 调用：
+
+- `/stocks/search?q=`：只匹配代码/名称，返回 `code/name/market`，不能要求不存在的 `type`。
+- `/market/sectors?source=eastmoney&sort=change_pct`：按板块名称/代码本地筛选，精确名称优先；每组八项。
+- `/market/sector/{id}`：用户展开单个板块时取 `stocks`，每页二十家公司，支持板块内名称/代码筛选。
+- 保留板块及成分股的 `meta` 缓存、失败、缺失和限制说明；板块归属不推断主营占比。
+- 公司、板块、成分股各自有 loading/error/empty/offline 状态和重试，单一路径失败不清空另一条路径。
+- 输入框/回车仅搜索，不会把行业词当代码添加；加入后保留结果，按代码去重，已选四家时禁用添加。
+- 查询切换使用独立 query key 和取消信号；成分股响应校验放在查询函数内，坏数据进入错误态。

@@ -2,7 +2,7 @@ import { api } from "./client";
 import type { StockQuote, KLineData, CapitalFlow, StockSearchResult, TechnicalIndicators, FinancialMetrics, ValuationMetrics, DynamicIndicators, IntradayBattlefield } from "@/lib/types/stock";
 import { parseIntradayBattlefield } from "@/lib/intraday-contract";
 
-/** 搜索股票/板块 */
+/** 按代码或名称搜索股票；行业/概念检索使用市场板块接口。 */
 export async function searchStocks(query: string): Promise<StockSearchResult[]> {
   return api.get("/stocks/search", { q: query });
 }
