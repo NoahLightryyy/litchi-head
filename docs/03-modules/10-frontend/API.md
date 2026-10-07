@@ -331,3 +331,7 @@ ws://localhost:8000/ws/quotes?codes=000001,300750
 `FUND_FLOW_UNAVAILABLE`，`sort_applied=upstream_order`，不能按资金流排序。
 
 2026-09-05：hot-news的date保留财新公开API原始time（Unix秒），以Asia/Shanghai的ISO8601字符串返回；非法/缺失保持null，不使用抓取时刻。API契约不变。
+
+### 当日分时涨跌幅展示（2026-10-07）
+
+沿用 `GET /stocks/{code}/quote` 已冻结的 `code`、`prev_close`、`fetched_at`（来源报价时间）与分时 `price_points.timestamp`。代码一致、昨收大于零且所有分钟点与报价为同一北京时间交易日时显示百分比轴。公式 `(价格/昨收-1)*100`；不以网页刷新时间或第一个分钟点作基准。未新增接口，不改变证据准入。五日图仍只展示价格轴。
