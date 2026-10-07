@@ -51,7 +51,12 @@ def isolated_single_board_lookup():
         patch("backend.routers.market.fetch_sina_hot_news", return_value=pd.DataFrame()),
         patch("backend.routers.market.fetch_eastmoney_hot_news", return_value=pd.DataFrame()),
     ):
-        yield
+        with (
+            patch("backend.routers.market.fetch_cls_hot_news", return_value=pd.DataFrame()),
+            patch("backend.routers.market.fetch_ths_hot_news", return_value=pd.DataFrame()),
+            patch("backend.routers.market.fetch_futu_hot_news", return_value=pd.DataFrame()),
+        ):
+            yield
 
 
 class StubIndexQuoteService:
@@ -1150,7 +1155,8 @@ class TestMultiSourceHotNews:
                                  for i in range(120)])
         with (
             patch("backend.routers.market._HOT_NEWS_CACHE", {}),
-            patch("backend.routers.market.fetch_caixin_news", return_value=sample("财新", "01")),
+            patch("backend.routers.market.fetch_caixin_news",
+                  return_value=sample("财新", "01").rename(columns={"title": "summary"})),
             patch("backend.routers.market.fetch_sina_hot_news", return_value=sample("新浪", "03")),
             patch("backend.routers.market.fetch_eastmoney_hot_news",
                   return_value=sample("东财", "02")),
@@ -1158,7 +1164,8 @@ class TestMultiSourceHotNews:
             body = client.get("/api/market/hot-news").json()
             assert len(body["data"]) == 300
             assert body["data"][0]["source"] == "新浪"
-            assert len(body["meta"]["source_diagnostics"]) == 3
+            assert body["data"][-1]["title"].startswith("财新新闻")
+            assert len(body["meta"]["source_diagnostics"]) == 6
             assert body["meta"]["status"] == "success"
 
     def test_partial_source_failure_survives_cache(self, client):

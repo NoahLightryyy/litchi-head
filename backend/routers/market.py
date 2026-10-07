@@ -35,7 +35,13 @@ from src.data.providers.eastmoney_boards import (
     BoardSnapshot,
     board_snapshots,
 )
-from src.data.providers.global_news import fetch_eastmoney_hot_news, fetch_sina_hot_news
+from src.data.providers.global_news import (
+    fetch_cls_hot_news,
+    fetch_eastmoney_hot_news,
+    fetch_futu_hot_news,
+    fetch_sina_hot_news,
+    fetch_ths_hot_news,
+)
 from src.data.providers.sina_boards import sina_boards
 from src.data.providers.sina_members import SinaMemberPage, sina_members
 
@@ -1088,7 +1094,7 @@ class HotNewsEnvelope(BaseModel):
 
 _HOT_NEWS_CACHE: dict[str, object] = {}
 _HOT_NEWS_TTL = 120  # 2 分钟
-_hot_news_runner = BoundedSyncRunner(max_workers=3, thread_name_prefix="hot-news")
+_hot_news_runner = BoundedSyncRunner(max_workers=6, thread_name_prefix="hot-news")
 _MARKET_DATA_STATUSES: tuple[MarketDataStatus, ...] = (
     "success",
     "partial",
@@ -1100,8 +1106,11 @@ _MARKET_DATA_STATUSES: tuple[MarketDataStatus, ...] = (
 
 def _first_text(row: pd.Series, fields: tuple[str, ...]) -> str:
     for field in fields:
-        value = safe_str(row.get(field, ""))
-        if value:
+        raw = row.get(field, "")
+        if not isinstance(raw, str):
+            continue
+        value = raw.strip()
+        if value and value.lower() not in {"nan", "none", "null", "undefined"}:
             return value
     return ""
 
@@ -1160,7 +1169,10 @@ async def get_hot_news():
     schema_invalid = False
     sources = [("caixin", "财新数据通", fetch_caixin_news),
                ("sina", "新浪财经", fetch_sina_hot_news),
-               ("eastmoney", "东方财富", fetch_eastmoney_hot_news)]
+               ("eastmoney", "东方财富", fetch_eastmoney_hot_news),
+               ("cls", "财联社", fetch_cls_hot_news),
+               ("ths", "同花顺财经", fetch_ths_hot_news),
+               ("futu", "富途财经", fetch_futu_hot_news)]
     latencies: dict[str, int] = {}
 
     async def fetch_one(source_id: str, fetcher: Callable[[], pd.DataFrame]) -> pd.DataFrame:
@@ -1210,7 +1222,7 @@ async def get_hot_news():
         items: list[dict[str, object]] = []
         missing_published_at = False
         skipped_items = 0
-        for _, row in df.head(300).iterrows():
+        for _, row in df.head(600).iterrows():
             title = _first_text(row, title_fields)
             url = _first_text(row, ("url", "链接", "新闻链接"))
             if not title:

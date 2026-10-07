@@ -57,3 +57,62 @@ def fetch_eastmoney_hot_news() -> pd.DataFrame:
          if re.fullmatch(r"\d+", str(row.get("code", ""))) else ""}
         for row in rows[:100]
     ])
+
+
+def epoch_time(value: object) -> str | None:
+    try:
+        return publication_time(datetime.fromtimestamp(float(str(value)),
+                                ZoneInfo("Asia/Shanghai")).isoformat())
+    except (ValueError, TypeError, OverflowError, OSError):
+        return None
+
+
+def _get_json(url: str, params: dict[str, str]) -> dict:
+    response = httpx.get(url, params=params, timeout=10,
+                         headers={"User-Agent": "Mozilla/5.0", "Referer": url})
+    response.raise_for_status()
+    return response.json()
+
+
+def fetch_futu_hot_news() -> pd.DataFrame:
+    payload = _get_json("https://news.futunn.com/news-site-api/main/get-flash-list",
+                        {"pageSize": "100"})
+    rows = payload["data"]["data"]["news"]
+    return pd.DataFrame([
+        {"title": text(row.get("title")) or text(row.get("content")),
+         "content": text(row.get("content")), "date": epoch_time(row.get("time")),
+         "source": "富途财经", "url": text(row.get("detailUrl"))} for row in rows[:100]
+    ])
+
+
+def fetch_ths_hot_news() -> pd.DataFrame:
+    payload = _get_json("https://news.10jqka.com.cn/tapp/news/push/stock",
+                        {"page": "1", "tag": "", "track": "website"})
+    rows = payload["data"]["list"]
+    return pd.DataFrame([
+        {"title": text(row.get("title")) or text(row.get("digest")),
+         "content": text(row.get("digest")), "date": epoch_time(row.get("rtime")),
+         "source": "同花顺财经", "url": text(row.get("url"))} for row in rows[:100]
+    ])
+
+
+def fetch_cls_hot_news() -> pd.DataFrame:
+    import hashlib
+    import time
+    from urllib.parse import urlencode
+
+    # Public web request signature; rn=100 returns an empty collection upstream.
+    params = {"app": "CailianpressWeb", "category": "", "last_time": str(int(time.time())),
+              "os": "web", "refresh_type": "1", "rn": "20", "sv": "8.4.6"}
+    params["sign"] = hashlib.md5(
+        hashlib.sha1(urlencode(params).encode()).hexdigest().encode()).hexdigest()
+    payload = _get_json("https://www.cls.cn/v1/roll/get_roll_list", params)
+    if payload.get("errno") != 0:
+        raise ValueError("CLS feed error")
+    rows = payload["data"]["roll_data"]
+    return pd.DataFrame([
+        {"title": text(row.get("title")) or text(row.get("content")),
+         "content": text(row.get("content")), "date": epoch_time(row.get("ctime")),
+         "source": "财联社", "url": f"https://www.cls.cn/detail/{row['id']}"
+         if re.fullmatch(r"\d+", str(row.get("id", ""))) else ""} for row in rows[:100]
+    ])

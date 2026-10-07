@@ -21,6 +21,7 @@ from src.data.evidence_service import DataEvidenceService
 from src.data.models import NewsItem
 from src.data.news_store import SqliteRollingNewsStore
 from src.data.providers.news import EastmoneyNewsSource, SinaRollingFeedCollector
+from src.data.providers.news_samples import SAMPLE_CHANNELS, ChannelNewsSample
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,9 @@ class NewsEvidenceRuntime:
         registry = EvidenceSourceRegistry()
         registry.register(EastmoneyNewsSource())
         registry.register(RollingNewsSource(store))
-        self.service = DataEvidenceService(registry, max_workers=2)
+        for channel, label, fetcher in SAMPLE_CHANNELS:
+            registry.register(ChannelNewsSample(channel, label, fetcher))
+        self.service = DataEvidenceService(registry, max_workers=4)
 
     def ingest_once(self, *, collected_at: datetime | None = None) -> int:
         """Fetch one Sina batch and atomically advance rolling coverage."""

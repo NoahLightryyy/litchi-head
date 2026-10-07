@@ -89,7 +89,7 @@ def partial_research_news(envelope: EvidenceEnvelope) -> ResearchNews:
     if request.start_at is None or request.end_at is None:
         return ResearchNews()
     for result in envelope.source_results:
-        if result.error_code != "rolling_window_not_fully_covered":
+        if result.error_code not in {"rolling_window_not_fully_covered", "latest_sample_only"}:
             continue
         start, end = result.coverage_start_at, result.coverage_end_at
         if start is None or end is None:
@@ -105,8 +105,8 @@ def partial_research_news(envelope: EvidenceEnvelope) -> ResearchNews:
                 selected.append(item)
         items.extend(selected)
         notes.append(
-            f"{result.upstream_id} 新闻缓存实际覆盖 "
+            f"{result.upstream_id} 新闻样本时间范围 "
             f"{start.astimezone(SHANGHAI).isoformat()} 至 {end.astimezone(SHANGHAI).isoformat()}，"
-            f"匹配 {len(selected)} 条；未覆盖完整近 3 天，不能据此认定该时段无新闻。"
+            f"匹配 {len(selected)} 条；未覆盖完整近 3 天（样本不证明连续覆盖），不能据此认定该时段无新闻。"
         )
     return ResearchNews(items=items, note=" ".join(notes))
