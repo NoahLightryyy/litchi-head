@@ -461,3 +461,46 @@ def test_closed_session_alignment_preserves_intraday_and_price_checks() -> None:
         assert all(d.status == (SourceStatus.CONFLICTED if limitation
                                else SourceStatus.SUCCESS_DATA)
                    for d in result.source_diagnostics)
+
+
+def test_third_upstream_preserves_consensus_when_eastmoney_fails() -> None:
+    stats = HealthStats()
+    result = IndexQuoteService(sources=(
+        _source("eastmoney", "eastmoney", status_by_code={
+            c: SourceStatus.FAILED for c in INDEX_CODES
+        }),
+        _source("sina", "sina"), _source("tencent", "tencent"),
+    ), now_provider=lambda: NOW, health_stats=stats).collect()
+    assert result.status == "partial"
+    assert result.failed_sources == ["eastmoney"]
+    assert all(q.source_count == 2 for q in result.quotes)
+    assert not result.limitations
+    assert len(result.source_diagnostics) == 9
+    assert stats.snapshot()["market_index:tencent"]["current_status"] == "healthy"
+
+
+def test_three_sources_disagreement_is_not_hidden_by_majority_or_average() -> None:
+    service = IndexQuoteService(sources=(
+        _source("eastmoney", "eastmoney"), _source("sina", "sina"),
+        _source("tencent", "tencent", price_by_code={"000001": 4000}),
+    ), now_provider=lambda: NOW, health_stats=HealthStats())
+    result = service.collect()
+    assert result.quotes[0].source_count == 1
+    assert result.quotes[0].price == 4000
+    assert result.quotes[1].source_count == 3
+    assert "000001" not in service._cache
+    assert {x.code for x in result.limitations} == {"INDEX_PRICE_CONFLICT"}
+
+
+def test_duplicate_upstream_cannot_inflate_index_source_count() -> None:
+    import pytest
+    with pytest.raises(ValueError, match="unique"):
+        IndexQuoteService(sources=(
+            _source("sina-a", "sina"), _source("sina-b", "sina"),
+            _source("tencent", "tencent"),
+        ))
+
+
+def test_default_index_service_includes_three_independent_upstreams() -> None:
+    service = IndexQuoteService()
+    assert {s.descriptor.upstream_id for s in service._sources} == {"eastmoney", "sina", "tencent"}
