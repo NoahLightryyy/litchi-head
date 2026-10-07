@@ -35,7 +35,32 @@ BK1650 通信技术采用 `src/data/catalogs/chain/BK1650.json`：工信部正�
 2. 行业结构和企业供需分开展示，不用单一上下游箭头混合表达两者。
 3. 数据损坏/缺证据不隐藏已有行情，明确图谱未覆盖原因。
 4. 右侧现有行情统计摘要与AI产业链研究分开命名，移除错误的AI评级暗示需要独立明确文案与契约。
-5. 用BK1629和BK1650做首批浏览器验收，其他板块逐项增加证据；源不可用和未知板块保留可见状态。
+5. BK1629和BK1650保留静态证据目录；其他板块可使用下方资料驱动地图入口，源不可用和未知板块保留可见状态。
+
+## 2026-10-07 通用地图第一阶段契约
+
+`backend/sector_maps.py` 与 `backend/routers/sector_maps.py` 定义独立的 AI 候选地图，
+不改变 `ChainEvidenceMap` 静态已审核目录语义。所有 BK 代码使用同一入口，不再逐板块硬编码。
+
+- `GET /api/market/sector/{sector_id}/map?version=N`：MapView，含 current（无记录为 null）、
+  history（倒序版本/生成时间）、automatic_updates（本阶段恒 false）。GET 不调用 AI。
+- `POST` 同路径：无请求体，主动采集并生成；相同资料哈希直接返回原版本。
+  单进程最多2个请求、同板块互斥，每分钟4次；采集80秒、AI100秒超时。
+- MapVersion 含 schema_version=1、version、sector_code、generated_at、evidence_revision、
+  model、review_status=ai_unreviewed、evidence、graph。SQLite 事务追加版本，不覆盖旧版本。
+- graph 包含 map_kind（industry_chain/concept_relationship/market_structure）、scope、nodes、edges。
+  node=id/label/explanation/citations；edge=source/target/explanation/citations。
+  citations=source_id/quote。逐字引用必须存在于已取得节选中；这不等于语义核验，全部按 AI 推断展示。
+- evidence：板块身份、采集时间、成分资料读取时间、成分总数、采样代码、来源和缺口。
+  复用现有东方财富目录/成分接口及新浪公司资料/披露节选；按代码取前6家公司、每份4000字，
+  并非代表性样本，不宣称全产业链完整。资料无法支持的节点与连线不得补造。
+- 错误使用 error.code/message/retryable：404 MAP_BOARD_NOT_FOUND（不重试）；429 MAP_BUSY；
+  503 MAP_READ_FAILED/MAP_EVIDENCE_UNAVAILABLE；504 MAP_TIMEOUT；502 MAP_FAILED。
+  其余均可手动重试，失败不删除已有图，前端无自动付费重试。
+
+验收：BK1325及任意未配置目录的板块能请求生成、查看引用、重新进入恢复记录、选择历史版；
+断网和模型无效引用必须可见，且上次结果仍存在。重大事件自动监控、候选审核激活、
+图差异与历史研究关联在后续阶段实现；本阶段界面必须明确“自动更新尚未启用”。
 
 ## 2026-09-07 正式接入契约
 
