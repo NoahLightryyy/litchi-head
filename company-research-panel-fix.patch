@@ -1,6 +1,6 @@
 --- a/frontend/components/stock/company-research-panel.tsx
 +++ b/frontend/components/stock/company-research-panel.tsx
-@@ -68,11 +68,12 @@
+@@ -68,10 +68,11 @@
      {(saved.isError || generate.isError) && <div role="alert" className="rounded-md border border-accent-red/30 bg-accent-red/5 p-3 text-sm">
        <p>{generate.error?.message || saved.error?.message}</p>
        {result && <p className="mt-1 text-text-muted">下方保留上次成功的解读，生成时间未更新。</p>}
@@ -15,4 +15,3 @@
 +    {!result && !saved.isPending && !generate.isPending && !saved.isError && !generate.isError && <p className="rounded-md bg-bg-primary p-4 text-sm leading-7 text-text-secondary">
        点击“生成公司解读”，查看该公司的业务定位、产业链位置、亮点和待验证事项。每项附资料出处，生成后再次打开本页仍可查看。
      </p>}
- 
