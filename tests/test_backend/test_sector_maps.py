@@ -7,8 +7,11 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
+from backend import sector_maps as maps
 from backend.routers import sector_maps as route
 from backend.sector_maps import MapEvidence, MapGraph, MapStore, validate_evidence
+from src.data.board_store import BoardSnapshotStore
+from src.data.providers.eastmoney_boards import BoardDetailSnapshot, BoardMembersSnapshot
 
 
 def evidence():
@@ -127,3 +130,30 @@ def test_storage_corruption_is_visible(client):
         db.execute("UPDATE versions SET digest='corrupted'")
     db.close()
     assert client.get("/api/market/sector/BK1325/map").status_code == 503
+
+
+async def test_historical_members_are_explicit_and_company_failures_are_partial(tmp_path):
+    from backend.company_research import CompanyEvidence
+
+    now = datetime.now(UTC)
+    snapshot = BoardMembersSnapshot(board_code="BK1325", kind="industry", fetched_at=now,
+                                   members=tuple(dict(code=code, name=code, price=None,
+                                                      change_pct=None, fund_flow=None, as_of=now)
+                                                 for code in ("300666", "002119")))
+    store = BoardSnapshotStore(tmp_path / "boards.db")
+    store.record_success(snapshot)
+    disclosure = CompanyEvidence(stock_code="002119", company_name="样本公司", fetched_at=now,
+                                 sources=[dict(id="profile", title="公司主营",
+                                               url="https://example.org/company",
+                                               excerpt="公司生产半导体封装引线框架材料。")],
+                                 gaps=[])
+    with patch.object(maps.board_snapshots, "store", store), \
+         patch.object(maps.board_snapshots, "fetch_detail", return_value=BoardDetailSnapshot(
+             code="BK1325", name="半导体材料", kind="industry")), \
+         patch.object(maps.board_snapshots, "fetch_members", side_effect=TimeoutError), \
+         patch.object(maps, "fetch_evidence", AsyncMock(side_effect=[disclosure, ValueError])):
+        result = await maps.collect_map_evidence("BK1325")
+    assert result.sampled_codes == ["002119", "300666"]
+    assert len(result.sources) == 1
+    assert any("历史成员快照" in gap for gap in result.gaps)
+    assert any("300666：公司资料未取得" in gap for gap in result.gaps)

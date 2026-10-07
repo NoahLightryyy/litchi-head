@@ -5,7 +5,7 @@ import { ArrowDown, ExternalLink } from "lucide-react";
 import type { ChainEvidence } from "@/lib/types/market";
 
 export function ChainMap({ evidence }: { evidence?: ChainEvidence | null }) {
-  if (!evidence) return <p className="text-sm text-text-muted text-center py-8">该板块尚未收录可核验的产业链资料</p>;
+  if (!evidence) return <p className="text-sm text-text-muted text-center py-8">暂无人工审核地图，可在资料地图中生成待复核结构。</p>;
   return <EvidenceMap key={evidence.sector_code} evidence={evidence} />;
 }
 

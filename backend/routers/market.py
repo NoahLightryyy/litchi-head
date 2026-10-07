@@ -966,7 +966,7 @@ async def get_sector_detail(sector_id: str):
         limitations.append(MarketLimitation(
             code="CHAIN_EVIDENCE_INVALID" if chain_error else "CHAIN_MAP_UNAVAILABLE",
             message=("产业链资料校验失败，暂不展示" if chain_error
-                     else "该板块尚未收录可核验的产业链资料"),
+                     else "暂无人工审核地图，可在资料地图中生成待复核结构"),
         ))
     if change_pct is None:
         limitations.append(MarketLimitation(

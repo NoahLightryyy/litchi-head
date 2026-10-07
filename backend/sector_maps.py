@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from backend.company_research import fetch_evidence
-from src.data.providers.eastmoney_boards import board_snapshots
+from src.data.providers.eastmoney_boards import BoardMembersSnapshot, board_snapshots
 
 logger = logging.getLogger(__name__)
 
@@ -192,12 +192,24 @@ async def collect_map_evidence(code: str) -> MapEvidence:
     detail = await asyncio.to_thread(board_snapshots.fetch_detail, code)
     if detail is None:
         raise LookupError("Board not found in official directory")
-    members = await asyncio.to_thread(board_snapshots.fetch_members, code, detail.kind)
+    member_gap: list[str] = []
+    try:
+        members = await asyncio.to_thread(board_snapshots.fetch_members, code, detail.kind)
+    except Exception:
+        logger.warning("Map members refresh failed, checking verified snapshot: %s", code)
+        stored = (await asyncio.to_thread(board_snapshots.store.load,
+                                         f"members:{detail.kind}:{code}")
+                  if board_snapshots.store is not None else None)
+        if stored is None or not isinstance(stored.snapshot, BoardMembersSnapshot):
+            raise
+        members = stored.snapshot
+        member_gap.append(f"成分股更新失败，采用历史成员快照（读取时间{members.fetched_at.isoformat()}）；"
+                          "可能遗漏后续调入或调出公司。")
     if members.board_code != code or members.kind != detail.kind:
         raise ValueError("Board membership identity mismatch")
     selected = sorted({member.code for member in members.members})[:6]
     sources: list[MapSource] = []
-    gaps = ["按股票代码顺序取前6家成分公司资料，不代表全板块或龙头排序；"
+    gaps = [*member_gap, "按股票代码顺序取前6家成分公司资料，不代表全板块或龙头排序；"
             "每份资料最多读取前4000字的节选，未覆盖全部公司及最新事件。",
             "节点和连线均为AI推断，尚未人工复核；"
             "原文引用匹配不代表推断已被证实，不用于确认企业供货关系。"]
