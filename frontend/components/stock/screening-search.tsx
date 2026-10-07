@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { api } from "@/lib/api/client";
 import { parseSectorDetailEnvelope, parseSectorsEnvelope } from "@/lib/market-contract";
-import { addComparisonCompany, matchingBoards, readSearchCompanies } from "@/lib/screening";
+import { addComparisonCompany, exactSearchBoard, matchingBoards, readSearchCompanies, shouldRetryScreening } from "@/lib/screening";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 import type { ComparisonCompany } from "@/lib/screening";
 import type { SectorItem } from "@/lib/types/market";
 import { MarketDataNotice } from "@/components/macro/market-data-notice";
@@ -48,7 +49,7 @@ function BoardCompanies({ board, selected, onAdd }: SearchProps & { board: Secto
         `/market/sector/${encodeURIComponent(board.id)}`, undefined, { signal: requestSignal(signal) }));
       return { ...response, companies: readSearchCompanies(response.data.stocks) };
     },
-    retry: false, staleTime: 60_000,
+    retry: shouldRetryScreening, retryDelay: 800, staleTime: 60_000,
   });
   const keyword = filter.trim().toLowerCase();
   const companies = members.data?.companies ?? [];
@@ -61,9 +62,12 @@ function BoardCompanies({ board, selected, onAdd }: SearchProps & { board: Secto
       <Link href={`/sector/${board.id}`} className="text-sm text-accent-blue">查看板块详情 ↗</Link>
     </div>
     <p className="my-2 text-sm text-text-muted">关联依据：东方财富「{board.name}」板块成分股。归属该板块不代表主营业务占比或投资推荐。</p>
-    <MarketDataNotice meta={members.data?.meta} refreshError={members.isError && !!members.data} />
+    {members.data && <details className="my-2 text-sm text-text-muted">
+      <summary className="cursor-pointer">数据来源与限制 · 东方财富{members.data.meta.cached ? " · 缓存" : ""}{members.data.meta.status !== "success" ? " · 部分数据可用" : ""}</summary>
+      <MarketDataNotice meta={members.data.meta} refreshError={members.isError} />
+    </details>}
     {members.fetchStatus === "paused" ? <p role="status">网络已断开，恢复连接后继续加载成分股。</p> :
-      members.isPending ? <p role="status">正在加载成分股…</p> : null}
+      members.isPending ? <p role="status">{members.failureCount ? "成分股请求暂时失败，正在自动重试…" : "正在加载成分股…"}</p> : null}
     {members.isError && <p role="alert">成分股加载失败。<button className="ml-2 text-accent-blue" onClick={() => void members.refetch()}>重试成分股</button></p>}
     {members.data && (companies.length ? <>
       <label className="mt-3 block text-sm">在板块内筛选公司
@@ -84,7 +88,9 @@ function BoardCompanies({ board, selected, onAdd }: SearchProps & { board: Secto
 
 export function ScreeningSearch({ selected, onAdd }: SearchProps) {
   const [input, setInput] = useState("");
-  const [query, setQuery] = useState("");
+  const debouncedInput = useDebounce(input.trim(), 300);
+  const [submitted, setSubmitted] = useState<string | null>(null);
+  const query = input.trim() ? submitted ?? debouncedInput : "";
   const [validation, setValidation] = useState("");
   const [board, setBoard] = useState<SectorItem | null>(null);
   const [boardPage, setBoardPage] = useState(1);
@@ -92,15 +98,16 @@ export function ScreeningSearch({ selected, onAdd }: SearchProps) {
     queryKey: ["screening", "search", query], enabled: !!query,
     queryFn: async ({ signal }) => readSearchCompanies(await api.get<unknown>(
       "/stocks/search", { q: query }, { signal: requestSignal(signal) })),
-    retry: false, staleTime: 60_000,
+    retry: shouldRetryScreening, retryDelay: 800, staleTime: 60_000,
   });
   const boards = useQuery({
     queryKey: ["screening", "boards", "eastmoney"], enabled: !!query,
     queryFn: async ({ signal }) => parseSectorsEnvelope(await api.getRaw(
       "/market/sectors", { source: "eastmoney", sort: "change_pct" }, { signal: requestSignal(signal) })),
-    retry: false, staleTime: 60_000,
+    retry: shouldRetryScreening, retryDelay: 800, staleTime: 60_000,
   });
   const matches = matchingBoards(boards.data?.data ?? [], query);
+  const activeBoard = board ?? exactSearchBoard(matches, query);
   const boardPages = Math.max(1, Math.ceil(matches.length / 8));
   const currentBoardPage = Math.min(boardPage, boardPages);
   function search(event: React.FormEvent) {
@@ -109,7 +116,7 @@ export function ScreeningSearch({ selected, onAdd }: SearchProps) {
     if (!next) {setValidation("请输入股票代码、公司名称、行业或概念。"); return;}
     setValidation(""); setBoard(null); setBoardPage(1);
     if (next === query) {void stocks.refetch(); void boards.refetch();}
-    setQuery(next);
+    setSubmitted(next);
   }
   return <section aria-label="搜索公司与板块" className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -117,15 +124,20 @@ export function ScreeningSearch({ selected, onAdd }: SearchProps) {
       {selected.length > 0 && <a href="#screening-comparison" className="text-sm text-accent-blue">查看对比（{selected.length} / 4）↓</a>}
     </div>
     <form onSubmit={search} className="flex gap-2">
-      <input aria-label="搜索股票、行业或概念" value={input} onChange={event => setInput(event.target.value)}
+      <input aria-label="搜索股票、行业或概念" value={input} onChange={event => {
+        setInput(event.target.value); setSubmitted(null); setBoard(null); setBoardPage(1); setValidation("");
+      }}
         placeholder="股票代码、名称、行业或概念，如半导体" className="min-w-0 flex-1 rounded border border-bg-tertiary bg-bg-primary p-3" />
       <button type="submit" className="shrink-0 rounded bg-accent-blue px-4 text-white">搜索</button>
     </form>
     {validation && <p role="alert" className="mt-2">{validation}</p>}
-    {!query && <p className="mt-3 text-sm text-text-muted">先搜索，再从结果中选择公司加入对比；搜索行业或概念后，可展开板块查看相关公司。</p>}
-    {query && <div className="mt-4 space-y-4">
+    {!input.trim() && <p className="mt-3 text-sm text-text-muted">输入后自动搜索；匹配到明确的行业或概念时直接显示相关公司，选择公司即可加入对比。</p>}
+    {input.trim() !== query && <p className="mt-3" role="status">正在搜索…</p>}
+    {query && input.trim() === query && <div className="mt-4 space-y-4">
       <p className="text-sm text-text-muted" role="status">“{query}”的搜索结果</p>
-      <section aria-label="匹配公司">
+      {activeBoard && <BoardCompanies key={activeBoard.id} board={activeBoard} selected={selected} onAdd={onAdd} />}
+      {(stocks.isFetching || stocks.isError || stocks.fetchStatus === "paused" || !!stocks.data?.length ||
+        (stocks.isSuccess && boards.isSuccess && !matches.length)) && <section aria-label="匹配公司">
         <h3 className="font-semibold">匹配公司</h3>
         {stocks.fetchStatus === "paused" ? <p role="status">网络已断开，恢复连接后继续搜索公司。</p> :
           stocks.isFetching ? <p role="status">正在搜索公司…</p> : null}
@@ -133,18 +145,21 @@ export function ScreeningSearch({ selected, onAdd }: SearchProps) {
         {stocks.data && <CompanyRows companies={stocks.data} selected={selected} onAdd={onAdd} />}
         {stocks.isSuccess && !stocks.data.length && <p className="py-2 text-sm text-text-muted">没有名称或代码匹配的公司，可继续查看下方相关板块。</p>}
         {!!stocks.data && stocks.data.length >= 20 && <p className="text-sm text-text-muted">公司接口最多返回 20 项；请输入更完整的名称或代码缩小范围。</p>}
-      </section>
+      </section>}
       <section aria-label="相关板块">
         <h3 className="font-semibold">相关行业与概念{boards.data ? ` · ${matches.length}` : ""}</h3>
-        <MarketDataNotice meta={boards.data?.meta} refreshError={boards.isError && !!boards.data} />
+        {boards.data && <details className="my-2 text-sm text-text-muted">
+          <summary className="cursor-pointer">板块来源与限制 · 东方财富{boards.data.meta.cached ? " · 缓存" : ""}{boards.data.meta.status !== "success" ? " · 部分数据可用" : ""}</summary>
+          <MarketDataNotice meta={boards.data.meta} refreshError={boards.isError} />
+        </details>}
         {boards.fetchStatus === "paused" ? <p role="status">网络已断开，恢复连接后继续搜索板块。</p> :
           boards.isFetching ? <p role="status">正在搜索板块…</p> : null}
         {boards.isError && <p role="alert">板块搜索失败。<button className="ml-2 text-accent-blue" onClick={() => void boards.refetch()}>重试板块搜索</button></p>}
         {boards.data && !matches.length && <p className="py-2 text-sm text-text-muted">当前返回的板块中没有匹配项，请尝试其他行业或概念名称。</p>}
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {matches.slice((currentBoardPage - 1) * 8, currentBoardPage * 8).map(item =>
-            <button key={item.id} type="button" aria-pressed={board?.id === item.id} onClick={() => setBoard(item)}
-              className={`rounded border p-3 text-left ${board?.id === item.id ? "border-accent-blue bg-bg-tertiary" : "border-bg-tertiary"}`}>
+            <button key={item.id} type="button" aria-pressed={activeBoard?.id === item.id} onClick={() => setBoard(item)}
+              className={`rounded border p-3 text-left ${activeBoard?.id === item.id ? "border-accent-blue bg-bg-tertiary" : "border-bg-tertiary"}`}>
               <span className="font-medium">{item.name}</span>
               <span className="block text-xs text-text-muted">{item.category === "industry" ? "行业" : "概念"} · 东方财富 · {item.id}</span>
               <span className="mt-1 block text-sm text-accent-blue">查看相关公司</span>
@@ -155,7 +170,6 @@ export function ScreeningSearch({ selected, onAdd }: SearchProps) {
           <span>{currentBoardPage} / {boardPages}</span>
           <button className={buttonStyle} disabled={currentBoardPage === boardPages} onClick={() => setBoardPage(currentBoardPage + 1)}>下一组板块</button>
         </nav>}
-        {board && <BoardCompanies key={board.id} board={board} selected={selected} onAdd={onAdd} />}
       </section>
     </div>}
   </section>;

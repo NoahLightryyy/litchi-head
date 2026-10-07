@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addComparisonCompany, matchingBoards, readSearchCompanies } from "../lib/screening.ts";
+import { addComparisonCompany, exactSearchBoard, matchingBoards, readSearchCompanies, shouldRetryScreening } from "../lib/screening.ts";
 import type { SectorItem } from "../lib/types/market.ts";
+
+test("临时断源只自动重试一次，不重试不存在或契约损坏", () => {
+  for (const error of [{status: 0}, {status: 503}, {status: 500, message: "TimeoutError"}]) {
+    assert.equal(shouldRetryScreening(0, error), true);
+    assert.equal(shouldRetryScreening(1, error), false);
+  }
+  for (const error of [new Error("contract invalid"), {status: 404}, {status: 422},
+    {status: 500, message: "unknown error"}, null]) assert.equal(shouldRetryScreening(0, error), false);
+});
 
 test("真实 StockInfo 不带 type 仍显示，保留代码前导零并去重", () => {
   assert.deepEqual(readSearchCompanies([{code: "001246", name: "宏源药业", market: "sz"},
@@ -21,6 +30,11 @@ test("行业词匹配多个板块，精确名称优先，不混合不同来源�
   assert.deepEqual(matchingBoards(boards, "bk0003").map(b => b.name), ["银行"]);
   assert.equal(matchingBoards(boards, "不存在").length, 0);
   assert.equal(matchingBoards(boards, " ").length, 0);
+  assert.equal(exactSearchBoard(boards, " 半导体 ")?.id, "BK0002");
+  assert.equal(exactSearchBoard(boards, "bk0001")?.name, "半导体设备");
+  assert.equal(exactSearchBoard(boards, "半导"), null);
+  assert.equal(exactSearchBoard(boards, " "), null);
+  assert.equal(exactSearchBoard([...boards, board("BK0004", "半导体")], "半导体"), null);
 });
 
 test("只有选定公司才能加入；跨搜索去重，最多四家，移除后可重新加入", () => {
