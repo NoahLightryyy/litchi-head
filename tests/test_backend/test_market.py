@@ -46,7 +46,11 @@ INDEX_AS_OF = datetime(2026, 8, 27, 14, 11, 23, tzinfo=SHANGHAI)
 @pytest.fixture(autouse=True)
 def isolated_single_board_lookup():
     # Error-path tests must never reach the real official directory.
-    with patch("backend.routers.market._fetch_single_board_snapshot", return_value=None):
+    with (
+        patch("backend.routers.market._fetch_single_board_snapshot", return_value=None),
+        patch("backend.routers.market.fetch_sina_hot_news", return_value=pd.DataFrame()),
+        patch("backend.routers.market.fetch_eastmoney_hot_news", return_value=pd.DataFrame()),
+    ):
         yield
 
 
@@ -1136,3 +1140,39 @@ def test_sector_missing_quote_preserves_verified_identity_and_members(client):
     assert body["data"]["change_pct"] is None and body["data"]["fund_flow"] is None
     assert body["meta"]["status"] == "partial"
     assert "BOARD_QUOTE_UNAVAILABLE" in {x["code"] for x in body["meta"]["limitations"]}
+
+
+class TestMultiSourceHotNews:
+    def test_three_channels_bounded_and_sorted(self, client):
+        def sample(source, day):
+            return pd.DataFrame([{"title": f"{source}新闻{i}", "source": source,
+                                  "date": f"2026-09-{day}T10:00:00+08:00"}
+                                 for i in range(120)])
+        with (
+            patch("backend.routers.market._HOT_NEWS_CACHE", {}),
+            patch("backend.routers.market.fetch_caixin_news", return_value=sample("财新", "01")),
+            patch("backend.routers.market.fetch_sina_hot_news", return_value=sample("新浪", "03")),
+            patch("backend.routers.market.fetch_eastmoney_hot_news",
+                  return_value=sample("东财", "02")),
+        ):
+            body = client.get("/api/market/hot-news").json()
+            assert len(body["data"]) == 300
+            assert body["data"][0]["source"] == "新浪"
+            assert len(body["meta"]["source_diagnostics"]) == 3
+            assert body["meta"]["status"] == "success"
+
+    def test_partial_source_failure_survives_cache(self, client):
+        with (
+            patch("backend.routers.market._HOT_NEWS_CACHE", {}),
+            patch("backend.routers.market.fetch_caixin_news", side_effect=TimeoutError),
+            patch("backend.routers.market.fetch_sina_hot_news", return_value=pd.DataFrame([
+                {"title": "人工智能产业新闻", "date": "2026-09-30T10:00:00+08:00"}
+            ])),
+        ):
+            first = client.get("/api/market/hot-news").json()
+            cached = client.get("/api/market/hot-news").json()
+            assert first["meta"]["status"] == cached["meta"]["status"] == "partial"
+            assert cached["meta"]["failed_sources"] == ["caixin"]
+            assert cached["meta"]["cached"] is True
+            assert cached["data"][0]["source"] == "新浪财经"
+            assert cached["meta"]["source_diagnostics"] == first["meta"]["source_diagnostics"]

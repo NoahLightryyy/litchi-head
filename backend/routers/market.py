@@ -35,6 +35,7 @@ from src.data.providers.eastmoney_boards import (
     BoardSnapshot,
     board_snapshots,
 )
+from src.data.providers.global_news import fetch_eastmoney_hot_news, fetch_sina_hot_news
 from src.data.providers.sina_boards import sina_boards
 from src.data.providers.sina_members import SinaMemberPage, sina_members
 
@@ -1087,6 +1088,7 @@ class HotNewsEnvelope(BaseModel):
 
 _HOT_NEWS_CACHE: dict[str, object] = {}
 _HOT_NEWS_TTL = 120  # 2 分钟
+_hot_news_runner = BoundedSyncRunner(max_workers=3, thread_name_prefix="hot-news")
 _MARKET_DATA_STATUSES: tuple[MarketDataStatus, ...] = (
     "success",
     "partial",
@@ -1102,6 +1104,11 @@ def _first_text(row: pd.Series, fields: tuple[str, ...]) -> str:
         if value:
             return value
     return ""
+
+
+def _cached_news_list(key: str) -> list:
+    value = _HOT_NEWS_CACHE.get(key)
+    return value if isinstance(value, list) else []
 
 
 def _cached_hot_news_status(value: object) -> MarketDataStatus:
@@ -1141,13 +1148,58 @@ async def get_hot_news():
                 limitations=_cached_hot_news_limitations(
                     _HOT_NEWS_CACHE.get("limitations"),
                 ),
+                failed_sources=[str(v) for v in _cached_news_list("failed_sources")],
+                source_diagnostics=[v for v in _cached_news_list("diagnostics")
+                                    if isinstance(v, MarketSourceDiagnostic)],
             ),
         }
 
+    failed_sources: list[str] = []
+    diagnostics: list[MarketSourceDiagnostic] = []
+    frames: list[pd.DataFrame] = []
+    schema_invalid = False
+    sources = [("caixin", "财新数据通", fetch_caixin_news),
+               ("sina", "新浪财经", fetch_sina_hot_news),
+               ("eastmoney", "东方财富", fetch_eastmoney_hot_news)]
+    latencies: dict[str, int] = {}
+
+    async def fetch_one(source_id: str, fetcher: Callable[[], pd.DataFrame]) -> pd.DataFrame:
+        started = time.monotonic()
+        try:
+            return await asyncio.wait_for(_hot_news_runner.run(fetcher), 12)
+        finally:
+            latencies[source_id] = round((time.monotonic() - started) * 1000)
+    results = await asyncio.gather(
+        *(fetch_one(source_id, fetcher) for source_id, _, fetcher in sources),
+                                   return_exceptions=True)
+    for (source_id, label, _), result in zip(sources, results, strict=True):
+        invalid = isinstance(result, pd.DataFrame) and not result.empty and not any(
+            field in result.columns for field in ("title", "summary", "标题", "新闻标题")
+        )
+        failed = isinstance(result, BaseException) or invalid
+        if failed:
+            logger.warning("Hot news source failed: %s %s", source_id, type(result).__name__)
+            failed_sources.append(source_id)
+            schema_invalid = schema_invalid or invalid
+        elif isinstance(result, pd.DataFrame) and not result.empty:
+            frame = result.head(100).copy()
+            if "source" not in frame.columns:
+                frame["source"] = label
+            frames.append(frame)
+        diagnostics.append(MarketSourceDiagnostic(
+            index_code="hot-news", source_id=source_id, upstream_id=source_id,
+            status="failed" if failed else ("success_empty" if isinstance(result, pd.DataFrame)
+                                            and result.empty else "success_data"),
+            latency_ms=latencies[source_id],
+            error_code="UPSTREAM_FAILED" if failed else None,
+            error_message="该渠道请求失败或格式无效" if failed else None,
+        ))
     try:
-        df: pd.DataFrame = await run_sync(fetch_caixin_news)
+        if not frames and failed_sources:
+            raise ValueError("No usable hot news source")
+        df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
         if df.empty:
-            return {"data": [], "meta": _market_meta("empty", t0)}
+            return {"data": [], "meta": _market_meta("empty", t0, source_diagnostics=diagnostics)}
         title_fields = ("title", "summary", "标题", "新闻标题")
         if not any(field in df.columns for field in title_fields):
             logger.error("热点新闻字段损坏: columns=%s", list(df.columns))
@@ -1158,7 +1210,7 @@ async def get_hot_news():
         items: list[dict[str, object]] = []
         missing_published_at = False
         skipped_items = 0
-        for _, row in df.head(30).iterrows():
+        for _, row in df.head(300).iterrows():
             title = _first_text(row, title_fields)
             url = _first_text(row, ("url", "链接", "新闻链接"))
             if not title:
@@ -1181,6 +1233,9 @@ async def get_hot_news():
                 failed_sources=["caixin"],
             )
         limitations: list[MarketLimitation] = []
+        if failed_sources:
+            limitations.append(MarketLimitation(code="NEWS_SOURCES_PARTIAL",
+                message="部分新闻渠道暂不可用：" + "、".join(failed_sources)))
         if missing_published_at:
             limitations.append(MarketLimitation(
                 code="PUBLISHED_AT_MISSING",
@@ -1191,14 +1246,18 @@ async def get_hot_news():
                 code="INVALID_ITEMS_SKIPPED",
                 message=f"{skipped_items} 条记录缺少标题，已跳过",
             ))
+        items.sort(key=lambda item: str(item.get("date") or ""), reverse=True)
         status: MarketDataStatus = "partial" if limitations else "success"
         _HOT_NEWS_CACHE["data"] = items
         _HOT_NEWS_CACHE["ts"] = now
         _HOT_NEWS_CACHE["status"] = status
         _HOT_NEWS_CACHE["limitations"] = limitations
+        _HOT_NEWS_CACHE["failed_sources"] = failed_sources
+        _HOT_NEWS_CACHE["diagnostics"] = diagnostics
         return {
             "data": items,
-            "meta": _market_meta(status, t0, limitations=limitations),
+            "meta": _market_meta(status, t0, limitations=limitations,
+                                 failed_sources=failed_sources, source_diagnostics=diagnostics),
         }
     except Exception as e:
         logger.exception("热点快讯获取失败: %s", e)
@@ -1212,13 +1271,15 @@ async def get_hot_news():
                     cached=True,
                     limitations=[MarketLimitation(
                         code="UPSTREAM_FAILED",
-                        message="当前来源失败，返回过期缓存",
+                        message="新闻渠道当前均未返回可用结果，返回过期缓存",
                     )],
+                    failed_sources=failed_sources, source_diagnostics=diagnostics,
                 ),
             }
         return _market_failed(
-            "HOT_NEWS_FAILED", "热点新闻暂时不可用", t0,
-            failed_sources=["caixin"],
+            "HOT_NEWS_SCHEMA_INVALID" if schema_invalid else "HOT_NEWS_FAILED",
+            "热点新闻暂时不可用", t0,
+            failed_sources=failed_sources,
         )
 
 
