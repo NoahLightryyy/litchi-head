@@ -31,6 +31,7 @@ from backend.routers import (
     financials,
     market,
     news,
+    news_archive,
     retro,
     sector_chain,
     stocks,
@@ -130,9 +131,15 @@ async def lifespan(app: FastAPI):
         name="sina-rolling-news-ingestion",
     )
     app.state.news_ingestion_task = news_task
+    from src.data.news_archive import run_archive_loop  # noqa: PLC0415
+
+    archive_task = asyncio.create_task(run_archive_loop(), name="multi-channel-news-archive")
     try:
         yield
     finally:
+        archive_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await archive_task
         board_task.cancel()
         try:
             with suppress(asyncio.CancelledError):
@@ -181,6 +188,7 @@ app.include_router(stocks.router)
 app.include_router(discovery.router)
 app.include_router(company_research.router)
 app.include_router(news.router)
+app.include_router(news_archive.router)
 app.include_router(financials.router)
 app.include_router(debate.router)
 app.include_router(trust.router)
