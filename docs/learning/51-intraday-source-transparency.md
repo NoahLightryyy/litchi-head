@@ -1,5 +1,9 @@
 # 51 前端来源透明：单源可用不等于多源核验
 
+分页表格的滚动边界：`SectorRanking` 已分页时无需再用 `max-height` 限制10行高度。
+移除高度限制、保留 `overflow-x-auto`，让外层页面承担纵向滚动；翻页用 `scrollIntoView`
+回到表头，输入搜索时不要触发页面滚动。浏览器验收应检查容器 clientHeight 等于 scrollHeight。
+
 ## 延伸：引用存在不等于关系成立（2026-10-07）
 
 `backend/sector_maps.py` 的地图生成结果与已审核静态图分开保存。
