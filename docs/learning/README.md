@@ -116,3 +116,5 @@
 - [64 异步结果必须绑定当前请求](64-request-bound-fail-closed-ui.md)
 - [65 原子健康快照](65-atomic-health-snapshot.md)
 - [66 四层行情进入 LLM](66-four-layer-evidence-to-llm.md)
+
+- [公司解读失败阶段与有界纠正](company-research-failure-stages.md)：调用、校验、保存与真实历史状态。

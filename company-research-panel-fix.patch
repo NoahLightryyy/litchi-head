@@ -1,0 +1,18 @@
+--- a/frontend/components/stock/company-research-panel.tsx
++++ b/frontend/components/stock/company-research-panel.tsx
+@@ -68,11 +68,12 @@
+     {(saved.isError || generate.isError) && <div role="alert" className="rounded-md border border-accent-red/30 bg-accent-red/5 p-3 text-sm">
+       <p>{generate.error?.message || saved.error?.message}</p>
+       {result && <p className="mt-1 text-text-muted">下方保留上次成功的解读，生成时间未更新。</p>}
+-      <button type="button" onClick={() => void saved.refetch()} disabled={saved.isFetching}
+-        className="mt-2 text-accent-blue underline">重新读取已保存结果</button>
++      {(result || saved.isError) && <button type="button" onClick={() => void saved.refetch()} disabled={saved.isFetching}
++        className="mt-2 text-accent-blue underline">
++        {result ? "重新读取已保存结果" : "重试读取历史记录"}</button>}
+     </div>}
+     {generate.isPending && <p role="status" className="text-sm text-text-muted">正在读取公司资料和定期报告并生成解读，通常需要约一分钟。成功后自动保存。</p>}
+-    {!result && !saved.isPending && !generate.isPending && !saved.isError && <p className="rounded-md bg-bg-primary p-4 text-sm leading-7 text-text-secondary">
++    {!result && !saved.isPending && !generate.isPending && !saved.isError && !generate.isError && <p className="rounded-md bg-bg-primary p-4 text-sm leading-7 text-text-secondary">
+       点击“生成公司解读”，查看该公司的业务定位、产业链位置、亮点和待验证事项。每项附资料出处，生成后再次打开本页仍可查看。
+     </p>}
+ 
