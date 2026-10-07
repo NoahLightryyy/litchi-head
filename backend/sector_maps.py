@@ -209,7 +209,7 @@ async def collect_map_evidence(code: str) -> MapEvidence:
                 raise ValueError("Company identity mismatch")
             for source in evidence.sources:
                 sources.append(MapSource(id=f"{stock}-{source.id}", title=source.title,
-                                         url=source.url, stock_code=stock,
+                                         url=HttpUrl(source.url), stock_code=stock,
                                          published_on=str(source.published_at)
                                          if source.published_at else None,
                                          excerpt=source.excerpt[:4000]))
