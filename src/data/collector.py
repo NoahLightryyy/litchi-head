@@ -799,8 +799,9 @@ def format_market_brief(
     news_lines: list[str] = []
     has_news = bool(news)
     if news:
-        for n in news[:5]:
-            news_lines.append(f"• {n.title or '(无标题)'}")
+        from src.data.news_context import format_news_context
+
+        news_lines = format_news_context(news)
     if not news_lines:
         news_lines.append("暂无新闻数据")
 

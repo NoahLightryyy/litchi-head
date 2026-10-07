@@ -146,6 +146,40 @@ def test_collection_brief_uses_closing_quote_and_preserves_transaction_stop():
         )
     assert result["market_data"]["quote"]["price"] == 24.35
     assert "休市研究" in result["market_data"]["brief"]
+    assert "成交量 100 股" in result["market_data"]["brief"]
     assert "单源" in result["evidence_limitations"][0]["research_note"]
     assert _route_after_reasoning(result) == "stop"
     collector.get_realtime_quotes.assert_not_called()
+
+
+def test_channel_samples_reach_actual_debate_brief_with_all_citations():
+    from unittest.mock import MagicMock
+
+    from src.debate.orchestrator import collect_data_node
+
+    stamp = datetime.fromisoformat("2026-10-05T12:00:00+08:00")
+    sources = [SourceResult(
+        source_id=f"{channel}-latest-sample", upstream_id=channel,
+        capability=EvidenceCapability.NEWS, status=SourceStatus.STALE,
+        error_code="latest_sample_only", coverage_start_at=stamp, coverage_end_at=stamp,
+        items=[NewsItem(code="920344", title="三元基因研发进展", date="2026-10-05",
+                        published_at=stamp, source=channel, source_id=f"{channel}-latest-sample",
+                        url=f"https://example.com/{channel}")],
+    ) for channel in ("cls", "ths", "futu")]
+    service = MagicMock()
+    service.collect.return_value = envelope(EvidenceCapability.NEWS, sources)
+    collector = MagicMock()
+    for method in ("get_klines", "get_financials", "get_realtime_quotes"):
+        getattr(collector, method).return_value = []
+    collector.get_dynamic_indicators.return_value = {}
+    collector.get_cached_market_sentiment.return_value = None
+    result = collect_data_node(
+        {"debate_input": {"stock_code": "920344", "stock_name": "三元基因"}}, collector,
+        news_evidence_service=service,
+    )
+    brief = result["market_data"]["brief"]
+    assert len(result["market_data"]["news"]) == 3
+    assert all(f"https://example.com/{channel}" in brief for channel in ("cls", "ths", "futu"))
+    assert "合并为 1 组" in brief
+    assert _route_after_reasoning(result) == "stop"
+    collector.get_news.assert_not_called()

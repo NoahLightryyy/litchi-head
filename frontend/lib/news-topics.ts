@@ -104,3 +104,10 @@ export function summarizeNews(items: readonly CleanNews[], window: NewsWindow, n
   const topics = sorted(topicIds).filter(x => x.ids.length >= 2 || TOPICS.some(([label]) => label === x.label)).slice(0, 18);
   return {sample, topics, focuses: sorted(focusIds), unknownDates: items.filter(x => x.publishedAt === null).length};
 }
+
+/** Preserve channel-specific reports; topic counting uses prepareNews separately. */
+export function prepareNewsReports(items: readonly HotNewsItem[], now: number) {
+  return items.flatMap((item, index) => prepareNews([item], now).items.map(report => ({
+    ...report, reportKey: `${report.source}:${report.id}:${report.url ?? ""}:${index}`,
+  })));
+}

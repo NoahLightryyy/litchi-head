@@ -391,8 +391,12 @@ def collect_data_node(
             for item in news_evidence_envelope.items
         ]
         partial_news = partial_research_news(news_evidence_envelope)
-        existing = {(item.code, item.title) for item in news}
-        news.extend(item for item in partial_news.items if (item.code, item.title) not in existing)
+        existing = {(item.source_id, item.code, item.title) for item in news}
+        for item in partial_news.items:
+            identity = (item.source_id, item.code, item.title)
+            if identity not in existing:
+                news.append(item)
+                existing.add(identity)
         for limitation in evidence_limitations:
             if limitation["capability"] == "news" and partial_news.note:
                 limitation["research_note"] = partial_news.note

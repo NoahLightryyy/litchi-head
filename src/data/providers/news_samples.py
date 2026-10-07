@@ -1,4 +1,5 @@
 """Additional channel samples for research, never proof of complete coverage."""
+
 from __future__ import annotations
 
 import hashlib
@@ -44,18 +45,29 @@ class ChannelNewsSample:
 
     def __init__(self, channel: str, label: str, fetcher: Callable[[], pd.DataFrame]) -> None:
         self.descriptor = SourceDescriptor(
-            source_id=f"{channel}-latest-sample", upstream_id=channel, display_name=label,
-            capabilities={EvidenceCapability.NEWS}, discovery_only=True,
+            source_id=f"{channel}-latest-sample",
+            upstream_id=channel,
+            display_name=label,
+            capabilities={EvidenceCapability.NEWS},
+            discovery_only=True,
         )
         self.fetcher = fetcher
 
     def fetch(self, request: EvidenceRequest) -> SourceResult[NewsItem]:
         if request.capability != EvidenceCapability.NEWS:
-            return SourceResult(source_id=self.descriptor.source_id,
-                upstream_id=self.descriptor.upstream_id, capability=request.capability, status=SourceStatus.UNSUPPORTED)
+            return SourceResult(
+                source_id=self.descriptor.source_id,
+                upstream_id=self.descriptor.upstream_id,
+                capability=request.capability,
+                status=SourceStatus.UNSUPPORTED,
+            )
         if not request.stock_code or request.start_at is None or request.end_at is None:
-            return SourceResult(source_id=self.descriptor.source_id,
-                upstream_id=self.descriptor.upstream_id, capability=request.capability, status=SourceStatus.UNSUPPORTED)
+            return SourceResult(
+                source_id=self.descriptor.source_id,
+                upstream_id=self.descriptor.upstream_id,
+                capability=request.capability,
+                status=SourceStatus.UNSUPPORTED,
+            )
         try:
             frame = self.fetcher()
             if not frame.empty and not ({"title", "summary"} & set(frame.columns)):
@@ -79,16 +91,28 @@ class ChannelNewsSample:
                     continue
                 url = text(row.get("url"))
                 digest = hashlib.sha256(f"{title}\n{stamp}\n{url}".encode()).hexdigest()
-                items.append(NewsItem(
-                    code=request.stock_code, title=title, date=published.date().isoformat(),
-                    published_at=published, source=self.descriptor.display_name,
-                    source_id=self.descriptor.source_id, publisher=self.descriptor.display_name,
-                    content=content[:2000], url=url, external_id=digest, content_hash=digest,
-                    association_reason="stock_name" if name_match else "stock_code",
-                ))
+                items.append(
+                    NewsItem(
+                        code=request.stock_code,
+                        title=title,
+                        date=published.date().isoformat(),
+                        published_at=published,
+                        source=self.descriptor.display_name,
+                        source_id=self.descriptor.source_id,
+                        publisher=self.descriptor.display_name,
+                        content=content[:2000],
+                        url=url,
+                        external_id=digest,
+                        content_hash=digest,
+                        association_reason="stock_name" if name_match else "stock_code",
+                    )
+                )
             return SourceResult(
                 source_id=self.descriptor.source_id,
-                upstream_id=self.descriptor.upstream_id, capability=request.capability, status=SourceStatus.STALE, items=items,
+                upstream_id=self.descriptor.upstream_id,
+                capability=request.capability,
+                status=SourceStatus.STALE,
+                items=items,
                 coverage_start_at=min(dates) if dates else None,
                 coverage_end_at=max(dates) if dates else None,
                 error_code="latest_sample_only",
@@ -96,6 +120,11 @@ class ChannelNewsSample:
             )
         except Exception:
             logger.exception("Research news channel failed: %s", self.descriptor.source_id)
-            return SourceResult(source_id=self.descriptor.source_id,
-                upstream_id=self.descriptor.upstream_id, capability=request.capability, status=SourceStatus.FAILED,
-                                error_code="sample_fetch_failed", error_message="新闻样本请求失败")
+            return SourceResult(
+                source_id=self.descriptor.source_id,
+                upstream_id=self.descriptor.upstream_id,
+                capability=request.capability,
+                status=SourceStatus.FAILED,
+                error_code="sample_fetch_failed",
+                error_message="新闻样本请求失败",
+            )

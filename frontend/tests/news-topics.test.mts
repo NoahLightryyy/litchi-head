@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {prepareNews, summarizeNews} from "../lib/news-topics.ts";
+import {prepareNews, prepareNewsReports, summarizeNews} from "../lib/news-topics.ts";
 const now = Date.parse("2026-10-01T12:00:00+08:00");
 const news = (title: string, date: string | null = "2026-10-01T09:00:00+08:00", url = "https://example.com/article") => ({title, date, source: "测试来源", url});
 
@@ -44,4 +44,14 @@ test("过滤泛词噪声但保留领域主题与重复实体", () => {
   assert.ok(result.topics.every(x => !['关键', '开始', '美国', '收益', '压力'].includes(x.label)));
   const salary = summarizeNews(prepareNews([news('家庭年收入10万美元')], now).items, 'all', now);
   assert.ok(!salary.topics.some(x => x.label === '汇率'), '币种金额不等于汇率报道');
+});
+
+
+test("报道列表保留各渠道转载，词云仍合并相同标题", () => {
+  const input = [{...news("芯片订单增长"), source:"财联社"}, {...news("芯片订单增长"), source:"同花顺"}];
+  const reports = prepareNewsReports(input, now);
+  assert.equal(reports.length, 2);
+  assert.equal(new Set(reports.map(item => item.reportKey)).size, 2);
+  assert.equal(prepareNews(input, now).items.length, 1);
+  assert.equal(prepareNewsReports(input.filter(item => item.source === "同花顺"), now)[0].source, "同花顺");
 });

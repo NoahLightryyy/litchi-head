@@ -107,6 +107,7 @@ def partial_research_news(envelope: EvidenceEnvelope) -> ResearchNews:
         notes.append(
             f"{result.upstream_id} 新闻样本时间范围 "
             f"{start.astimezone(SHANGHAI).isoformat()} 至 {end.astimezone(SHANGHAI).isoformat()}，"
-            f"匹配 {len(selected)} 条；未覆盖完整近 3 天（样本不证明连续覆盖），不能据此认定该时段无新闻。"
+            f"匹配 {len(selected)} 条；未覆盖完整近 3 天（样本不证明连续覆盖），"
+            "不能据此认定该时段无新闻。"
         )
     return ResearchNews(items=items, note=" ".join(notes))
