@@ -31,3 +31,15 @@ def test_raw_display_failed_source_keeps_empty(client):
     assert response.json()["data_end"] is None
     assert "private upstream" not in response.text
     assert client.get("/api/stocks/invalid/kline-raw-display").status_code == 422
+
+
+def test_extended_display_window_is_bounded_and_forwarded(client):
+    result = SourceResult(source_id="direct-tencent-raw-daily", upstream_id="tencent",
+                          capability=EvidenceCapability.KLINE, status=SourceStatus.FAILED,
+                          error_code="upstream_request_failed", error_message="failed")
+    with patch("backend.kline_display.raw_daily_source.fetch", return_value=result) as fetch:
+        assert client.get("/api/stocks/603986/kline-raw-display?days=900").status_code == 200
+        request = fetch.call_args.args[0]
+        assert (request.end_at - request.start_at).days == 899
+        assert request.end_at.date() < datetime.now(UTC).date()
+    assert client.get("/api/stocks/603986/kline-raw-display?days=951").status_code == 422

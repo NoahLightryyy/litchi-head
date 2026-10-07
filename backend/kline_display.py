@@ -26,12 +26,12 @@ class RawDailyDisplay(BaseModel):
     error_code: str | None = None
 
 
-def get_raw_daily_display(symbol: str) -> RawDailyDisplay:
+def get_raw_daily_display(symbol: str, days: int = 90) -> RawDailyDisplay:
     now = datetime.now(ZoneInfo("Asia/Shanghai"))
     result = raw_daily_source.fetch(EvidenceRequest(
         capability=EvidenceCapability.KLINE,
         stock_code=symbol,
-        start_at=now - timedelta(days=90),
+        start_at=now - timedelta(days=days),
         end_at=now - timedelta(days=1),
     ))
     bars = sorted(result.items, key=lambda bar: bar.trade_date) if (

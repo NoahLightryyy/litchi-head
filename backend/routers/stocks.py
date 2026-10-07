@@ -24,9 +24,12 @@ collector = DataCollector()
 
 
 @router.get("/{code}/kline-raw-display", response_model=RawDailyDisplay)
-async def raw_daily_display(code: str = Path(pattern=r"^\d{6}$")) -> RawDailyDisplay:
+async def raw_daily_display(
+    code: str = Path(pattern=r"^\d{6}$"),
+    days: int = Query(90, ge=30, le=950),
+) -> RawDailyDisplay:
     """Single-source unadjusted completed daily bars; never replaces adjusted evidence."""
-    return await run_sync(get_raw_daily_display, code)
+    return await run_sync(get_raw_daily_display, code, days=days)
 
 
 @router.get("/search")
