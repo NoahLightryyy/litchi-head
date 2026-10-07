@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -14,6 +15,8 @@ from backend.company_research import (
     CompanyResearch,
     CompanyResearchStore,
     CompanySource,
+    StockImpact,
+    fetch_evidence,
     parse_profile,
     parse_report,
     report_links,
@@ -31,9 +34,12 @@ def evidence(code="920344"):
 
 def interpretation():
     insight = CitedInsight(text="依据主营业务推断为药品研发生产环节。",
-                           basis="inference", source_ids=["profile"])
+                           basis="inference", source_ids=["profile"],
+                           stock_impact=StockImpact(mechanism="成本下降可能改善盈利预期",
+                               horizon="中期1至3个月", conditions="需观察毛利率兑现，降价可能抵消"))
     return CompanyInterpretation(niche=insight, upstream=insight, role=insight,
-                                 downstream=insight, highlights=[insight], watchpoints=[insight])
+                                 downstream=insight, highlights=[insight], watchpoints=[insight],
+                                 competition=[insight])
 
 
 @pytest.fixture
@@ -109,6 +115,31 @@ def test_missing_profile_or_busy_never_calls_model(client):
         generate.assert_not_called()
 
 
+def test_wrong_evidence_stock_never_calls_model(client):
+    with patch.object(module, "fetch_evidence", AsyncMock(return_value=evidence("600519"))), \
+            patch.object(module.llm_service, "invoke_structured", AsyncMock()) as generate:
+        assert client.post("/api/stocks/920344/company-research").status_code == 503
+        generate.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unavailable_reports_preserve_profile_and_explicit_gaps():
+    profile = '<h1 id="stockName">测试药业 (920344.BJ)</h1><table id="comInfo1">' \
+              '<tr><td>公司名称：</td><td>测试药业股份有限公司</td></tr>' \
+              '<tr><td>主营业务：</td><td>研发生产销售生物药</td></tr></table>'
+
+    async def get(url):
+        status = 200 if "vCI_CorpInfo" in url else 503
+        return httpx.Response(status, content=profile.encode("gb18030"),
+                              request=httpx.Request("GET", url))
+
+    with patch("backend.company_research.httpx.AsyncClient") as constructor:
+        constructor.return_value.__aenter__.return_value.get = AsyncMock(side_effect=get)
+        result = await fetch_evidence("920344")
+    assert len(result.sources) == 1
+    assert any("缺少财报正文" in gap for gap in result.gaps)
+
+
 def test_profile_requires_stock_identity_and_business():
     html = '<h1 id="stockName">三元基因 (920344.BJ)</h1><table id="comInfo1">' \
            '<tr><td>公司名称：</td><td>测试药业股份有限公司</td></tr>' \
@@ -142,3 +173,54 @@ def test_report_identity_and_publication_date(change):
         html = html.replace("2025-08-26", "2099-08-26")
     with pytest.raises(ValueError):
         parse_report(html, "测试药业股份有限公司", "半年报", "https://example.com", "r")
+
+
+def test_incomplete_model_output_retries_before_saving(client):
+    with patch.object(module, "fetch_evidence", AsyncMock(return_value=evidence())), \
+            patch.object(module.llm_service, "invoke_structured", AsyncMock(
+                side_effect=[ValueError("missing upstream"), interpretation()],
+            )) as generate:
+        response = client.post("/api/stocks/920344/company-research")
+        assert response.status_code == 200
+        assert generate.await_count == 2
+        assert "七个顶层字段" in generate.call_args_list[0].kwargs["prompt"]
+        assert "上次响应未通过" in generate.call_args_list[1].kwargs["prompt"]
+        assert module.store.get("920344") is not None
+
+
+def test_repeated_invalid_output_preserves_saved_result(client):
+    saved = CompanyResearch(**evidence().model_dump(), generated_at=datetime.now(UTC),
+                            model="test", interpretation=interpretation())
+    module.store.save(saved)
+    with patch.object(module, "fetch_evidence", AsyncMock(return_value=evidence())), \
+            patch.object(module.llm_service, "invoke_structured", AsyncMock(
+                side_effect=ValueError("missing fields"),
+            )) as generate:
+        assert client.post("/api/stocks/920344/company-research").status_code == 502
+        assert generate.await_count == 2
+        assert module.store.get("920344") == saved
+
+
+def test_legacy_company_result_reads_without_inventing_competition(client):
+    output = interpretation().model_dump()
+    del output["competition"]
+    restored = CompanyInterpretation.model_validate(output)
+    assert restored.competition == []
+
+
+def test_new_generation_requires_cited_competition(client):
+    output = interpretation()
+    output.competition = []
+    with patch.object(module, "fetch_evidence", AsyncMock(return_value=evidence())), \
+            patch.object(module.llm_service, "invoke_structured", AsyncMock(return_value=output)):
+        assert client.post("/api/stocks/920344/company-research").status_code == 502
+    assert module.store.get("920344") is None
+
+
+def test_new_generation_requires_conditional_stock_impacts(client):
+    output = interpretation()
+    output.highlights[0].stock_impact = None
+    with patch.object(module, "fetch_evidence", AsyncMock(return_value=evidence())), \
+            patch.object(module.llm_service, "invoke_structured", AsyncMock(return_value=output)):
+        assert client.post("/api/stocks/920344/company-research").status_code == 502
+    assert module.store.get("920344") is None

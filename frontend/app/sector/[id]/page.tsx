@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Network, List, BrainCircuit } from "lucide-react";
 import { useSectorDetail } from "@/lib/hooks/use-market";
 import { SectorHeader } from "@/components/sector/sector-header";
-import { ChainMap } from "@/components/sector/chain-map";
+import { ChainExplorer } from "@/components/sector/chain-explorer";
 import { ChainAnalysis } from "@/components/sector/chain-analysis";
 import { StockList } from "@/components/sector/stock-list";
 import { MarketDataNotice } from "@/components/macro/market-data-notice";
@@ -125,11 +125,11 @@ export default function SectorPage() {
         <div className="lg:col-span-3">
           <div className="flex items-center gap-2 mb-3">
             <Network className="w-4 h-4 text-accent-blue" />
-            <h2 className="text-sm font-semibold text-text-primary">产业链地图</h2>
+            <h2 className="text-sm font-semibold text-text-primary">{sector.chain_evidence?.map_kind === "market_structure" ? "市场结构图" : "产业链地图"}</h2>
             <span className="text-xs text-text-muted ml-auto">资料可追溯</span>
           </div>
           <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
-            <ChainMap evidence={sector.chain_evidence} />
+            <ChainExplorer evidence={sector.chain_evidence} />
           </div>
         </div>
 

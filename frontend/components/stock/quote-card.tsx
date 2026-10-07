@@ -2,7 +2,7 @@
 
 import type { StockQuote } from "@/lib/types/stock";
 import { formatPrice, formatChangePct } from "@/lib/utils";
-import { DataFreshnessTag } from "@/components/shared/data-freshness";
+import { formatQuoteOptionalNumber, formatQuoteTime } from "@/lib/quote-display";
 
 interface QuoteCardProps {
   quote: StockQuote | null;
@@ -50,19 +50,23 @@ export function QuoteCard({ quote, loading }: QuoteCardProps) {
       </div>
 
       {/* 指标网格 */}
-      <div className="grid grid-cols-8 gap-4 mt-5 pt-4 border-t border-bg-tertiary">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4 mt-5 pt-4 border-t border-bg-tertiary">
         <StatItem label="今开" value={formatPrice(quote.open)} />
         <StatItem label="最高" value={formatPrice(quote.high)} color="text-accent-green" />
         <StatItem label="最低" value={formatPrice(quote.low)} color="text-accent-red" />
         <StatItem label="昨收" value={formatPrice(quote.prev_close)} />
         <StatItem label="成交量" value={`${(quote.volume / 10000).toFixed(1)}万`} />
-        <StatItem label="换手率" value={`${quote.turnover_rate.toFixed(2)}%`} />
-        <StatItem label="主力流入" value={`+${quote.fund_flow.toFixed(1)}亿`} color="text-accent-green" />
+        <StatItem label="换手率" value={formatQuoteOptionalNumber(quote.turnover_rate, 2, "%")} />
+        <StatItem label="主力流入" value={formatQuoteOptionalNumber(quote.fund_flow, 1, "亿", true)} color="text-accent-green" />
         <StatItem label="成交额" value={`${(quote.amount / 10000_0000).toFixed(1)}亿`} />
       </div>
 
       {/* 数据新鲜度 */}
-      <DataFreshnessTag fetchedAt={quote.fetched_at} />
+      <p className="mt-3 text-xs text-text-muted">
+        {quote.source === "sina" ? "新浪" : quote.source === "eastmoney" ? "东方财富" : "行情来源"}
+        {quote.verification_status === "single_source" ? " · 单源报价，未交叉验证" : ""}
+        {quote.fetched_at ? ` · 报价时间 ${formatQuoteTime(quote.fetched_at)}（北京时间）` : ""}
+      </p>
     </div>
   );
 }

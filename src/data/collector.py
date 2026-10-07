@@ -696,6 +696,7 @@ def format_market_brief(
     chain_position: str = "",
     key_indicators: list[dict] | None = None,
     sentiment: MarketSentiment | None = None,
+    quote_volume_unit: str = "手",
 ) -> str:
     """生成结构化市场简报（C2 情绪层接入 + PD-005 行业分析层）
 
@@ -728,7 +729,7 @@ def format_market_brief(
         parts = [f"最新价 {quote.price:.2f} 元"]
         if quote.change_pct:
             parts.append(f"涨幅 {quote.change_pct:+.2f}%")
-        parts.append(f"成交量 {quote.volume:,} 手")
+        parts.append(f"成交量 {quote.volume:,} {quote_volume_unit}")
         quote_lines.append(" | ".join(parts))
 
         kp_parts: list[str] = []

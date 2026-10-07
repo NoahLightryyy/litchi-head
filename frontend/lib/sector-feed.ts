@@ -1,20 +1,13 @@
 import type { MarketEnvelope, SectorItem } from "./types/market.ts";
 
-/** A fallback changes board taxonomy: only explicit upstream failure permits it. */
+/** Keep each funding metric bound to its requested supplier and taxonomy. */
 export async function loadSectorFeed(
-  primary: () => Promise<MarketEnvelope<SectorItem[]>>,
-  alternative: () => Promise<MarketEnvelope<SectorItem[]>>,
-  signal?: AbortSignal,
+  source: SectorItem["source"],
+  read: () => Promise<MarketEnvelope<SectorItem[]>>,
 ): Promise<MarketEnvelope<SectorItem[]>> {
-  try {
-    return await primary();
-  } catch (error) {
-    if (signal?.aborted || typeof error !== "object" || error === null ||
-      !("status" in error) || error.status !== 503 ||
-      !("code" in error) || error.code !== "MARKET_SECTORS_FAILED") throw error;
-    const result = await alternative();
-    return { ...result, meta: { ...result.meta,
-      failed_sources: [...new Set([...result.meta.failed_sources, "eastmoney"])],
-    } };
+  const result = await read();
+  if (result.data.some((item) => item.source !== source)) {
+    throw new Error("板块响应来源与请求不一致");
   }
+  return result;
 }

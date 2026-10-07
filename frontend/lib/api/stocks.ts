@@ -8,7 +8,7 @@ export async function searchStocks(query: string): Promise<StockSearchResult[]> 
 }
 
 /** 个股实时行情 */
-export async function fetchQuote(code: string): Promise<StockQuote> {
+export async function fetchQuote(code: string): Promise<StockQuote | null> {
   return api.get(`/stocks/${code}/quote`);
 }
 

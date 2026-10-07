@@ -403,3 +403,61 @@ def test_overlapping_index_collections_publish_by_start_order() -> None:
     assert snapshot["__summary__"]["failing_endpoints"] == 0
     assert snapshot["__summary__"]["total_failures"] == 6
     assert snapshot["market_index:sina"]["current_status"] == "healthy"
+
+
+def test_closed_session_alignment_preserves_intraday_and_price_checks() -> None:
+    """Real holiday timestamps agree by completed session, never by date alone."""
+    cases = [
+        # now, eastmoney time, sina time, price difference, expected limitation
+        ("2026-10-06T12:00:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-30T15:00:03+08:00", 0.0, None),
+        ("2026-09-30T17:00:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-30T15:00:03+08:00", 0.0, None),
+        ("2026-10-03T12:00:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-30T07:00:03+00:00", 0.0, None),
+        ("2026-10-08T08:00:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-30T15:00:03+08:00", 0.0, None),
+        ("2026-10-08T09:15:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-30T15:00:03+08:00", 0.0, "INDEX_TIMESTAMP_CONFLICT"),
+        ("2026-09-30T12:00:00+08:00", "2026-09-30T11:30:00+08:00",
+         "2026-09-30T11:31:00+08:00", 0.0, "INDEX_TIMESTAMP_CONFLICT"),
+        ("2026-09-30T14:00:00+08:00", "2026-09-30T13:59:00+08:00",
+         "2026-09-30T13:59:04+08:00", 0.0, "INDEX_TIMESTAMP_CONFLICT"),
+        ("2026-10-06T12:00:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-29T15:00:03+08:00", 0.0, "INDEX_TIMESTAMP_CONFLICT"),
+        ("2026-10-08T17:00:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-30T15:00:03+08:00", 0.0, "INDEX_TIMESTAMP_CONFLICT"),
+        ("2026-10-06T12:00:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-30T14:59:59+08:00", 0.0, "INDEX_TIMESTAMP_CONFLICT"),
+        ("2026-09-30T15:01:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-30T15:00:03+08:00", 0.0, "INDEX_TIMESTAMP_CONFLICT"),
+        ("2027-01-02T12:00:00+08:00", "2026-12-31T16:12:00+08:00",
+         "2026-12-31T15:00:03+08:00", 0.0, "INDEX_TIMESTAMP_CONFLICT"),
+        ("2026-10-06T12:00:00+08:00", "2026-09-30T16:12:00+08:00",
+         "2026-09-30T15:00:03+08:00", 0.02, "INDEX_PRICE_CONFLICT"),
+    ]
+    for current, east_time, sina_time, price_diff, limitation in cases:
+        health = HealthStats()
+        sources = tuple(
+            StubIndexSource(upstream, upstream, {
+                code: _result(upstream, upstream, code,
+                              fetched_at=datetime.fromisoformat(stamp),
+                              price=3943.53 + difference)
+                for code in INDEX_CODES
+            })
+            for upstream, stamp, difference in (
+                ("eastmoney", east_time, 0.0), ("sina", sina_time, price_diff)
+            )
+        )
+        result = IndexQuoteService(
+            sources=sources, now_provider=lambda: datetime.fromisoformat(current),
+            health_stats=health,
+        ).collect()
+        assert {item.code for item in result.limitations} == (
+            {limitation} if limitation else set()
+        ), (current, east_time, sina_time, price_diff)
+        assert result.status == ("partial" if limitation else "success")
+        assert all(q.source_count == (1 if limitation else 2) for q in result.quotes)
+        assert all(d.status == (SourceStatus.CONFLICTED if limitation
+                               else SourceStatus.SUCCESS_DATA)
+                   for d in result.source_diagnostics)

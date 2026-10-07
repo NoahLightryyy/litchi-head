@@ -1183,3 +1183,57 @@ class TestMultiSourceHotNews:
             assert cached["meta"]["cached"] is True
             assert cached["data"][0]["source"] == "新浪财经"
             assert cached["meta"]["source_diagnostics"] == first["meta"]["source_diagnostics"]
+
+@pytest.mark.asyncio
+async def test_board_failure_preserves_safe_http_reason() -> None:
+    import httpx
+
+    from backend.routers.market import _fetch_board_dataframes
+
+    def unavailable() -> pd.DataFrame:
+        response = httpx.Response(502, request=httpx.Request("GET", "https://example.com/private"))
+        response.raise_for_status()
+        return pd.DataFrame()
+
+    frames, failures = await _fetch_board_dataframes({"industry": unavailable}, timeout=2)
+    assert failures == {"industry": "failed"}
+    assert frames["industry"].empty
+    assert frames["industry"].attrs["refresh_error"] == "上游返回 HTTP 502"
+
+
+@pytest.mark.asyncio
+async def test_board_failure_does_not_expose_exception_details() -> None:
+    from backend.routers.market import _fetch_board_dataframes
+
+    def invalid() -> pd.DataFrame:
+        raise ValueError("private upstream response content")
+
+    frames, _ = await _fetch_board_dataframes({"concept": invalid}, timeout=2)
+    assert frames["concept"].attrs["refresh_error"] == "返回数据未通过完整性校验"
+
+@pytest.mark.asyncio
+async def test_restored_board_keeps_current_failure_diagnostic(tmp_path) -> None:
+    import httpx
+
+    from backend.routers.market import board_snapshots, get_sectors
+    from src.data.board_store import BoardSnapshotStore
+
+    store = BoardSnapshotStore(tmp_path / "boards.db")
+    store.record_success(BoardSnapshot(
+        kind="industry", fetched_at=INDEX_AS_OF,
+        quotes=(BoardQuoteSnapshot(code="BK0499", name="示例", change_pct=1,
+                                   fund_flow=10, as_of=INDEX_AS_OF),),
+    ))
+    response = httpx.Response(502, request=httpx.Request("GET", "https://example.com"))
+    error = httpx.HTTPStatusError("bad gateway", request=response.request, response=response)
+    with (
+        patch.object(board_snapshots, "store", store),
+        patch("backend.routers.market._fetch_industry_board_snapshot", side_effect=error),
+        patch("backend.routers.market._fetch_concept_board_snapshot", side_effect=error),
+    ):
+        result = await get_sectors(sort="fund_flow", source="eastmoney")
+    assert isinstance(result, dict)
+    assert len(result["data"]) == 1
+    assert result["meta"]["status"] == "stale"
+    assert any(item["code"] == "BOARD_REFRESH_FAILED" and "HTTP 502" in item["message"]
+               for item in result["meta"]["limitations"])

@@ -21,7 +21,7 @@ import {
   resolveIntradayPanelMode,
   type IntradaySourceState,
 } from "@/lib/intraday-source-state";
-import { useIntradayBattlefield } from "@/lib/hooks/use-stock";
+import { useIntradayBattlefield, useStockQuote } from "@/lib/hooks/use-stock";
 import type {
   IntradayBattlefield,
   IntradayBattlefieldSnapshot,
@@ -191,6 +191,7 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
     inThreshold: priceWindow === "five-day" ? 260 : 8,
   }), [priceWindow]);
   const query = useIntradayBattlefield(code);
+  const quote = useStockQuote(code);
   const mode = resolveIntradayPanelMode({
     data: query.data,
     isLoading: query.isLoading,
@@ -270,6 +271,11 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
               <p className="mt-1 text-xs leading-5 text-text-muted">
                 当前没有通过本地结构与时间校验的分钟序列，因此不绘图。逐源返回状态见下方，页面不会用示意数据替代真实行情。
               </p>
+              <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching}
+                className="mt-4 flex items-center gap-2 rounded-md border border-bg-elevated bg-bg-tertiary px-3 py-2 text-xs text-text-secondary disabled:opacity-50">
+                <RefreshCw className="h-3.5 w-3.5" />
+                {query.isFetching ? "正在获取…" : "重新获取"}
+              </button>
             </div>
           </div>
           <SourceDisclosure data={query.data} />
@@ -298,7 +304,7 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
           )}
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
             <div>
-              <IntradayLineChart points={query.data.price_points} zoom={zoom} />
+              <IntradayLineChart points={query.data.price_points} zoom={zoom} reference={quote.data} />
               <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
                 <span>折线仅表示分钟价格，不代表 K 线开高低收</span>
                 <span>{query.data.price_points.length} 个价格点</span>

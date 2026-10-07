@@ -13,7 +13,7 @@ export function AgentAnalysisList({ analyses }: { analyses: AgentAnalysis[] }) {
     {completed.map((a, i) => <article key={`${a.agent_name}-${i}`} className="rounded-lg border border-bg-tertiary bg-bg-primary/50 p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="font-semibold">{a.skill_name || a.agent_name}</h4>
-        <span className="text-sm text-text-secondary">{a.direction === "Bullish" ? "看涨" : a.direction === "Bearish" ? "看跌" : a.direction === "Neutral" ? "中性" : "方向未提供"}</span>
+        <span className="text-sm text-text-muted">原始论证 · 方向以三周期条件研究为准</span>
       </div>
       <p className="text-sm leading-6 whitespace-pre-wrap break-words">{a.summary?.trim() || "本流派未提供摘要。"}</p>
       <details className="group rounded border border-bg-tertiary p-3">

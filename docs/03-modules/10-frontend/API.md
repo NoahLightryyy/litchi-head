@@ -61,7 +61,7 @@ Content-Type: application/json
 | GET | `/api/market/indices` | 三大指数行情 |
 | GET | `/api/market/brief` | AI 宏观简报（LLM 生成） |
 | GET | `/api/market/sectors` | 板块排行列表 |
-| GET | `/api/market/hot-news` | 财新热点新闻；缺发布时间时返回 `partial` |
+| GET | `/api/market/hot-news` | 财新／新浪／东方财富快讯；部分渠道失败或缺发布时间时返回 `partial` |
 | GET | `/api/market/sector/{id}` | 板块详情；真实关系证据未接入时 `chain_map=[]` |
 
 ### 健康状态
@@ -197,7 +197,8 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 ### 首页市场接口补充语义
 
 - `/api/market/indices`：东方财富与新浪两路指数专用接口并发采集。每项返回 `as_of`、
-  `source_count` 和 `cached`；双源价格差不超过 0.01 点且时间差不超过 3 秒时为完整数据，
+  `source_count` 和 `cached`；双源价格差不超过 0.01 点，盘中时间差不超过 3 秒时为完整数据；
+  闭市期间两源均为最近已完成交易日 15:00 后报价时改按交易日对齐（官方日历覆盖、无未来时间），
   单源可用为 `partial + INDEX_SINGLE_SOURCE`。2026-09-04 用户批准：首页只要一个来源有效就展示；
   双源价时冲突也返回 HTTP 200 `partial`，选择时间最新的单源（同时间按 upstream_id 字典序最大值确定），
   `source_count=1`、`display_source` 标明所用 upstream，旁注 `INDEX_PRICE_CONFLICT` 或
@@ -331,3 +332,127 @@ ws://localhost:8000/ws/quotes?codes=000001,300750
 `FUND_FLOW_UNAVAILABLE`，`sort_applied=upstream_order`，不能按资金流排序。
 
 2026-09-05：hot-news的date保留财新公开API原始time（Unix秒），以Asia/Shanghai的ISO8601字符串返回；非法/缺失保持null，不使用抓取时刻。API契约不变。
+
+### 2026-10-06 双来源资金榜单
+
+首页与行业研究显式请求 `source=eastmoney` 和 `source=sina`，沿用已有冻结API字段；
+分别呈现主力净流入 `fund_flow` 和新浪净流入 `net_flow`，不整榜替换、不按同名拼接。
+查询键包含来源与排序，两源失败/缓存/重试彼此独立。东财使用 `as_of`，新浪
+`service_updated_at` 明示为服务更新时间而非报价时间。详情保留来源原生路由。
+
+### 2026-10-06 东财板块详情成员恢复
+
+既有详情契约不变：成分股 `clist/get` 出现 HTTP/网络故障时，在同一8秒预算内调用东方财富
+数据中心 `RPT_F10_CORETHEME_BOARDTYPE`，按数字 `BOARD_CODE` 查询，并逐行核对
+`NEW_BOARD_CODE` 与请求 BK 代码。通过 `quoteColumns` 按 `SECURITY_CODE` 关联价格、涨跌幅、
+主力净流入和原始报价时间；完整分页、总数一致、成员唯一、SH/SZ/BJ身份验证全部通过后才缓存。
+缺时间/错身份/不完整结果仍失败，不按名称拼接新浪分类。板块自身报价缺失仍使用已有
+`BOARD_QUOTE_UNAVAILABLE` / null 契约，不能从成员均值或资金加总推算板块指标。
+
+### 2026-10-06 产业链 AI 解读
+
+冻结契约见 [CHAIN-AI-CONTRACT](../../06-departments/08-backend-api/CHAIN-AI-CONTRACT.md)，后端提交fe759b9。
+现有 `chain_evidence` 图支持BK1106五个研发/注册活动节点；`ChainExplorer` 在用户点击后POST生成，
+`ChainMap`选中节点展示对应AI解释。图本身仍只采用核验目录，AI不能新增节点/公司/边。
+前端运行时校验板块身份、节点完整性、引用及ai_unreviewed标记；错误/离线保留资料图并允许显式重试。
+
+### 2026-10-06 单股顶部报价恢复
+
+`GET /stocks/{code}/quote`冻结契约d60d1fd，见[单股报价展示契约](../../06-departments/08-backend-api/QUOTE-DISPLAY-CONTRACT.md)。
+不再拉全市场后过滤；复用东财/新浪现有单股适配器。新增source、single_source标记；turnover_rate/fund_flow/market_cap允许null。
+QuoteCard显示名称、价格、真实北京时间日期、来源及未交叉验证；未知增强字段显示“—”。
+
+### 2026-10-06 休市研究说明
+
+DebateResult.evidence_limitations 新增 research_note?: string | null，由后端给出最近收盘报价来源/时间或新闻实际覆盖区间。前端优先显示具体说明，旧结果继续显示原通用限制。任何限制仍明确“有限信息研究，未进入交易决策流程”。契约提交 f2a1e1f。
+
+### 2026-10-06 分析历史
+
+`GET /api/debate/history?stock_code=920344&limit=50&offset=0` 返回完整记录元数据（session_id/stock_code/status/created_at/updated_at/error），时间降序、分页。详情沿用 `/debate/result/{session_id}`，正式读SQLite持久库；不再只读进程字典。个股页自动展示最近完整结果，人工可切换历史，必须显示当时分析时间，不能将历史冒充新分析。新分析失败后仍可主动选回历史。
+
+## 公司生态位与亮点（2026-10-06）
+
+所有个股页报价下方新增 CompanyResearchPanel。消费已冻结的 [公司解读契约](../../06-departments/08-backend-api/COMPANY-RESEARCH-CONTRACT.md)：GET 读取已保存结果，显式 POST 生成或更新。读取、生成、空、错误、离线状态独立；失败保留带原时间的旧结果。换股按 code 隔离查询和组件身份。引用显示来源链接、日期和实际送入模型的节选；公司自述与 AI 推断均不视为独立核验。
+
+## 板块资料图类型扩展
+
+见[市场结构契约](../../06-departments/08-backend-api/SECTOR-MAP-KIND-CONTRACT.md)。缺省map_kind保持产业链；market_structure使用市场节点和上市关系，不称供货关系。BK0499显示A+H结构与资料范围，已有行业目录保持原显示。
+
+财务展示补充：`GET /api/stocks/{code}/financials` 的可空 `gross_margin_evidence` 字段及缺失语义见 [冻结契约](../../06-departments/08-backend-api/FINANCIAL-DISPLAY-CONTRACT.md)。财务页指标与表头支持点击解释，毛利率支持查看同报告期计算依据。
+
+三周期研究：AgentAnalysis 新增 `horizons` 与服务端 `research_generated_at`（ISO时间，可空兼容历史），详见 [三周期契约](../../06-departments/08-backend-api/DEBATE-HORIZON-CONTRACT.md)。股票页不再展示跨周期 vote_summary 作为方向结论；缺三周期或复核过期时不形成方向共识。
+
+菜单语言：侧边栏“语言 / Language”提供zh-CN/en；前端cookie `litchi-locale` 白名单保存，SSR布局同步html lang和标题。当前覆盖导航、页头、连接状态、个股面包屑及分析页签；业务模块原文未全面翻译。接口不新增语言参数，选择语言不触发LLM或修改历史记录。
+
+2026-10-07：首页快讯扩为三渠道，每渠道最多100条；渠道筛选先于标题去重，时间范围仅筛选已采样内容，不能宣称完整历史覆盖。契约见 `docs/06-departments/08-backend-api/MULTI-SOURCE-HOT-NEWS-CONTRACT.md`。
+
+2026-10-07 后续：新闻扩为财新、新浪、东方财富、财联社、同花顺、富途六渠道。
+首页列表保留全部有效报道及渠道出处，词云另行标题去重；选择框显示当前取得条数。
+总接口上限600条，渠道可能只返回20条，全部渠道不意味着完整历史。新增六个样本适配器
+也进入辩论研究链路，按公司与时间筛选，不满足完整覆盖/独立验证准入。
+
+2026-10-07：统一搜索与新闻历史库
+- `/api/discovery/search` 同时返回stock/industry/concept，前端根据kind进入股票或板块。
+- `/api/discovery/gainers` 是新浪沪深A股前20候选及逐只核验的报价时间，不是全市场热度排名。
+- `/api/news-archive` 按时间/渠道/关键词分页检索入库历史，coverage公开逐源边界及缺口；
+  后续页携带end_at固定检索上界。见DISCOVERY-CONTRACT.md及NEWS-ARCHIVE-CONTRACT.md。
+- 首页复用StockDiscovery；菜单新增/search；NewsArchive展示持久采集进度。
+
+### 2026-10-07 K线副图消费说明
+
+`CandlestickChart` 本地计算MA/BOLL与成交量、MACD、RSI、KDJ，共享父组件返回
+的OHLCV及日期，未新增接口或跨数据集拼接。`kline-raw-display` 日线请求使用
+`days=240`（原90），周/月备用保持900自然日并按现有规则聚合；来源与未复权说明
+继续由RawDailyChart展示。指标默认同时显示，可逐个关闭，主图MA/BOLL互斥。
+日/周/月指标周期跟随蜡烛周期，预热留空；MACD柱约定DIF−DEA，不乘2。
+
+### 分时行情栏
+
+当日/五日共用IntradayLineChart，以分钟timestamp/close驱动悬停行情栏。
+当日可显示cumulative_volume；五日契约未提供累计量，显示—。
+前收复用StockQuote.prev_close，只有fetched_at市场日期与分钟上海日期一致才计算
+涨跌；没有该日基准时显示—。区间高低仅统计该日已返回首点到所选分钟。
+本次未修改后端契约、数据来源或报价验证状态。
+
+当日分时新增成交量/额副图，消费现有price_points中的cumulative_volume（股）
+与cumulative_amount（元），不改后端契约。相邻60秒且同交易日才计算增量；首点、
+缺分钟、累计回退留空；旧提供方有股数却累计额为0时按缺失额处理。
+三图同步逻辑范围与十字线；成交柱涨跌色不能解释为资金净流入。
+五日现有契约没有累计量额，暂不绘制此副图。
+
+公司解读POST的响应结构与错误码保持不变。后端对模型结构/引用校验失败在同一
+75秒生成预算内纠正重试一次；成功才保存，最终失败继续返回原错误并保留旧结果。
+
+### 公司竞争点契约（2026-10-07）
+
+CompanyInterpretation新增competition: CitedInsight[]，最多4项；新的生成结果必须
+有1至4项，沿用text/basis/source_ids字段与引用验证。旧保存记录缺失时反序列化为
+空数组，不伪造历史内容。watchpoints继续承载风险与待验证事项。错误码、保存与
+重试语义不变。消费者须允许旧记录competition缺失或为空，并提示更新解读。
+
+股票影响消费：CitedInsight.stock_impact可缺失/null（旧记录）；存在时必须完整包含
+mechanism/horizon/conditions。每项亮点、竞争点、风险点下展示影响路径、观察周期、
+成立与失效条件，固定标记条件性AI推断；父项disclosed不改变影响解释的推断属性。
+旧版本提示更新解读，不按标题硬编码股票影响。时间说明并非收益承诺。
+
+搜索历史仅存浏览器localStorage（litchi-search-history-v1），不新增API。首页与搜索页
+StockDiscovery共享，保留最近20条去重关键词；提交/打开结果才记，支持单项删除及
+清空。存储不可写时内存降级；不与侧栏最近浏览或AI分析历史混用。
+
+现有gainers.change_pct为来源单日涨幅，UI明确“单日涨幅榜 · 最新报价交易日”；
+不等同于请求当日涨幅、跨日累计收益或全市场区间排行。多周期/资金榜待口径确认。
+
+### 多周期与资金榜
+
+搜索页GainerList已替换为DiscoveryRankings，消费新/discovery/rankings，旧/gainers
+仅供兼容及最新单日新浪降级。周期latest/previous/3/5/10/20/60按交易日选择，涨幅
+与资金独立控制；资金main_net/gross_in分列。消费者校验指标/周期/单位、日期和
+行唯一性；不可用状态不得携带其他周期数据，切换不保留旧表冒充当前选择。
+完整契约见08-backend-api/RANKING-PERIOD-CONTRACT.md。未接通的区间展示缺口。
+
+### 指数历史详情（2026-10-07）
+
+首页三大指数卡片进入 `/index/sh000001`、`/index/sz399001`、`/index/sz399006`。
+消费 [指数契约](../../06-departments/08-backend-api/INDEX-HISTORY-CONTRACT.md)，
+独立 query key 与身份校验；日线与本地聚合周/月线复用联动指标组件，点位单位为点。
+成交量保留原始单位，不冒称股/手；标明本次最多640根、实际范围及单源状态。

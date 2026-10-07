@@ -24,11 +24,10 @@ export async function fetchMacroBrief(): Promise<MarketEnvelope<MacroBrief | nul
 export async function fetchSectors(
   sort: string = "fund_flow",
   signal?: AbortSignal,
+  source: SectorItem["source"] = "eastmoney",
 ): Promise<MarketEnvelope<SectorItem[]>> {
-  return loadSectorFeed(
-    async () => parseSectorsEnvelope(await api.getRaw("/market/sectors", { sort }, { signal })),
-    async () => parseSectorsEnvelope(await api.getRaw("/market/sectors", { sort, source: "sina" }, { signal })),
-    signal,
+  return loadSectorFeed(source,
+    async () => parseSectorsEnvelope(await api.getRaw("/market/sectors", { sort, source }, { signal })),
   );
 }
 
@@ -43,7 +42,7 @@ export async function fetchHotNews(): Promise<MarketEnvelope<HotNewsItem[]>> {
 }
 
 export async function fetchSinaSectors(signal?: AbortSignal) {
-  return parseSectorsEnvelope(await api.getRaw("/market/sectors", { source: "sina", sort: "net_flow" }, { signal }));
+  return fetchSectors("net_flow", signal, "sina");
 }
 
 export async function fetchSinaMembers(code: string, page: number, signal?: AbortSignal) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "./locale-provider";
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   type BackendState,
@@ -51,6 +52,7 @@ async function probeBackend(): Promise<BackendProbe> {
 
 /* ── 后端状态横幅（页面顶部） ── */
 export function BackendStatusIndicator() {
+  const { t } = useLocale();
   const [state, setState] = useState<BackendState>("checking");
   const [diagnose, setDiagnose] = useState<DiagnoseResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -94,7 +96,7 @@ export function BackendStatusIndicator() {
     return (
       <div className="px-4 py-2 bg-gray-500/10 text-text-muted text-xs text-center border-b border-bg-tertiary flex items-center justify-center gap-2">
         <span className="inline-block w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse" />
-        <span>正在连接后端服务...</span>
+        <span>{t("正在连接后端服务...")}</span>
       </div>
     );
   }
@@ -104,12 +106,12 @@ export function BackendStatusIndicator() {
     return (
       <div className="px-4 py-2 bg-accent-red/10 text-accent-red text-xs text-center border-b border-accent-red/20 flex items-center justify-center gap-2">
         <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-red animate-pulse" />
-        <span>后端服务未连接 — 请启动后端服务（port 8000）</span>
+        <span>{t("后端服务未连接 — 请启动后端服务（port 8000）")}</span>
         <button
           onClick={check}
           className="underline hover:no-underline text-accent-red/80"
         >
-          重试
+          {t("重试")}
         </button>
       </div>
     );
@@ -121,12 +123,12 @@ export function BackendStatusIndicator() {
       .filter(([, v]) => v.status === "fail" || v.status === "warn")
       .slice(0, 2);
     const detail =
-      message ??
+      (message ? t(message) : null) ??
       (fails.length > 0
-        ? `部分服务降级：${fails
+        ? `${t("部分服务降级")}: ${fails
             .map(([k, v]) => `${k}: ${v.message || v.error || v.status}`)
             .join("；")}`
-        : "后端已连接，部分服务状态异常");
+        : t("后端已连接，部分服务状态异常"));
     return (
       <div className="px-4 py-2 bg-amber-500/10 text-amber-600 text-xs text-center border-b border-amber-500/20 flex items-center justify-center gap-2">
         <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -140,6 +142,7 @@ export function BackendStatusIndicator() {
 
 /* ── 顶部栏右侧连接状态小点 ── */
 export function HeaderStatusDot() {
+  const { t } = useLocale();
   const [state, setState] = useState<BackendState>("checking");
   const [message, setMessage] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -193,12 +196,12 @@ export function HeaderStatusDot() {
     disconnected: "未连接",
   }[state];
 
-  const title = message ?? label;
+  const title = t(message ?? label);
 
   return (
     <span className="flex items-center gap-1.5 text-xs text-text-muted" title={title}>
       <span className={`inline-block w-1.5 h-1.5 rounded-full ${dot}`} />
-      {label}
+      {t(label)}
     </span>
   );
 }

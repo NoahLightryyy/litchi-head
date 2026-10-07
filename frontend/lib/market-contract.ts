@@ -275,6 +275,7 @@ function isChainStage(value: unknown): value is ChainStage {
 
 function isChainEvidence(value: unknown, id: string, name: string): boolean {
   if (!isRecord(value) || value.schema_version !== 1 || value.sector_code !== id ||
+      (value.map_kind !== undefined && !["industry_chain", "market_structure"].includes(String(value.map_kind))) ||
       value.sector_name !== name || !isNonEmptyString(value.scope) ||
       !Array.isArray(value.sources) || !value.sources.length ||
       !Array.isArray(value.nodes) || !value.nodes.length || !Array.isArray(value.edges)) return false;
@@ -297,7 +298,8 @@ function isChainEvidence(value: unknown, id: string, name: string): boolean {
   for (const node of value.nodes) {
     if (!isRecord(node) || !isNonEmptyString(node.id) || nodes.has(node.id) ||
         !isNonEmptyString(node.label) || !isNonEmptyString(node.stage) ||
-        !["industry_activity", "company"].includes(String(node.kind)) || !validRefs(node.source_ids) ||
+        !["industry_activity", "company", "market_entity"].includes(String(node.kind)) || !validRefs(node.source_ids) ||
+        ((node.kind === "market_entity") !== (value.map_kind === "market_structure")) ||
         (node.stock_code != null && (node.kind !== "company" || typeof node.stock_code !== "string" ||
           !/^\d{6}$/.test(node.stock_code)))) return false;
     nodes.set(node.id, String(node.kind));
@@ -306,7 +308,7 @@ function isChainEvidence(value: unknown, id: string, name: string): boolean {
   return value.edges.every((edge) => {
     if (!isRecord(edge) || typeof edge.source_node !== "string" || typeof edge.target_node !== "string") return false;
     const key = `${edge.source_node}:${edge.target_node}:${edge.relation}`;
-    const kind = edge.relation === "supplies" ? "company" : edge.relation === "industry_sequence" ? "industry_activity" : null;
+    const kind = edge.relation === "supplies" ? "company" : edge.relation === "industry_sequence" ? "industry_activity" : edge.relation === "listing_relationship" ? "market_entity" : null;
     if (!kind || nodes.get(edge.source_node) !== kind || nodes.get(edge.target_node) !== kind ||
         edge.source_node === edge.target_node || edges.has(key) || !validRefs(edge.source_ids) ||
         !isNonEmptyString(edge.description)) return false;

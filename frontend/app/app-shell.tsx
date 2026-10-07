@@ -3,20 +3,22 @@
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { BackendStatusIndicator, HeaderStatusDot } from "@/components/shared/backend-status";
 import { usePathname } from "next/navigation";
+import { LanguageSelect, useLocale } from "@/components/shared/locale-provider";
 import Link from "next/link";
 
 /* ── 路径 → 标题 映射 ── */
 function useRouteMeta(pathname: string): { title: string } {
-  if (pathname === "/") return { title: "市场总览" };
-  const titles: Record<string, string> = { "/screening": "选股与对比", "/watchlist": "自选与跟踪", "/portfolio": "持仓与风险", "/data-status": "数据状态", "/settings": "设置" };
-  if (titles[pathname]) return { title: titles[pathname] };
-  if (pathname === "/industries") return { title: "行业研究" };
-  if (pathname === "/retro") return { title: "研究与复盘" };
-  if (pathname.startsWith("/sector/sina/")) return { title: "板块研究 · 新浪分类" };
+  const { t } = useLocale();
+  if (pathname === "/") return { title: t("市场总览") };
+  const titles: Record<string, string> = { "/search": "搜索与发现", "/screening": "选股与对比", "/watchlist": "自选与跟踪", "/portfolio": "持仓与风险", "/data-status": "数据状态", "/settings": "设置" };
+  if (titles[pathname]) return { title: t(titles[pathname]) };
+  if (pathname === "/industries") return { title: t("行业研究") };
+  if (pathname === "/retro") return { title: t("研究与复盘") };
+  if (pathname.startsWith("/sector/sina/")) return { title: t("板块研究 · 新浪分类") };
   if (pathname.startsWith("/sector/"))
-    return { title: `板块 · ${pathname.slice(8)}` };
+    return { title: `${t("板块")} · ${pathname.slice(8)}` };
   if (pathname.startsWith("/stock/"))
-    return { title: `个股 · ${pathname.slice(7)}` };
+    return { title: `${t("个股")} · ${pathname.slice(7)}` };
   return { title: pathname };
 }
 
@@ -43,6 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const meta = useRouteMeta(pathname);
   const online = useOnlineStatus();
+  const { t } = useLocale();
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
@@ -50,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {!online && (
           <div className="px-4 py-2 bg-accent-red/10 text-accent-red text-xs text-center border-b border-accent-red/20">
-            ⚠ 网络已断开，数据可能无法更新
+            ⚠ {t("网络已断开，数据可能无法更新")}
           </div>
         )}
         <BackendStatusIndicator />
@@ -89,8 +92,10 @@ const STOCK_PREFIX = "/stock/";
 const SECTOR_PREFIX = "/sector/";
 
 function SidebarNav({ pathname }: { pathname: string }) {
+  const { t } = useLocale();
   const navItems = [
     { href: "/", icon: "🏠", label: "市场总览" },
+    { href: "/search", icon: "🔎", label: "搜索与发现" },
     { href: "/industries", icon: "🧭", label: "行业研究" },
     { href: "/screening", icon: "🔎", label: "选股与对比" },
     { href: "/watchlist", icon: "⭐", label: "自选与跟踪" },
@@ -99,7 +104,7 @@ function SidebarNav({ pathname }: { pathname: string }) {
   ];
 
   return (
-    <aside className="w-16 sm:w-56 border-r border-bg-tertiary bg-bg-secondary p-2 sm:p-4 flex flex-col gap-6 shrink-0">
+    <aside className="w-16 sm:w-56 border-r border-bg-tertiary bg-bg-secondary p-2 sm:p-4 flex flex-col gap-6 shrink-0 overflow-y-auto">
       <div className="flex items-center gap-2 px-2">
         <span className="text-2xl">🍒</span>
         <span className="hidden sm:block font-bold text-lg text-text-primary tracking-tight">
@@ -111,11 +116,11 @@ function SidebarNav({ pathname }: { pathname: string }) {
           const active = item.href === "/" ? pathname === "/" : (pathname === item.href || (item.href === "/industries" && pathname.startsWith("/sector/")));
           return (
             <Link
-              key={item.label}
+              key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              aria-label={item.label}
-              title={item.label}
+              aria-label={t(item.label)}
+              title={t(item.label)}
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                 active
                   ? "bg-accent-blue/10 text-accent-blue font-medium"
@@ -123,21 +128,22 @@ function SidebarNav({ pathname }: { pathname: string }) {
               }`}
             >
               <span>{item.icon}</span>
-              <span className="hidden sm:inline">{item.label}</span>
+              <span className="hidden sm:inline">{t(item.label)}</span>
             </Link>
           );
         })}
       </nav>
-      <nav aria-label="工具与设置" className="mt-auto flex flex-col gap-2">
-        {[{href:"/data-status",label:"数据状态",icon:"📡"},{href:"/settings",label:"设置",icon:"⚙"}].map((item)=><Link key={item.href} href={item.href} aria-label={item.label} title={item.label} aria-current={pathname===item.href ? "page" : undefined} className={`rounded px-3 py-2 text-sm ${pathname===item.href ? "bg-accent-blue/10 text-accent-blue" : "text-text-muted"}`}><span>{item.icon}</span><span className="ml-3 hidden sm:inline">{item.label}</span></Link>)}
+      <nav aria-label={t("工具与设置")} className="mt-auto flex flex-col gap-2">
+        {[{href:"/data-status",label:"数据状态",icon:"📡"},{href:"/settings",label:"设置",icon:"⚙"}].map((item)=><Link key={item.href} href={item.href} aria-label={t(item.label)} title={t(item.label)} aria-current={pathname===item.href ? "page" : undefined} className={`rounded px-3 py-2 text-sm ${pathname===item.href ? "bg-accent-blue/10 text-accent-blue" : "text-text-muted"}`}><span>{item.icon}</span><span className="ml-3 hidden sm:inline">{t(item.label)}</span></Link>)}
       </nav>
+      <LanguageSelect />
       <div className="hidden sm:block">
-        <div className="px-3 py-2 text-xs text-text-muted uppercase tracking-wider">最近浏览</div>
+        <div className="px-3 py-2 text-xs text-text-muted uppercase tracking-wider">{t("最近浏览")}</div>
         <div className="px-3 py-4 text-xs text-text-muted text-center">
           {pathname.startsWith(STOCK_PREFIX) || pathname.startsWith(SECTOR_PREFIX) ? (
             <span className="text-accent-blue text-[10px] break-all">{pathname}</span>
           ) : (
-            "暂无记录"
+            t("暂无记录")
           )}
         </div>
       </div>
@@ -147,6 +153,7 @@ function SidebarNav({ pathname }: { pathname: string }) {
 
 /* ── 顶部栏 ── */
 function Header({ meta }: { meta: { title: string } }) {
+  const { t } = useLocale();
   return (
     <header className="flex items-center justify-between h-14 px-6 border-b border-bg-tertiary bg-bg-secondary shrink-0">
       <div className="flex items-center gap-3 text-sm text-text-secondary">
@@ -155,7 +162,7 @@ function Header({ meta }: { meta: { title: string } }) {
       </div>
       <div className="flex items-center gap-4">
         <HeaderStatusDot />
-        <span className="text-xs text-text-muted">数据来源: akshare</span>
+        <span className="text-xs text-text-muted">{t("数据来源")}: akshare</span>
       </div>
     </header>
   );

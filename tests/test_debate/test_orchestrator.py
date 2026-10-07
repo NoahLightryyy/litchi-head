@@ -968,3 +968,15 @@ class TestDP007InformationIsolation:
             assert md["industry"] == "银行"
             assert "quotes" not in md
             assert "klines" not in md
+
+
+def test_active_supplement_reaches_shared_analyst_brief(mock_collector):
+    supplement = MagicMock(return_value="主营安全系统；年报来源：https://example.com/report")
+    with patch("src.debate.archive_research.research_context", return_value=("", [])):
+        result = collect_data_node(
+            {"debate_input": {"stock_code": "300893", "stock_name": "松原安全"}},
+            mock_collector, research_supplement=supplement,
+        )
+    supplement.assert_called_once_with("300893")
+    assert "主营安全系统" in result["market_data"]["brief"]
+    assert "https://example.com/report" in result["market_data"]["brief"]

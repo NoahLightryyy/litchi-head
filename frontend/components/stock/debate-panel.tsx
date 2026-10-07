@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, RefreshCw, Info } from "lucide-react";
-import { useRunDebate, useDebateResult } from "@/lib/hooks/use-debate";
+import { MessageSquare, RefreshCw } from "lucide-react";
+import { useRunDebate, useDebateResult, useDebateHistory } from "@/lib/hooks/use-debate";
 import type { AgentAnalysis, VoteSummary } from "@/lib/types/debate";
 import { debateErrorMessage } from "@/lib/debate-error";
+import { HorizonResearch } from "./horizon-research";
 import { AgentAnalysisList } from "./agent-analysis-list";
 import { DEBATE_FAILURE_MESSAGE, DEBATE_TIMEOUT_MESSAGE } from "@/lib/debate-session";
+import { selectDebateView } from "@/lib/debate-history";
 import { debateLimitations } from "@/lib/debate-limitations";
 
 interface DebatePanelProps {
@@ -20,31 +22,46 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [triggered, setTriggered] = useState(false);
 
-  const { data: debateResult, isError: resultQueryFailed, isTimedOut } = useDebateResult(sessionId);
+  const [selectedHistory, setSelectedHistory] = useState<string | null>(null);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const history = useDebateHistory(stockCode, historyOffset);
+  const records = (history.data ?? []).filter((item) => item.stock_code === stockCode);
+  const {sessionId: effectiveSessionId, historical: viewingHistory} = selectDebateView(
+    records, stockCode, selectedHistory, sessionId, triggered,
+  );
+  const { data: debateResult, isError: resultQueryFailed, isTimedOut } = useDebateResult(effectiveSessionId);
+  const selectedRecord = records.find((item) => item.session_id === effectiveSessionId);
+  const hasActiveRecord = records.some((item) => item.status === "running" || item.status === "queued");
 
   const handleDebate = async () => {
     setError(null);
+    setSelectedHistory(null);
+    setHistoryOffset(0);
     setTriggered(true);
     try {
       await trigger({ stock_code: stockCode, question: `${stockName} 投资分析` });
     } catch (cause) {
       setError(debateErrorMessage(cause));
+    } finally {
+      void history.refetch();
     }
   };
 
   const resultIdentityMismatch = Boolean(
-    sessionId && debateResult && debateResult.session_id !== sessionId,
+    effectiveSessionId && debateResult && (debateResult.session_id !== effectiveSessionId
+      || debateResult.stock_code !== stockCode),
   );
   const resultFailed = resultQueryFailed || resultIdentityMismatch;
-  const visibleError = error
+  const visibleError = (viewingHistory ? null : error)
     ?? (isTimedOut ? DEBATE_TIMEOUT_MESSAGE : null)
     ?? (resultFailed ? DEBATE_FAILURE_MESSAGE : null);
   const awaitingResult = Boolean(
-    sessionId && !debateResult?.vote_summary && !resultFailed && !isTimedOut,
+    effectiveSessionId && !debateResult?.vote_summary && !resultFailed && !isTimedOut,
   );
-  const isRunning = running || awaitingResult;
-  const results = !visibleError && !running && sessionId
-    && debateResult?.session_id === sessionId && debateResult.vote_summary
+  const isRunning = (!viewingHistory && running) || awaitingResult;
+  const results = !visibleError && (!running || viewingHistory) && effectiveSessionId
+    && debateResult?.stock_code === stockCode
+    && debateResult?.session_id === effectiveSessionId && debateResult.vote_summary
     ? {
         voteSummary: debateResult.vote_summary as VoteSummary,
         analyses: (debateResult.analyses ?? []) as AgentAnalysis[],
@@ -60,12 +77,12 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
         <div>
           <h3 className="text-sm font-semibold text-text-primary">各流派分析与辩论</h3>
           <p className="text-xs text-text-muted mt-0.5">
-            {stockName} · 逐流派查看摘要、论证、依据与风险
+            {stockName} · 同时研究短期 1–5 个交易日、中期 1–3 个月、长期 1–3 年
           </p>
         </div>
         <button
           onClick={handleDebate}
-          disabled={isRunning}
+          disabled={running || hasActiveRecord || isRunning}
           className="flex items-center gap-2 px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isRunning ? (
@@ -75,6 +92,47 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
           )}
         </button>
       </div>
+
+      <section aria-label="分析历史" className="mb-4 rounded-md border border-bg-tertiary p-3">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-sm font-medium">分析历史</h4>
+          <button onClick={() => void history.refetch()} className="text-xs text-accent-blue">刷新记录</button>
+        </div>
+        {history.isPending && <p className="text-xs text-text-muted mt-2">正在读取历史记录…</p>}
+        {history.isError && <p className="text-xs text-accent-red mt-2">历史记录加载失败，请刷新记录重试。</p>}
+        {!history.isPending && !history.isError && records.length === 0 && (
+          <p className="text-xs text-text-muted mt-2">暂无完整分析记录。旧复盘摘要可在“研究与复盘”查看。</p>
+        )}
+        {records.length > 0 && (
+          <ul className="mt-2 max-h-48 overflow-y-auto space-y-2">
+            {records.map((record) => (
+              <li key={record.session_id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span>{new Date(record.created_at).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}（北京时间） · {
+                  record.status === "completed" ? "已完成" : record.status === "failed" ? "失败" : "分析中"
+                }</span>
+                {record.status === "completed" ? (
+                  <button className="text-accent-blue" onClick={() => setSelectedHistory(record.session_id)}>
+                    {effectiveSessionId === record.session_id ? "正在查看" : "查看结果"}
+                  </button>
+                ) : record.status === "failed" ? (
+                  <span className="text-accent-red">{record.error || "分析未完成"}</span>
+                ) : <span className="text-text-muted">完成后可查看，无需重复提交</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+        {(records.length >= 50 || historyOffset > 0) && (
+          <div className="flex gap-4 mt-3 text-xs text-accent-blue">
+            <button disabled={historyOffset === 0} onClick={() => setHistoryOffset(Math.max(0, historyOffset - 50))}>较新记录</button>
+            <button disabled={records.length < 50} onClick={() => setHistoryOffset(historyOffset + 50)}>更早记录</button>
+          </div>
+        )}
+      </section>
+      {viewingHistory && selectedRecord && (
+        <p className="mb-3 text-xs text-text-muted">
+          历史分析 · {new Date(selectedRecord.created_at).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}（北京时间）。以下为当时的数据与结论。
+        </p>
+      )}
 
       {/* 错误态 */}
       {visibleError && (
@@ -114,90 +172,11 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
               </ul>
             </div>
           )}
-          {/* 共识卡片 */}
-          {results.analyses.some((a) => a.success === true) && <div className="p-4 rounded-md bg-accent-green/5 border border-accent-green/20 mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-accent-green">共识结果</span>
-              <span className="text-xs text-text-muted">
-                {debateResult?.total_latency_ms
-                  ? `${(debateResult.total_latency_ms / 1000).toFixed(1)}s`
-                  : ""}
-              </span>
-            </div>
-            <div className="flex items-center gap-6">
-              <span
-                className={`text-2xl font-bold ${
-                  results.voteSummary.consensus === "看涨"
-                    ? "text-accent-green"
-                    : results.voteSummary.consensus === "看跌" ? "text-accent-red" : "text-text-secondary"
-                }`}
-              >
-                {results.voteSummary.consensus}
-              </span>
-              <div className="flex gap-4 text-sm">
-                <KpiItem
-                  label="加权评分"
-                  value={results.voteSummary.weighted_score.toFixed(1)}
-                />
-                <div>
-                  <span className="text-text-muted">置信度</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-number text-text-primary">
-                      {`${(results.voteSummary.confidence * 100).toFixed(0)}%`}
-                    </span>
-                    <span className="text-[10px] text-text-muted bg-bg-tertiary px-1 rounded">
-                      非胜率
-                    </span>
-                  </div>
-                </div>
-                {results.voteSummary.direction_distribution && (
-                  <KpiItem
-                    label="看涨"
-                    value={`${results.voteSummary.direction_distribution.Bullish ?? 0}`}
-                  />
-                )}
-              </div>
-            </div>
-            {/* 置信度条 */}
-            <div className="mt-3">
-              <div className="h-1.5 rounded-full bg-bg-tertiary overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${results.voteSummary.confidence * 100}%`,
-                    backgroundColor:
-                      results.voteSummary.confidence >= 0.7
-                        ? "rgb(34, 197, 94)"
-                        : results.voteSummary.confidence >= 0.4
-                          ? "rgb(234, 179, 8)"
-                          : "rgb(239, 68, 68)",
-                  }}
-                />
-              </div>
-            </div>
-          </div>}
-
-          <AgentAnalysisList analyses={results.analyses} />
-
-          {/* 偏斜公示 */}
-          {results.voteSummary.bias_report && (
-            <div className="mt-3 p-3 rounded-md border border-bg-tertiary bg-bg-primary/30">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Info className="w-3 h-3 text-text-muted" />
-                <span className="text-xs text-text-muted">偏斜公示</span>
-              </div>
-              <div className="flex gap-3 text-xs">
-                <span className="text-text-muted">
-                  看涨 {results.voteSummary.bias_report.bullish_count}/
-                  看跌 {results.voteSummary.bias_report.bearish_count}/
-                  中性 {results.voteSummary.bias_report.neutral_count}
-                </span>
-                <span className="text-text-muted">
-                  共识强度: {(results.voteSummary.bias_report.consensus_strength * 100).toFixed(0)}%
-                </span>
-              </div>
-            </div>
-          )}
+          <HorizonResearch analyses={results.analyses} />
+          <details className="rounded-md border border-bg-tertiary p-3">
+            <summary className="cursor-pointer text-sm">原始流派论证（未限定周期的历史方向不作结论）</summary>
+            <AgentAnalysisList analyses={results.analyses} />
+          </details>
         </>
       )}
 
@@ -210,15 +189,6 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
           </p>
         </div>
       )}
-    </div>
-  );
-}
-
-function KpiItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span className="text-text-muted">{label}</span>{" "}
-      <span className="font-number text-text-primary">{value}</span>
     </div>
   );
 }

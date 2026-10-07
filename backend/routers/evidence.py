@@ -192,6 +192,12 @@ async def intraday_battlefield(
     points = (
         sorted(canonical[1].checkpoints, key=lambda point: point.timestamp) if canonical else []
     )
+    if not points:
+        logger.warning(
+            "Intraday display unavailable: symbol=%s diagnostics=%s",
+            payload.symbol,
+            [(item.source_id, item.status.value, item.error_code) for item in diagnostics],
+        )
     return IntradayBattlefieldEnvelope(
         symbol=payload.symbol,
         complete=envelope.complete,

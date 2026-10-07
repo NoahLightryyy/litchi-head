@@ -124,6 +124,7 @@ class DebateUnavailableResponse(BaseModel):
 
 def _get_orchestrator():
     """惰性导入 DebateOrchestrator，避免 Windows torch crash"""
+    from backend.debate_research import supplement_research
     from src.data.news_runtime import get_news_evidence_runtime  # noqa: PLC0415
     from src.data.quote_runtime import (  # noqa: PLC0415
         get_realtime_quote_evidence_runtime,
@@ -131,6 +132,7 @@ def _get_orchestrator():
     from src.debate.orchestrator import DebateOrchestrator  # noqa: PLC0415
 
     return DebateOrchestrator(
+        research_supplement=supplement_research,
         news_evidence_service=get_news_evidence_runtime().service,
         quote_evidence_service=get_realtime_quote_evidence_runtime().service,
     )

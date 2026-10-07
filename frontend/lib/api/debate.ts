@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { DebateRequest, DebateStatus, DebateResult, TrustReport } from "@/lib/types/debate";
+import type { DebateHistoryItem, DebateRequest, DebateStatus, DebateResult, TrustReport } from "@/lib/types/debate";
 
 /** 触发辩论 */
 export async function runDebate(req: DebateRequest): Promise<{ session_id: string }> {
@@ -24,4 +24,9 @@ export async function fetchTrustReport(agentName: string): Promise<TrustReport> 
 /** 信任度排行 */
 export async function fetchTrustLeaderboard(): Promise<TrustReport[]> {
   return api.get("/trust/leaderboard");
+}
+
+/** Persisted history; reading it never starts a new analysis. */
+export async function fetchDebateHistory(stockCode: string, offset = 0): Promise<DebateHistoryItem[]> {
+  return api.get("/debate/history", { stock_code: stockCode, offset: String(offset) });
 }

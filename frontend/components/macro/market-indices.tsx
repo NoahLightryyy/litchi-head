@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import type { MarketIndex, MarketMeta } from "@/lib/types/market";
 import { formatPrice } from "@/lib/utils";
 import { MarketDataNotice } from "./market-data-notice";
@@ -76,7 +78,7 @@ function MarketIndexCard({ index, conflicted }: { index: MarketIndex; conflicted
     hour12: false,
   }).format(new Date(index.as_of));
   return (
-    <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4 hover:border-bg-elevated transition-colors">
+    <Link href={`/index/${index.code === "000001" ? "sh" : "sz"}${index.code}`} aria-label={`查看${index.name}K线`} className="block rounded-lg border border-bg-tertiary bg-bg-secondary p-4 hover:border-accent-blue focus-visible:outline-2 transition-colors">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-text-muted">{index.code}</span>
         <span className={`text-xs font-medium ${isUp ? "text-accent-green" : "text-accent-red"}`}>
@@ -91,6 +93,6 @@ function MarketIndexCard({ index, conflicted }: { index: MarketIndex; conflicted
         {index.display_source && <span>{({ sina: "新浪", eastmoney: "东方财富" } as Record<string, string>)[index.display_source] ?? index.display_source}</span>}
         {index.cached && <span>缓存</span>}
       </div>
-    </div>
+    </Link>
   );
 }

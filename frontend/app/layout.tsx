@@ -1,22 +1,25 @@
+import { cookies } from "next/headers";
+import { LOCALE_COOKIE, normalizeLocale, translate } from "@/lib/locale";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppShell } from "./app-shell";
 
-export const metadata: Metadata = {
-  title: "litchi-head — AI 投资决策平台",
-  description: "多智能体自上而下投资决策：宏观洞察 → 产业链分析 → AI 辩论决策",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+  return {title: `litchi-head — ${translate(locale, "AI 投资决策平台")}`};
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value);
   return (
-    <html lang="zh-CN" className="dark">
+    <html lang={locale} className="dark">
       <body className="antialiased">
-        <Providers>
+        <Providers initialLocale={locale}>
           <AppShell>{children}</AppShell>
         </Providers>
       </body>

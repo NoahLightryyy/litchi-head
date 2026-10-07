@@ -102,15 +102,16 @@ export interface ChainAnalysis {
 
 export interface ChainEvidence {
   schema_version: 1;
+  map_kind?: "industry_chain" | "market_structure";
   sector_code: string;
   sector_name: string;
   scope: string;
   sources: { id: string; title: string; publisher: string; url: string;
     published_on: string; checked_on: string; locator: string }[];
-  nodes: { id: string; label: string; kind: "industry_activity" | "company";
+  nodes: { id: string; label: string; kind: "industry_activity" | "company" | "market_entity";
     stage: string; source_ids: string[]; stock_code: string | null }[];
   edges: { source_node: string; target_node: string;
-    relation: "industry_sequence" | "supplies"; source_ids: string[]; description: string }[];
+    relation: "industry_sequence" | "supplies" | "listing_relationship"; source_ids: string[]; description: string }[];
 }
 
 export interface SectorDetail {

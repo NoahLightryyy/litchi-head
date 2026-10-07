@@ -26,12 +26,13 @@ export function useMacroBrief() {
 }
 
 /* ── 板块排行 ── */
-export function useSectors(sort: string = "fund_flow") {
+export function useSectors(sort: string = "fund_flow", source: "eastmoney" | "sina" = "eastmoney") {
   return useQuery({
-    queryKey: ["market", "sectors", sort],
+    queryKey: ["market", "sectors", source, sort],
     queryFn: ({ signal }) => fetchSectors(
       sort,
       AbortSignal.any([signal, AbortSignal.timeout(SECTOR_REQUEST_TIMEOUT_MS)]),
+      source,
     ),
     retry: false,
     refetchInterval: 60_000,      // 1 分钟刷新

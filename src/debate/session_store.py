@@ -260,7 +260,7 @@ class SqliteDebateSessionStore:
                 ids = connection.execute(
                     "SELECT session_id FROM debate_sessions"
                     + where
-                    + " ORDER BY created_at DESC, session_id DESC LIMIT ? OFFSET ?",
+                    + " ORDER BY julianday(created_at) DESC, session_id DESC LIMIT ? OFFSET ?",
                     (*params, limit, offset),
                 ).fetchall()
         except sqlite3.Error as exc:

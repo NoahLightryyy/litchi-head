@@ -223,6 +223,8 @@ def test_failed_member_pages_never_enter_cache(failure) -> None:
     first_calls = 0
     def transport(request):
         nonlocal first_calls
+        if request.url.host == "datacenter-web.eastmoney.com":
+            return httpx.Response(503)
         if request.url.params["pn"] == "1":
             first_calls += 1
             return reply([member_row(i) for i in range(100)], 101)
@@ -282,3 +284,65 @@ def test_single_unknown_board_does_not_fetch_quote() -> None:
         return httpx.Response(200, json={"bklist": [{"code": "BK0001"}]})
     service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(transport))
     assert service.fetch_detail("BK0596") is None
+
+
+def f10_row(number: int = 0) -> dict:
+    code = f"{number:06d}"
+    return {"SECURITY_CODE": code, "SECUCODE": f"{code}.BJ",
+            "SECURITY_NAME_ABBR": f"stock{number}", "BOARD_CODE": "1106",
+            "NEW_BOARD_CODE": "BK1106", "NEW_PRICE": 12.34, "CHANGE_RATE": 2.5,
+            "MAIN_NET_INFLOW": 125_000_000, "QUOTE_TIME": 1788507572}
+
+
+def f10_reply(rows: list[dict], count: int) -> httpx.Response:
+    return httpx.Response(200, json={"success": True, "code": 0, "result": {
+        "count": count, "pages": (count + 499) // 500, "data": rows,
+    }})
+
+
+def test_f10_fallback_complete_members_preserve_money_and_quote_time() -> None:
+    calls = []
+    def transport(request):
+        calls.append(request)
+        if request.url.host != "datacenter-web.eastmoney.com":
+            return httpx.Response(502)
+        assert request.url.params["filter"] == '(BOARD_CODE="1106")'
+        assert "f62~01~SECURITY_CODE~MAIN_NET_INFLOW" in request.url.params["quoteColumns"]
+        assert request.extensions["timeout"]["read"] <= 3
+        if request.url.params["pageNumber"] == "1":
+            return f10_reply([f10_row(i) for i in range(500)], 501)
+        return f10_reply([f10_row(500)], 501)
+    service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(transport))
+    snapshot = service.fetch_members("BK1106", "concept")
+    assert len(snapshot.members) == 501
+    assert snapshot.members[-1].code == "000500"
+    assert snapshot.members[0].price == 12.34
+    assert snapshot.members[0].fund_flow == 125_000_000
+    assert snapshot.members[0].as_of.isoformat() == "2026-09-04T15:39:32+08:00"
+    assert snapshot.source == "eastmoney" and snapshot.possibly_delayed
+    assert service.fetch_members("BK1106", "concept").cached
+    assert len(calls) == 3
+
+
+@pytest.mark.parametrize("failure", ["board", "identity", "time", "duplicate", "missing", "http"])
+def test_f10_fallback_rejects_unverified_or_incomplete_members(failure) -> None:
+    calls = 0
+    def transport(request):
+        nonlocal calls
+        calls += 1
+        if request.url.host != "datacenter-web.eastmoney.com" or failure == "http":
+            return httpx.Response(502)
+        row = f10_row()
+        if failure == "board":
+            row["NEW_BOARD_CODE"] = "BK1216"
+        if failure == "identity":
+            row["SECUCODE"] = "999999.SH"
+        if failure == "time":
+            row["QUOTE_TIME"] = None
+        rows = [row, row] if failure == "duplicate" else [row]
+        return f10_reply(rows, len(rows) + (failure == "missing"))
+    service = EastmoneyBoardSnapshots(transport=httpx.MockTransport(transport))
+    for _ in range(2):
+        with pytest.raises((ValueError, httpx.HTTPError)):
+            service.fetch_members("BK1106", "concept")
+    assert calls == 4

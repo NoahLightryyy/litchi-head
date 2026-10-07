@@ -148,7 +148,13 @@ class EastmoneyBoardSnapshots:
             cached = self._members_cache.get(board_code)
             if cached is not None and self._clock() < cached[1]:
                 return cached[0].model_copy(update={"cached": True})
-            snapshot = self._fetch_members_complete(board_code, kind, deadline)
+            try:
+                snapshot = self._fetch_members_complete(board_code, kind, deadline)
+            except httpx.HTTPError:
+                logger.warning(
+                    "Board list unavailable; using official F10 quotes: board=%s", board_code,
+                )
+                snapshot = self._fetch_members_from_f10(board_code, kind, deadline)
             if snapshot.members:
                 if self.store is not None:
                     self.store.record_success(snapshot)
@@ -325,6 +331,84 @@ class EastmoneyBoardSnapshots:
                 finally:
                     for future in futures:
                         future.cancel()
+        return BoardMembersSnapshot(
+            board_code=board_code, kind=kind, members=tuple(members),
+            fetched_at=datetime.now(SHANGHAI),
+        )
+
+    def _fetch_members_from_f10(
+        self, board_code: str, kind: BoardKind, deadline: float,
+    ) -> BoardMembersSnapshot:
+        """Join official board membership to quotes without matching board names.
+
+        F10 uses numeric BOARD_CODE, but also returns NEW_BOARD_CODE for exact
+        identity verification. quoteColumns uses SECURITY_CODE (not SECUCODE).
+        Missing quote timestamps, incomplete pages and duplicate members fail closed.
+        """
+        page_size = 500
+        params = {
+            "reportName": "RPT_F10_CORETHEME_BOARDTYPE",
+            "columns": "SECUCODE,SECURITY_CODE,SECURITY_NAME_ABBR,BOARD_CODE,NEW_BOARD_CODE",
+            "filter": f'(BOARD_CODE="{int(board_code[2:])}")',
+            "pageSize": str(page_size), "sortColumns": "SECURITY_CODE", "sortTypes": "1",
+            "quoteColumns": (
+                "f2~01~SECURITY_CODE~NEW_PRICE,f3~01~SECURITY_CODE~CHANGE_RATE,"
+                "f62~01~SECURITY_CODE~MAIN_NET_INFLOW,f124~01~SECURITY_CODE~QUOTE_TIME"
+            ),
+        }
+        with httpx.Client(transport=self._transport) as client:
+            def fetch_page(page: int) -> dict[str, Any]:
+                remaining = deadline - self._clock()
+                if remaining <= 0:
+                    raise TimeoutError("board F10 total deadline exceeded")
+                response = client.get(
+                    "https://datacenter-web.eastmoney.com/api/data/v1/get",
+                    params={**params, "pageNumber": str(page)}, timeout=min(3.0, remaining),
+                )
+                response.raise_for_status()
+                if self._clock() > deadline:
+                    raise TimeoutError("board F10 total deadline exceeded")
+                payload = response.json()
+                result = payload.get("result") if isinstance(payload, dict) else None
+                if (not isinstance(payload, dict) or payload.get("success") is not True
+                        or payload.get("code") != 0 or not isinstance(result, dict)):
+                    raise ValueError("invalid board F10 response")
+                count, pages = result.get("count"), result.get("pages")
+                if (type(count) is not int or not 0 < count <= 10000
+                        or type(pages) is not int or pages != (count + page_size - 1) // page_size):
+                    raise ValueError("invalid board F10 count")
+                rows = result.get("data")
+                if (not isinstance(rows, list)
+                        or len(rows) != min(page_size, count - (page - 1) * page_size)):
+                    raise ValueError("incomplete board F10 page")
+                return result
+
+            first = fetch_page(1)
+            results = [first]
+            with ThreadPoolExecutor(max_workers=8, thread_name_prefix="board-f10") as pool:
+                results.extend(pool.map(fetch_page, range(2, first["pages"] + 1)))
+        members: list[BoardMemberSnapshot] = []
+        seen: set[str] = set()
+        for result in results:
+            if result["count"] != first["count"] or result["pages"] != first["pages"]:
+                raise ValueError("board F10 total changed during pagination")
+            for row in result["data"]:
+                if (not isinstance(row, dict) or row.get("NEW_BOARD_CODE") != board_code
+                        or row.get("BOARD_CODE") != str(int(board_code[2:]))):
+                    raise ValueError("board F10 identity mismatch")
+                code, secucode = row.get("SECURITY_CODE"), row.get("SECUCODE")
+                if (not isinstance(code, str) or not isinstance(secucode, str)
+                        or secucode not in {f"{code}.SH", f"{code}.SZ", f"{code}.BJ"}):
+                    raise ValueError("board F10 member identity mismatch")
+                if code in seen:
+                    raise ValueError("duplicate board F10 member")
+                seen.add(code)
+                members.append(self._member({
+                    "f12": code, "f13": 1 if secucode.endswith(".SH") else 0,
+                    "f14": row.get("SECURITY_NAME_ABBR"), "f2": row.get("NEW_PRICE"),
+                    "f3": row.get("CHANGE_RATE"), "f62": row.get("MAIN_NET_INFLOW"),
+                    "f124": row.get("QUOTE_TIME"),
+                }))
         return BoardMembersSnapshot(
             board_code=board_code, kind=kind, members=tuple(members),
             fetched_at=datetime.now(SHANGHAI),

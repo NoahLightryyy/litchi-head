@@ -124,6 +124,11 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
                     {s.category === "industry" ? "行业" : "概念"}{s.source === "sina" && " · 新浪"}
                     {s.top_stocks.length > 0 && ` · ${s.top_stocks.slice(0, 2).join(" · ")}`}
                   </span>
+                  <span className="mt-1 text-[11px] text-text-muted">
+                    {s.source === "sina"
+                      ? `服务更新：${s.service_updated_at?.replace("T", " ") ?? "未知"}（非报价时间）`
+                      : `行情时间：${s.as_of?.replace("T", " ") ?? "未知"}`}
+                  </span>
                 </div>
               </td>
               <td className={`px-4 py-3 text-right font-number ${changeColor(s.change_pct)}`}>

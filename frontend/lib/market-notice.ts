@@ -29,3 +29,13 @@ export function marketNoticeFacts(
   }
   return facts;
 }
+
+/** Keep stale/failed status prominent; taxonomy notes belong in the disclosure. */
+export function boardNoticeSummary(meta: MarketMeta | undefined, refreshError = false): string | null {
+  if (!meta?.limitations.some(item => item.code.startsWith("BOARD_"))) return null;
+  if (refreshError || meta.status === "stale") {
+    return "刷新未成功，当前为历史快照；排名仅对应所示行情时间。";
+  }
+  if (meta.failed_sources.length) return "部分板块来源刷新失败，当前仅展示可用数据。";
+  return "东方财富快照已加载；请结合行情时间查看排名。";
+}

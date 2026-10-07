@@ -271,3 +271,18 @@ async def test_restart_marks_unfinished_failed_and_preserves_completed(tmp_path)
     assert (await reopened.get(result.session_id)).result == result
     assert len(await reopened.list_records("000001", limit=1)) == 1
     assert not await reopened.list_records("920344")
+
+
+@pytest.mark.asyncio
+async def test_history_orders_instants_across_timezones(tmp_path):
+    from datetime import datetime
+
+    store = SqliteDebateSessionStore(tmp_path / "sessions.db")
+    for sid, stamp in [("earlier", "2026-10-06T11:00:00+02:00"),
+                       ("later", "2026-10-06T09:30:00+00:00")]:
+        await store.save(DebateSessionRecord(
+            session_id=sid, stock_code="920344", status="running", progress=0,
+            created_at=datetime.fromisoformat(stamp),
+        ))
+    records = await store.list_records("920344")
+    assert [r.session_id for r in records] == ["later", "earlier"]

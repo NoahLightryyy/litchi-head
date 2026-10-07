@@ -38,11 +38,19 @@ class CompanyEvidence(BaseModel):
     gaps: list[str]
 
 
+class StockImpact(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    mechanism: str = Field(min_length=1, max_length=240)
+    horizon: str = Field(min_length=1, max_length=120)
+    conditions: str = Field(min_length=1, max_length=240)
+
+
 class CitedInsight(BaseModel):
     model_config = ConfigDict(extra="forbid")
     text: str = Field(min_length=1, max_length=400)
     basis: Literal["disclosed", "inference"]
     source_ids: list[str] = Field(min_length=1, max_length=3)
+    stock_impact: StockImpact | None = None
 
 
 class CompanyInterpretation(BaseModel):
@@ -53,6 +61,7 @@ class CompanyInterpretation(BaseModel):
     downstream: CitedInsight
     highlights: list[CitedInsight] = Field(min_length=1, max_length=4)
     watchpoints: list[CitedInsight] = Field(min_length=1, max_length=4)
+    competition: list[CitedInsight] = Field(default_factory=list, max_length=4)
 
 
 class CompanyResearch(BaseModel):
@@ -72,7 +81,7 @@ class CompanyResearch(BaseModel):
 def validate_citations(result: CompanyInterpretation, sources: list[CompanySource]) -> None:
     allowed = {source.id for source in sources}
     for item in [result.niche, result.upstream, result.role, result.downstream,
-                 *result.highlights, *result.watchpoints]:
+                 *result.highlights, *result.watchpoints, *result.competition]:
         if len(set(item.source_ids)) != len(item.source_ids) or not set(item.source_ids) <= allowed:
             raise ValueError("Unknown or duplicate company evidence citation")
 

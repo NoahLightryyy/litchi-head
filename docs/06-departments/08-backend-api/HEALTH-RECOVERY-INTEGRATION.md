@@ -18,6 +18,10 @@
   全成功才 healthy。冲突码优先，其余失败码按字典序确定，避免完成顺序改变诊断。
   请求开始分配批次序号；老批迟到只累加历史，不能覆盖更新完成批。快照与发布共用锁。
   未完成请求保留最后完成观察；没有自动到期、主动探测或重试，健康不是实时可达保证。
+- 2026-10-06 用户批准首页指数闭市按交易日对齐：两源必须均为最近已完成交易日
+  15:00 后且不晚于当前时间；收盘、周末、节假日、开盘集合竞价前允许忽略秒差。
+  盘中（含午休）仍为 3 秒；跨日、缺官方日历覆盖不豁免；0.01 点价格校验保持。
+  正式个股证据门禁不受此首页指数规则影响。
 - 指数：有效单源 HTTP 200 partial，保留 INDEX_SINGLE_SOURCE。双源价/时冲突也为
   HTTP 200 partial，保留 INDEX_PRICE_CONFLICT / INDEX_TIMESTAMP_CONFLICT 及
   conflicted 逐源诊断，`source_count=1`、`display_source` 表示展示所用 upstream。
@@ -243,3 +247,18 @@ HTTP200 partial，42只、0.134秒；BK9999在双目录完整后返回HTTP404/em
 未操作3000/8000。真实关系证据仍未接入，`chain_map=[]`并标注`CHAIN_MAP_UNAVAILABLE`。
 
 生产请求保留原上游顺序字段：行业fid=f3、概念fid=f12；HTTP的fund_flow/change_pct排序行为不变。
+
+### 2026-10-06 成员端点恢复路径（覆盖此前“成分股仍不可用”结论）
+
+原 clist 在本机仍502；官方 F10数据中心可以按精确板块代码返回完整成员并关联行情。
+`RPT_F10_CORETHEME_BOARDTYPE` 使用 `BOARD_CODE="1106"` 而非 `BK1106`，返回的
+`NEW_BOARD_CODE`必须核对。`quoteColumns=f2~01~SECURITY_CODE~NEW_PRICE,...` 使用股票代码关联；
+误用SECUCODE会得到空行情，不能补零。该同源备用在原网络错误后触发，共享8秒预算。
+BK1106恢复214成员；板块自身报价仍不可用，已有partial提示继续保留。休市解释09-30时间，不能解释502。
+
+### 2026-10-07 板块刷新诊断
+
+`GET /api/market/sectors` 沿用既有 envelope，不增加字段。`meta.limitations`
+新增开放式代码 `BOARD_REFRESH_FAILED`，逐类别给出 HTTP 状态、超时、网络失败或
+完整性校验失败的安全描述；不返回原始响应、请求 URL 或任意异常内容。
+恢复 SQLite 历史快照后仍保留此次失败原因，状态仍为 stale，不把休市解释成 HTTP 故障。

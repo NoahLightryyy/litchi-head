@@ -122,7 +122,7 @@ def calc_rsi(
     avg_loss = sum(max(-d, 0) for d in deltas[:period]) / period
 
     if avg_loss == 0:
-        result[period] = 100.0
+        result[period] = 50.0 if avg_gain == 0 else 100.0
     else:
         rs = avg_gain / avg_loss
         result[period] = 100.0 - 100.0 / (1.0 + rs)
@@ -135,7 +135,7 @@ def calc_rsi(
         avg_loss = (avg_loss * (period - 1) + loss) / period
 
         if avg_loss == 0:
-            result[i + 1] = 100.0
+            result[i + 1] = 50.0 if avg_gain == 0 else 100.0
         else:
             rs = avg_gain / avg_loss
             result[i + 1] = 100.0 - 100.0 / (1.0 + rs)
@@ -185,6 +185,28 @@ def calc_macd(
             histogram[idx] = macd_val - s
 
     return {"macd": macd_line, "signal": signal_line, "histogram": histogram}
+
+
+def calc_kdj(klines: list[dict[str, Any]], period: int = 9) -> dict[str, list[float | None]]:
+    """KDJ: full nine-bar RSV, recursive 1/3 smoothing, initial K=D=50.
+
+    Flat high/low windows use RSV=50; J=3K-2D is deliberately not clipped.
+    """
+    if period < 1:
+        raise ValueError("KDJ period must be positive")
+    result: dict[str, list[float | None]] = {
+        key: [None] * len(klines) for key in ("k", "d", "j")
+    }
+    k = d = 50.0
+    for i in range(period - 1, len(klines)):
+        window = klines[i - period + 1:i + 1]
+        high = max(float(bar["high"]) for bar in window)
+        low = min(float(bar["low"]) for bar in window)
+        rsv = 50.0 if high == low else (float(klines[i]["close"]) - low) / (high - low) * 100
+        k = (2 * k + rsv) / 3
+        d = (2 * d + k) / 3
+        result["k"][i], result["d"][i], result["j"][i] = k, d, 3 * k - 2 * d
+    return result
 
 
 def calc_bollinger(

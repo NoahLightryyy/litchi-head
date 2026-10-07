@@ -257,6 +257,7 @@ def collect_data_node(
     news_evidence_service: DataEvidenceService | None = None,
     quote_evidence_service: RealtimeQuoteEvidenceService | None = None,
     kline_business_provider: KlineBusinessProvider | None = None,
+    research_supplement: Callable[[str], str] | None = None,
 ) -> dict:
     """数据采集节点 —— 从 DataCollector 获取行情 + K线 + 新闻
 
@@ -455,6 +456,7 @@ def collect_data_node(
         chain_position=chain_pos,
         key_indicators=key_indicators,
         sentiment=sentiment,
+        quote_volume_unit="股" if quote_evidence_envelope is not None else "手",
     )
     from src.debate.archive_research import research_context
 
@@ -465,6 +467,12 @@ def collect_data_node(
     except Exception:
         logger.exception("Archive research retrieval failed: %s", code)
         brief += "\n新闻历史库检索失败，不能假定历史新闻覆盖完整。"
+    if research_supplement is not None:
+        try:
+            brief += "\n\n" + research_supplement(code)
+        except Exception:
+            logger.exception("Active research supplementation failed: %s", code)
+            brief += "\n主动补证失败，相关缺口仍然存在。"
     if kline_context:
         brief = f"{kline_context}\n\n{brief}"
     if evidence_limitations:
@@ -1674,6 +1682,7 @@ class DebateOrchestrator:
             _DEFAULT_QUOTE_EVIDENCE_SERVICE
         ),
         kline_business_provider: KlineBusinessProvider | None = None,
+        research_supplement: Callable[[str], str] | None = None,
     ):
         """初始化辩论编排器
 
@@ -1715,6 +1724,7 @@ class DebateOrchestrator:
         self.enable_reflection = enable_reflection
         self.enable_trust = enable_trust
         self.enable_mirror = enable_mirror
+        self.research_supplement = research_supplement
         self.news_evidence_service = news_evidence_service
         self.quote_evidence_service = (
             get_realtime_quote_evidence_runtime().service
@@ -1765,6 +1775,7 @@ class DebateOrchestrator:
                 self.news_evidence_service,
                 self.quote_evidence_service,
                 self.kline_business_provider,
+                self.research_supplement,
             ),
         )
         graph.set_entry_point("collect_data")

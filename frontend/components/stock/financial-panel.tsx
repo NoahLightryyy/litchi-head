@@ -3,6 +3,8 @@
 import { useFinancials, useValuation, useIndicators } from "@/lib/hooks/use-stock";
 import type { FinancialMetrics, ValuationMetrics } from "@/lib/types/stock";
 
+import { FinancialTerm } from "./financial-term";
+
 interface FinancialPanelProps {
   code: string;
 }
@@ -74,6 +76,14 @@ export function FinancialPanel({ code }: FinancialPanelProps) {
         />
       )}
 
+      {latest && <div className="text-xs text-text-muted space-y-2">
+        <p>报告期：{latest.report_date} · 点击带 ⓘ 的指标查看含义与用途</p>
+        {latest.gross_margin_evidence && <details><summary className="cursor-pointer">毛利率数据与计算依据{latest.gross_margin == null ? "（暂缺）" : ""}</summary>
+          <p className="mt-2">{latest.gross_margin_evidence.reason}</p>
+          <p>营业收入：{latest.gross_margin_evidence.revenue?.toLocaleString() ?? "暂缺"} 元；营业成本：{latest.gross_margin_evidence.cost?.toLocaleString() ?? "暂缺"} 元</p>
+          {latest.gross_margin_evidence.source_url?.startsWith("https://quotes.sina.cn/") && <a className="underline" href={latest.gross_margin_evidence.source_url} target="_blank" rel="noreferrer">查看原始利润表数据</a>}
+        </details>}
+      </div>}
       {/* 历史报告期对比 */}
       {financials && financials.length >= 2 && (
         <HistoricalTable periods={financials} />
@@ -99,11 +109,11 @@ function chainPositionLabel(pos: string): string {
 
 function ValuationGrid({ valuation }: { valuation: ValuationMetrics }) {
   const items = [
-    { label: "市盈率 (PE)", value: valuation.pe, suffix: "", color: peColor(valuation.pe) },
-    { label: "市净率 (PB)", value: valuation.pb, suffix: "", color: "" },
-    { label: "市销率 (PS)", value: valuation.ps, suffix: "", color: "" },
+    { id: "pe", label: "市盈率 (PE)", value: valuation.pe, suffix: "", color: peColor(valuation.pe) },
+    { id: "pb", label: "市净率 (PB)", value: valuation.pb, suffix: "", color: "" },
+    { id: "ps", label: "市销率 (PS)", value: valuation.ps, suffix: "", color: "" },
     {
-      label: "总市值",
+      id: "market_cap", label: "总市值",
       value: valuation.market_cap,
       suffix: "",
       color: "",
@@ -120,7 +130,7 @@ function ValuationGrid({ valuation }: { valuation: ValuationMetrics }) {
             key={item.label}
             className="p-3 rounded-lg border border-bg-tertiary bg-bg-primary/50"
           >
-            <div className="text-xs text-text-muted mb-1">{item.label}</div>
+            <div className="text-xs text-text-muted mb-1"><FinancialTerm id={item.id} label={item.label} /></div>
             <div className={`text-lg font-bold font-number ${item.color}`}>
               {item.formatter
                 ? item.formatter(item.value)
@@ -228,14 +238,14 @@ function FinancialMetricsDetail({
           <h4 className="text-xs font-medium text-text-muted mb-2 uppercase tracking-wider">
             {section.title}
           </h4>
-          <div className={`grid grid-cols-${section.cols ?? 3} gap-3`}>
+          <div className={`grid grid-cols-1 ${section.cols === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"} gap-3`}>
             {section.items.map((item) => (
               <div
                 key={item.id}
                 className="p-3 rounded-lg border border-bg-tertiary bg-bg-primary/50"
               >
                 <div className="flex justify-between items-baseline">
-                  <span className="text-xs text-text-muted">{item.label}</span>
+                  <span className="text-xs text-text-muted"><FinancialTerm id={item.id} label={item.label} /></span>
                   <span className={`font-number text-sm font-medium ${metricColor(item)}`}>
                     {formatMetric(item)}
                   </span>
@@ -283,7 +293,7 @@ function HistoricalTable({ periods }: { periods: FinancialMetrics[] }) {
             <tr className="bg-bg-tertiary/50">
               {columns.map((col) => (
                 <th key={col.key} className="px-3 py-2 text-left text-text-muted font-medium whitespace-nowrap">
-                  {col.label}
+                  <FinancialTerm id={col.key} label={col.label} />
                 </th>
               ))}
             </tr>
@@ -295,7 +305,7 @@ function HistoricalTable({ periods }: { periods: FinancialMetrics[] }) {
                 className="border-t border-bg-tertiary hover:bg-bg-tertiary/30 transition-colors"
               >
                 {columns.map((col) => (
-                  <td key={col.key} className="px-3 py-2 font-number text-text-primary whitespace-nowrap">
+                  <td key={col.key} title={col.key === "gross_margin" ? period.gross_margin_evidence?.reason : undefined} className="px-3 py-2 font-number text-text-primary whitespace-nowrap">
                     {col.format(period[col.key] as never)}
                   </td>
                 ))}

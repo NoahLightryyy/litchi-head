@@ -1,11 +1,13 @@
 "use client";
 
+import { useLocale } from "@/components/shared/locale-provider";
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { TrendingUp, DollarSign, MessageSquare, ShieldCheck, BarChart3 } from "lucide-react";
 import { useStockQuote } from "@/lib/hooks/use-stock";
 import { QuoteCard } from "@/components/stock/quote-card";
+import { CompanyResearchPanel } from "@/components/stock/company-research-panel";
 import { DebatePanel } from "@/components/stock/debate-panel";
 import { NewsFeed } from "@/components/stock/news-feed";
 import { CapitalFlowPanel } from "@/components/stock/capital-flow-panel";
@@ -27,6 +29,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 /** 个股决策页 */
 export default function StockPage() {
+  const { t } = useLocale();
   const params = useParams();
   const code = params.code as string;
   const [activeTab, setActiveTab] = useState<TabId>("debate");
@@ -43,10 +46,10 @@ export default function StockPage() {
       {/* 面包屑 */}
       <div className="flex items-center gap-2 text-sm">
         <Link href="/" className="text-text-secondary hover:text-text-primary transition-colors">
-          市场总览
+          {t("市场总览")}
         </Link>
         <span className="text-text-muted">/</span>
-        <span className="text-text-muted">个股</span>
+        <span className="text-text-muted">{t("个股")}</span>
         <span className="text-text-muted">/</span>
         <span className="text-text-primary font-medium">{stockName}</span>
         <span className="text-xs text-text-muted">({code})</span>
@@ -54,31 +57,33 @@ export default function StockPage() {
 
       {/* 行情卡片 */}
       {!quoteLoading && (quoteError || !quote) ? <div role="status" className="rounded-lg border border-bg-tertiary bg-bg-secondary p-5">
-        <p>个股名称与报价尚未取得（{code}）</p>
-        <p className="mt-2 text-sm text-text-muted">当前报价接口未提供有效数据。分时、K线等模块独立加载；不把未知报价填成零。</p>
-        <button disabled={quoteFetching} onClick={() => void refreshQuote()} className="mt-3 text-sm text-accent-blue">{quoteFetching ? "正在获取…" : "重新获取报价"}</button>
+        <p>{t("个股名称与报价尚未取得")}（{code}）</p>
+        <p className="mt-2 text-sm text-text-muted">{t("当前报价接口未提供有效数据。分时、K线等模块独立加载；不把未知报价填成零。")}</p>
+        <button disabled={quoteFetching} onClick={() => void refreshQuote()} className="mt-3 text-sm text-accent-blue">{quoteFetching ? t("正在获取…") : t("重新获取报价")}</button>
       </div> : <QuoteCard quote={quote ?? null} loading={quoteLoading} />}
 
+      <CompanyResearchPanel key={`company-${code}`} code={code} />
+
       {/* 真实盘中分钟结构与数据来源状态 */}
-      <IntradayBattlefieldPanel key={code} code={code} />
+      <IntradayBattlefieldPanel key={`intraday-${code}`} code={code} />
 
 
       {/* Tab 切换 */}
-      <div className="flex gap-1 border-b border-bg-tertiary">
+      <div className="flex gap-1 overflow-x-auto border-b border-bg-tertiary">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? "border-accent-blue text-accent-blue"
                   : "border-transparent text-text-secondary hover:text-text-primary"
               }`}
             >
               <Icon className="w-4 h-4" />
-              {tab.label}
+              {t(tab.label)}
             </button>
           );
         })}
@@ -104,7 +109,7 @@ export default function StockPage() {
       </div>
 
       {/* 新闻 */}
-      <NewsFeed key={code} code={code} />
+      <NewsFeed key={`news-${code}`} code={code} />
     </div>
   );
 }

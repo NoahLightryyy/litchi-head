@@ -14,12 +14,14 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Literal
 
+import httpx
 import pandas as pd
 from fastapi import APIRouter, Path, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from backend.async_utils import DATA_TIMEOUT, BoundedSyncRunner, run_sync
+from backend.index_history import router as index_history_router
 from src.data.chain_evidence import ChainEvidenceMap, get_sector_chain
 from src.data.collector import DataCollector
 from src.data.index_quote_runtime import (
@@ -47,6 +49,7 @@ from src.data.providers.sina_members import SinaMemberPage, sina_members
 
 logger = logging.getLogger("backend.market")
 router = APIRouter(prefix="/api/market")
+router.include_router(index_history_router)
 collector = DataCollector()
 index_quote_service = get_index_quote_service()
 _sector_source_runner = BoundedSyncRunner(
@@ -425,17 +428,28 @@ async def _fetch_board_dataframes(
             logger.error("获取板块上游超时: call=%s timeout=%ss", call_id, timeout)
             failures[call_id] = "timeout"
             frames[call_id] = pd.DataFrame()
+            frames[call_id].attrs["refresh_error"] = "请求超时"
             continue
         try:
             frames[call_id] = task.result()
-        except TimeoutError:
+        except (TimeoutError, httpx.TimeoutException):
             logger.exception("板块上游返回超时: call=%s", call_id)
             failures[call_id] = "timeout"
             frames[call_id] = pd.DataFrame()
-        except Exception:
+            frames[call_id].attrs["refresh_error"] = "请求超时"
+        except Exception as exc:
             logger.exception("获取板块上游失败: call=%s", call_id)
             failures[call_id] = "failed"
             frames[call_id] = pd.DataFrame()
+            if isinstance(exc, httpx.HTTPStatusError):
+                reason = f"上游返回 HTTP {exc.response.status_code}"
+            elif isinstance(exc, httpx.RequestError):
+                reason = "网络连接失败"
+            elif isinstance(exc, ValueError):
+                reason = "返回数据未通过完整性校验"
+            else:
+                reason = "请求处理失败，详见服务日志"
+            frames[call_id].attrs["refresh_error"] = reason
     return frames, failures
 
 
@@ -665,6 +679,15 @@ async def get_sectors(
         timeout=DATA_TIMEOUT,
     )
 
+    refresh_diagnostics = [
+        MarketLimitation(
+            code="BOARD_REFRESH_FAILED",
+            message=f"{'行业' if kind == 'industry' else '概念'}刷新失败："
+                    f"{frame.attrs['refresh_error']}",
+        )
+        for kind, frame in board_frames.items() if frame.attrs.get("refresh_error")
+    ]
+
     # Display-only recovery: never feed historical snapshots into detail/AI collectors.
     restored_kinds: list[str] = []
     store = board_snapshots.store
@@ -755,6 +778,7 @@ async def get_sectors(
             failed_sources=failed_sources,
         )
     limitations: list[MarketLimitation] = []
+    limitations.extend(refresh_diagnostics)
     if restored_kinds:
         limitations.append(MarketLimitation(
             code="BOARD_HISTORY_ONLY",

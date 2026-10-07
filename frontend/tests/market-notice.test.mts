@@ -57,3 +57,16 @@ test("真正影响使用的缺失、陈旧和刷新失败仍然可见", () => {
     "存在其他限制",
   ]);
 });
+
+test("板块详情折叠仍明确历史状态，不能冒充休市成功", async () => {
+  const { boardNoticeSummary } = await import("../lib/market-notice.ts");
+  const meta: MarketMeta = { ...baseMeta, status: "stale", limitations: [
+    { code: "BOARD_HISTORY_ONLY", message: "历史快照", index_code: null },
+    { code: "BOARD_REFRESH_FAILED", message: "行业刷新失败：上游返回 HTTP 502", index_code: null },
+  ] };
+  assert.match(boardNoticeSummary(meta)!, /刷新未成功.*历史快照/);
+  assert.ok(marketNoticeFacts(meta).includes("行业刷新失败：上游返回 HTTP 502"));
+  assert.match(boardNoticeSummary({ ...meta, status: "partial", failed_sources: [] })!, /快照已加载/);
+  assert.match(boardNoticeSummary({ ...meta, status: "partial", failed_sources: [] }, true)!, /刷新未成功/);
+  assert.equal(boardNoticeSummary(baseMeta), null);
+});

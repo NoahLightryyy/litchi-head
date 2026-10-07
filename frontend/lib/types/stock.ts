@@ -11,9 +11,11 @@ export interface StockQuote {
   low: number;
   prev_close: number;
   volume: number;
-  turnover_rate: number;
-  fund_flow: number;
-  market_cap: number;
+  turnover_rate: number | null;
+  fund_flow: number | null;
+  market_cap: number | null;
+  source?: "eastmoney" | "sina";
+  verification_status?: "single_source";
   amount: number;
   fetched_at: string | null;
 }
@@ -74,6 +76,7 @@ export interface TechnicalIndicators {
 /* ── 财务指标类型 ── */
 
 export interface FinancialMetrics {
+  gross_margin_evidence?: { report_date: string; source_url: string | null; revenue: number | null; cost: number | null; reason: string } | null;
   stock_code: string;
   report_date: string;
   eps: number;

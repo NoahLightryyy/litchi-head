@@ -1,75 +1,33 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Search, BarChart3, TrendingUp, Newspaper } from "lucide-react";
-import { useMarketIndices, useSectors, useMacroBrief, useHotNews } from "@/lib/hooks/use-market";
-import { useStockSearch } from "@/lib/hooks/use-stock";
+import { useCallback } from "react";
+import { BarChart3, TrendingUp, Newspaper } from "lucide-react";
+import { useMarketIndices, useMacroBrief, useHotNews } from "@/lib/hooks/use-market";
+import { StockDiscovery } from "@/components/shared/stock-discovery";
 import { MarketIndices } from "@/components/macro/market-indices";
-import { SectorRanking } from "@/components/macro/sector-ranking";
+import { SectorFundingPanels } from "@/components/macro/sector-funding-panels";
 import { MacroBrief } from "@/components/macro/macro-brief";
 import { MarketDataNotice } from "@/components/macro/market-data-notice";
+import { NewsArchive } from "@/components/macro/news-archive";
 import { NewsTopics } from "@/components/macro/news-topics";
 
 /** 宏观总览主页面 */
 export default function MacroPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("fund_flow");
+
 
   // ── 数据 ──
   const indicesQuery = useMarketIndices();
-  const sectorsQuery = useSectors(sortBy);
   const briefQuery = useMacroBrief();
   const newsQuery = useHotNews();
-  const { data: searchResults } = useStockSearch(searchQuery);
 
-  const handleSortChange = useCallback((sort: string) => {
-    setSortBy(sort);
-  }, []);
 
   const handleRefreshBrief = useCallback(() => {
     void briefQuery.refetch();
   }, [briefQuery]);
 
-  const sectorSortLabel = sectorsQuery.isError && !sectorsQuery.data
-    ? "排序口径不可用"
-    : sectorsQuery.data?.meta.sort_applied === "fund_flow"
-      ? "按主力资金流向排序"
-      : sectorsQuery.data?.meta.sort_applied === "change_pct"
-        ? "按涨跌幅排序"
-        : sectorsQuery.data?.meta.sort_applied === "net_flow"
-          ? "按新浪资金净流入排序"
-        : sectorsQuery.data
-          ? "按数据源顺序"
-          : null;
-
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-      {/* 搜索框 */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="搜索股票代码、名称或板块..."
-          className="w-full h-10 pl-10 pr-4 rounded-lg bg-bg-secondary border border-bg-tertiary text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-blue text-sm"
-        />
-        {searchQuery.length >= 2 && searchResults && searchResults.length > 0 && (
-          <div className="absolute top-full mt-1 w-full rounded-lg border border-bg-tertiary bg-bg-secondary shadow-lg z-10 overflow-hidden">
-            {searchResults.map((r) => (
-              <a
-                key={r.code}
-                href={`/stock/${r.code}`}
-                className="flex items-center gap-3 px-4 py-2.5 hover:bg-bg-tertiary/50 transition-colors border-b border-bg-tertiary last:border-0"
-              >
-                <span className="text-sm font-medium text-text-primary">{r.name}</span>
-                <span className="text-xs text-text-muted">{r.code}</span>
-                <span className="text-xs text-accent-blue ml-auto">{r.type}</span>
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
+      <StockDiscovery />
 
       {/* 指数卡片 */}
       <section>
@@ -87,30 +45,19 @@ export default function MacroPage() {
         />
       </section>
 
-      {/* 两列布局：板块排行 + AI 简报 */}
-      <div className="grid grid-cols-3 gap-6">
+      {/* 双来源资金榜单与指数摘要 */}
+      <div className="flex flex-col gap-6">
         {/* 板块排行 */}
-        <section className="col-span-2">
+        <section>
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="w-4 h-4 text-accent-blue" />
             <h2 className="text-sm font-semibold text-text-primary">板块排行榜</h2>
-            {sectorSortLabel && (
-              <span className="text-xs text-text-muted ml-auto">{sectorSortLabel}</span>
-            )}
           </div>
-          <SectorRanking
-            sectors={sectorsQuery.data?.data ?? []}
-            loading={sectorsQuery.isLoading}
-            error={sectorsQuery.isError}
-            refreshError={sectorsQuery.isError && !!sectorsQuery.data}
-            meta={sectorsQuery.data?.meta}
-            onRetry={() => void sectorsQuery.refetch()}
-            onSortChange={handleSortChange}
-          />
+          <SectorFundingPanels />
         </section>
 
         {/* 指数摘要 */}
-        <section className="col-span-1">
+        <section>
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-4 h-4 text-accent-blue" />
             <h2 className="text-sm font-semibold text-text-primary">指数摘要</h2>
@@ -160,6 +107,7 @@ export default function MacroPage() {
           )}
         </div>
       </section>
+      <NewsArchive />
     </div>
   );
 }

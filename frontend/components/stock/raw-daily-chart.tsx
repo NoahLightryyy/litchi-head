@@ -8,7 +8,7 @@ import { CandlestickChart } from "./candlestick-chart";
 
 export function RawDailyChart({code, zoom, period = "daily"}: {code:string; zoom?: SemanticZoom; period?: DisplayPeriod}) {
   const label = periodLabels[period];
-  const days = period === "daily" ? 90 : 900;
+  const days = period === "daily" ? 240 : 900;
   const query = useQuery({queryKey:["stocks",code,"raw-daily-display", days],
     queryFn: async ({signal}) => parseRawDaily(await api.getRaw(`/stocks/${code}/kline-raw-display`, {days: String(days)},
       {signal:AbortSignal.any([signal,AbortSignal.timeout(15000)])}),code),

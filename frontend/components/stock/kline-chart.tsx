@@ -60,10 +60,7 @@ export function KlineChart({ code, zoom }: KlineChartProps) {
               </button>
             ))}
           </div>
-          {/* 指标切换（占位） */}
-          <button className="px-3 py-1 text-xs rounded bg-bg-tertiary text-text-secondary hover:text-text-primary transition-colors">
-            + 指标
-          </button>
+
         </div>
       </div>
 

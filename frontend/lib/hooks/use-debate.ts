@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { runDebate, fetchDebateResult, fetchTrustReport, fetchTrustLeaderboard } from "@/lib/api/debate";
+import { runDebate, fetchDebateHistory, fetchDebateResult, fetchTrustReport, fetchTrustLeaderboard } from "@/lib/api/debate";
 import type { DebateResult, DebateRequest } from "@/lib/types/debate";
 import {
   INITIAL_DEBATE_REQUEST_STATE,
@@ -87,5 +87,14 @@ export function useTrustLeaderboard() {
     queryKey: ["trust", "leaderboard"],
     queryFn: () => fetchTrustLeaderboard(),
     staleTime: 300_000,
+  });
+}
+
+export function useDebateHistory(stockCode: string, offset = 0) {
+  return useQuery({
+    queryKey: ["debate", "history", stockCode, offset],
+    queryFn: () => fetchDebateHistory(stockCode, offset),
+    refetchInterval: 10_000,
+    staleTime: 0,
   });
 }

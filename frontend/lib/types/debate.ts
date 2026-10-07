@@ -16,6 +16,8 @@ export interface DebateStatus {
 }
 
 export interface AgentAnalysis {
+  horizons?: import("../research-horizon").HorizonOpinion[];
+  research_generated_at?: string | null;
   agent_name: string;
   skill_id: string;
   skill_name: string;
@@ -61,6 +63,7 @@ export interface VoteSummary {
 
 export interface EvidenceLimitation {
   status: "limited";
+  research_note?: string | null;
   capability: string;
   missing_upstream_ids: string[];
   missing_independent_upstreams: number;
@@ -90,4 +93,13 @@ export interface TrustReport {
   total_predictions: number;
   is_reliable: boolean;
   summary: string;
+}
+
+export interface DebateHistoryItem {
+  session_id: string;
+  stock_code: string;
+  status: "queued" | "running" | "completed" | "failed";
+  created_at: string;
+  updated_at: string;
+  error: string | null;
 }

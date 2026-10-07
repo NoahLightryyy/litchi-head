@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -304,4 +305,22 @@ test("新浪成分股核对板块和页码，拒绝缺页、伪实时及非法�
     assert.throws(() => parseSinaMembersEnvelope({...value, data: {...value.data, stocks}}, "new_swzz", 2), MarketContractError);
   }
   assert.throws(() => parseSinaMembersEnvelope({...value, meta: {...value.meta, status: "success"}}, "new_swzz", 2), MarketContractError);
+});
+
+test("AH market structure passes the actual sector envelope parser without weakening edge guards", () => {
+  const graph = JSON.parse(readFileSync(new URL("../../src/data/catalogs/chain/BK0499.json", import.meta.url), "utf8"));
+  const data = { id: "BK0499", name: "AH股", change_pct: null, fund_flow: null,
+    heat: "low", chain_map: [], chain_evidence: graph, stocks: [], ai_analysis: "" };
+  const meta = { ...baseMeta, status: "partial", limitations: [
+    {code: "BOARD_QUOTE_UNAVAILABLE", message: "板块行情暂不可用", index_code: null},
+    {code: "FUND_FLOW_UNAVAILABLE", message: "暂无资金数据", index_code: null},
+  ] };
+  assert.equal(parseSectorDetailEnvelope({ data, meta }).data.chain_evidence?.map_kind, "market_structure");
+  for (const fault of ["kind", "edge", "map"]){
+    const invalid = structuredClone(graph);
+    if (fault === "kind") invalid.nodes[0].kind = "company";
+    if (fault === "edge") invalid.edges[0].relation = "supplies";
+    if (fault === "map") invalid.map_kind = "industry_chain";
+    assert.throws(() => parseSectorDetailEnvelope({ data: { ...data, chain_evidence: invalid }, meta }), MarketContractError);
+  }
 });
