@@ -1,4 +1,4 @@
-"""Two-source homepage market-index aggregation with explicit degradation."""
+"""Multi-source homepage market-index aggregation with explicit degradation."""
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ from src.data.providers.quotes import (
     EastmoneyIndexQuoteSource,
     SinaIndexQuoteSource,
 )
+from src.data.providers.tencent_index_quotes import TencentIndexQuoteSource
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 INDEX_PRICE_TOLERANCE = 0.01
@@ -121,7 +122,7 @@ def _now_shanghai() -> datetime:
 
 
 class IndexQuoteService:
-    """Collect Eastmoney and Sina concurrently and reconcile each index."""
+    """Collect Eastmoney, Sina and Tencent concurrently and reconcile each index."""
 
     def __init__(
         self,
@@ -134,9 +135,12 @@ class IndexQuoteService:
         self._sources = sources or (
             EastmoneyIndexQuoteSource(),
             SinaIndexQuoteSource(),
+            TencentIndexQuoteSource(),
         )
         if len({source.descriptor.upstream_id for source in self._sources}) < 2:
             raise ValueError("market indices require two independent upstreams")
+        if len({source.descriptor.upstream_id for source in self._sources}) != len(self._sources):
+            raise ValueError("market index upstream identities must be unique")
         self._now_provider = now_provider
         self._health_stats = health_stats or get_health_stats()
         self._max_workers = max_workers
@@ -173,7 +177,7 @@ class IndexQuoteService:
                             "error_code": "index_quote_invalid",
                             "error_message": "指数来源身份、价格或时间无效",
                         })
-            reconciled, code_limitations, conflicted = self._reconcile_pair(
+            reconciled, code_limitations, conflicted = self._reconcile_sources(
                 code, name, timed, now,
             )
             limitations.extend(code_limitations)
@@ -215,7 +219,7 @@ class IndexQuoteService:
                 limitations.append(IndexLimitation(
                     code="INDEX_STALE_CACHE",
                     index_code=code,
-                    message=f"{name} 当前双源失败，返回 30 秒内已核验缓存",
+                    message=f"{name} 当前所有来源失败，返回 30 秒内已核验缓存",
                 ))
             else:
                 missing_codes.append(code)
@@ -298,7 +302,7 @@ class IndexQuoteService:
         )
 
     @staticmethod
-    def _reconcile_pair(
+    def _reconcile_sources(
         code: str,
         name: str,
         timed: list[_TimedSourceResult],
@@ -332,14 +336,14 @@ class IndexQuoteService:
                 return IndexQuoteService._display_quote(successful, name), [IndexLimitation(
                     code="INDEX_TIMESTAMP_CONFLICT",
                     index_code=code,
-                    message=f"{name} 双源时间差超过 3 秒",
+                    message=f"{name} 多源时间差超过 3 秒",
                 )], True
             prices = [item.price for item in quotes]
             if max(prices) - min(prices) > INDEX_PRICE_TOLERANCE + 1e-9:
                 return IndexQuoteService._display_quote(successful, name), [IndexLimitation(
                     code="INDEX_PRICE_CONFLICT",
                     index_code=code,
-                    message=f"{name} 双源价格差超过 0.01 点",
+                    message=f"{name} 多源价格差超过 0.01 点",
                 )], True
             canonical = max(
                 quotes,

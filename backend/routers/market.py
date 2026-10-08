@@ -596,14 +596,14 @@ async def get_indices():
         logger.exception("多源指数汇总发生未处理异常")
         return _market_failed(
             "MARKET_INDICES_FAILED", "指数行情暂时不可用", t0,
-            failed_sources=["eastmoney", "sina"],
+            failed_sources=["eastmoney", "sina", "tencent"],
         )
     limitations = _market_limitations(result.limitations)
     diagnostics = _market_source_diagnostics(result.source_diagnostics)
     if result.status == "failed":
         return _market_failed(
             result.error_code or "MARKET_INDICES_FAILED",
-            "指数双源校验失败",
+            "指数多源校验失败",
             t0,
             missing_codes=result.missing_codes,
             failed_sources=result.failed_sources,
@@ -1054,14 +1054,14 @@ async def get_macro_brief():
         logger.exception("宏观简报多源指数汇总发生未处理异常")
         return _market_failed(
             "MARKET_BRIEF_FAILED", "宏观简报输入暂时不可用", t0,
-            failed_sources=["eastmoney", "sina"],
+            failed_sources=["eastmoney", "sina", "tencent"],
         )
     limitations = _market_limitations(result.limitations)
     diagnostics = _market_source_diagnostics(result.source_diagnostics)
     if result.status == "failed":
         return _market_failed(
             "MARKET_BRIEF_FAILED",
-            "宏观简报指数输入未通过双源校验",
+            "宏观简报指数输入未通过多源校验",
             t0,
             missing_codes=result.missing_codes,
             failed_sources=result.failed_sources,

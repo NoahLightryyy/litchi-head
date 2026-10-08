@@ -324,3 +324,21 @@ test("AH market structure passes the actual sector envelope parser without weake
     assert.throws(() => parseSectorDetailEnvelope({ data: { ...data, chain_evidence: invalid }, meta }), MarketContractError);
   }
 });
+
+test("指数三源兼容：东财失败不抹掉新浪腾讯共识，腾讯单源可显示", () => {
+  const source_diagnostics = ["eastmoney", "sina", "tencent"].map((upstream_id) => ({
+    index_code: "000001", source_id: `direct-${upstream_id}-index`, upstream_id,
+    status: upstream_id === "eastmoney" ? "failed" : "success_data",
+    latency_ms: 120, as_of: upstream_id === "eastmoney" ? null : verifiedIndex.as_of,
+    error_code: upstream_id === "eastmoney" ? "upstream_request_failed" : null,
+    error_message: upstream_id === "eastmoney" ? "来源请求失败" : null,
+  }));
+  const envelope = { data: [verifiedIndex], meta: {
+    ...baseMeta, status: "partial", failed_sources: ["eastmoney"], source_diagnostics,
+  } };
+  assert.deepEqual(parseIndicesEnvelope(envelope), envelope);
+  const single = { ...envelope, data: [{ ...verifiedIndex, source_count: 1, display_source: "tencent" }] };
+  assert.equal(parseIndicesEnvelope(single).data[0].display_source, "tencent");
+  const three = { data: [{ ...verifiedIndex, source_count: 3 }], meta: baseMeta };
+  assert.equal(parseIndicesEnvelope(three).data[0].source_count, 3);
+});
