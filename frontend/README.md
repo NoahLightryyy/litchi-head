@@ -143,3 +143,7 @@ frontend/
 部分成功不掩盖缺失证据。消费者测试：
 `node --experimental-strip-types --test tests/debate-error.test.mts tests/debate-limitations.test.mts`。
 独立修复预览3002→8002，主窗口3001的图表开发不在本分支替换范围内。
+# 分页板块表格（2026-10-07）
+
+`SectorRanking` 每页10行完整展开，不设内部纵向滚动区域。窄屏保留横向滚动；
+翻页滚动页面至表格顶部，搜索输入只重置页码，不移动页面。

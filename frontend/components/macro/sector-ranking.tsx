@@ -33,10 +33,10 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
   const changeScale = sectorChangeScale(sectors);
   const tableContainer = useRef<HTMLDivElement>(null);
 
-  const goToPage = (next: number) => {
+  const goToPage = (next: number, revealTable = true) => {
     setPage(sectorPage(sectors, query, next).page);
     setJump("");
-    tableContainer.current?.scrollTo({ top: 0 });
+    if (revealTable) tableContainer.current?.scrollIntoView({ block: "start" });
   };
 
   const handleSortChange = (sort: string) => {
@@ -83,12 +83,12 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
         <label className="flex items-center gap-2">
           搜索板块
           <input type="search" aria-label="搜索板块名称或代码" placeholder="名称或代码" value={query}
-            onChange={(event) => { setQuery(event.target.value); goToPage(1); }}
+            onChange={(event) => { setQuery(event.target.value); goToPage(1, false); }}
             className="w-44 rounded border border-bg-tertiary bg-bg-secondary px-3 py-2 text-text-primary" />
         </label>
         <span role="status">显示 {view.start}–{view.end} / {view.total} 个板块{query.trim() && `（全榜 ${sectors.length} 个）`}</span>
       </div>
-      <div ref={tableContainer} className="max-h-[32rem] overflow-auto rounded-lg border border-bg-tertiary bg-bg-secondary">
+      <div ref={tableContainer} className="overflow-x-auto rounded-lg border border-bg-tertiary bg-bg-secondary">
       <table className="w-full min-w-[34rem] text-sm" aria-label="板块排行榜">
         <thead className="sticky top-0 z-10 bg-bg-secondary">
           <tr className="border-b border-bg-tertiary text-text-muted text-xs uppercase tracking-wider">
