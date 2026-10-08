@@ -122,3 +122,5 @@
 - [闭卷E0验证](51-closed-book-e0-validation.md)
 
 - [Git校验会话快照](52-session-snapshot-is-not-source-of-truth.md)
+
+- [公司解读失败阶段与有界纠正](company-research-failure-stages.md)：调用、校验、保存与真实历史状态。
