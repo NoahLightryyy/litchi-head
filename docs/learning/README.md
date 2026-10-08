@@ -116,3 +116,5 @@
 - [64 异步结果必须绑定当前请求](64-request-bound-fail-closed-ui.md)
 - [65 原子健康快照](65-atomic-health-snapshot.md)
 - [66 四层行情进入 LLM](66-four-layer-evidence-to-llm.md)
+
+- [健康统计原子快照](56-atomic-health-snapshot.md)（保留原分支卡片编号）
