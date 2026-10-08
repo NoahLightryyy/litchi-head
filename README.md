@@ -1,325 +1,190 @@
-> 2026-10-08 分支整合：全部现有功能分支经隔离整合与验收，统一归入本地 `main`；最新功能与错误处理并存，既有上游数据覆盖及 E0 验证债务仍开放。最终闸门与分支清理记录见 [整合日志](docs/04-changelog/logs/2026-10-08/2026-10-08-branch-consolidation.md)。
+# 🍒 Litchi Head · 荔枝头
 
-> 2026-10-01 运行修复：用户已批准产品分析临时使用 `deepseek-v4-pro` 非思考模式；Flash 实网仅返回保活消息。当前产品默认以 `src/utils/llm.py::DEFAULT_MODEL` 为准。下文快速模型策略为长期目标，不改变当前开发助手模型。
+[![CI](https://github.com/NoahLightryyy/litchi-head/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/NoahLightryyy/litchi-head/actions)
+[![Python](https://img.shields.io/badge/Python-3.12%2B-blue)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/荔枝头-Litchi%20Head-FF6B35?style=for-the-badge">
-    <img alt="Litchi Head" src="https://img.shields.io/badge/荔枝头-Litchi%20Head-FF6B35?style=for-the-badge">
-  </picture>
-</p>
+面向 A 股的个人投资研究工具。把行情、财报、新闻、公司定位和不同流派的分析放在同一个工作台，帮助用户看清依据、分歧和风险。
 
-<p align="center">
-  <em>个人投资研究与决策证据助手 — 多智能体是待验证的实现手段</em>
-</p>
-
-<p align="center">
-  <a href="https://github.com/NoahLightryyy/litchi-head/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/NoahLightryyy/litchi-head/ci.yml?branch=main&label=CI&logo=github" alt="CI Status">
-  </a>
-  <img src="https://img.shields.io/badge/tests-pytest%20passing-2ea44f?logo=pytest" alt="Tests">
-  <img src="https://img.shields.io/badge/coverage-80%25%2B-brightgreen" alt="Coverage">
-  <img src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python" alt="Python">
-  <img src="https://img.shields.io/badge/type_check-pyright-brightgreen" alt="Pyright">
-  <img src="https://img.shields.io/badge/architecture%20decisions-13%20ADRs-informational" alt="ADRs">
-</p>
-
----
-
-## 项目动机
-
-> 散户想认真做投资？打开 APP 满屏推荐、消息轰炸、FOMO 追涨。
-> 机构有 10 个 CFA + Bloomberg Terminal — 我就不信一个人配不齐 AI 投研。
-
-**Litchi Head** 的目标是：你问一句话 → 获得结构化的证据、分歧、风险和估值支持，帮助你在 10 秒内看懂关键信息；最终投资决策始终由你自己作出。
+**当前阶段：Phase R · 数据可靠性与研究体验加固。** 功能分支已整合到 `main` 并推送 GitHub。最近完整验收为 **2026-10-08**，见[整合记录](docs/04-changelog/logs/2026-10-08/2026-10-08-branch-consolidation.md)。
 
 > [!IMPORTANT]
-> **当前证据成熟度**：工程链路和失败关闭已有测试证据，但项目尚未证明多智能体比单 Agent、简单规则或买入持有更能创造成本后收益。E0-100 离线闭卷评测实现已合入，尚无正式评测胜负结论；KR-4～KR-6 在 E0 裁决前暂停。
+> 工程测试通过不代表投资效果已经得到验证。项目尚未证明多智能体优于单 Agent、简单规则或买入持有；AI 分数与置信度不等于上涨概率。研究输出保留数据时间、适用周期、成立条件和失效条件，最终投资决策由用户作出。
 
-> 💡 **2026-06-23 新的方向**：投行 vs 散户的真正壁垒不是分析模型，而是**数据纵深**——财报拆解、供应链分析、产业链定位。litchi-head 补上这块，就是极少数同时具备技术分析 + 基本面深度 + AI 多角度辩论的散户投资工具。
+## 可以做什么
 
-## 核心架构
+| 页面 | 当前功能 |
+|---|---|
+| **市场总览** | 三大指数及来源核验、板块资金榜、多渠道新闻、热点词云与历史新闻检索 |
+| **搜索与发现** | 搜索股票和板块、浏览器本地搜索历史、多周期涨幅榜与资金排行；不可用周期显示具体限制 |
+| **行业研究** | 行业与概念排行、成分股筛选、可追溯资料图、按需 AI 解读及生成地图版本 |
+| **个股研究** | 报价、当日/五日分时、日/周/月 K 线、技术指标、财务与资金数据、相关新闻和公告 |
+| **公司解读** | 业务与产业链位置、亮点、竞争优势与压力、风险点，以及对盈利预期和估值的条件性影响；附来源并保存结果 |
+| **流派分析** | 同时研究短期 1–5 个交易日、中期 1–3 个月、长期 1–3 年；分别呈现条件、风险与结论，支持查询分析历史 |
+| **选股与对比** | 按股票、行业或概念搜索，最多四家公司并列比较财务指标 |
+| **跟踪与复盘** | 自选、持仓与风险、研究及用户操作记录入口；连续收益验证与完整反馈闭环仍待完善 |
 
-> 哲学：**体系 > 天才** — 这不是一个更好的交易机器人，而是一个组织的模拟。
-> 🏛️ 完整设计哲学见 [DESIGN_PHILOSOPHY.md](docs/00-overview/DESIGN_PHILOSOPHY.md)
->
-> 三权分立：公式负责调整，镜子负责展示，人负责拍板
+菜单提供 **中文 / English** 选择，目前覆盖导航、页头及部分界面，业务正文和历史 AI 输出尚未全面翻译。
 
-> 下图是当前实现，不是已经验证的最优组织。E0 将通过 Full/Single 对照和后续消融实验检验辩论、人格、风控等层是否真的改善指标；删掉某层不降指标，就应合并或删除。
+### 图表与指标
 
-```
-                         ┌───────────────────────────┐
-                         │     💬 用户一句话输入       │
-                         │   "蔚来被低估了吗？"        │
-                         └─────────────┬─────────────┘
-                                       ▼
-                         ┌───────────────────────────┐
-                         │  📊 第1层 · 数据采集 ✅    │
-                         │  行情+K线+新闻 (已有)      │
-                         │  财务指标+估值比率 ✅     │
-                         │  FinancialMetric ✅       │
-                         └─────────────┬─────────────┘
-                                       ▼
-              ┌────────────────────────┼────────────────────────┐
-              ▼                        ▼                        ▼
-    ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
-    │ 🧑‍💼 第2层·分析师层  │   │                  │   │                  │
-    │ 基本面(真实数据)✅│   │ 技术面  情绪面    │   │ 宏观面           │
-    │ FinancialMetric   │   │                  │   │                  │
-    │ 注入分析师prompt  │   │ key_findings    │   │ red_flags        │
-    └────────┬─────────┘   └────────┬─────────┘   └────────┬─────────┘
-             └───────────────────────┼──────────────────────┘
-                                     ▼
-              ┌─────────────────────────────────────────┐
-              │ 🧠 第3层·策略师层 (7位大师人格)           │
-              │ 巴菲特/格雷厄姆 ← ROE/自由现金流 ✅       │
-              │ 林奇 ← PEG/营收增长 ✅                   │
-              │ 芒格/达利欧/索罗斯/德鲁肯米勒             │
-              │ 基于分析师报告综合判断 + D2 强制方向       │
-              └───────────────────┬─────────────────────┘
-                                  ▼
-              ┌─────────────────────────────────────────┐
-              │ ⚔️ 第4层·辩论层 (D1 同侪审阅)             │
-              │ 大师互相审阅分析：赞同 + 补充 + 异议        │
-              └───────────────────┬─────────────────────┘
-                                  ▼
-              ┌─────────────────────────────────────────┐
-              │ 🧑‍⚖️ 第5层·评审层 (D3 独立评审+ D4 聚合)  │
-              │ 独立裁判评分 + 权重建议 + 加权投票汇总      │
-              └───────────────────┬─────────────────────┘
-                                  ▼
-            ┌─────────────────────┴───────────────────────┐
-            ▼                                              ▼
-  ┌─────────────────────┐                    ┌─────────────────────┐
-  │ 🛡️ 第6层·风控层      │ ← M1 历史注入       │                     │
-  │ 激进·保守·中性       │                    │ R1 三层风控辩论      │
-  │ 交易纪律·PM裁决      │                    │ 止损/止盈/仓位/熔断  │
-  └──────────┬──────────┘                    └──────────┬──────────┘
-             └──────────────────┬──────────────────────┘
-                                ▼
-              ┌─────────────────────────────────────────┐
-              │ 💰 第7层·交易员层 (T1)                    │
-              │ 仓位计算 + 多步执行 + 预案规划             │
-              └───────────────────┬─────────────────────┘
-                                  ▼
-              ┌─────────────────────────────────────────┐
-              │ 🎯 第8层·PM裁决                          │
-              │ 综合全部上游产出 → TradeRecommendation    │
-              └───────────────────┬─────────────────────┘
-                                  ▼
-              ┌─────────────────────────────────────────┐
-              │ 🔁 第9层·用户经验反馈闭环 🆕             │
-              │ AI推荐 ↔ 用户操作 ↔ 实际盈亏 ↔ 学习      │
-              │ ResultCallbackEngine 分发结果事件 ✅     │
-              │ RetroBoard记录 → M2反思注入 → 改进决策   │
-              └───────────────────┬─────────────────────┘
-                                  ▼
-              ┌─────────────────────────────────────────┐
-              │ 🧠 记忆层 (贯穿全链路)                    │
-              │ MemoryStore(ABC) → JSON/SQLite/Chroma   │
-              │ 历史决策注入 · 知识库RAG · Skill插件盘    │
-              │ 用户行为存储 · 经验教训索引 🆕            │
-              └─────────────────────────────────────────┘
-```
+- K 线支持 MA / BOLL 主图，以及成交量、MACD、RSI、KDJ 副图；共享时间范围和十字线。
+- 默认展示全部**已取得**历史，支持缩放与日期滑块；不代表已经覆盖上市以来全部行情。
+- 悬停行情栏显示日期、开高低收、涨跌额、涨跌幅和指标值。
+- 当日分时包含价格/百分比轴、行情栏、每分钟成交量和成交额副图；分钟量额由有效的相邻累计值计算，缺口留空。
+- 五日分时提供行情栏；当前五日数据契约缺少量额序列，不绘制相应成交副图。
+- 财务指标支持点击查看含义与用途；缺失值保留为空，不补成零。
 
-## 技术亮点
+### 数据与研究依据
 
-### 🧠 多智能体架构（LangGraph）
+行情适配器包含东方财富、新浪、腾讯等来源，使用 AKShare、ADaTa 及直连接口。具体页面会显示本次实际使用的来源、数据时间、单源/多源状态和失败诊断；接入多个渠道不意味着每次请求都取得了多个独立证据。
 
-| 组件 | 说明 | 状态 |
-|:----|:-----|:----:|
-| **MasterAgent** | 通用化编排器 + Skill 插件盘 + RAG 知识库 + 结构化输出 | ✅ 完整实现 |
-| **辩论引擎** | LangGraph StateGraph 10 层完整链路 + DP 系列增强 | ✅ D1-D4+M1-M4+R1+T1+FD+DP 系列完成 |
-| **分析师层** | 4 位专业分析师（基本面/技术面/情绪面/宏观面）+ 财务指标注入 + 灵感官反共识分析 | ✅ Phase 1 完成 |
-| **风控模块** | 三层风控辩论（Aggressive/Conservative/Neutral）+ PM 裁决 + 交易纪律体系 | ✅ R1 就绪（26 tests） |
-| **交易员层** | T1 交易员执行规划 — ExecutionStep/TradePlan + 仓位计算 + 预案规划 | ✅ T1 就绪（20 tests） |
-| **7 位投资大师 + 灵感官** | 当前策略/人格接口：巴菲特/芒格/费雪/卡拉曼/利弗莫尔/索罗斯/西蒙斯与第 5 位反共识分析师；不模拟历史人物。E0/消融尚未证明这些层具有不可替代优势。 | ✅ 已实现，待验证 |
-| **信任度评分** | TrustTracker — 方向准确率/校准/偏差/趋势统计 + DP-004 发言排序/低信任跳过 | ✅ M3 + RC-002 + DP-004 就绪 |
-| **动态权重** | `compute_weight_factor(metrics, sector=...)` 根据信任度和板块胜率动态调整聚合权重，D3 weight_suggestions 叠加 | ✅ M4 就绪（支持 sector） |
-| **教育小智** | RAG 驱动的问答 Agent（30 篇知识库 + TF 向量语义检索） | ✅ 就绪 |
-| **M2 反思闭环** | AI推荐 ↔ 实际走势对比反思，自动生成经验教训存储入库，并触发实际结果回调 | ✅ 反思入口已接 RC-002 |
-| **结果回调引擎 RC-001/002** 🆕 | ResultCallbackEngine 统一分发结果事件；M3-EXT 回调可把实际结果写入 TrustTracker | ✅ 核心分发器 + 信任度回调 + 反思 dispatch 完成 |
-| **用户经验反馈闭环** 🆕 | 记录用户操作 vs AI推荐 → 实际盈亏 → 经验教训 → 改进未来决策 | 🟡 极简记录/展示完成；用户行为、自动结果和 baseline 闭环待接入 |
-| **记忆存储系统** | MemoryStore(ABC) + JsonFileStore + MemoryManager 语义化接口 + 用户行为存储 🆕 | ✅ MVP |
-| **数据采集层** | akshare 封装：实时行情 / K 线 / 新闻 / 板块 / 全部 A 股 + 财务指标(17列)+估值比率(PE/PB/PS)+API端点+前端Tab ✅ | ✅ 就绪 |
-| **情绪数据层（C2）** | 市场涨跌比 + 情绪评分，提供市场整体情绪信号 | ✅ 已接入真实数据 |
-| **数据新鲜度标注** | KLine/StockQuote 采集时间戳 + 前端 DataFreshnessTag（"刚刚/N秒前/N分钟前"） | ✅ TD-041 已修复 |
-| **交易复盘看板** | RetroBoard 展示 AI 推荐、用户操作和结果字段 | 🟡 R4 极简版完成（27 tests）；连续真实结果与 baseline 统计未完成 |
-| **AI 输出置信度量化** | 校准曲线映射 + aggregate_node 校准 + 前端置信度可视化 | ✅ R4 完成 |
-| **基本面深度（FD）** ✅ | 财报纵深 + 产业链定位 + 供应链调研 — 机构级基本面分析能力 | ✅ FD-001 全链路完成（数据层+辩论注入+API+前端Tab） |
-| **多源证据完整性** | 六态来源结果 + 独立上游计数 + K 线逐源准确响应证明 + 不可变 `as_of` 回放 + LLM 前失败关闭 | 🟡 KR-3B-2 已完成；`assemble_kline_business()` 是统一成功/失败边界。AI/API/前端/风控/交易/回测消费者尚未切换。 |
-| **E0-100 闭卷验证** | 对比 Full 多智能体、同模型 Single DeepSeek、现金、买入持有与 20 日动量 | 🟡 设计与实施计划已就绪；代码尚未实施，费用/市场状态/仓位参数待首次真实运行前确认，尚无表现结果 |
-| **分时历史量能基线** | 腾讯历史单源影子回填 + 双源完整日正式层 + 内容寻址 Parquet/SQLite 审计 + 同分钟中位数 | 🟡 TD-072 代码完成；等待20个双源完整日暖机与影子误报率验证，启用前失败关闭 |
+新闻渠道包括财新、新浪、东方财富、财联社、同花顺和富途；个股页还检索相关新闻与公司公告。列表保留各渠道出处，热点统计另行去重。历史库保存采集结果并支持按时间、来源和关键词查询，同时公开实际覆盖范围。
 
-> FD 基本面深度轨道基于 2026-06-23 调研结论：散户 vs 机构的核心壁垒在于财报纵深和供应链数据，而非分析模型。
-> 完整调研报告见 [FUNDAMENTAL_RESEARCH.md](docs/02-requirements/FUNDAMENTAL_RESEARCH.md)。
-
-### 🏗️ 当前物理目录与责任映射
-
-```
-├── agents/          Agent 定义（Base → Master → 7位大师 → 教育小智）    ← 🤖 AI Agent 架构部
-├── debate/          辩论编排器（D1-D4+M1-M4+R1+T1+FD+DP🆕 全模块） ← 🎯 辩论引擎部
-├── data/            数据采集（行情/K线/新闻/公告 + 多源证据契约）      ← 🗄️ 数据管道部
-├── memory/          记忆系统（RAG 知识库 + MemoryStore）                 ← 🧠 记忆系统部
-├── callback/        结果回调引擎（事件分发 + 冷却 + 自动禁用 + 审计）   ← 🧠 记忆系统部
-├── core/            通信协议（AgentMessage + EvidenceItem）              ← 🤖 AI Agent 架构部
-├── utils/           LLM 封装 · 配置 · 费用追踪                          ← ⚙️ 基础设施部
-├── risk/            风控模块（R1 三层风控辩论 + PM裁决）                 ← 🛡️ 风控管理部
-├── trader/          交易员层（T1 执行规划 — TradePlan）                  ← 💹 交易执行部
-├── backtest/        回测引擎（骨架 + TradePlan→TradeRecord）             ← 🔬 回测研究部
-├── backend/         FastAPI 桥接层（行情/K线/新闻/财务/估值/产业链/复盘 ← 🌐 后端 API 部
-├── frontend/        React + Next.js 前端（5 Tab含财务分析✅）          ← 🎨 前端部
-├── .github/ + tests/  CI 流水线 + 测试架构 + 契约测试                    ← 🔄 质量保障部
-└── docs/             部门体系 · 模块规格 · 设计决策 · 工作日志            ← 📋 全部门共享
-```
-
-> 为避免业务损失，现有物理目录与职责保持不变；七个逻辑能力域仅是治理视图，不是目录迁移。任何后续合并都必须先完成依赖盘点、验收检查与回滚方案。规范决策见 [STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md](docs/02-requirements/STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md)。
-
-### 🧪 工程质量
-
-- **最近完整闸门快照（2026-08-10）** — 1742 collected、1719 passed、4 skipped、19 deselected；Ruff、Pyright、README 公共状态同步、Python 测试和前端类型检查 5/5 通过。PR 窄门禁以实际 PR head 对 base SHA 审计，Git 审计错误失败关闭；最新远端状态以 CI 为准。
-- **Git 校验的会话恢复（Task 7 复审中）** — Git/worktree 是事实源；Tasks 1–6 已完成，v2 `MATCH`/`REPO_AHEAD` 证据已通过；TD-078 凭据复扫与扫描契约已关闭并完成 Fix Round 1，剩余 TD-079/080 修复和独立复审完成前不关闭 TD-076，其他非 `MATCH` 状态仍按仓库证据只读重建。
-- **CI/CD 全自动** — GitHub Actions 流水线（Ruff 风格检查 + Pyright 类型检查 + Pytest 测试）
-- **类型安全** — 全项目完整类型注解，Pyright basic mode 零错误
-- **结果回调审计** — `CallbackRecord` 记录每次结果事件响应，坏回调自动熔断不拖垮主流程
-- **30+ 知识库文章** — 从《聪明的投资者》到《原则》，构建投资大师知识体系
-- **13 份架构决策记录（ADR）** — 每条技术选型均有理由、权衡和替代方案
-
-### 📋 关键设计决策一览
-
-| 决策 | 选择 | 理由 |
-|:----|:-----|:-----|
-| 模型路由 | ADR-001 | Pydantic `BaseModel` 作为跨模块契约 |
-| Agent 编排 | ADR-002 | LangGraph `StateGraph` 替代 SequentialChain |
-| 数据源 | ADR-003 | akshare 覆盖 6+ 类 A 股数据 |
-| 前端框架 | ADR-004 | Next.js 16 全栈框架（原 Streamlit MVP 已迁出） |
-| 辩论策略 | ADR-005 | 多元大师并行 + 加权投票聚合 |
+休市研究使用交易日历核验最近收盘报价，保留单源和证据缺口标记。各研究周期分别判断，条件或证据不完整时不强行生成方向共识。公司解读及地图的引用校验不等于逐句事实核验，AI 推断与披露事实分开标注。
 
 ## 快速开始
 
-本地开发环境已验证使用 Git 2.55、Python 3.12（项目支持 3.12+）、Node.js
-24 LTS 和 pnpm 10。Windows 推荐使用 Miniconda 隔离 Python 环境；Docker 和
-`make` 不是本地开发的硬依赖。
+需要 **Python 3.12+、Node.js 24、pnpm 10**。最近 macOS 本地验收使用 Python 3.13；Docker 和 `make` 不是必需依赖。
+
+### 1. 安装依赖
 
 ```bash
-# 克隆
 git clone https://github.com/NoahLightryyy/litchi-head.git
 cd litchi-head
 
-# 创建虚拟环境
-conda create -n litchi python=3.12
-conda activate litchi
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
 
-# 安装（含开发依赖）
-pip install -e ".[dev]"
+# 已安装 pnpm 时可跳过这一步
+npm install --global pnpm@10.33.0
+pnpm --dir frontend install --frozen-lockfile
+```
 
-# 安装前端依赖（Node.js 安装后先启用 pnpm）
-corepack enable
-corepack prepare pnpm@10.33.0 --activate
-cd frontend
-pnpm install --frozen-lockfile
-cd ..
+Windows PowerShell 使用 `python -m venv .venv` 和 `.\.venv\Scripts\Activate.ps1`。其他环境配置见[环境指南](docs/01-guides/ENVIRONMENT.md)。
 
-# 创建本地配置；Windows PowerShell 使用 Copy-Item
+### 2. 配置 AI 凭据
+
+```bash
+# 首次配置时复制；已有 .env 请保留原配置
 cp .env.example .env
-# 将 DeepSeek Key 安全写入系统凭据管理器，不要写进 .env
 python scripts/store-api-keys.py --set DEEPSEEK_API_KEY
-# 可选：将 LITCHI_KLINE_AUDIT_ROOT 设为绝对路径，迁移 K 线审计快照目录
-
-# 运行全部测试
-python scripts/check.py          # 智能检测变更范围，按需跑测试（推荐）
-python scripts/check.py --full   # 强制全量子集
-make check                       # Linux/macOS 同 --full
 ```
 
-> 只需要 **DeepSeek API Key**（[平台申请](https://platform.deepseek.com/)），按供应商实际用量计费。
-> Windows PowerShell 可运行 `./start_dev.ps1` 激活 `litchi` 环境并加载本地配置。
+Windows 复制配置使用 `Copy-Item .env.example .env`。密钥通过交互提示写入系统凭据管理器，不提交到仓库。行情与资料浏览不需要调用 LLM；生成 AI 解读和辩论需要有效凭据，并按供应商用量计费。
 
-## 项目状态
+当前产品默认使用 **`deepseek-v4-pro` 非思考模式**，以 [`src/utils/llm.py::DEFAULT_MODEL`](src/utils/llm.py) 为准。Flash 快速模型策略仍是后续目标，尚未作为当前产品默认恢复。
 
-```
-Phase 0 ──── 基建期 ████████████████████░  95% ✅
-  │  基础设施 · LLM 封装 · 通信协议 · Agent 基类 · CI/CD · ADR 体系
+### 3. 启动后端与前端
 
-Phase 1 ──── MVP 链路 █████████████████████  100% ✅
-  │  data/ ✅  debate/ ✅（D1-D4+M1-M4+R1+T1 十模块，含FD财务注入）
-  │  memory/ ✅  callback/ ✅  risk/ ✅  trader/ ✅  backtest/ ✅ 待完成：业务回调接入 🆕
+在项目根目录打开两个终端。
 
-Phase 2 ──── 增强辩论与风控 ██████████░░░░░░░░░░░░  40% 🟡
-  │  M2 交易后反思 ✅ · M3 信任度评分 ✅ · M4 动态权重 ✅ · C1 简报分区 ✅
+**终端一：后端**
 
-Phase R ──── 实盘加固 █████████████████████████░░  88% 🟡 ← 当前阶段
-  │  88% 仅表示功能清单，不表示实盘效果已经验证
-  │  多源契约 ✅ · K线 KR-2统一复权 ✅/KR-3 完成 · E0 设计已批准 · KR-4～KR-6 在 E0 裁决前暂停
-
-Phase R+1 ──── 设计哲学落地 ████████████████████████  100% ✅
-  │  DP-001 模型瘦身 ✅ · DP-002 三段式互评 ✅ · DP-003 偏斜公示 ✅
-  │  DP-004 旋钮扩展 ✅ · DP-005 灵感官 ✅ · DP-006 镜子反思 ✅ · DP-007 信息隔离 ✅
-
-FD ──── 基本面深度 ✅ █████████░░░░░░░░░░░░░░░░░░░  30% 🟢 ← 数据层+API+前端已完成
-  │  机构级基本面分析：财报纵深(FD-001全链路✅) · 产业链定位(FD-003 调研中) · 供应链图谱(FD-004 调研中)
-
-Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░░░░░░░░░   0% ⬜
-  │  Broker 接入 · 回测验证 · 个人决策日志
+```bash
+source .venv/bin/activate
+python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-> **证据成熟度说明**：功能存在、测试通过不等于投资效果成立。当前按 E0-first 顺序推进：按已批准的 [E0-100 离线闭卷评测设计](docs/superpowers/specs/2026-08-10-e0-validation-checkpoint-design.md) 和 [实施计划](docs/superpowers/plans/2026-08-10-e0-validation-checkpoint.md) 建设离线证伪闸门；首次真实运行前再确认费用、市场状态、仓位和置信度参数。E0 裁决前不进入 KR-4～KR-6。
+**终端二：前端**
 
-## 为什么值得关注
+```bash
+pnpm --dir frontend dev
+```
 
-### 学术价值
+打开 [http://localhost:3000](http://localhost:3000)。API 文档位于 [http://localhost:8000/docs](http://localhost:8000/docs)。
 
-| 维度 | 内容 |
-|:----|:------|
-| 🎯 **多 Agent 协同** | LangGraph StateGraph 生产级实践，解决 Agent 间状态共享与并行调度 |
-| 🧠 **RAG 知识检索** | TF 向量 + n-gram 语义检索混合方案，不依赖外部向量数据库 |
-| 🛡️ **结构化输出** | Pydantic 驱动的 Agent 输出规范化，保证下游消费的类型安全 |
-| 📊 **多源数据分析** | 统一来源身份与六态结果；按真实上游计数，证据不足时在 LLM 前失败关闭 |
+默认前端连接本机 8000。使用自定义端口或隔离预览时，同时设置 `NEXT_PUBLIC_API_URL=/api` 和 `LITCHI_BACKEND_URL=http://127.0.0.1:<后端端口>`；生产构建需在 `pnpm --dir frontend build` 前设置这些变量。PowerShell 使用 `$env:变量名="值"`。
 
-### 工程素养
+## 验证与开发
 
-- 📐 **13 份架构决策记录** — 每步选型有理由有权衡，不是"跟着教程写"
-- 🧪 **最近完整闸门快照（2026-08-10）** — 1742 collected、1719 passed、4 skipped、19 deselected；Ruff、Pyright、README 公共状态同步、Python 测试和前端类型检查 5/5 通过。PR 窄门禁以实际 PR head 对 base SHA 审计，Git 审计错误失败关闭；最新远端状态以 CI 为准。
-- 📝 **完整的文档体系** — 设计文档/流程规范/工作日志，代码即文档
-- 🔄 **CI/CD 全自动流水线** — GitHub Actions 一键 lint + type + test
-- 🔁 **结果驱动闭环地基** — RC-001/002 让“实际走势出来了”可以统一触发大师信任度校准
+```bash
+python scripts/check.py          # Ruff、Pyright、README 同步与按变更选择的检查
+python scripts/check.py --full   # 全量非 slow Python 测试及前端 Lint / 类型检查
+pnpm --dir frontend test         # 前端消费者与逻辑测试
+pnpm --dir frontend build        # 生产构建
+```
 
-## 技术栈
+**最近完整本地验证（2026-10-08，整合代码 `e42c202`）：**
 
-| 领域 | 选型 |
-|:----|:------|
-| **核心语言** | Python 3.12+ |
-| **AI 编排** | LangGraph (StateGraph) |
-| **LLM** | DeepSeek-Flash（默认，非思考）+ DeepSeek-V4-Pro（复杂任务，显式思考） |
-| **数据访问** | Pydantic (v2) + akshare |
-| **检索** | 自研 RAG（n-gram TF + 语义向量） |
-| **测试** | pytest + VCR.py（真实 LLM 请求录制回放） |
-| **CI** | GitHub Actions (Ruff + Pyright + pytest) |
-| **文档** | ADR + 技术债务管理 + 自动化工作流 |
+| 检查 | 结果 |
+|---|---|
+| 项目检查脚本 | 6/6 通过 |
+| Python 测试 | 2371 passed、7 skipped、19 deselected |
+| 前端测试 | 141 passed |
+| Ruff / Pyright / ESLint / TypeScript | 通过 |
+| Next.js 生产构建 | 通过 |
+| 浏览器验收 | 个股报价、分时主副图对齐、板块资料图及生成入口；错误与重试状态 |
 
-## 文档索引
+以上是带日期的本地验收快照，最新远程执行结果以 [GitHub Actions](https://github.com/NoahLightryyy/litchi-head/actions) 为准；未展示未经此次测量的覆盖率数字。
 
-- 🏛️ [设计哲学](docs/00-overview/DESIGN_PHILOSOPHY.md) — 虚拟小投行 · 三权分立 · 竞品差异化
-- [项目总览](docs/00-overview/OVERVIEW.md) — 定位、架构、快照
-- [全局看板](docs/00-overview/ROADMAP.md) — Phase 0-4 进度
-- [技术栈](docs/00-overview/TECH_STACK.md) — 选型理由与权衡
-- [🏢 职责与治理视图](docs/06-departments/README.md) — 物理目录责任映射、逻辑能力域与协作规程
-- [架构决策记录](docs/05-decisions/README.md) — 13 条 ADR
-- [AI 工作流程](docs/01-guides/WORKFLOW.md) — 开发流程规范（含部门角色加载机制）
-- [会话恢复与保存](docs/01-guides/workflow/SESSION_RECOVERY.md) — Git 校验的恢复、v2 快照保存与失败关闭边界
-- [环境配置](docs/01-guides/ENVIRONMENT.md) — 快速开始
-- [模块规格（辩论引擎）](docs/03-modules/02-debate-engine/SPEC.md) — 完整模块设计
-- [🔬 基本面深度调研报告](docs/02-requirements/FUNDAMENTAL_RESEARCH.md) — 机构级财报/供应链分析可行性（2026-06-23 新增）
-- [🎓 结果回调引擎学习卡片](docs/learning/23-result-callback-engine.md) — RC-001 如何让结果自动触发系统学习
-- [🎓 按场景校准信任度](docs/learning/24-contextual-trust-calibration.md) — RC-002 为什么要按板块评估大师胜率
-- [🎓 财务指标数据模型](docs/learning/25-financial-indicator-model.md) — FinancialMetrics 17 指标设计模式
-- [🎓 估值比率模型](docs/learning/26-valuation-metrics-model.md) — PE/PB/PS 估值模型设计
-- [🎓 PD 动态指标体系](docs/learning/27-pd-dynamic-indicators.md) — 产业链位置感知的指标注册表
+并行开发使用独立 worktree 与 `codex/` 分支，经契约、测试和浏览器验收后再合入 `main`。不要在多个窗口中共同修改一个脏工作区，详见[并行开发规则](docs/01-guides/workflow/CONCURRENT-DEVELOPMENT.md)。
 
----
+**Git 校验的会话恢复**：Git/worktree 与同分支交接记录是事实源，会话快照只是缓存。规范和未完成的安全审核边界见[会话恢复指南](docs/01-guides/workflow/SESSION_RECOVERY.md)。
 
-<p align="center">
-  <sub>Built with ❤️ and LangGraph · Licensed under MIT</sub>
-</p>
+## 当前限制与后续工作
 
-Git 校验的会话恢复已合入，快照只是缓存；操作边界见 [会话恢复规范](docs/01-guides/workflow/SESSION_RECOVERY.md)，未关闭的恢复安全债务仍需跟踪。
+- **上游可用性**：东方财富部分行情端点仍有 HTTP 502；可用的历史快照会标明时间，不能视为实时行情。详见后端债务 `TD-081`。
+- **排行榜覆盖**：部分历史周期、长期资金及总流入口径仍缺可核验数据；不会用当日前若干名回算冒充全市场历史排名。见 `RANKING-HISTORY-001`。
+- **资料覆盖**：新闻样本不保证连续覆盖完整时间段；匹配零条不证明没有新闻。长期研究的完整财报、公告、事件链与逐句语义审核仍需补强。
+- **图谱与公司研究**：生成内容需人工核对，重大事件自动更新尚未启用；有引用不代表供应关系、竞争优势或股价影响已得到独立证明。
+- **收益验证**：E0-100 闭卷评测代码已合入 [`src/backtest/e0/`](src/backtest/e0/)，尚无正式表现裁决。首次真实运行前仍需确认费用和实验参数；KR-4～KR-6 后续阶段在 E0 裁决前暂停，已合入的适配层不代表生产接入完成。
+- **交易与反馈**：当前研究输出不自动进入交易决策流程；Broker 接入、连续真实结果、基准对照与收益闭环尚未完成。
+
+完整范围见[债务路由](docs/01-guides/debt/ROUTER.md)、[后端债务](docs/06-departments/08-backend-api/DEBT.md)和[前端债务](docs/06-departments/09-frontend/DEBT.md)。
+
+## 架构与技术栈
+
+```text
+数据适配与缓存 → 来源/时间/身份校验 → 研究证据
+                                      ↓
+                       分析师 → 流派研究 → 审阅与聚合
+                                      ↓
+                       分周期结论、条件、风险与历史记录
+```
+
+研究展示、证据准入和交易相关模块分别保留边界。仓库中存在风控、交易规划、回测与记忆模块，不意味着它们已经完成实盘收益验证。
+
+| 层 | 选型 |
+|---|---|
+| 后端与契约 | Python、FastAPI、Pydantic v2 |
+| AI 编排 | LangGraph / LangChain，统一 LLM 调用层 |
+| 当前模型 | DeepSeek V4 Pro，非思考模式 |
+| 前端 | Next.js 16、React 19、TypeScript、Tailwind CSS、TanStack Query |
+| 图表 | Lightweight Charts |
+| 数据与持久化 | AKShare / ADaTa / 直连适配器，SQLite、JSON、Parquet |
+| 工程检查 | pytest、Ruff、Pyright、ESLint、TypeScript、GitHub Actions |
+
+```text
+src/
+├── agents/       分析与流派 Agent
+├── debate/       辩论编排、证据注入与聚合
+├── data/         数据源、校验、缓存与采集
+├── memory/       记忆与检索
+├── callback/     结果回调
+├── risk/         风控逻辑
+├── trader/       交易规划
+├── backtest/     回测与 E0 评测
+├── retro/        用户操作与复盘数据
+├── core/         通信协议
+└── utils/        模型、配置与凭据工具
+backend/          FastAPI 路由与展示契约
+frontend/         页面、图表与交互
+scripts/          检查、凭据与会话工具
+tests/            单元、契约与集成测试
+docs/             需求、设计、债务、学习卡片与日志
+```
+
+## 文档导航
+
+- [项目总览](docs/00-overview/OVERVIEW.md) · [进度看板](docs/00-overview/ROADMAP.md) · [会话交接](docs/01-guides/HANDOVER.md)
+- [环境配置](docs/01-guides/ENVIRONMENT.md) · [前端说明](frontend/README.md) · [后端说明](backend/README.md)
+- [API 契约](docs/03-modules/10-frontend/API.md) · [辩论引擎规格](docs/03-modules/02-debate-engine/SPEC.md)
+- [架构决策](docs/05-decisions/README.md) · [设计哲学](docs/00-overview/DESIGN_PHILOSOPHY.md)
+- [E0 评测设计](docs/superpowers/specs/2026-08-10-e0-validation-checkpoint-design.md) · [组织与验证策略](docs/02-requirements/STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md)
+- [开发工作流](docs/01-guides/WORKFLOW.md) · [学习卡片](docs/learning/README.md) · [整合与验收日志](docs/04-changelog/logs/2026-10-08/2026-10-08-branch-consolidation.md)
+
+## 许可证
+
+[MIT](LICENSE)
