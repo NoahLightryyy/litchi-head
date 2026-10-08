@@ -37,3 +37,7 @@ TD-081（东财上游）、RANKING-HISTORY-001、新闻历史覆盖与模型语�
 验收后将本地main快进至整合版本，删除5个未被worktree占用且已合并的旧本地分支：backend-bw021、e0-validation-checkpoint、frontend-integration、intraday-frontend-client、kr-3b-2-failure-diagnostics（均codex/前缀）。临时consolidated-20261008也移除，其所有提交留在main历史。
 
 其余6个分支仍被其他工作区占用，保留分支和未提交文件；所有已提交内容均为main祖先。原Desktop目录仍在integration-project-20261001，避免切换共享脏工作区。main在本轮branch-consolidation隔离目录。此轮未修改远程分支；GitHub推送与远程清理由后续同步处理。
+
+## 推送追补
+
+2026-10-08 用户明确要求推送。GitHub Desktop 已成功将整合提交 e42c202 推送至 origin/main；命令行缺少 HTTPS 凭据，复用已登录桌面客户端完成，无凭据读取或修改。远程旧分支保持不变。本次只更新推送记录，不改代码；沿用该提交的完整6/6闸门证据。
