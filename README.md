@@ -176,6 +176,7 @@
 ### 🧪 工程质量
 
 - **最近完整闸门快照（2026-08-10）** — 1742 collected、1719 passed、4 skipped、19 deselected；Ruff、Pyright、README 公共状态同步、Python 测试和前端类型检查 5/5 通过。PR 窄门禁以实际 PR head 对 base SHA 审计，Git 审计错误失败关闭；最新远端状态以 CI 为准。
+- **Git 校验的会话恢复（Task 7 复审中）** — Git/worktree 是事实源；Tasks 1–6 已完成，v2 `MATCH`/`REPO_AHEAD` 证据已通过；TD-078 凭据复扫与扫描契约已关闭并完成 Fix Round 1，剩余 TD-079/080 修复和独立复审完成前不关闭 TD-076，其他非 `MATCH` 状态仍按仓库证据只读重建。
 - **CI/CD 全自动** — GitHub Actions 流水线（Ruff 风格检查 + Pyright 类型检查 + Pytest 测试）
 - **类型安全** — 全项目完整类型注解，Pyright basic mode 零错误
 - **结果回调审计** — `CallbackRecord` 记录每次结果事件响应，坏回调自动熔断不拖垮主流程
@@ -303,6 +304,7 @@ Phase 3 ──── 实盘与个人化 ░░░░░░░░░░░░░�
 - [🏢 职责与治理视图](docs/06-departments/README.md) — 物理目录责任映射、逻辑能力域与协作规程
 - [架构决策记录](docs/05-decisions/README.md) — 13 条 ADR
 - [AI 工作流程](docs/01-guides/WORKFLOW.md) — 开发流程规范（含部门角色加载机制）
+- [会话恢复与保存](docs/01-guides/workflow/SESSION_RECOVERY.md) — Git 校验的恢复、v2 快照保存与失败关闭边界
 - [环境配置](docs/01-guides/ENVIRONMENT.md) — 快速开始
 - [模块规格（辩论引擎）](docs/03-modules/02-debate-engine/SPEC.md) — 完整模块设计
 - [🔬 基本面深度调研报告](docs/02-requirements/FUNDAMENTAL_RESEARCH.md) — 机构级财报/供应链分析可行性（2026-06-23 新增）

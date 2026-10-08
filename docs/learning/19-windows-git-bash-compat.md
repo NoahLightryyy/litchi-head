@@ -66,36 +66,6 @@ with urllib.request.urlopen(req, timeout=10) as r:
 
 ---
 
-## 项目里的真实代码
-
-打开 `.claude/skills/resume-session/skill.md`（第 58-75 行）：
-
-```python
-# 之前的 resume-session CI 检查（脆弱版）
-curl -s "https://api.github.com/repos/NoahLightryyy/litchi-head/actions/runs?per_page=5" -o /tmp/ci_runs.json && python3 -c "
-import json
-with open('/tmp/ci_runs.json') as f:   # ← 踩 #4 /tmp/ + #5 GBK
-    data = json.load(f)
-"
-
-# 之后的 resume-session CI 检查（稳健版）
-py -3 -c "
-import json, urllib.request
-try:
-    URL = 'https://api.github.com/repos/NoahLightryyy/litchi-head/actions/runs?per_page=5'
-    req = urllib.request.Request(URL, headers={'User-Agent': 'litchi-head/1.0'})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.loads(resp.read().decode('utf-8'))
-    # ...安全处理 data...
-except Exception as e:
-    print(f'NETWORK_ERROR: {e}')  # 优雅处理，不 exit 49
-"
-```
-
-**解读**：之前这条命令踩了 3 个兼容坑（curl exit 49 →排查 2min，/tmp/ 找不到→排查 2min，GBK 解码→排查 2min）。改成自包含 Python 后，**0 个命令级错误点** + 网络不可达的报错信息直接可读。
-
----
-
 ## 5 条通用原则（记这 5 条就够了）
 
 当命令需要从 Git Bash 调用 Python + 网络 + 文件时：
@@ -129,9 +99,9 @@ except Exception as e:
 
 ## 自己试试（5 分钟）
 
-1. 打开 `.claude/skills/resume-session/skill.md` 看第 58-75 行的 CI 检查命令
-2. 对比之前（注释掉的旧版本）和现在（自包含 Python 版本）的区别
-3. 思考题：如果你需要在 GitHub API 返回数据后做更多处理（比如只取失败的任务），是在 Python 里加循环好，还是用 `jq` 过滤好？（答案：全放 Python 里，避免增加工具链依赖）
+1. 在 PowerShell 运行 `$env:TEMP`，确认系统临时目录
+2. 分别运行 `python --version` 与 `py -3 --version`，记录实际解析到的解释器
+3. 思考题：若要处理 GitHub API 响应，是在 Python 内解析，还是再接 `jq`？本项目优先单一 Python 进程，减少跨工具链边界
 
 ---
 

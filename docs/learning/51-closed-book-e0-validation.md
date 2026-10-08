@@ -170,4 +170,4 @@ snapshot 的自然日。这里还直接比较两个正价格，而不先做 Deci
 
 **上一篇：[50｜运行时证据怎样安全合流](50-runtime-evidence-assembly.md)**
 
-**下一篇：待后续卡片**
+**下一篇：[52｜会话快照不是事实源](52-session-snapshot-is-not-source-of-truth.md)**
