@@ -438,4 +438,3 @@ git log --oneline origin/codex/kr-3b-2-failure-diagnostics..HEAD
 ```
 
 Do not push until the user explicitly requests it.
-

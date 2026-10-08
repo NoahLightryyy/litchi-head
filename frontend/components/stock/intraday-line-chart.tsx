@@ -262,9 +262,23 @@ export function IntradayLineChart({ points, multiDay = false, zoom, reference, r
     const range = main.timeScale().getVisibleLogicalRange();
     if (range) rangeHandlers[0](range);
     crossHandlers[0]({});
-    const observer = new ResizeObserver(() => charts.forEach((chart, i) => chart.applyOptions({ width: containers[i].clientWidth })));
+    // Equal plot widths keep the shared logical range aligned across all panels.
+    const alignScales = () => {
+      const rightWidth = Math.max(80, ...all.map(chart => chart.priceScale("right").width()));
+      const leftWidth = baseline === null ? 0 : Math.max(66, main.priceScale("left").width());
+      all.forEach(chart => chart.applyOptions({
+        leftPriceScale: { visible: baseline !== null, minimumWidth: leftWidth },
+        rightPriceScale: { minimumWidth: rightWidth },
+      }));
+    };
+    const frame = requestAnimationFrame(alignScales);
+    const observer = new ResizeObserver(() => {
+      charts.forEach((chart, i) => chart.applyOptions({ width: containers[i].clientWidth }));
+      alignScales();
+    });
     containers.forEach(container => observer.observe(container));
     return () => {
+      cancelAnimationFrame(frame);
       observer.disconnect();
       all.forEach((chart, i) => {
         chart.timeScale().unsubscribeVisibleLogicalRangeChange(rangeHandlers[i]);

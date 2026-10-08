@@ -1,3 +1,5 @@
+> 2026-10-08：所有现有功能分支经隔离整合后归入本地 `main`；全量闸门6/6、Python2371通过、前端141通过、生产构建通过。以下旧分支、未推送与测试数字为历史快照。详见 `docs/04-changelog/logs/2026-10-08/2026-10-08-branch-consolidation.md`。
+
 # 🔄 AI 会话交接文档
 
 > **2026-10-01 项目集成更新**：现行集成分支 `codex/integration-project-20261001`，未 push。新闻、UA-03、主题云、财务板块、辩论修复及 KR-4A 适配层已聚合。全量闸门 5/5，Python 1939 passed、前端 90 passed、构建通过。预览 3041/8041；生产血缘及 KR-4 运行时注入仍待完成。以下旧测试数字和旧分支状态为历史快照。
@@ -308,3 +310,7 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 最新跨分支任务状态见[当日统一总表](../06-departments/00-cross-cutting/DAILY-TASKS-2026-10-01.md)。新闻c00e1a0、UA-03 01edeac及其余已完成工作流已进入codex/integration-project-20261001集成分支；尚未push或安装到原3001。TD-081/088/090继续开放；共享main整理沿用XI-001，不新增同义债务。历史段落与本日状态冲突时以总表的分支范围和验收边界为准。
 2026-10-01 财务侧集成：`codex/integration-sector-fundamentals`将预览7d96ddf与财务e70a95b合并验收；预览3013/后端8013。main共享脏工作区未触碰，待既有任务收尾后由集成窗口最终合入。见[财务日志](../04-changelog/logs/2026-10-01/2026-10-01-sector-fundamentals.md)。财务债务编号为TD-092/091，与前端088/089区分。
+
+## Git 校验的会话恢复（2026-08-11 引入，2026-10-08 整合）
+
+会话快照不是事实源；Git/worktree 与本分支交接证据优先。使用 `python scripts/session_state.py inspect` 核对归属与提交，不执行旧快照中的下一步。操作规范见 [SESSION_RECOVERY](workflow/SESSION_RECOVERY.md)。跨部门 TD-076/077/079/080 仍按债务日志保持开放。

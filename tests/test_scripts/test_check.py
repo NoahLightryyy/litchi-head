@@ -536,6 +536,7 @@ def test_main_returns_failure_when_a_gate_fails(monkeypatch: pytest.MonkeyPatch)
 def test_main_fails_when_committed_public_status_lacks_root_readme(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(check, "configured_upstream_ref", lambda: "origin/main")
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": {"src/data/models.py"})
     monkeypatch.setattr(

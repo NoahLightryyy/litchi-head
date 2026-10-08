@@ -147,3 +147,9 @@ handle-relative 目录后端的复杂度不符合这项可丢弃缓存的收益�
 **上一篇：[51｜闭卷评测与两阶段验证](51-closed-book-e0-validation.md)**
 
 **下一篇：待后续卡片**
+
+## 2026-10-08：多分支整合的验证
+
+分支名称和工作区缓存不能证明改动已进入主线。使用 `git merge-base --is-ancestor <feature> HEAD` 验证提交可达，再验证冲突后的实际行为；同一组件的新旧功能应共同通过消费者测试。`tests/test_scripts/test_check.py` 的远程跟踪场景要显式模拟，避免新分支没有 upstream 时测试随环境变化。
+
+自己试试：执行 `git branch --merged HEAD` 与 `git worktree list`，区分已合并分支与仍被工作区占用的分支；有未提交内容的工作区不能因分支已合并而删除。
