@@ -21,7 +21,8 @@ import {
   resolveIntradayPanelMode,
   type IntradaySourceState,
 } from "@/lib/intraday-source-state";
-import { useIntradayBattlefield, useStockQuote } from "@/lib/hooks/use-stock";
+import { intradayReferenceClose } from "@/lib/intraday-percent";
+import { useStockQuote, useIntradayBattlefield } from "@/lib/hooks/use-stock";
 import type {
   IntradayBattlefield,
   IntradayBattlefieldSnapshot,
@@ -192,6 +193,7 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
   }), [priceWindow]);
   const query = useIntradayBattlefield(code);
   const quote = useStockQuote(code);
+  const referenceClose = intradayReferenceClose(code, quote.data, query.data?.price_points ?? []);
   const mode = resolveIntradayPanelMode({
     data: query.data,
     isLoading: query.isLoading,
@@ -302,9 +304,9 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
               </button>
             </div>
           )}
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
-            <div>
-              <IntradayLineChart points={query.data.price_points} zoom={zoom} reference={quote.data} />
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
+            <div className="min-w-0">
+              <IntradayLineChart points={query.data.price_points} zoom={zoom} reference={quote.data} referenceClose={referenceClose} />
               <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
                 <span>折线仅表示分钟价格，不代表 K 线开高低收</span>
                 <span>{query.data.price_points.length} 个价格点</span>
