@@ -118,3 +118,5 @@
 - [66 四层行情进入 LLM](66-four-layer-evidence-to-llm.md)
 
 - [健康统计原子快照](56-atomic-health-snapshot.md)（保留原分支卡片编号）
+
+- [闭卷E0验证](51-closed-book-e0-validation.md)

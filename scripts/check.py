@@ -5,13 +5,15 @@
 功能：
   1. ruff 代码风格检查
   2. pyright 类型检查（src/ + backend/）
-  3. 按变更范围智能选择测试子集
-  4. 前端变更触发 ESLint + TypeScript 类型检查
+  3. README 公共状态同步检查
+  4. 按变更范围智能测试
+  5. 前端 ESLint + TypeScript 检查
 
 用法：
   python scripts/check.py              # 检测变更范围 + 按需跑测试
   python scripts/check.py --full       # 强制跑全部测试（-m "not slow"）
   python scripts/check.py --diff main  # 跟 main 分支比变更范围
+  python scripts/check.py --readme-sync --diff main  # 仅检查 README 公共状态同步
 
 退出码：0 全通过，1 有失败
 """
@@ -48,6 +50,32 @@ QUALITY_CONFIG_FILES = {
     "pyproject.toml",
     "pyrightconfig.json",
 }
+PUBLIC_STATUS_FILES: frozenset[str] = frozenset(
+    {
+        "docs/00-overview/ROADMAP.md",
+        "docs/01-guides/HANDOVER.md",
+        "docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md",
+        "docs/02-requirements/STRATEGY_VALIDATION_AND_ORG_EVOLUTION.md",
+    }
+)
+
+
+class GitAuditError(RuntimeError):
+    """A Git failure that prevents a trustworthy README synchronization audit."""
+
+
+def _git_audit_error(
+    operation: str,
+    command: list[str],
+    result: subprocess.CompletedProcess[str],
+) -> GitAuditError:
+    """Build a concise, deterministic diagnostic for an expected Git failure."""
+    detail = " ".join((result.stderr or result.stdout).strip().splitlines())
+    if not detail:
+        detail = "no diagnostic output"
+    return GitAuditError(
+        f"{operation} failed ({' '.join(command)}; exit {result.returncode}): {detail}"
+    )
 
 
 def _s(text: str) -> str:
@@ -66,31 +94,172 @@ def _bool_symbol(ok: bool) -> str:
 
 def git_diff(target: str = "HEAD") -> set[str]:
     """返回当前分支相对 target 的全部变更文件，包括未跟踪文件。"""
-    result = subprocess.run(
-        ["git", "diff", "--name-only", target],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-    )
-    staged = subprocess.run(
-        ["git", "diff", "--cached", "--name-only"],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-    )
-    untracked = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
-        capture_output=True,
-        text=True,
-        cwd=REPO_ROOT,
-    )
+    commands = [
+        ("working-tree diff", ["git", "diff", "--name-only", target]),
+        ("staged diff", ["git", "diff", "--cached", "--name-only"]),
+        (
+            "untracked-file discovery",
+            ["git", "ls-files", "--others", "--exclude-standard"],
+        ),
+    ]
+    results: list[subprocess.CompletedProcess[str]] = []
+    for operation, command in commands:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        if result.returncode != 0:
+            raise _git_audit_error(operation, command, result)
+        results.append(result)
+
     files: set[str] = set()
-    for out in (result.stdout, staged.stdout, untracked.stdout):
-        for line in out.strip().splitlines():
+    for result in results:
+        for line in result.stdout.strip().splitlines():
             line = line.strip()
             if line:
                 files.add(line)
     return files
+
+
+def configured_upstream_ref() -> str | None:
+    """Return the configured upstream ref, or None only for a confirmed absence."""
+    command = [
+        "git",
+        "rev-parse",
+        "--abbrev-ref",
+        "--symbolic-full-name",
+        "@{upstream}",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return "@{upstream}"
+
+    detail = (result.stderr or result.stdout).lower()
+    if "no upstream configured for branch" in detail:
+        return None
+    raise _git_audit_error("configured upstream discovery", command, result)
+
+
+def git_commit_batches(target: str) -> list[set[str]]:
+    """Return ordered first-parent commit batches from target through HEAD."""
+    command = [
+        "git",
+        "rev-list",
+        "--first-parent",
+        "--reverse",
+        f"{target}..HEAD",
+    ]
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+    if result.returncode != 0:
+        raise _git_audit_error("commit history", command, result)
+
+    batches: list[set[str]] = []
+    for commit in result.stdout.splitlines():
+        commit = commit.strip()
+        if not commit:
+            continue
+        command = ["git", "show", "--format=%P", "--no-patch", commit]
+        parents = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        if parents.returncode != 0:
+            raise _git_audit_error("commit parents", command, parents)
+        parent_ids = parents.stdout.split()
+
+        if len(parent_ids) <= 1:
+            command = [
+                "git",
+                "diff-tree",
+                "--no-commit-id",
+                "--name-only",
+                "-r",
+                commit,
+            ]
+            changed = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                cwd=REPO_ROOT,
+            )
+            if changed.returncode != 0:
+                raise _git_audit_error("commit diff", command, changed)
+            batches.append(
+                {line.strip() for line in changed.stdout.splitlines() if line.strip()}
+            )
+            continue
+
+        parent_diffs: list[set[str]] = []
+        for parent in parent_ids:
+            command = ["git", "diff", "--name-only", parent, commit]
+            changed = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                cwd=REPO_ROOT,
+            )
+            if changed.returncode != 0:
+                raise _git_audit_error("merge-parent diff", command, changed)
+            parent_diffs.append(
+                {line.strip() for line in changed.stdout.splitlines() if line.strip()}
+            )
+        batches.append(set.intersection(*parent_diffs))
+    return batches
+
+
+def missing_readme_sync_batches(batches: list[set[str]]) -> tuple[str, ...]:
+    """Return canonical status changes not followed by README in ordered batches."""
+    pending: set[str] = set()
+    for batch in batches:
+        pending.update(batch & PUBLIC_STATUS_FILES)
+        if "README.md" in batch:
+            pending.clear()
+    return tuple(sorted(pending))
+
+
+def readme_sync_batches(diff_ref: str | None) -> list[set[str]]:
+    """Build ordered committed batches plus the current uncommitted batch."""
+    if diff_ref is None:
+        comparison_ref = configured_upstream_ref()
+        batches = [] if comparison_ref is None else git_commit_batches(comparison_ref)
+    else:
+        batches = git_commit_batches(diff_ref)
+    current_batch = git_diff()
+    if current_batch:
+        batches.append(current_batch)
+    return batches
+
+
+def run_readme_sync(diff_ref: str | None) -> bool:
+    """Run only the public README synchronization gate."""
+    _s("\n  === README public status sync ===")
+    try:
+        batches = readme_sync_batches(diff_ref)
+    except GitAuditError as exc:
+        _s(f"  [FAIL] README sync git audit failed: {exc}")
+        return False
+    missing = missing_readme_sync_batches(batches)
+    if missing:
+        _s("  [FAIL] canonical public status changed without README.md:")
+        for path in missing:
+            _s(f"         {path}")
+        return False
+    _s("  [PASS] README public status sync")
+    return True
 
 
 def pick_test_targets(changed_files: set[str]) -> list[str] | None:
@@ -207,7 +376,7 @@ def _print_header() -> None:
     _s("")
     _s("=" * 60)
     _s("  litchi-head 本地 CI 检查")
-    _s("  ruff -> pyright -> 按变更范围智能测试 -> 前端 lint + 类型检查")
+    _s("  ruff -> pyright -> README sync -> tests -> frontend lint + type-check")
     _s("=" * 60)
 
 
@@ -233,19 +402,30 @@ def main() -> int:
         help="强制跑全量测试（-m 'not slow'），忽略变更范围检测",
     )
     parser.add_argument(
-        "--diff", metavar="REF", default="HEAD",
-        help="跟哪个 ref 比较变更范围（默认 HEAD，即上次提交）",
+        "--diff", metavar="REF", default=None,
+        help="跟哪个 ref 比较变更范围（默认使用 upstream；无 upstream 时仅检查工作区）",
+    )
+    parser.add_argument(
+        "--readme-sync", action="store_true",
+        help="仅检查根 README 的公共状态同步，不运行其他质量门禁",
     )
     args = parser.parse_args()
+
+    if args.readme_sync:
+        return 0 if run_readme_sync(args.diff) else 1
 
     _print_header()
     ensure_deps()
 
-    changed = git_diff(args.diff) if not args.full else set()
+    try:
+        changed = git_diff(args.diff or "HEAD")
+    except GitAuditError as exc:
+        _s(f"  [FAIL] README sync git audit failed: {exc}")
+        return 1
     frontend_required = args.full or needs_frontend_check(changed)
 
     passes = 0
-    total = 3 + 2 * int(frontend_required)  # 后端 3 项 + 可选前端 2 项
+    total = 4 + 2 * int(frontend_required)
 
     # ── 1. Ruff ──
     if run_step("ruff", ["ruff", "check", "."]):
@@ -255,7 +435,11 @@ def main() -> int:
     if run_step("pyright", ["pyright", "src/", "backend/"]):
         passes += 1
 
-    # ── 3. 测试 ──
+    # ── 3. README public status sync ──
+    if run_readme_sync(args.diff):
+        passes += 1
+
+    # ── 4. 测试 ──
     if args.full:
         test_target: list[str] | None = None
         _s("  [info] --full 模式：跑全量子集")
