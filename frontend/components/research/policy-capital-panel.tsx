@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { decimal, jobStorageKey, packageId, positiveDecimal, parseJob, parseSaved, parsePackage, parsePreview, researchFetch, ResearchApiError, type EvidencePackage, type Job, type Preview, type Subject } from "@/lib/policy-capital";
+import { canSubmitResearch, decimal, jobStorageKey, packageId, positiveDecimal, parseJob, parseSaved, parsePackage, parsePreview, researchFetch, ResearchApiError, type EvidencePackage, type Job, type Preview, type Subject } from "@/lib/policy-capital";
 
 type Saved = { jobId?: string; key: string; budget: string };
 const labels = { supported: "有证据支持", inferred: "推断待验证", insufficient: "证据不足", contradicted: "存在反证" };
@@ -14,6 +14,7 @@ export function PolicyCapitalPanel(props: Subject & { name: string }) {
 function Panel({kind,code,name}: Subject & {name:string}) {
   const [pkg,setPkg]=useState<EvidencePackage|null>(null), [loading,setLoading]=useState(true), [error,setError]=useState("");
   const [empty,setEmpty]=useState(false),[offline,setOffline]=useState(false),[revision,setRevision]=useState(0);
+  const [restored,setRestored]=useState(false);
   const [budget,setBudget]=useState(""),[saved,setSaved]=useState<Saved|null>(null),[job,setJob]=useState<Job|null>(null),[busy,setBusy]=useState(false),[jobError,setJobError]=useState("");
   const [cash,setCash]=useState(""),[allocation,setAllocation]=useState(""),[price,setPrice]=useState(""),[quoteAt,setQuoteAt]=useState(""),[permission,setPermission]=useState(false),[market,setMarket]=useState<"SH"|"SZ"|"">("");
   const [preview,setPreview]=useState<Preview|null>(null),[previewBusy,setPreviewBusy]=useState(false),[previewError,setPreviewError]=useState("");
@@ -24,7 +25,7 @@ function Panel({kind,code,name}: Subject & {name:string}) {
   useEffect(()=>{
     const controller=new AbortController(); let alive=true;
     researchFetch(`/evidence/${encodeURIComponent(packageId({kind,code}))}`,{signal:controller.signal}).then(raw=>{if(alive)setPkg(parsePackage(raw,{kind,code}));}).catch(e=>{if(alive){if(e instanceof ResearchApiError && e.status===404)setEmpty(true);else setError(e instanceof Error?e.message:"证据读取失败");}}).finally(()=>{if(alive)setLoading(false);});
-    const restoreTimer=setTimeout(()=>{if(!alive)return;try { const raw=localStorage.getItem(storageKey); if(raw){const s=parseSaved(raw);setSaved(s);setBudget(s.budget);} } catch {setJobError("浏览器无法恢复任务记录；提交前需启用本地存储，以免重复请求。");}},0);
+    const restoreTimer=setTimeout(()=>{if(!alive)return;try { const raw=localStorage.getItem(storageKey); if(raw){const s=parseSaved(raw);setSaved(s);setBudget(s.budget);} setRestored(true); } catch {setJobError("浏览器无法恢复任务记录；提交前需启用本地存储，以免重复请求。");}},0);
     return()=>{alive=false;controller.abort();clearTimeout(restoreTimer);};
   },[kind,code,storageKey,revision]);
   useEffect(()=>{
@@ -34,7 +35,7 @@ function Panel({kind,code,name}: Subject & {name:string}) {
     return()=>{alive=false;controller.abort();if(timer)clearTimeout(timer);};
   },[pkg,saved,offline,revision]);
   async function submit(newAttempt=false){
-    if(!pkg||busy)return;setJobError("");
+    if(!pkg||busy||!canSubmitResearch(restored,saved,job))return;setJobError("");
     if(!positiveDecimal(budget)){setJobError("请输入大于零的研究费用上限（元）。");return;}
     const intent:Saved=!newAttempt&&saved&&!saved.jobId?saved:{key:crypto.randomUUID(),budget};
     try{localStorage.setItem(storageKey,JSON.stringify(intent));}catch{setJobError("无法保存幂等记录，已阻止付费研究提交。请启用浏览器本地存储。");return;}
@@ -62,7 +63,9 @@ function Panel({kind,code,name}: Subject & {name:string}) {
       {pkg.holdings.map((h,i)=><details key={i}><summary className="cursor-pointer">ETF {h.etf_symbol} 历史持仓 · 截至 {h.as_of}</summary><p>披露 {h.published_date} · {h.coverage==="top_ten"?"前十大持仓":h.coverage==="full_disclosure"?"完整披露":"部分持仓"}。历史数据不能代表当前持仓；未披露部分不能视为零。</p><ul>{h.holdings.map(x=><li key={x.symbol}>{x.symbol} · 净值占比 {x.nav_weight_pct}%</li>)}</ul></details>)}
     </article>
     <article className={box}><h3 className="font-semibold">AI政策研究</h3><p className="text-sm">以本页证据包研究传导条件、反证与缺口。费用为估算；不会自动发起付费任务。</p><label className="block">本次研究费用上限（元）<input className={input} inputMode="decimal" value={budget} onChange={e=>setBudget(e.target.value)} disabled={active||busy||!!saved&&!saved.jobId}/></label>
-      {!active&&(!job||job.status!=="failed")&&<button className={button} disabled={busy||offline} onClick={()=>void submit(job?.status==="succeeded")}>{busy?"正在提交…":saved&&!saved.jobId?"用原请求确认提交结果":job?.status==="succeeded"?"重新研究（新的费用预算）":"开始研究"}</button>}
+      {canSubmitResearch(restored,saved,job)&&!active&&(!job||job.status!=="failed")&&<button className={button} disabled={busy||offline} onClick={()=>void submit(job?.status==="succeeded")}>{busy?"正在提交…":saved&&!saved.jobId?"用原请求确认提交结果":job?.status==="succeeded"?"重新研究（新的费用预算）":"开始研究"}</button>}
+      {!restored&&<p role="status">正在恢复本地任务记录…</p>}
+      {restored&&saved?.jobId&&!job&&<p role="status">正在核验原任务状态，核验完成前不创建新任务。读取失败时请刷新原任务。</p>}
       {job&&<p role="status">任务状态：{{queued:"排队中",running:"研究中，可离开页面后回来查看",succeeded:"已完成",failed:"失败"}[job.status]}</p>}
       {job?.error&&<><p role="alert">{job.error.message}</p><button className={button} disabled={busy||offline||!job.error.retryable&&budget===saved?.budget} onClick={()=>void submit(true)}>{job.error.retryable?"手动重新研究（新任务）":"调整预算后重新研究"}</button></>}
       {jobError&&<p role="alert">{jobError}</p>}{saved?.jobId&&<button className={button} onClick={()=>setRevision(v=>v+1)}>刷新原任务</button>}

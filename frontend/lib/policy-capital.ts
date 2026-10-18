@@ -62,3 +62,10 @@ export async function researchFetch(path: string, init?: RequestInit): Promise<u
   if (!response.ok) throw new ResearchApiError(response.status, body.message || body.error?.message || `请求失败（${response.status}）`);
   return body;
 }
+
+/** A persisted ID without a terminal response never authorizes a second billable job. */
+export function canSubmitResearch(restored: boolean, saved: { jobId?: string } | null, job: Job | null): boolean {
+  if (!restored) return false;
+  if (!saved?.jobId) return true;
+  return job?.job_id === saved.jobId && (job.status === "succeeded" || job.status === "failed");
+}
