@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_CEILING, Decimal, localcontext
+from zoneinfo import ZoneInfo
 
 from backend.policy_capital_contract import (
     EvidencePackage,
@@ -160,8 +161,9 @@ def calculate_preview(
         ):
             gaps.append("行情过期、时间在未来或未配置时效")
         rule = context.rules
-        if rule.effective_from > current.date() or (
-            rule.effective_until is not None and rule.effective_until < current.date()
+        trading_date = current.astimezone(ZoneInfo("Asia/Shanghai")).date()
+        if rule.effective_from > trading_date or (
+            rule.effective_until is not None and rule.effective_until < trading_date
         ):
             gaps.append("交易规则尚未生效或已失效")
         if context.fees.verified_at > current or context.fees.verified_at < context.verified_at:

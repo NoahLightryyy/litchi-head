@@ -45,7 +45,15 @@ def create_router(
 ) -> APIRouter:
     router = APIRouter(prefix="/api/research", tags=["capital-preview"], route_class=ContractRoute)
 
-    @router.post("/execution-preview", response_model=ExecutionPreview)
+    @router.post(
+        "/execution-preview",
+        response_model=ExecutionPreview,
+        responses={
+            404: {"model": ContractError, "description": "Evidence package not found"},
+            422: {"model": ContractError, "description": "Invalid contract input"},
+            503: {"model": ContractError, "description": "Verification service unavailable"},
+        },
+    )
     def preview(request: ExecutionRequest) -> ExecutionPreview | JSONResponse:
         try:
             if package_resolver is not None:

@@ -310,3 +310,45 @@ def test_client_fee_bounds_and_no_rule_evidence():
         calculate_preview(request, replace(context, package=missing_evidence), now=NOW).status
         == "blocked"
     )
+
+
+@pytest.mark.parametrize(
+    "rule_dates, expected",
+    [
+        ({"effective_from": date(2026, 10, 19)}, "ready"),
+        ({"effective_until": date(2026, 10, 18)}, "blocked"),
+    ],
+)
+def test_rule_dates_use_shanghai_calendar(rule_dates, expected):
+    request, context = fixture()
+    midnight_shanghai = datetime(2026, 10, 18, 16, tzinfo=UTC)
+    rule = context.rules.model_copy(update=rule_dates)
+    fees = context.fees.model_copy(update={"verified_at": midnight_shanghai})
+    request = request.model_copy(
+        update={
+            "quote_at": midnight_shanghai,
+            "rules": rule,
+            "fees": fees,
+        }
+    )
+    context = replace(
+        context,
+        rules=rule,
+        fees=fees,
+        quote_at=midnight_shanghai,
+        verified_at=midnight_shanghai,
+        valid_until=midnight_shanghai + timedelta(minutes=2),
+    )
+    assert calculate_preview(request, context, now=midnight_shanghai).status == expected
+
+
+def test_openapi_errors_match_frozen_contract():
+    app = FastAPI()
+    app.include_router(create_router())
+    schema = app.openapi()
+    responses = schema["paths"]["/api/research/execution-preview"]["post"]["responses"]
+    for status in ["404", "422", "503"]:
+        assert responses[status]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/ContractError",
+        }
+    assert "HTTPValidationError" not in schema["components"]["schemas"]
