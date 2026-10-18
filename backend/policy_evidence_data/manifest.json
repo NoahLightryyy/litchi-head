@@ -1,0 +1,32 @@
+{
+  "P1": {
+    "url": "https://www.mee.gov.cn/zcwj/gwywj/202508/t20250827_1126207.shtml",
+    "retrieved_at": "2026-10-18T18:14:54.022581+00:00",
+    "snapshot_file": "P1.html",
+    "snapshot_sha256": "d585e9bb3a9df7e8b561569c5374e08af280e5c38be781f3c2fabd221ff4379a"
+  },
+  "N1": {
+    "url": "https://news.cctv.com/2025/08/27/ARTIF5XJXKtDwvK48x9bx1wm250827.shtml",
+    "retrieved_at": "2026-10-18T18:14:55.009906+00:00",
+    "snapshot_file": "N1.html",
+    "snapshot_sha256": "234706b9d5a84608def9d837f543e90973f2818ffd8298448945a4a9aeb7902a"
+  },
+  "C1": {
+    "url": "https://static.cninfo.com.cn/finalpage/2026-08-20/1225482884.PDF",
+    "retrieved_at": "2026-10-18T18:14:56.552308+00:00",
+    "snapshot_file": "C1.pdf",
+    "snapshot_sha256": "182e2062fed950cd32310099cdf47f392c791440ce251f5e3bab7137dbc932fe"
+  },
+  "H1": {
+    "url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2026-04-22/512480_20260422_SY82.pdf",
+    "retrieved_at": "2026-10-18T18:15:00.149702+00:00",
+    "snapshot_file": "H1.pdf",
+    "snapshot_sha256": "b3157d24fcd0bd8c8daf96d60deacefec33d0aecab10efcc218725bc14e53570"
+  },
+  "R1": {
+    "url": "https://www.sse.com.cn/lawandrules/sselawsrules2025/fund/trading/c/c_20260424_10817739.shtml",
+    "retrieved_at": "2026-10-18T18:15:01.482743+00:00",
+    "snapshot_file": "R1.html",
+    "snapshot_sha256": "54a727e8432424b87ed82fd04baa13a59ba690a1e4890f3e342bdb24fe179505"
+  }
+}

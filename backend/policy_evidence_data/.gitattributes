@@ -1,0 +1,3 @@
+# Preserve source response bytes: line-ending normalization would invalidate SHA-256.
+*.html -text -diff
+*.pdf -text -diff

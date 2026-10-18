@@ -23,7 +23,9 @@ from pydantic import BaseModel, Field
 from slowapi.errors import RateLimitExceeded
 
 from backend.limiter import limiter
+from backend.policy_capital_contract import EvidencePackage
 from backend.routers import (
+    capital_preview,
     company_research,
     debate,
     discovery,
@@ -32,6 +34,7 @@ from backend.routers import (
     market,
     news,
     news_archive,
+    policy_research,
     retro,
     sector_chain,
     stocks,
@@ -99,6 +102,10 @@ async def lifespan(app: FastAPI):
     from backend.routers.debate import _session_store  # noqa: PLC0415
 
     await _session_store.recover_interrupted()
+    try:
+        await policy_research.start_runtime()
+    except Exception:
+        logger.exception("Policy research initialization failed; endpoints report unavailable")
 
     # ── 生产数据源配置 ──
     try:
@@ -137,6 +144,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        await policy_research.stop_runtime()
         archive_task.cancel()
         with suppress(asyncio.CancelledError):
             await archive_task
@@ -195,6 +203,20 @@ app.include_router(trust.router)
 app.include_router(retro.router)
 app.include_router(evidence.router)
 app.include_router(user_actions.router)
+app.include_router(policy_research.router)
+
+
+def policy_evidence_for_preview(package_id: str) -> EvidencePackage | None:
+    """Resolve archived evidence without accepting client-provided verification."""
+    from backend.policy_evidence import EvidenceRepository  # noqa: PLC0415
+
+    try:
+        return EvidenceRepository().get(package_id)
+    except KeyError:
+        return None
+
+
+app.include_router(capital_preview.create_router(package_resolver=policy_evidence_for_preview))
 
 
 # ── 全局异常处理 ──────────────────────────────────────────────

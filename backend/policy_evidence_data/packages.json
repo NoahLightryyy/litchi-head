@@ -1,0 +1,337 @@
+{
+  "v1-sector-BK0917": {
+    "schema_version": 1,
+    "package_id": "v1-sector-BK0917",
+    "subject_kind": "sector",
+    "subject_id": "BK0917",
+    "status": "partial",
+    "evidence": [
+      {
+        "id": "P1",
+        "canonical_document_id": "guofa-2025-11",
+        "publisher": "生态环境部（转载中国政府网）",
+        "role": "official_repost",
+        "title": "国务院关于深入实施“人工智能+”行动的意见",
+        "locator": "三（九）基础支撑能力；二重点行动",
+        "authored_date": "2025-08-21",
+        "published_date": "2025-08-27",
+        "effective_date_status": "conflicting",
+        "summary": "政策支持人工智能芯片攻坚创新，推动产业应用。设备订单、公司收入及投资收益不能由政策目标直接推出。生效日期口径存在冲突。",
+        "url": "https://www.mee.gov.cn/zcwj/gwywj/202508/t20250827_1126207.shtml",
+        "retrieved_at": "2026-10-18T18:14:54.022581+00:00",
+        "snapshot_sha256": "d585e9bb3a9df7e8b561569c5374e08af280e5c38be781f3c2fabd221ff4379a",
+        "effective_date": null
+      },
+      {
+        "id": "N1",
+        "canonical_document_id": "cctv-20250827-news1plus-ai",
+        "publisher": "央视新闻",
+        "role": "reporting",
+        "title": "新闻1+1丨“人工智能+”六大行动",
+        "locator": "正文开头及六大行动访谈",
+        "authored_date": null,
+        "published_date": "2025-08-27",
+        "effective_date_status": "not_stated",
+        "summary": "报道人工智能+意见发布及相关访谈；专家解释不等于政策条文，也不证明具体公司的订单或收益。",
+        "url": "https://news.cctv.com/2025/08/27/ARTIF5XJXKtDwvK48x9bx1wm250827.shtml",
+        "retrieved_at": "2026-10-18T18:14:55.009906+00:00",
+        "snapshot_sha256": "234706b9d5a84608def9d837f543e90973f2818ffd8298448945a4a9aeb7902a",
+        "effective_date": null
+      }
+    ],
+    "claims": [
+      {
+        "id": "policy-direction",
+        "text": "政策支持人工智能芯片创新及应用，具体公司的订单和收入传导仍需核验。",
+        "assessment": "supported",
+        "evidence_ids": [
+          "P1"
+        ],
+        "limitations": [
+          "历史政策样例，未核验全部后续修订。"
+        ]
+      }
+    ],
+    "holdings": [],
+    "gaps": [
+      "历史政策样例，不是当前全部政策清单；未核验后续修订与现行有效性。",
+      "公司政策贡献收入、订单及反证资料尚缺，不能判断确定受益。",
+      "BK0917带日期成分表尚未核验，不能自动归属公司或ETF。"
+    ]
+  },
+  "v1-stock-688012": {
+    "schema_version": 1,
+    "package_id": "v1-stock-688012",
+    "subject_kind": "stock",
+    "subject_id": "688012",
+    "status": "partial",
+    "evidence": [
+      {
+        "id": "P1",
+        "canonical_document_id": "guofa-2025-11",
+        "publisher": "生态环境部（转载中国政府网）",
+        "role": "official_repost",
+        "title": "国务院关于深入实施“人工智能+”行动的意见",
+        "locator": "三（九）基础支撑能力；二重点行动",
+        "authored_date": "2025-08-21",
+        "published_date": "2025-08-27",
+        "effective_date_status": "conflicting",
+        "summary": "政策支持人工智能芯片攻坚创新，推动产业应用。设备订单、公司收入及投资收益不能由政策目标直接推出。生效日期口径存在冲突。",
+        "url": "https://www.mee.gov.cn/zcwj/gwywj/202508/t20250827_1126207.shtml",
+        "retrieved_at": "2026-10-18T18:14:54.022581+00:00",
+        "snapshot_sha256": "d585e9bb3a9df7e8b561569c5374e08af280e5c38be781f3c2fabd221ff4379a",
+        "effective_date": null
+      },
+      {
+        "id": "N1",
+        "canonical_document_id": "cctv-20250827-news1plus-ai",
+        "publisher": "央视新闻",
+        "role": "reporting",
+        "title": "新闻1+1丨“人工智能+”六大行动",
+        "locator": "正文开头及六大行动访谈",
+        "authored_date": null,
+        "published_date": "2025-08-27",
+        "effective_date_status": "not_stated",
+        "summary": "报道人工智能+意见发布及相关访谈；专家解释不等于政策条文，也不证明具体公司的订单或收益。",
+        "url": "https://news.cctv.com/2025/08/27/ARTIF5XJXKtDwvK48x9bx1wm250827.shtml",
+        "retrieved_at": "2026-10-18T18:14:55.009906+00:00",
+        "snapshot_sha256": "234706b9d5a84608def9d837f543e90973f2818ffd8298448945a4a9aeb7902a",
+        "effective_date": null
+      },
+      {
+        "id": "C1",
+        "canonical_document_id": "688012-2026-h1",
+        "publisher": "中微半导体设备（上海）股份有限公司",
+        "role": "primary",
+        "title": "中微公司2026年半年度报告",
+        "locator": "PDF第10—11页：（二）公司主营业务情况、（三）主要经营模式",
+        "authored_date": null,
+        "published_date": "2026-08-20",
+        "effective_date_status": "not_stated",
+        "summary": "公司披露高端半导体及泛半导体设备业务，包括刻蚀、薄膜沉积、CMP、MOCVD及服务。报告期截至2026-06-30，未经审计；不证明特定政策贡献收入。",
+        "url": "https://static.cninfo.com.cn/finalpage/2026-08-20/1225482884.PDF",
+        "retrieved_at": "2026-10-18T18:14:56.552308+00:00",
+        "snapshot_sha256": "182e2062fed950cd32310099cdf47f392c791440ce251f5e3bab7137dbc932fe",
+        "effective_date": null
+      },
+      {
+        "id": "R1",
+        "canonical_document_id": "sse-trading-rules-2026",
+        "publisher": "上海证券交易所",
+        "role": "primary",
+        "title": "上海证券交易所交易规则（2026年修订）",
+        "locator": "科创板6.7及基金竞价交易条款；本网页及其规则附件",
+        "authored_date": null,
+        "published_date": "2026-04-24",
+        "effective_date_status": "stated",
+        "summary": "2026-07-06生效；需按市场、品种、委托类型和方向匹配申报规则。此网页归档不替代完整规则附件和客户权限、费用核验。",
+        "url": "https://www.sse.com.cn/lawandrules/sselawsrules2025/fund/trading/c/c_20260424_10817739.shtml",
+        "retrieved_at": "2026-10-18T18:15:01.482743+00:00",
+        "snapshot_sha256": "54a727e8432424b87ed82fd04baa13a59ba690a1e4890f3e342bdb24fe179505",
+        "effective_date": "2026-07-06"
+      }
+    ],
+    "claims": [
+      {
+        "id": "policy-direction",
+        "text": "政策支持人工智能芯片创新及应用，具体公司的订单和收入传导仍需核验。",
+        "assessment": "supported",
+        "evidence_ids": [
+          "P1"
+        ],
+        "limitations": [
+          "历史政策样例，未核验全部后续修订。"
+        ]
+      },
+      {
+        "id": "business-link",
+        "text": "公司披露半导体设备业务；政策对设备需求的传导仅是待验证推断。",
+        "assessment": "inferred",
+        "evidence_ids": [
+          "P1",
+          "C1"
+        ],
+        "limitations": [
+          "未证明政策对应订单及收入。"
+        ]
+      }
+    ],
+    "holdings": [],
+    "gaps": [
+      "历史政策样例，不是当前全部政策清单；未核验后续修订与现行有效性。",
+      "公司政策贡献收入、订单及反证资料尚缺，不能判断确定受益。",
+      "客户权限、完整费用协议、价格时效和全部交易规则尚待核验，不能给精确可买数量。"
+    ]
+  },
+  "v1-etf-512480": {
+    "schema_version": 1,
+    "package_id": "v1-etf-512480",
+    "subject_kind": "etf",
+    "subject_id": "512480",
+    "status": "partial",
+    "evidence": [
+      {
+        "id": "P1",
+        "canonical_document_id": "guofa-2025-11",
+        "publisher": "生态环境部（转载中国政府网）",
+        "role": "official_repost",
+        "title": "国务院关于深入实施“人工智能+”行动的意见",
+        "locator": "三（九）基础支撑能力；二重点行动",
+        "authored_date": "2025-08-21",
+        "published_date": "2025-08-27",
+        "effective_date_status": "conflicting",
+        "summary": "政策支持人工智能芯片攻坚创新，推动产业应用。设备订单、公司收入及投资收益不能由政策目标直接推出。生效日期口径存在冲突。",
+        "url": "https://www.mee.gov.cn/zcwj/gwywj/202508/t20250827_1126207.shtml",
+        "retrieved_at": "2026-10-18T18:14:54.022581+00:00",
+        "snapshot_sha256": "d585e9bb3a9df7e8b561569c5374e08af280e5c38be781f3c2fabd221ff4379a",
+        "effective_date": null
+      },
+      {
+        "id": "N1",
+        "canonical_document_id": "cctv-20250827-news1plus-ai",
+        "publisher": "央视新闻",
+        "role": "reporting",
+        "title": "新闻1+1丨“人工智能+”六大行动",
+        "locator": "正文开头及六大行动访谈",
+        "authored_date": null,
+        "published_date": "2025-08-27",
+        "effective_date_status": "not_stated",
+        "summary": "报道人工智能+意见发布及相关访谈；专家解释不等于政策条文，也不证明具体公司的订单或收益。",
+        "url": "https://news.cctv.com/2025/08/27/ARTIF5XJXKtDwvK48x9bx1wm250827.shtml",
+        "retrieved_at": "2026-10-18T18:14:55.009906+00:00",
+        "snapshot_sha256": "234706b9d5a84608def9d837f543e90973f2818ffd8298448945a4a9aeb7902a",
+        "effective_date": null
+      },
+      {
+        "id": "C1",
+        "canonical_document_id": "688012-2026-h1",
+        "publisher": "中微半导体设备（上海）股份有限公司",
+        "role": "primary",
+        "title": "中微公司2026年半年度报告",
+        "locator": "PDF第10—11页：（二）公司主营业务情况、（三）主要经营模式",
+        "authored_date": null,
+        "published_date": "2026-08-20",
+        "effective_date_status": "not_stated",
+        "summary": "公司披露高端半导体及泛半导体设备业务，包括刻蚀、薄膜沉积、CMP、MOCVD及服务。报告期截至2026-06-30，未经审计；不证明特定政策贡献收入。",
+        "url": "https://static.cninfo.com.cn/finalpage/2026-08-20/1225482884.PDF",
+        "retrieved_at": "2026-10-18T18:14:56.552308+00:00",
+        "snapshot_sha256": "182e2062fed950cd32310099cdf47f392c791440ce251f5e3bab7137dbc932fe",
+        "effective_date": null
+      },
+      {
+        "id": "H1",
+        "canonical_document_id": "512480-2026-q1",
+        "publisher": "国联安基金管理有限公司",
+        "role": "primary",
+        "title": "国联安半导体ETF2026年第1季度报告",
+        "locator": "PDF第10页，5.3.1前十大指数投资股票明细",
+        "authored_date": null,
+        "published_date": "2026-04-22",
+        "effective_date_status": "not_stated",
+        "summary": "截至2026-03-31，前十大指数投资股票披露中微公司占基金净值4.29%。该历史披露不是当前持仓，未披露部分不能视为零。",
+        "url": "https://www.sse.com.cn/disclosure/fund/announcement/c/new/2026-04-22/512480_20260422_SY82.pdf",
+        "retrieved_at": "2026-10-18T18:15:00.149702+00:00",
+        "snapshot_sha256": "b3157d24fcd0bd8c8daf96d60deacefec33d0aecab10efcc218725bc14e53570",
+        "effective_date": null
+      },
+      {
+        "id": "R1",
+        "canonical_document_id": "sse-trading-rules-2026",
+        "publisher": "上海证券交易所",
+        "role": "primary",
+        "title": "上海证券交易所交易规则（2026年修订）",
+        "locator": "科创板6.7及基金竞价交易条款；本网页及其规则附件",
+        "authored_date": null,
+        "published_date": "2026-04-24",
+        "effective_date_status": "stated",
+        "summary": "2026-07-06生效；需按市场、品种、委托类型和方向匹配申报规则。此网页归档不替代完整规则附件和客户权限、费用核验。",
+        "url": "https://www.sse.com.cn/lawandrules/sselawsrules2025/fund/trading/c/c_20260424_10817739.shtml",
+        "retrieved_at": "2026-10-18T18:15:01.482743+00:00",
+        "snapshot_sha256": "54a727e8432424b87ed82fd04baa13a59ba690a1e4890f3e342bdb24fe179505",
+        "effective_date": "2026-07-06"
+      }
+    ],
+    "claims": [
+      {
+        "id": "policy-direction",
+        "text": "政策支持人工智能芯片创新及应用，具体公司的订单和收入传导仍需核验。",
+        "assessment": "supported",
+        "evidence_ids": [
+          "P1"
+        ],
+        "limitations": [
+          "历史政策样例，未核验全部后续修订。"
+        ]
+      },
+      {
+        "id": "business-link",
+        "text": "公司披露半导体设备业务；政策对设备需求的传导仅是待验证推断。",
+        "assessment": "inferred",
+        "evidence_ids": [
+          "P1",
+          "C1"
+        ],
+        "limitations": [
+          "未证明政策对应订单及收入。"
+        ]
+      }
+    ],
+    "holdings": [
+      {
+        "etf_symbol": "512480",
+        "as_of": "2026-03-31",
+        "published_date": "2026-04-22",
+        "evidence_id": "H1",
+        "coverage": "top_ten",
+        "holdings": [
+          {
+            "symbol": "688256",
+            "nav_weight_pct": "6.64"
+          },
+          {
+            "symbol": "688041",
+            "nav_weight_pct": "6.24"
+          },
+          {
+            "symbol": "002371",
+            "nav_weight_pct": "6.19"
+          },
+          {
+            "symbol": "688981",
+            "nav_weight_pct": "6.01"
+          },
+          {
+            "symbol": "603986",
+            "nav_weight_pct": "5.08"
+          },
+          {
+            "symbol": "688008",
+            "nav_weight_pct": "4.58"
+          },
+          {
+            "symbol": "688012",
+            "nav_weight_pct": "4.29"
+          },
+          {
+            "symbol": "603501",
+            "nav_weight_pct": "2.57"
+          },
+          {
+            "symbol": "688521",
+            "nav_weight_pct": "2.38"
+          },
+          {
+            "symbol": "688525",
+            "nav_weight_pct": "2.21"
+          }
+        ]
+      }
+    ],
+    "gaps": [
+      "历史政策样例，不是当前全部政策清单；未核验后续修订与现行有效性。",
+      "公司政策贡献收入、订单及反证资料尚缺，不能判断确定受益。",
+      "客户权限、完整费用协议、价格时效和全部交易规则尚待核验，不能给精确可买数量。",
+      "最新ETF持仓、完整组合与指数版本尚缺；不能计算当前政策敞口或重复暴露。"
+    ]
+  }
+}
