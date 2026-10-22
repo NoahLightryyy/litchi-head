@@ -403,3 +403,7 @@ PC-09：现有容器可复用；真实研究与约束展示标记🔒待上游�
 [实施计划与统一任务状态](../../02-requirements/differentiation/IMPLEMENTATION_PLAN.md) · [第一步能力盘点](../../02-requirements/differentiation/CAPABILITY_INVENTORY.md)。本轮仅文档/只读盘点，后续可写并行必须独立worktree。
 
 2026-10-18 S4/S5/S6：政策研究任务、确定性单笔计算、三类标的同页面板已接入。后端50项/前端152项通过及浏览器预算/缺项/返回恢复验收。账户费用/权限适配、真实模型质量和组合约束仍待完成，详见 `docs/04-changelog/logs/2026-10-18/2026-10-18-policy-capital-runtime.md`。
+
+## 2026-10-22 首页可用性提示
+
+按用户确认的“一个有效源即可用”修复全局与指数重复告警；备用源失败保留折叠诊断，缺失/陈旧/冲突仍提示。见当日 market-availability 日志。

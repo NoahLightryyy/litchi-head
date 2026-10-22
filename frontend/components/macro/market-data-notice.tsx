@@ -4,11 +4,21 @@ import { boardNoticeSummary, marketNoticeFacts } from "@/lib/market-notice";
 interface MarketDataNoticeProps {
   meta?: MarketMeta;
   refreshError?: boolean;
+  diagnosticsOnly?: boolean;
 }
 
-export function MarketDataNotice({ meta, refreshError }: MarketDataNoticeProps) {
+export function MarketDataNotice({ meta, refreshError, diagnosticsOnly }: MarketDataNoticeProps) {
   const facts = marketNoticeFacts(meta, refreshError);
   if (facts.length === 0) return null;
+
+  if (diagnosticsOnly) {
+    return (
+      <details className="mb-3 text-xs text-text-muted">
+        <summary className="cursor-pointer">查看来源诊断</summary>
+        <p className="mt-2">{facts.join("；")}</p>
+      </details>
+    );
+  }
 
   const summary = boardNoticeSummary(meta, refreshError);
   if (summary) {

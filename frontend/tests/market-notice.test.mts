@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { marketNoticeFacts } from "../lib/market-notice.ts";
+import { canCollapseIndexDiagnostics, marketNoticeFacts } from "../lib/market-notice.ts";
 import type { MarketMeta } from "../lib/types/market.ts";
 
 const baseMeta: MarketMeta = {
@@ -69,4 +69,16 @@ test("板块详情折叠仍明确历史状态，不能冒充休市成功", async
   assert.match(boardNoticeSummary({ ...meta, status: "partial", failed_sources: [] })!, /快照已加载/);
   assert.match(boardNoticeSummary({ ...meta, status: "partial", failed_sources: [] }, true)!, /刷新未成功/);
   assert.equal(boardNoticeSummary(baseMeta), null);
+});
+
+test("三项指数可用时折叠备用源故障，缺失缓存冲突刷新失败仍突出显示", () => {
+  assert.equal(canCollapseIndexDiagnostics(baseMeta, 3), true);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, limitations: [{code: "INDEX_SINGLE_SOURCE", message: "单源", index_code: "000001"}] }, 3), true);
+  assert.equal(canCollapseIndexDiagnostics(baseMeta, 2), false);
+  assert.equal(canCollapseIndexDiagnostics(baseMeta, 3, true), false);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, status: "stale" }, 3), false);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, cached: true }, 3), false);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, missing_codes: ["399001"] }, 3), false);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, limitations: [{code: "INDEX_PRICE_CONFLICT", message: "冲突", index_code: "000001"}] }, 3), false);
+  assert.deepEqual(marketNoticeFacts(baseMeta), ["失败来源：eastmoney"]);
 });

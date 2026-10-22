@@ -18,7 +18,7 @@
 `record_batch()` 持锁一次性记录三指数结果，再按失败、空数据、成功的优先级归并当前健康。
 晚到旧批仍计入历史，但不能覆盖更新批的当前状态；`snapshot()` 持同一锁读取一致快照。
 
-前端消费目标（`frontend/lib/backend-health.ts` 待集成任务落实）：
+前端来源故障判断（`frontend/lib/backend-health.ts`；业务可用性归类见下方备用源补充）：
 
 ```typescript
 const degraded = value.status !== "ok" || summary.failing_endpoints > 0
@@ -62,3 +62,7 @@ const degraded = value.status !== "ok" || summary.failing_endpoints > 0
 2026-09-06 的详情修复补充了另一个边界：只有行业与概念目录都成功且均无目标代码，
 才能回答404“未找到”；任一目录失败时证据不完整，必须返回503。详情成分股同样只有
 完整分页才发布，未知价格不补0，避免把“没拿到”伪装成真实零值。
+
+## 备用源失败与业务可用（2026-10-22）
+
+并联备用源不是必须全部健康的依赖。`frontend/lib/backend-health.ts` 将有完整健康指数源的纯指数故障归为 healthy_with_warnings；check 内保留失败事实，UI 折叠诊断。`canCollapseIndexDiagnostics` 另按本次响应检查三指数完整性、缓存、冲突和刷新状态。自己试试：运行 frontend 的 backend-health 与 market-notice 测试，将最后一个 healthy 改为 failed，观察恢复告警。

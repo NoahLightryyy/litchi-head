@@ -21,9 +21,9 @@ test("健康检查和完整诊断均正常时判定已连接", () => {
   });
 });
 
-test("健康检查成功但完整诊断降级时显示黄色状态", () => {
+test("备用源告警不影响连接，实际降级仍显示黄色状态", () => {
   assert.deepEqual(classifyBackendProbe(true, "healthy_with_warnings"), {
-    state: "degraded",
+    state: "connected",
     message: null,
   });
   assert.deepEqual(classifyBackendProbe(true, "degraded"), {
@@ -124,4 +124,22 @@ test("恢复后保留历史失败统计但解除来源故障；空结果和未�
     ...mixed.stats, eastmoney: { failures: 5, current_status: "failed", last_error: "数据源请求失败" },
     __summary__: { total_failures: 17, failing_endpoints: 1, empty_endpoints: 0 },
   } })?.checks, { sina: { status: "pass" }, eastmoney: { status: "fail", error: "数据源请求失败" } });
+});
+
+ test("指数有一个完整可用来源时仅保留诊断；全失败和其他服务失败仍降级", () => {
+  const payload = (sina: string, extra = {}) => ({ status: "degraded", stats: {
+    "market_index:eastmoney": { current_status: "failed", failures: 3, last_error: "数据源请求失败" },
+    "market_index:sina": { current_status: sina, failures: 0 },
+    ...extra,
+    __summary__: { total_failures: 3, failing_endpoints: 1, empty_endpoints: 0 },
+  }});
+  const available = normalizeDataSourceDiagnostics(payload("healthy"));
+  assert.equal(available?.status, "healthy_with_warnings");
+  assert.equal(available?.checks["market_index:eastmoney"].status, "fail");
+  for (const state of ["failed", "empty"]) {
+    assert.equal(normalizeDataSourceDiagnostics(payload(state))?.status, "degraded");
+  }
+  assert.equal(normalizeDataSourceDiagnostics(payload("healthy", {
+    news: { current_status: "failed", failures: 1 },
+  }))?.status, "degraded");
 });

@@ -68,8 +68,15 @@ export function normalizeDataSourceDiagnostics(value: unknown): DiagnoseResult |
     summary.failing_endpoints > 0 ||
     summary.empty_endpoints > 0 ||
     Object.values(checks).some((check) => check.status !== "pass");
+  // Index sources are substitutes. A healthy batch covers all three indices.
+  const entries = Object.entries(checks);
+  const hasIndexFallback = entries.some(([name, check]) =>
+    name.startsWith("market_index:") && check.status === "pass");
+  const issues = entries.filter(([, check]) => check.status !== "pass");
+  const onlyRedundantIndexFailures = hasIndexFallback && issues.length > 0 &&
+    issues.every(([name]) => name.startsWith("market_index:"));
   return {
-    status: degraded ? "degraded" : "healthy",
+    status: onlyRedundantIndexFailures ? "healthy_with_warnings" : degraded ? "degraded" : "healthy",
     checks,
   };
 }
@@ -82,7 +89,7 @@ export function classifyBackendProbe(
     return { state: "disconnected", message: null };
   }
 
-  if (diagnoseStatus === "healthy") {
+  if (diagnoseStatus === "healthy" || diagnoseStatus === "healthy_with_warnings") {
     return { state: "connected", message: null };
   }
 

@@ -137,6 +137,18 @@ export function BackendStatusIndicator() {
     );
   }
 
+  if (diagnose?.status === "healthy_with_warnings") {
+    return (
+      <details className="px-4 py-2 text-xs text-text-muted border-b border-bg-tertiary">
+        <summary className="cursor-pointer">行情来源诊断</summary>
+        <ul className="mt-2 space-y-1">
+          {Object.entries(diagnose.checks).map(([name, check]) => (
+            <li key={name}>{name}: {check.status === "pass" ? "可用" : check.error || "暂不可用"}</li>
+          ))}
+        </ul>
+      </details>
+    );
+  }
   return null;
 }
 
