@@ -25,3 +25,12 @@ DOC-INTEGRATION-20261022记录组件缺少页面挂接并当次修复；开放�
 ## 分支处置
 
 目标为检查通过后发布main，清理已在main中的旧远端主题分支；被其他worktree占用的本地分支保留。源Desktop目录仍是旧集成分支且有未提交工作，不在其上切换/合并。未提交ETF、草图和实验材料不等于本次已发布。
+
+
+## 发布与清理结果
+
+集成树464e1a8经三个无内容变更的来源merge后为fc1bc00；diff确认树内容未变化。本地全量闸门最终6/6。GitHub连接器创建PR返回403（integration权限不足），按用户合并授权以普通快进push将远端main由e99c49d更新至fc1bc00，没有force。
+
+已删除5个祖先已在main中的旧远端分支：backend-bw021、e0-validation-checkpoint、frontend-integration、intraday-frontend-client、kr-3b-2-failure-diagnostics（均codex/前缀）。清理2个已不存在工作区的注册记录，并用branch -d删除已合并的company-research-errors、screening-search本地分支；其提交仍可从main追溯。其他在用worktree与源目录未提交内容保留。
+
+GitHub CI已启动（run 39768656527）；首次查询Python3.12/3.13与前端均运行中。顺带确认此前main的10月8日CI曾在Pytest失败，不能将历史本地通过写成远端全绿。最终CI结果由会话收尾核对；后续纯日志提交也会触发CI。
