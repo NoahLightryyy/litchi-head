@@ -336,3 +336,9 @@ class BiasReport:
 ## 2026-09-29 数据可靠性专项下发
 
 主责：DR-07 上下文证据限制。职责、上下游、状态与验收统一见[专项计划](../00-cross-cutting/DATA-RELIABILITY-PLAN.md)。当前为已登记待接单（前端正式接线待新契约）；不能把本条当作实现完成。复用现有ADR-012与TD-081，禁止未经批准改新源/阈值/交易门禁；反馈执行会话、隔离分支、输入版本、交付与阻塞。
+
+## 2026-10-18 政策与本金闭环任务
+
+PC-02：待政策证据契约冻结后实现专项复核，检查传导跳跃、反证与矛盾。
+
+[实施计划与统一任务状态](../../02-requirements/differentiation/IMPLEMENTATION_PLAN.md) · [第一步能力盘点](../../02-requirements/differentiation/CAPABILITY_INVENTORY.md)。本轮仅文档/只读盘点，后续可写并行必须独立worktree。

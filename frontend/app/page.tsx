@@ -27,7 +27,7 @@ export default function MacroPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
-      <StockDiscovery />
+      <StockDiscovery collapseHistory />
 
       {/* 指数卡片 */}
       <section>

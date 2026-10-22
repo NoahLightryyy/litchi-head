@@ -29,8 +29,12 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
   const {sessionId: effectiveSessionId, historical: viewingHistory} = selectDebateView(
     records, stockCode, selectedHistory, sessionId, triggered,
   );
-  const { data: debateResult, isError: resultQueryFailed, isTimedOut } = useDebateResult(effectiveSessionId);
   const selectedRecord = records.find((item) => item.session_id === effectiveSessionId);
+  const serverRunning = selectedRecord?.status === "running" || selectedRecord?.status === "queued";
+  const serverFailed = selectedRecord?.status === "failed";
+  const { data: debateResult, isError: resultQueryFailed, isTimedOut } = useDebateResult(
+    serverFailed ? null : effectiveSessionId, serverRunning,
+  );
   const hasActiveRecord = records.some((item) => item.status === "running" || item.status === "queued");
 
   const handleDebate = async () => {
@@ -53,10 +57,11 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
   );
   const resultFailed = resultQueryFailed || resultIdentityMismatch;
   const visibleError = (viewingHistory ? null : error)
+    ?? (serverFailed ? selectedRecord?.error || DEBATE_FAILURE_MESSAGE : null)
     ?? (isTimedOut ? DEBATE_TIMEOUT_MESSAGE : null)
     ?? (resultFailed ? DEBATE_FAILURE_MESSAGE : null);
   const awaitingResult = Boolean(
-    effectiveSessionId && !debateResult?.vote_summary && !resultFailed && !isTimedOut,
+    effectiveSessionId && !debateResult?.vote_summary && !resultFailed && !isTimedOut && !serverFailed,
   );
   const isRunning = (!viewingHistory && running) || awaitingResult;
   const results = !visibleError && (!running || viewingHistory) && effectiveSessionId
@@ -181,7 +186,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       )}
 
       {/* 空态 */}
-      {!triggered && !visibleError && !results && (
+      {!triggered && !isRunning && !history.isPending && !visibleError && !results && (
         <div className="text-center py-8">
           <div className="text-3xl mb-3">🤖</div>
           <p className="text-sm text-text-muted">

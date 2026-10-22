@@ -33,8 +33,8 @@ export function useRunDebate() {
   return { trigger, sessionId, running };
 }
 
-/* ── 辩论结果（轮询，最大 60 次 ≈ 120 秒兜底） ── */
-export function useDebateResult(sessionId: string | null) {
+/* 服务端确认运行时持续读取结果；无运行状态时保留60次轮询兜底。 */
+export function useDebateResult(sessionId: string | null, serverRunning = false) {
   const pollTrackerRef = useRef({ sessionId, count: 0 });
   const [timedOutSessionId, setTimedOutSessionId] = useState<string | null>(null);
   const MAX_POLLS = 60;
@@ -52,7 +52,7 @@ export function useDebateResult(sessionId: string | null) {
       const decision = advanceDebatePoll(
         pollTrackerRef.current.count,
         Boolean(data?.vote_summary),
-        MAX_POLLS,
+        serverRunning ? Infinity : MAX_POLLS,
       );
       pollTrackerRef.current.count = decision.nextCount;
 
@@ -67,7 +67,7 @@ export function useDebateResult(sessionId: string | null) {
 
   return {
     ...query,
-    isTimedOut: Boolean(sessionId && timedOutSessionId === sessionId),
+    isTimedOut: Boolean(!serverRunning && sessionId && timedOutSessionId === sessionId),
   };
 }
 

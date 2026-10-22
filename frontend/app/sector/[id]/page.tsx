@@ -1,5 +1,7 @@
 "use client";
 
+import { ResearchContext } from "@/components/research/research-context";
+
 import { ApiError } from "@/lib/api/client";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -83,6 +85,7 @@ export default function SectorPage() {
             )}
           </div>
         </div>
+        <ResearchContext key={sectorId} kind="sector" code={sectorId} name={sectorId} />
       </div>
     );
   }
@@ -119,6 +122,8 @@ export default function SectorPage() {
         </Link>
       </div>
 
+      <ResearchContext key={sector.id} kind="sector" code={sector.id} name={sector.name} />
+
       {/* 两列布局 */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* 左列：产业链地图 (3/5) */}
@@ -126,10 +131,10 @@ export default function SectorPage() {
           <div className="flex items-center gap-2 mb-3">
             <Network className="w-4 h-4 text-accent-blue" />
             <h2 className="text-sm font-semibold text-text-primary">{sector.chain_evidence?.map_kind === "market_structure" ? "市场结构图" : "产业链地图"}</h2>
-            <span className="text-xs text-text-muted ml-auto">资料可追溯</span>
+            <span className="text-xs text-text-muted ml-auto">{sector.chain_evidence ? "资料可追溯" : "AI自动绘图 · 待核验"}</span>
           </div>
           <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
-            <ChainExplorer evidence={sector.chain_evidence} />
+            <ChainExplorer evidence={sector.chain_evidence} code={sector.id} name={sector.name} />
           </div>
         </div>
 

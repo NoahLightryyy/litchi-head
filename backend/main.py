@@ -29,6 +29,7 @@ from backend.routers import (
     company_research,
     debate,
     discovery,
+    etfs,
     evidence,
     financials,
     market,
@@ -194,6 +195,7 @@ app.include_router(market.router)
 app.include_router(sector_chain.router)
 app.include_router(stocks.router)
 app.include_router(discovery.router)
+app.include_router(etfs.router)
 app.include_router(company_research.router)
 app.include_router(news.router)
 app.include_router(news_archive.router)

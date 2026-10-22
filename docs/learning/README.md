@@ -116,3 +116,13 @@
 - [64 异步结果必须绑定当前请求](64-request-bound-fail-closed-ui.md)
 - [65 原子健康快照](65-atomic-health-snapshot.md)
 - [66 四层行情进入 LLM](66-four-layer-evidence-to-llm.md)
+
+- [67 解释正确，不代表结构化答案正确](67-structured-answer-consistency.md)
+
+- [68 AI草图与证据边界](68-inferred-graph-evidence-boundary.md)
+
+- [69 能力盘点与复用边界](69-capability-inventory-before-integration.md)
+
+- [70｜证据时间与缺项阻断](70-evidence-dates-and-blocked-execution.md)
+
+- [71｜持久研究任务与可信计算边界](71-durable-research-and-trusted-preview.md)

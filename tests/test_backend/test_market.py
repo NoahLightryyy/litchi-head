@@ -721,6 +721,26 @@ class TestGetSectorDetail:
             item["code"] for item in body["meta"]["limitations"]
         }
 
+    def test_semiconductor_equipment_chain_is_available_in_sector_detail(self, client):
+        frame = make_board_perf_df(rows=[{
+            "板块代码": "BK1326", "板块名称": "半导体设备", "涨跌幅": 2.0,
+            "主力净流入-净额": 1_000_000_000.0,
+        }])
+        with (
+            patch("backend.routers.market._fetch_board_dataframes",
+                  return_value=self._frames(frame)),
+            patch("backend.routers.market._fetch_board_members_snapshot",
+                  return_value=self._stocks()),
+        ):
+            response = client.get("/api/market/sector/BK1326")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["data"]["chain_evidence"]["sector_code"] == "BK1326"
+        assert len(body["data"]["chain_evidence"]["nodes"]) == 6
+        assert not {"CHAIN_MAP_UNAVAILABLE", "CHAIN_EVIDENCE_INVALID"} & {
+            item["code"] for item in body["meta"]["limitations"]
+        }
+
     def test_invalid_chain_keeps_quotes_and_reports_limitation(self, client):
         with (
             patch("backend.routers.market._fetch_board_dataframes",

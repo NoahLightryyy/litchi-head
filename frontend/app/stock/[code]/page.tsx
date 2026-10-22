@@ -1,5 +1,7 @@
 "use client";
 
+import { ResearchContext } from "@/components/research/research-context";
+
 import { useLocale } from "@/components/shared/locale-provider";
 import { useState } from "react";
 import { useParams } from "next/navigation";
@@ -61,6 +63,8 @@ export default function StockPage() {
         <p className="mt-2 text-sm text-text-muted">{t("当前报价接口未提供有效数据。分时、K线等模块独立加载；不把未知报价填成零。")}</p>
         <button disabled={quoteFetching} onClick={() => void refreshQuote()} className="mt-3 text-sm text-accent-blue">{quoteFetching ? t("正在获取…") : t("重新获取报价")}</button>
       </div> : <QuoteCard quote={quote ?? null} loading={quoteLoading} />}
+
+      <ResearchContext key={`research-${code}`} kind="stock" code={code} name={stockName} />
 
       <CompanyResearchPanel key={`company-${code}`} code={code} />
 

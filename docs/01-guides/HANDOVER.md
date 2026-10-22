@@ -1,5 +1,8 @@
 # 🔄 AI 会话交接文档
 
+> 2026-10-18 政策—标的—本金闭环：S2证据已归档、S3 v1契约冻结；S4研究任务与S5单笔计算已实现，S6板块/股票/ETF同页接入。生产缺账户与费用核验时本金阻断；实网模型质量、小样本扩展及组合适配待后续。见[实施计划](../02-requirements/differentiation/IMPLEMENTATION_PLAN.md)。
+
+
 > **2026-10-01 项目集成更新**：现行集成分支 `codex/integration-project-20261001`，未 push。新闻、UA-03、主题云、财务板块、辩论修复及 KR-4A 适配层已聚合。全量闸门 5/5，Python 1939 passed、前端 90 passed、构建通过。预览 3041/8041；生产血缘及 KR-4 运行时注入仍待完成。以下旧测试数字和旧分支状态为历史快照。
 
 
@@ -308,3 +311,5 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 
 最新跨分支任务状态见[当日统一总表](../06-departments/00-cross-cutting/DAILY-TASKS-2026-10-01.md)。新闻c00e1a0、UA-03 01edeac及其余已完成工作流已进入codex/integration-project-20261001集成分支；尚未push或安装到原3001。TD-081/088/090继续开放；共享main整理沿用XI-001，不新增同义债务。历史段落与本日状态冲突时以总表的分支范围和验收边界为准。
 2026-10-01 财务侧集成：`codex/integration-sector-fundamentals`将预览7d96ddf与财务e70a95b合并验收；预览3013/后端8013。main共享脏工作区未触碰，待既有任务收尾后由集成窗口最终合入。见[财务日志](../04-changelog/logs/2026-10-01/2026-10-01-sector-fundamentals.md)。财务债务编号为TD-092/091，与前端088/089区分。
+
+2026-10-18 S2更新：政策与公司/ETF/交易规则两组并行核验完成，见 `docs/02-requirements/differentiation/S2_EVIDENCE.md`。S3 v1契约见 `docs/03-modules/08-backend-api/policy-capital/CONTRACT.md`；生产接口未上线。下一步S4研究与S5单笔计算实现，组合约束后续扩展。

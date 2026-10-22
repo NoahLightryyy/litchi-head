@@ -10,7 +10,7 @@
   quote含价格、前收、价格差、百分比、可空OHLC、原始简称、完整时区报价时间。
   status=ready表示此来源返回有效价格，仍单源未交叉验证；行情失败status=partial/quote=null。
   catalog_fetched_at仅目录采集时点，fetched_at仅响应采集时点，都不能替代quoted_at。
-  source=sina，source_url为该ETF新浪行情页，limitations给出单源、报价故障等边界。
+  source=sina，source_url为新浪ETF分类目录页，limitations给出单源、报价故障等边界。
 - 404 ETF_NOT_FOUND：目录成功但没有代码，禁止按前缀自动当ETF。
 - 503 ETF_CATALOG_UNAVAILABLE：目录未完整取得或校验失败；retryable=true。
 - 错误JSON：error.code/message/detail.retryable；格式非法代码422。

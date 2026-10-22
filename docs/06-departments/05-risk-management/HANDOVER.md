@@ -126,3 +126,13 @@ last_updated: 2026-08-26 (生产封口协调会：SAFE-1/PRICE-1 下发)
 [新闻检索计划](../00-cross-cutting/NEWS-RETRIEVAL-PLAN.md)：审查展示搜索候选、单源及缓存与正式证据链隔离。后端须交调用路径影响清单；当前未确认独立风控接单，不等于门禁已验收。
 
 修复影响清单：新backend/news_display.py→东方财富搜索/巨潮公告→NewsDisplay(purpose=display_only)→NewsFeed；未改NEWS_EVIDENCE_POLICY、news_runtime、正式provider或辩论消费，不写evidence数据库。摘要提及单列，不输出利好利空/评级/生成式结论。既有来源回归与新契约共32项通过，独立风控审读仍待签收。
+
+## 2026-10-18 政策与本金闭环任务
+
+PC-05：准备用户约束与压力/重叠样例；不把prompt风险百分比当硬约束或用户默认。
+
+[实施计划与统一任务状态](../../02-requirements/differentiation/IMPLEMENTATION_PLAN.md) · [第一步能力盘点](../../02-requirements/differentiation/CAPABILITY_INVENTORY.md)。本轮仅文档/只读盘点，后续可写并行必须独立worktree。
+
+2026-10-18 S2/S3：两组证据及缺口见 `docs/02-requirements/differentiation/S2_EVIDENCE.md`；v1冻结契约见 `docs/03-modules/08-backend-api/policy-capital/CONTRACT.md`。依任务表进入S4/S5，生产接口未上线；最新持仓/客户费用缺失必须显式阻断。
+
+2026-10-18 S4/S5/S6：政策研究任务、确定性单笔计算、三类标的同页面板已接入。后端50项/前端152项通过及浏览器预算/缺项/返回恢复验收。账户费用/权限适配、真实模型质量和组合约束仍待完成，详见 `docs/04-changelog/logs/2026-10-18/2026-10-18-policy-capital-runtime.md`。
