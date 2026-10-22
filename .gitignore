@@ -44,6 +44,9 @@ Thumbs.db
 # Claude Code (local AI dev environment)
 .claude/
 
+# Isolated feature worktrees
+.worktrees/
+
 # Stray note-taking tool artifacts (空文件剪藏残留)
 天才
 **创建**：*

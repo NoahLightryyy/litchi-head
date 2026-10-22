@@ -48,7 +48,7 @@
 | 17 | [测试架构与模块自治](17-testing-architecture.md) | `tests/` 目录 + `TESTING_STRATEGY.md` |
 | 18 | [FastAPI 路由测试 — TestClient + MockCollector](18-fastapi-testclient-mockcollector.md) | `tests/test_backend/conftest.py` + 4 路由测试 |
 
-| 19 | [Windows 开发环境调试指南 — Git Bash 5 大兼容坑](19-windows-git-bash-compat.md) | `.claude/skills/resume-session/skill.md` + `docs/01-guides/triage/git-bash-compat.md` |
+| 19 | [Windows 开发环境调试指南 — Git Bash 5 大兼容坑](19-windows-git-bash-compat.md) | `.agents/skills/resume-session/skill.md` + `docs/01-guides/triage/git-bash-compat.md` |
 | 20 | 🆕 [三层测试策略 — pytest marker 实现快慢分离](20-three-tier-test-strategy.md) | `scripts/pre-push` + `pyproject.toml` + `docs/01-guides/ci/` |
 | 21 | 🆕 [工程纪律 — 工具不是纪律的替代品](21-engineering-discipline.md) | `scripts/check.py` 创建与反省 |
 | 22 | 🆕 [辩论偏斜度计算 — BiasReport](22-debate-bias-report.md) | `src/debate/orchestrator.py` → `compute_bias_report()` |
@@ -116,3 +116,13 @@
 - [64 异步结果必须绑定当前请求](64-request-bound-fail-closed-ui.md)
 - [65 原子健康快照](65-atomic-health-snapshot.md)
 - [66 四层行情进入 LLM](66-four-layer-evidence-to-llm.md)
+
+- [健康统计原子快照](56-atomic-health-snapshot.md)（保留原分支卡片编号）
+
+- [闭卷E0验证](51-closed-book-e0-validation.md)
+
+- [Git校验会话快照](52-session-snapshot-is-not-source-of-truth.md)
+
+- [公司解读失败阶段与有界纠正](company-research-failure-stages.md)：调用、校验、保存与真实历史状态。
+
+- [71 · 持久化研究与可信本金预览](71-durable-research-and-trusted-preview.md)：包含跨分支集成时的页面消费者验证。

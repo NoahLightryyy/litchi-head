@@ -1,5 +1,7 @@
 "use client";
 
+import { ResearchContext } from "@/components/research/research-context";
+
 import { ApiError } from "@/lib/api/client";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -7,6 +9,7 @@ import { ArrowLeft, Network, List, BrainCircuit } from "lucide-react";
 import { useSectorDetail } from "@/lib/hooks/use-market";
 import { SectorHeader } from "@/components/sector/sector-header";
 import { ChainExplorer } from "@/components/sector/chain-explorer";
+import { GeneratedMap } from "@/components/sector/generated-map";
 import { ChainAnalysis } from "@/components/sector/chain-analysis";
 import { StockList } from "@/components/sector/stock-list";
 import { MarketDataNotice } from "@/components/macro/market-data-notice";
@@ -83,6 +86,11 @@ export default function SectorPage() {
             )}
           </div>
         </div>
+        <ResearchContext key={sectorId} kind="sector" code={sectorId} name={sectorId} />
+        {requestFailed && <section className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
+          <h2 className="mb-3 text-sm font-semibold">板块资料地图</h2>
+          <GeneratedMap key={sectorId} sectorId={sectorId} />
+        </section>}
       </div>
     );
   }
@@ -119,6 +127,8 @@ export default function SectorPage() {
         </Link>
       </div>
 
+      <ResearchContext key={sector.id} kind="sector" code={sector.id} name={sector.name} />
+
       {/* 两列布局 */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* 左列：产业链地图 (3/5) */}
@@ -129,7 +139,8 @@ export default function SectorPage() {
             <span className="text-xs text-text-muted ml-auto">资料可追溯</span>
           </div>
           <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
-            <ChainExplorer evidence={sector.chain_evidence} />
+            {sector.chain_evidence && <ChainExplorer evidence={sector.chain_evidence} />}
+            <GeneratedMap key={sectorId} sectorId={sectorId} />
           </div>
         </div>
 

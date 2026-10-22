@@ -32,6 +32,16 @@
 
 ## Pytest
 
+### Pre-push 测试在真实分支创建 `Test User / base` 提交
+
+| 字段 | 值 |
+|:-----|:---:|
+| **症状** | linked worktree 推送后分支突然多出 `base` 提交、绝大多数文件变成 untracked，`core.bare` 变为 `true` |
+| **根因** | Git hook 导出的 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE` 被 pytest 继承；临时仓库测试即使传入其他 cwd，Git 仍操作真实仓库 |
+| **修复** | hook 先保存 `git rev-parse --show-toplevel`，再清除 `git rev-parse --local-env-vars` 返回的全部变量并回到该根目录；脏 worktree 直接失败，不再经共享 `refs/stash` 搬运用户文件 |
+| **验证** | 真实 Git Bash 集成测试覆盖环境清理，以及 tracked/staged/untracked 三种失败关闭；Ruff、Pyright、脚本测试与智能门禁通过 |
+| **登记** | 2026-08-21 — CI-004，已关闭 |
+
 ### 测试失败
 
 | 字段 | 值 |

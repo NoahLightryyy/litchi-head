@@ -67,6 +67,10 @@ chmod +x .git/hooks/pre-push
 
 > **范围**：pre-push hook 跑 `ruff` + `pyright` + `pytest -m "not slow" -x`（~70s）。
 > 23 个 `@pytest.mark.slow` 慢测试（~600s）由 GitHub Actions CI 负责。
+>
+> **安全边界**：hook 只在干净 worktree 上运行。tracked、staged 或 untracked 改动都会
+> 直接阻止推送，不会自动 stash。hook 会在调用 Ruff/Pyright/Pytest 前清除 Git 导出的
+> repository-local 环境变量，避免临时 Git 仓库测试误操作当前 linked worktree。
 
 ### 跳过 hook
 

@@ -5,6 +5,9 @@
 - collector / mock_empty_cache / failing_collector fixture 由 conftest 提供
 """
 
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from unittest.mock import MagicMock
 
 import pytest
@@ -14,6 +17,81 @@ from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote
 
 
 class TestHealthStats:
+    def test_snapshot_waits_for_an_in_progress_record(self):
+        record_started = Event()
+        release_record = Event()
+        snapshot_entered = Event()
+
+        class BlockingTotal(defaultdict[str, int]):
+            def __setitem__(self, key: str, value: int) -> None:
+                super().__setitem__(key, value)
+                record_started.set()
+                assert release_record.wait(timeout=2)
+
+            def __iter__(self):
+                snapshot_entered.set()
+                return super().__iter__()
+
+        stats = HealthStats()
+        stats._total = BlockingTotal(int)  # noqa: SLF001
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            record = executor.submit(stats.record_call, "quotes", 1.0)
+            assert record_started.wait(timeout=1)
+            snapshot = executor.submit(stats.snapshot)
+
+            # 原子快照必须等本次记录的所有计数都提交后才能读取。
+            entered_while_recording = snapshot_entered.wait(timeout=0.2)
+            release_record.set()
+            record.result(timeout=1)
+            endpoint = snapshot.result(timeout=1)["quotes"]
+
+        assert entered_while_recording is False
+        assert endpoint["total_calls"] == 1
+        assert endpoint["success"] == 1
+
+    def test_concurrent_records_and_snapshots_are_atomic(self):
+        stats = HealthStats()
+
+        def record_batch(kind: str) -> None:
+            for _ in range(1_000):
+                if kind == "success":
+                    stats.record_call("market_index:eastmoney", 1.0)
+                elif kind == "empty":
+                    stats.record_call("market_index:eastmoney", 2.0, empty=True)
+                else:
+                    stats.record_call(
+                        "market_index:eastmoney",
+                        3.0,
+                        error="raw upstream failure",
+                        error_code="upstream_request_failed",
+                    )
+
+        def read_snapshots() -> None:
+            for _ in range(1_000):
+                endpoint = stats.snapshot().get("market_index:eastmoney")
+                if not isinstance(endpoint, dict):
+                    continue
+                assert endpoint["total_calls"] == (
+                    endpoint["success"] + endpoint["empty"] + endpoint["failures"]
+                )
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = [
+                executor.submit(record_batch, kind)
+                for kind in ("success", "empty", "failed")
+                for _ in range(2)
+            ]
+            futures.extend(executor.submit(read_snapshots) for _ in range(2))
+            for future in futures:
+                future.result()
+
+        endpoint = stats.snapshot()["market_index:eastmoney"]
+        assert endpoint["total_calls"] == 6_000
+        assert endpoint["success"] == 2_000
+        assert endpoint["empty"] == 2_000
+        assert endpoint["failures"] == 2_000
+
     def test_empty_business_result_is_not_counted_as_success(self):
         stats = HealthStats()
 

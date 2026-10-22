@@ -78,6 +78,23 @@ pytest -m "not slow" -x --tb=short   # 跳过 23 个慢测试，跑 919 个快�
 - `-x` — 遇到第一个失败就停（快速反馈）
 - `--tb=short` — 精简报错输出
 
+### Hook 中的 Git 环境隔离
+
+Git 执行 hook 时会导出 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE` 等变量。测试进程若
+继承它们，那么测试中本应位于 `tmp_path` 的 `git init/commit` 仍可能写入真实仓库；只传
+`cwd=tmp_path` 并不能覆盖环境变量。项目的 pre-push 因此先冻结当前 worktree 根，再执行：
+
+```bash
+HOOK_REPO_ROOT="$(git rev-parse --show-toplevel)"
+GIT_LOCAL_ENV_VARS="$(git rev-parse --local-env-vars)"
+unset $GIT_LOCAL_ENV_VARS
+cd "$HOOK_REPO_ROOT"
+```
+
+hook 同时要求 worktree 完全干净，不自动 stash。linked worktree 共用 `refs/stash`，在长时间
+测试期间按“最新 stash”恢复可能拿到其他 worktree 的条目；失败关闭比自动搬运用户文件更
+可靠。
+
 ### 4. 验证效果
 
 ```bash

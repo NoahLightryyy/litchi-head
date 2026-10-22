@@ -79,7 +79,7 @@ Content-Type: application/json
 
 | 方法 | 路径 | 说明 |
 |:----|:-----|:-----|
-| GET | `/api/stocks/search?q=` | 搜索股票/板块 |
+| GET | `/api/stocks/search?q=` | 按代码/名称搜索股票；返回 StockInfo，无 type 字段，最多 20 条 |
 | GET | `/api/stocks/{code}/quote` | 个股实时行情 |
 | GET | `/api/stocks/{code}/kline` | K 线数据 |
 | GET | `/api/stocks/{code}/news` | 个股新闻 |
@@ -197,15 +197,15 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 ### 首页市场接口补充语义
 
 - `/api/market/indices`：东方财富与新浪两路指数专用接口并发采集。每项返回 `as_of`、
-  `source_count` 和 `cached`；双源价格差不超过 0.01 点，盘中时间差不超过 3 秒时为完整数据；
-  闭市期间两源均为最近已完成交易日 15:00 后报价时改按交易日对齐（官方日历覆盖、无未来时间），
+  `source_count` 和 `cached`；所有成功来源价格差不超过 0.01 点，盘中时间差不超过 3 秒时为完整数据；
+  闭市期间各源均为最近已完成交易日 15:00 后报价时改按交易日对齐（官方日历覆盖、无未来时间），
   单源可用为 `partial + INDEX_SINGLE_SOURCE`。2026-09-04 用户批准：首页只要一个来源有效就展示；
-  双源价时冲突也返回 HTTP 200 `partial`，选择时间最新的单源（同时间按 upstream_id 字典序最大值确定），
+  多源价时冲突也返回 HTTP 200 `partial`，选择时间最新的单源（同时间按 upstream_id 字典序最大值确定），
   `source_count=1`、`display_source` 标明所用 upstream，旁注 `INDEX_PRICE_CONFLICT` 或
   `INDEX_TIMESTAMP_CONFLICT`；不是双源共识。身份、价格或时间本身无效的源不能参与展示。
   全部无有效数据且失败时仍返回 `MARKET_INDICES_FAILED`；保留 `MARKET_INDICES_CONFLICTED`
   兼容错误码，但有效单源之间的价时冲突不再触发该码。最近 30 秒
-  已核验缓存仅在双源失败时可作为 `stale` 返回；禁止构造 `0.00` 占位项。
+  已核验缓存仅在全部来源失败时可作为 `stale` 返回；禁止构造 `0.00` 占位项。
 - `/api/market/brief`：无可用指数时 `data=null`、状态 `empty`，不再返回“暂无数据”
   形式的成功简报。
 - `/api/market/hot-news`：当前来源 `summary` 映射为 `title`；来源未提供发布时间时
@@ -220,7 +220,7 @@ HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单
 `last_error` 是当前安全文案：请求失败“数据源请求失败”、冲突“来源数据冲突”、
 空结果“数据源返回空数据”；成功清空 last_error/last_error_code，保留历史计数。不得
 包含原始异常、URL、Token 或代理详情。指数来源分别以 `market_index:eastmoney` 和
-`market_index:sina` 统计；同来源三指数整批原子发布，failed > empty > healthy，按批次
+`market_index:sina`、`market_index:tencent` 统计；同来源三指数整批原子发布，failed > empty > healthy，按批次
 启动顺序防止旧批晚到覆盖新批。状态代表最后完成的批次，未完成请求不先清错；健康查询
 不发上游请求、不自行重试、不改变进程健康 HTTP 状态。详情见
 [健康恢复与展示集成说明](../../06-departments/08-backend-api/HEALTH-RECOVERY-INTEGRATION.md)。
@@ -420,8 +420,9 @@ DebateResult.evidence_limitations 新增 research_note?: string | null，由后�
 三图同步逻辑范围与十字线；成交柱涨跌色不能解释为资金净流入。
 五日现有契约没有累计量额，暂不绘制此副图。
 
-公司解读POST的响应结构与错误码保持不变。后端对模型结构/引用校验失败在同一
-75秒生成预算内纠正重试一次；成功才保存，最终失败继续返回原错误并保留旧结果。
+公司解读POST成功结构保持兼容；错误按生成、校验、保存区分，详见
+[阶段错误契约](../../06-departments/08-backend-api/COMPANY-RESEARCH-ERRORS.md)。
+模型结构/引用校验失败在同一75秒生成预算内纠正重试一次；成功才保存，失败保留旧结果。
 
 ### 公司竞争点契约（2026-10-07）
 
@@ -456,3 +457,36 @@ StockDiscovery共享，保留最近20条去重关键词；提交/打开结果才
 消费 [指数契约](../../06-departments/08-backend-api/INDEX-HISTORY-CONTRACT.md)，
 独立 query key 与身份校验；日线与本地聚合周/月线复用联动指标组件，点位单位为点。
 成交量保留原始单位，不冒称股/手；标明本次最多640根、实际范围及单源状态。
+### 2026-10-07 指数三源扩展（兼容冻结）
+
+`/api/market/indices` 和宏观简报沿用既有信封与错误码，不新增字段。默认上游
+为 `eastmoney/sina/tencent`，逐指数返回九条诊断；所有成功来源必须一致才能
+计入 `source_count`，并选择报价时间最新的一路原值展示，不取平均。至少两个来源
+一致时即有共识；其他来源失败仍使批次为 `partial`，`failed_sources` 仍披露失败者。
+全部三源成功一致时为 `success` / `source_count=3`。任一成功源价时冲突沿用
+`INDEX_PRICE_CONFLICT` / `INDEX_TIMESTAMP_CONFLICT`，仅单源展示且不写共识缓存。
+
+盘中仍执行 3 秒规则；休市仅当所有成功来源属于官方日历核验的最近已完成
+交易日收盘后报价时按交易日对齐（不改变现行日历覆盖范围）。价格容差仍为0.01点。
+缓存、单源、全失败和重试语义不变。前端可由 `source_diagnostics` 显示通过核验
+的来源名称；`display_source=tencent` 显示“腾讯”。不改变个股或交易决策门禁。
+### 当日分时涨跌幅展示（2026-10-07）
+
+沿用 `GET /stocks/{code}/quote` 已冻结的 `code`、`prev_close`、`fetched_at`（来源报价时间）与分时 `price_points.timestamp`。代码一致、昨收大于零且所有分钟点与报价为同一北京时间交易日时显示百分比轴。公式 `(价格/昨收-1)*100`；不以网页刷新时间或第一个分钟点作基准。未新增接口，不改变证据准入。五日图仍只展示价格轴。
+
+
+### 选股页搜索流程（2026-10-07）
+
+`/screening` 输入停顿 300ms 后自动搜索，搜索按钮/回车可立即触发。唯一精确匹配的板块自动展开相关公司，再逐个加入最多四家公司的对比。
+复用既有接口，无新增后端字段、数据源或 AI 调用：
+
+- `/stocks/search?q=`：只匹配代码/名称，返回 `code/name/market`，不能要求不存在的 `type`。
+- `/market/sectors?source=eastmoney&sort=change_pct`：按板块名称/代码本地筛选，精确名称优先；每组八项。
+- `/market/sector/{id}`：唯一精确板块自动展开或用户手选板块时取 `stocks`，每页二十家公司，支持板块内名称/代码筛选；模糊/多义匹配不猜板块。
+- 保留板块及成分股的 `meta` 缓存、失败、缺失和限制说明；板块归属不推断主营占比。
+- 公司、板块、成分股各自有 loading/error/empty/offline 状态和重试，单一路径失败不清空另一条路径。
+- 输入框自动搜索，按钮/回车立即搜索，不会把行业词当代码添加；加入后保留结果，按代码去重，已选四家时禁用添加。
+- 自动展开的相关公司优先展示；有相关板块时不在上方显示误导的公司名空结果。缓存/部分可用标识常显，完整来源限制可展开。
+- 查询切换使用独立 query key 和取消信号；成分股响应校验放在查询函数内，坏数据进入错误态。
+
+- 搜索三条只读请求遇到网络失败、503 或后端明确 TimeoutError 时最多自动重试一次（800ms间隔）；404、422 和契约解析错误不自动重试。成分股重试阶段可见，最终失败仍保留手动重试。

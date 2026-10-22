@@ -24,6 +24,10 @@ The project has an implemented MVP and ongoing reliability and evaluation work. 
 | Full-stack delivery | FastAPI APIs and a Next.js interface for market discovery, sectors, stocks, charts and research status | [Backend](backend/main.py), [frontend](frontend/) |
 | Feedback foundations | Research/action records, reflection, trust statistics and dynamic weighting; continuous real-outcome validation remains incomplete | [Reflection](src/debate/reflection.py), [trust](src/debate/trust.py), [memory](src/memory/) |
 
+## Integrated mainline capabilities
+
+The mainline also includes three-source index checks, intraday percentage axes and volume panels, staged company-research errors, sector-aware screening, traceable sector maps, and [E0 offline evaluation infrastructure](src/backtest/e0/). E0 sampling, execution and result storage are implemented; this does not establish model superiority.
+
 ## Workflow
 
 ```text
@@ -44,7 +48,7 @@ Research availability and trade readiness are separate states. Displaying histor
 
 ## Evidence and limitations
 
-- **Historical integration snapshot, October 1, 2026:** 1,939 Python tests passed, 4 skipped and 19 deselected; 90 frontend tests passed and the production build passed. These are historical results, not live scores for the current branch. [Validation log, Chinese](docs/04-changelog/logs/2026-10-01/2026-10-01-project-integration.md)
+- **Historical integration snapshot, October 8, 2026:** 2,371 Python tests passed, 7 skipped and 19 deselected; 141 frontend tests passed and the production build passed. These are historical results, not live scores for the current branch. [Validation log, Chinese](docs/04-changelog/logs/2026-10-08/2026-10-08-branch-consolidation.md)
 - **CI configuration:** Python 3.12/3.13, Ruff, Pyright, pytest, frontend tests, type checks and builds. The configured coverage threshold is 80%; a threshold is not a measured coverage result. [Workflow](.github/workflows/ci.yml)
 - **Reproducibility:** isolated tests establish contract and control-flow behavior. Live data availability, paid-model quality and investment outcomes require separate validation. News coverage needs time to accumulate on a fresh deployment; unavailable upstream data can block formal debate.
 - **Open work:** complete production provenance, continuous shadow evaluation, confidence calibration against real outcomes, and verified brokerage/account/fee integration. No excess-return claim or demonstrated advantage over a single-model baseline is made.
@@ -105,6 +109,8 @@ Live model calls incur provider charges. Isolated tests do not replace live qual
 - [Roadmap](docs/00-overview/ROADMAP.md) / [technical debt](docs/01-guides/debt/ROUTER.md): progress and unresolved limitations.
 
 Development uses AI-assisted coding and documentation, with records in the [work log](docs/04-changelog/logs/README.md). Technical claims should be checked against code, tests and experiment records. Most detailed project documentation is in Chinese.
+
+[Git-validated session recovery](docs/01-guides/workflow/SESSION_RECOVERY.md) uses Git/worktree evidence as the source of truth; snapshots are validated caches.
 
 ## License
 
