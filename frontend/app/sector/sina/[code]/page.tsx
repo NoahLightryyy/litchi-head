@@ -2,6 +2,7 @@
 
 import { ResearchContext } from "@/components/research/research-context";
 
+import { ChainDraftMap } from "@/components/sector/chain-draft-map";
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -73,6 +74,7 @@ function SinaSector({ code }: { code: string }) {
         <p className="text-xs text-text-muted mt-3">比较范围仅包含同一来源、同一分类的板块，同值并列。<a href="#fundamentals" className="text-accent-blue underline">查看成分股基本面研究</a></p>
       </section>
       <ResearchContext kind="sector" code={`sina:${code}`} name={sector.name} />
+      <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-5"><ChainDraftMap code={`sina:${code}`} name={sector.name} /></div>
       <SectorFundamentals members={data?.stocks ?? []} membersLoading={members.isLoading} />
       <details className="text-xs text-text-muted rounded-lg border border-bg-tertiary p-4">
         <summary className="cursor-pointer">数据口径与更新时间{sector.service_updated_at ? ` · ${date(sector.service_updated_at)}（北京时间）` : ""}</summary>

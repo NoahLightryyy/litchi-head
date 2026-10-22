@@ -367,3 +367,13 @@ Provider成功采集后落盘；持久化失败可见，不静默宣称可靠。
 [新闻检索计划](../00-cross-cutting/NEWS-RETRIEVAL-PLAN.md)：先验证现有搜索/滚动缓存及主体匹配，再标准化、去重、来源与发布时间。已有新闻证据能力不等于个股展示接通；通用网页搜索和公告检索先盘点选型。任务已发送到数据会话，实际承接以回执为准。
 
 修复更新：数据会话已交只读盘点；纠正CNINFO已有通用公告能力。本隔离worktree实现东财关键词/巨潮公告异步展示检索与标准化，后端3cd0644；当前网络300199为7条标题相关新闻、28条摘要提及、3条官方公告。新浪证据流与正式provider保持原样，不宣称通用全网搜索。
+
+## 2026-10-18 政策与本金闭环任务
+
+PC-01A / PC-01B：并行准备央视政策原文证据与公司/ETF/交易规则证据；先取样并记录缺口，不把标题命中当关联。
+
+[实施计划与统一任务状态](../../02-requirements/differentiation/IMPLEMENTATION_PLAN.md) · [第一步能力盘点](../../02-requirements/differentiation/CAPABILITY_INVENTORY.md)。本轮仅文档/只读盘点，后续可写并行必须独立worktree。
+
+2026-10-18 S2/S3：两组证据及缺口见 `docs/02-requirements/differentiation/S2_EVIDENCE.md`；v1冻结契约见 `docs/03-modules/08-backend-api/policy-capital/CONTRACT.md`。依任务表进入S4/S5，生产接口未上线；最新持仓/客户费用缺失必须显式阻断。
+
+2026-10-18 S4/S5/S6：政策研究任务、确定性单笔计算、三类标的同页面板已接入。后端50项/前端152项通过及浏览器预算/缺项/返回恢复验收。账户费用/权限适配、真实模型质量和组合约束仍待完成，详见 `docs/04-changelog/logs/2026-10-18/2026-10-18-policy-capital-runtime.md`。

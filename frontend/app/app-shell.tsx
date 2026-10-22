@@ -10,13 +10,14 @@ import Link from "next/link";
 function useRouteMeta(pathname: string): { title: string } {
   const { t } = useLocale();
   if (pathname === "/") return { title: t("市场总览") };
-  const titles: Record<string, string> = { "/search": "搜索与发现", "/screening": "选股与对比", "/watchlist": "自选与跟踪", "/portfolio": "持仓与风险", "/data-status": "数据状态", "/settings": "设置" };
+  const titles: Record<string, string> = { "/search": "搜索与发现", "/policy": "政策与国家战略", "/capital": "本金策略对照", "/screening": "选股与对比", "/watchlist": "自选与跟踪", "/portfolio": "持仓与风险", "/data-status": "数据状态", "/settings": "设置" };
   if (titles[pathname]) return { title: t(titles[pathname]) };
   if (pathname === "/industries") return { title: t("行业研究") };
   if (pathname === "/retro") return { title: t("研究与复盘") };
   if (pathname.startsWith("/sector/sina/")) return { title: t("板块研究 · 新浪分类") };
   if (pathname.startsWith("/sector/"))
     return { title: `${t("板块")} · ${pathname.slice(8)}` };
+  if (pathname.startsWith("/etf/")) return { title: `ETF · ${pathname.slice(5)}` };
   if (pathname.startsWith("/stock/"))
     return { title: `${t("个股")} · ${pathname.slice(7)}` };
   return { title: pathname };

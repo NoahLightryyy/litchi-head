@@ -28,6 +28,16 @@ The project has an implemented MVP and ongoing reliability and evaluation work. 
 
 The mainline also includes three-source index checks, intraday percentage axes and volume panels, staged company-research errors, sector-aware screening, traceable sector maps, and [E0 offline evaluation infrastructure](src/backtest/e0/). E0 sampling, execution and result storage are implemented; this does not establish model superiority.
 
+## Additional integrated user features
+
+- Dedicated ETF search and detail pages with identity checks, three-decimal quotes, source timestamps and explicit single-source limitations.
+- Cached AI industry drafts when reviewed maps are unavailable, clearly labeled as unverified inference, with bounded recovery and existing source-backed maps retained.
+- Restored running debate sessions when revisiting a stock, preserving identity isolation and terminal failure states.
+- Inline policy evidence and capital-input checks on stocks, sectors and ETFs; `/policy` and `/capital` retain historical/hypothetical demonstrations.
+- A [six-case research smoke test](docs/02-requirements/differentiation/SMOKE_RESULT_2026-10-18.md) recorded 4/6 for direct answers and 6/6 after self-review. The small, unequal-budget sample does not establish model superiority or investment performance.
+
+Automatic draft generation may incur model-provider charges. Successful results are cached and failures have bounded recovery. Drafts are general-knowledge inferences, not verified company relationships.
+
 ## Workflow
 
 ```text

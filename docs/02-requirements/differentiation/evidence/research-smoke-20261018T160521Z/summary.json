@@ -1,0 +1,18 @@
+{
+  "manifest_sha256": "dd35017b43d31e8cbda913936acb556aa3992533270631d31ad0f3b9162dc3a7",
+  "logical_calls": 18,
+  "reserved_upper_cny": 3.771117,
+  "scores": {
+    "A": {
+      "passed": 4,
+      "total": 6,
+      "failed_calls": 0
+    },
+    "R": {
+      "passed": 6,
+      "total": 6,
+      "failed_calls": 0
+    }
+  },
+  "billing": "Cost tracker logs are estimates; provider bill is authoritative."
+}

@@ -108,3 +108,17 @@ def test_innovative_drug_catalog_is_sourced_process_not_company_supply_chain():
     assert all(edge.relation == "industry_sequence" for edge in graph.edges)
     assert "不覆盖完整商业产业链" in graph.scope
     assert graph.sources[0].url.host == "www.samr.gov.cn"
+
+
+def test_semiconductor_equipment_catalog_supports_requested_sector_without_company_claims():
+    from src.data.chain_evidence import get_sector_chain
+
+    graph = get_sector_chain("BK1326", "半导体设备")
+    assert graph is not None
+    assert graph.map_kind == "industry_chain"
+    assert all(node.kind == "industry_activity" and node.stock_code is None for node in graph.nodes)
+    assert all(edge.relation == "industry_sequence" for edge in graph.edges)
+    assert graph.sources[0].url.host == "static.sse.com.cn"
+    assert "不证明" in graph.scope
+    with pytest.raises(ValueError, match="identity"):
+        get_sector_chain("BK1326", "半导体材料")

@@ -13,10 +13,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.limiter import limiter
+from backend.routers.chain_draft import router as draft_router
 from src.data.chain_evidence import CATALOG_ROOT, ChainEvidenceMap
 from src.utils.llm import DEFAULT_MODEL, LLMConfig, llm_service
 
 router = APIRouter(prefix="/api/market")
+# Draft router already owns the API prefix; include it without doubling paths.
 logger = logging.getLogger("backend.sector_chain")
 AI_TIMEOUT = 45.0
 CACHE_SECONDS = 3600
@@ -144,3 +146,5 @@ async def generate_chain_analysis(
         return _error("CHAIN_AI_FAILED", "AI 解读生成或校验失败，资料图仍可查看", 502, True)
     finally:
         _busy.discard(key)
+
+router.routes.extend(draft_router.routes)

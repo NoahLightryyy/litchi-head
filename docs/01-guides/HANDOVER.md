@@ -1,6 +1,11 @@
+> **2026-10-22 剩余工作整合**：ETF、AI草图及失败恢复、辩论恢复、政策/本金演示、评测材料与历史日志已迁入本集成版本；保留最新main资料地图和政策运行时。验收见 [本轮日志](../04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md)。下方未推送说明属于历史快照。
+
 > 2026-10-08：所有现有功能分支经隔离整合后归入本地 `main`；全量闸门6/6、Python2371通过、前端141通过、生产构建通过。以下旧分支、未推送与测试数字为历史快照。详见 `docs/04-changelog/logs/2026-10-08/2026-10-08-branch-consolidation.md`。
 
 # 🔄 AI 会话交接文档
+
+> 2026-10-18 政策—标的—本金闭环：S2证据已归档、S3 v1契约冻结；S4研究任务与S5单笔计算已实现，S6板块/股票/ETF同页接入。生产缺账户与费用核验时本金阻断；实网模型质量、小样本扩展及组合适配待后续。见[实施计划](../02-requirements/differentiation/IMPLEMENTATION_PLAN.md)。
+
 
 > **2026-10-01 项目集成更新**：现行集成分支 `codex/integration-project-20261001`，未 push。新闻、UA-03、主题云、财务板块、辩论修复及 KR-4A 适配层已聚合。全量闸门 5/5，Python 1939 passed、前端 90 passed、构建通过。预览 3041/8041；生产血缘及 KR-4 运行时注入仍待完成。以下旧测试数字和旧分支状态为历史快照。
 
@@ -314,3 +319,5 @@ A：从 1047 行拆成了 4 份聚焦文档。索引在 [WORKFLOW.md](WORKFLOW.m
 ## Git 校验的会话恢复（2026-08-11 引入，2026-10-08 整合）
 
 会话快照不是事实源；Git/worktree 与本分支交接证据优先。使用 `python scripts/session_state.py inspect` 核对归属与提交，不执行旧快照中的下一步。操作规范见 [SESSION_RECOVERY](workflow/SESSION_RECOVERY.md)。跨部门 TD-076/077/079/080 仍按债务日志保持开放。
+
+2026-10-18 S2更新：政策与公司/ETF/交易规则两组并行核验完成，见 `docs/02-requirements/differentiation/S2_EVIDENCE.md`。S3 v1契约见 `docs/03-modules/08-backend-api/policy-capital/CONTRACT.md`；生产接口未上线。下一步S4研究与S5单笔计算实现，组合约束后续扩展。

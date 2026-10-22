@@ -4,9 +4,11 @@ import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { parseChainInterpretation } from "@/lib/chain-interpretation";
 import type { ChainEvidence } from "@/lib/types/market";
+import { ChainDraftMap } from "./chain-draft-map";
 import { ChainMap } from "./chain-map";
 
-export function ChainExplorer({ evidence }: { evidence?: ChainEvidence | null }) {
+export function ChainExplorer({ evidence, code, name }: { evidence?: ChainEvidence | null; code?: string; name?: string }) {
+  if (!evidence && code && name) return <ChainDraftMap key={`${code}:${name}`} code={code} name={name} />;
   if (!evidence) return <ChainMap evidence={evidence} />;
   return <EvidenceExplorer key={JSON.stringify(evidence)} evidence={evidence} />;
 }

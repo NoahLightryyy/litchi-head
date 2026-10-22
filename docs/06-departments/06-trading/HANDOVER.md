@@ -110,3 +110,13 @@ baseline 必须使用完全相同的成交假设；影子阶段不得自动下�
 ## 2026-09-29 数据可靠性专项下发
 
 主责：DR-10 旧快照不得绕过执行门禁。职责、上下游、状态与验收统一见[专项计划](../00-cross-cutting/DATA-RELIABILITY-PLAN.md)。当前为已登记待接单（前端正式接线待新契约）；不能把本条当作实现完成。复用现有ADR-012与TD-081，禁止未经批准改新源/阈值/交易门禁；反馈执行会话、隔离分支、输入版本、交付与阻塞。
+
+## 2026-10-18 政策与本金闭环任务
+
+PC-06：准备证券规则、方向费率和精确计算契约；登记比例/方向桥接缺陷，暂不复用为实盘计算器。
+
+[实施计划与统一任务状态](../../02-requirements/differentiation/IMPLEMENTATION_PLAN.md) · [第一步能力盘点](../../02-requirements/differentiation/CAPABILITY_INVENTORY.md)。本轮仅文档/只读盘点，后续可写并行必须独立worktree。
+
+2026-10-18 S2/S3：两组证据及缺口见 `docs/02-requirements/differentiation/S2_EVIDENCE.md`；v1冻结契约见 `docs/03-modules/08-backend-api/policy-capital/CONTRACT.md`。依任务表进入S4/S5，生产接口未上线；最新持仓/客户费用缺失必须显式阻断。
+
+2026-10-18 S4/S5/S6：政策研究任务、确定性单笔计算、三类标的同页面板已接入。后端50项/前端152项通过及浏览器预算/缺项/返回恢复验收。账户费用/权限适配、真实模型质量和组合约束仍待完成，详见 `docs/04-changelog/logs/2026-10-18/2026-10-18-policy-capital-runtime.md`。

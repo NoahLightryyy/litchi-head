@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict
 
 from backend.async_utils import run_sync
 from backend.discovery_rankings import router as rankings_router
+from backend.etf_display import get_catalog
 from backend.routers.stocks import collector
 from src.data.evidence import EvidenceCapability, EvidenceRequest, SourceStatus
 from src.data.providers.quotes import SHANGHAI, SinaQuoteSource
@@ -27,7 +28,7 @@ router.include_router(rankings_router)
 class SearchHit(BaseModel):
     code: str
     name: str
-    kind: Literal["stock", "industry", "concept"]
+    kind: Literal["stock", "industry", "concept", "etf"]
 
 
 class SearchResult(BaseModel):
@@ -84,22 +85,28 @@ def stock_catalog() -> list[SearchHit]:
     return [SearchHit(code=s.code, name=s.name, kind="stock") for s in items]
 
 
+async def etf_catalog() -> list[SearchHit]:
+    snapshot = await get_catalog()
+    return [SearchHit(code=item.code, name=item.name, kind="etf") for item in snapshot.items]
+
+
 @router.get("/search", response_model=SearchResult)
 async def search(q: str = Query("", max_length=80)) -> SearchResult:
     query = q.strip().casefold()
     if not query:
         return SearchResult(data=[], total=0, failed_sources=[])
-    outcomes = await asyncio.gather(run_sync(stock_catalog), run_sync(board_catalog),
+    outcomes = await asyncio.gather(run_sync(stock_catalog), run_sync(board_catalog), etf_catalog(),
                                     return_exceptions=True)
     matches: dict[tuple[str, str], SearchHit] = {}
     failed = []
-    for name, outcome in zip(("股票目录", "板块目录"), outcomes, strict=True):
+    for name, outcome in zip(("股票目录", "板块目录", "ETF目录"), outcomes, strict=True):
         if isinstance(outcome, BaseException):
             logger.warning("Discovery source failed: %s %s", name, type(outcome).__name__)
             failed.append(name)
             continue
         for hit in outcome:
-            if query in hit.code.casefold() or query in hit.name.casefold():
+            if (query in hit.code.casefold() or query in hit.name.casefold()
+                    or (query == "etf" and hit.kind == "etf")):
                 matches[(hit.kind, hit.code)] = hit
     ordered = sorted(matches.values(), key=lambda hit: (
         not (query == hit.code.casefold() or query == hit.name.casefold()), hit.kind, hit.code))

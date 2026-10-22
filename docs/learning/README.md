@@ -126,3 +126,13 @@
 - [公司解读失败阶段与有界纠正](company-research-failure-stages.md)：调用、校验、保存与真实历史状态。
 
 - [71 · 持久化研究与可信本金预览](71-durable-research-and-trusted-preview.md)：包含跨分支集成时的页面消费者验证。
+
+- [67 解释正确，不代表结构化答案正确](67-structured-answer-consistency.md)
+
+- [68 AI草图与证据边界](68-inferred-graph-evidence-boundary.md)
+
+- [69 能力盘点与复用边界](69-capability-inventory-before-integration.md)
+
+- [70｜证据时间与缺项阻断](70-evidence-dates-and-blocked-execution.md)
+
+- [71｜持久研究任务与可信计算边界](71-durable-research-and-trusted-preview.md)

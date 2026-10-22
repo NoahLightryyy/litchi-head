@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "sector_code": "BK1326",
+  "sector_name": "半导体设备",
+  "scope": "基于2021年招股说明书（注册稿）展示设备在半导体产业中的支撑位置及制造、封测和应用环节；不是实时行业全景，不覆盖设备零部件完整供应链，不证明任何上市公司的客户、供货合同或当前市场份额。",
+  "sources": [
+    {
+      "id": "acm-sse-prospectus-20210817",
+      "title": "盛美半导体设备（上海）股份有限公司首次公开发行股票并在科创板上市招股说明书（注册稿）",
+      "publisher": "盛美半导体设备（上海）股份有限公司（上海证券交易所披露）",
+      "url": "https://static.sse.com.cn/stock/disclosure/announcement/c/202108/000505_20210817_9VXR.pdf",
+      "published_on": "2021-08-17",
+      "checked_on": "2026-10-08",
+      "locator": "PDF第144页，印刷页码1-1-143：“半导体产业链图”及其上方行业结构段落；发布日期依据上交所披露路径。"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "materials",
+      "label": "硅片、光刻胶及工艺材料",
+      "kind": "industry_activity",
+      "stage": "材料配套",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "equipment",
+      "label": "光刻、刻蚀、清洗、沉积及检测装备",
+      "kind": "industry_activity",
+      "stage": "设备支撑",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "design",
+      "label": "芯片设计",
+      "kind": "industry_activity",
+      "stage": "设计环节",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "wafer",
+      "label": "晶圆前道制造",
+      "kind": "industry_activity",
+      "stage": "制造环节",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "packaging",
+      "label": "封装与测试",
+      "kind": "industry_activity",
+      "stage": "后道环节",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "stock_code": null
+    },
+    {
+      "id": "applications",
+      "label": "通信、计算与汽车电子等应用",
+      "kind": "industry_activity",
+      "stage": "终端应用",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "stock_code": null
+    }
+  ],
+  "edges": [
+    {
+      "source_node": "materials",
+      "target_node": "wafer",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "description": "材料用于晶圆制造，图中列为半导体支撑行业。"
+    },
+    {
+      "source_node": "equipment",
+      "target_node": "wafer",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "description": "设备支撑晶圆制造的前道工艺；不是设备类别之间的固定工序顺序。"
+    },
+    {
+      "source_node": "design",
+      "target_node": "wafer",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "description": "原图以箭头连接芯片设计与晶圆制造。"
+    },
+    {
+      "source_node": "wafer",
+      "target_node": "packaging",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "description": "原图以箭头连接晶圆制造与封装测试。"
+    },
+    {
+      "source_node": "packaging",
+      "target_node": "applications",
+      "relation": "industry_sequence",
+      "source_ids": [
+        "acm-sse-prospectus-20210817"
+      ],
+      "description": "原图展示半导体产品面向终端应用。"
+    }
+  ]
+}

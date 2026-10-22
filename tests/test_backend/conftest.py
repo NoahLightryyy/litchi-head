@@ -337,3 +337,12 @@ def mock_collector() -> MockCollector:
             ...
     """
     return MockCollector()
+
+
+@pytest.fixture(autouse=True)
+def isolated_debate_session_store(tmp_path, monkeypatch):
+    """Lifespan recovery must never mark live application sessions interrupted."""
+    from backend.routers import debate
+    from src.debate.session_store import SqliteDebateSessionStore
+
+    monkeypatch.setattr(debate, "_session_store", SqliteDebateSessionStore(tmp_path / "debate.db"))

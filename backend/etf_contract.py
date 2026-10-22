@@ -1,4 +1,5 @@
 """Frozen display-only ETF identity and quote contract; independent of stock research."""
+
 from datetime import datetime
 from typing import Literal
 

@@ -169,3 +169,13 @@ FW-041入口细化：用户明确多维研究需前置到板块选股区，不�
 修复更新：实现者完成32项Python来源/契约测试、4项前端消费者测试、Ruff/Pyright/lint/build；独立3027实网300199共38项，分类/公告日期/4页尾页/过滤无匹配/后端中断保留与恢复通过。仍缺独立QA签收、3001集成及长期故障观测；不将实现者自验称为部门独立验收。
 
 2026-10-22：分支集成远端发现check.py编排测试依赖真实upstream，4例已显式隔离并拒绝意外subprocess。生产Git审计不放宽。详见2026-10-22分支归并日志。
+
+## 2026-10-18 政策与本金闭环任务
+
+PC-11：准备契约RED、计算边界、误关联、资料缺口和恢复测试；独立验收样本。
+
+[实施计划与统一任务状态](../../02-requirements/differentiation/IMPLEMENTATION_PLAN.md) · [第一步能力盘点](../../02-requirements/differentiation/CAPABILITY_INVENTORY.md)。本轮仅文档/只读盘点，后续可写并行必须独立worktree。
+
+2026-10-18 S2/S3：两组证据及缺口见 `docs/02-requirements/differentiation/S2_EVIDENCE.md`；v1冻结契约见 `docs/03-modules/08-backend-api/policy-capital/CONTRACT.md`。依任务表进入S4/S5，生产接口未上线；最新持仓/客户费用缺失必须显式阻断。
+
+2026-10-18 S4/S5/S6：政策研究任务、确定性单笔计算、三类标的同页面板已接入。后端50项/前端152项通过及浏览器预算/缺项/返回恢复验收。账户费用/权限适配、真实模型质量和组合约束仍待完成，详见 `docs/04-changelog/logs/2026-10-18/2026-10-18-policy-capital-runtime.md`。
