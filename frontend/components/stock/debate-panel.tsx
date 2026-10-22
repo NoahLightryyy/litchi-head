@@ -170,12 +170,12 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       {results && (
         <>
           {limitations.length > 0 && (
-            <div role="status" className="p-3 mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 text-sm text-text-primary">
-              <p className="font-semibold">本次研究的限制</p>
+            <details className="mb-3 text-sm text-text-muted">
+              <summary className="cursor-pointer">本次研究的限制（{limitations.length}）</summary>
               <ul className="mt-1 space-y-1 list-disc pl-4">
                 {limitations.map((item) => <li key={item}>{item}</li>)}
               </ul>
-            </div>
+            </details>
           )}
           <HorizonResearch analyses={results.analyses} />
           <details className="rounded-md border border-bg-tertiary p-3">

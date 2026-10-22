@@ -14,6 +14,20 @@ The central engineering question is: **How can multi-agent analysis depend on in
 
 Delivered components include a LangGraph orchestration engine, cross-source data validation, recoverable research tasks, a web application and automated validation. The October 22, 2026 integration snapshot recorded **2,451 passing Python tests and 160 passing frontend tests**, with successful Python 3.12/3.13 and frontend [CI jobs](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194). [Validation log](docs/04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md)
 
+## Interface preview
+
+Screenshots from the locally running application on October 22, 2026, showing market discovery, stock charts and topic-based news browsing. Source timestamps and historical-data labels remain visible. Detailed diagnostics are collapsed by default and accessible through disclosure controls or the header status link.
+
+**Market overview · Cross-source indices and sector rankings**
+
+![Market overview with three indices and sector fund-flow rankings](docs/assets/screenshots/market-overview.jpg)
+
+| Stock candles and moving averages | News topics and source traceability |
+|---|---|
+| [![Hengrui historical daily candles and moving averages](docs/assets/screenshots/stock-chart.jpg)](docs/assets/screenshots/stock-chart.jpg) | [![News word cloud and semiconductor stories](docs/assets/screenshots/news-topics.jpg)](docs/assets/screenshots/news-topics.jpg) |
+
+Click an image to view it at full size. The screenshots show the Chinese interface.
+
 ## User workflow
 
 1. **Find a research subject:** explore markets and sectors, search stocks or ETFs, and inspect quotes, charts, financial indicators and source timestamps.

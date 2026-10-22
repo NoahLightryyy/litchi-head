@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useLocale } from "./locale-provider";
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
@@ -54,8 +55,6 @@ async function probeBackend(): Promise<BackendProbe> {
 export function BackendStatusIndicator() {
   const { t } = useLocale();
   const [state, setState] = useState<BackendState>("checking");
-  const [diagnose, setDiagnose] = useState<DiagnoseResult | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   const check = useCallback(async () => {
@@ -63,8 +62,6 @@ export function BackendStatusIndicator() {
       try {
         const result = await probeBackend();
         if (!mountedRef.current) return;
-        setDiagnose(result.diagnose);
-        setMessage(result.message);
         setState(result.state);
         return; // success
       } catch {
@@ -117,25 +114,7 @@ export function BackendStatusIndicator() {
     );
   }
 
-  /* ── 降级警告（精简横幅） ── */
-  if (state === "degraded") {
-    const fails = Object.entries(diagnose?.checks ?? {})
-      .filter(([, v]) => v.status === "fail" || v.status === "warn")
-      .slice(0, 2);
-    const detail =
-      (message ? t(message) : null) ??
-      (fails.length > 0
-        ? `${t("部分服务降级")}: ${fails
-            .map(([k, v]) => `${k}: ${v.message || v.error || v.status}`)
-            .join("；")}`
-        : t("后端已连接，部分服务状态异常"));
-    return (
-      <div className="px-4 py-2 bg-amber-500/10 text-amber-600 text-xs text-center border-b border-amber-500/20 flex items-center justify-center gap-2">
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
-        <span>{detail}</span>
-      </div>
-    );
-  }
+  // 降级详情集中到数据状态页；顶部状态入口持续保留真实状态。
 
   return null;
 }
@@ -199,9 +178,9 @@ export function HeaderStatusDot() {
   const title = t(message ?? label);
 
   return (
-    <span className="flex items-center gap-1.5 text-xs text-text-muted" title={title}>
+    <Link href="/data-status" className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary" title={title} aria-label={`${t("数据状态")}: ${t(label)}`}>
       <span className={`inline-block w-1.5 h-1.5 rounded-full ${dot}`} />
       {t(label)}
-    </span>
+    </Link>
   );
 }

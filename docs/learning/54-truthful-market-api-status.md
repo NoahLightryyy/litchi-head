@@ -92,3 +92,9 @@ else:
 **上一篇：[52｜证据不完整时怎样继续推理而不伪装完整](52-evidence-limited-reasoning.md)**
 
 **下一篇：[55｜多源汇总不是把两个数字取平均](55-multi-source-index-reconciliation.md)**
+
+## 2026-10-22：折叠诊断，保留状态
+
+用户可以选择低干扰展示：`frontend/components/macro/market-data-notice.tsx` 使用原生 `details/summary` 默认收起技术诊断，`marketNoticeLabel` 仍把陈旧数据标为“历史数据”，缺失来源标为“部分数据”。顶部状态通过 `frontend/components/shared/backend-status.tsx` 链接到数据状态页；不把降级改为成功。
+
+自己试试：打开历史快照的“查看详情”，确认仍能看到来源失败、行情时间与统计口径；再次收起后，历史状态仍可见。全断网仍保留连接失败和重试入口。

@@ -39,3 +39,12 @@ export function boardNoticeSummary(meta: MarketMeta | undefined, refreshError = 
   if (meta.failed_sources.length) return "部分板块来源刷新失败，当前仅展示可用数据。";
   return "东方财富快照已加载；请结合行情时间查看排名。";
 }
+
+/** The collapsed control retains stale/partial state without exposing raw diagnostics. */
+export function marketNoticeLabel(meta: MarketMeta | undefined, refreshError = false): string {
+  if (refreshError || meta?.status === "stale") return "历史数据 · 查看详情";
+  if (meta?.missing_codes.length || meta?.failed_sources.length || meta?.status === "partial") {
+    return "部分数据 · 查看详情";
+  }
+  return "来源说明 · 查看详情";
+}

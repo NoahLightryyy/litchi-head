@@ -14,6 +14,20 @@ Litchi Head 是一个可本地运行的全栈 AI 研究系统。用户可以从�
 
 已交付的工程成果包括 LangGraph 编排引擎、多源数据校验、可恢复研究任务、Web 应用与自动化验证。2026-10-22 集成验收记录为 **2,451 项 Python 测试、160 项前端测试通过**；Python 3.12/3.13 与前端 [CI 均通过](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194)。[验收记录](docs/04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md)
 
+## 界面预览
+
+2026-10-22 本地运行实景，展示市场发现、个股图表和新闻主题浏览；行情日期、来源与历史数据标记保留在界面中。详细诊断默认收起，可从“查看详情”或顶部状态入口展开。
+
+**市场总览 · 多源指数与板块排行**
+
+![市场总览：三大指数与板块资金排行](docs/assets/screenshots/market-overview.jpg)
+
+| 个股 K 线与均线 | 新闻主题与来源追踪 |
+|---|---|
+| [![恒瑞医药历史日线与均线](docs/assets/screenshots/stock-chart.jpg)](docs/assets/screenshots/stock-chart.jpg) | [![新闻词云与半导体主题报道](docs/assets/screenshots/news-topics.jpg)](docs/assets/screenshots/news-topics.jpg) |
+
+点击图片可查看原尺寸。
+
 ## 使用流程
 
 1. **发现研究对象**：浏览市场与行业板块，搜索股票或 ETF，查看行情、K 线、财务指标与数据时间。

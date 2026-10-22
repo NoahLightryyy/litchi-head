@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { marketNoticeFacts } from "../lib/market-notice.ts";
+import { marketNoticeFacts, marketNoticeLabel } from "../lib/market-notice.ts";
 import type { MarketMeta } from "../lib/types/market.ts";
 
 const baseMeta: MarketMeta = {
@@ -69,4 +69,13 @@ test("板块详情折叠仍明确历史状态，不能冒充休市成功", async
   assert.match(boardNoticeSummary({ ...meta, status: "partial", failed_sources: [] })!, /快照已加载/);
   assert.match(boardNoticeSummary({ ...meta, status: "partial", failed_sources: [] }, true)!, /刷新未成功/);
   assert.equal(boardNoticeSummary(baseMeta), null);
+});
+
+test("折叠入口保留历史与部分数据状态，诊断全文仍可获取", () => {
+  assert.equal(marketNoticeLabel(baseMeta), "部分数据 · 查看详情");
+  assert.equal(marketNoticeLabel({ ...baseMeta, status: "stale" }), "历史数据 · 查看详情");
+  assert.equal(marketNoticeLabel(undefined, true), "历史数据 · 查看详情");
+  assert.equal(marketNoticeLabel({ ...baseMeta, status: "success", failed_sources: [], missing_codes: ["399006"] }), "部分数据 · 查看详情");
+  assert.equal(marketNoticeLabel(undefined), "来源说明 · 查看详情");
+  assert.deepEqual(marketNoticeFacts(baseMeta), ["失败来源：eastmoney"]);
 });
