@@ -179,3 +179,7 @@ export default defineConfig([
 ---
 
 > **更新**：2026-08-21 | 补充 Next.js 16 ESLint CLI 独立门禁
+
+## CI detached HEAD 与测试隔离（2026-10-22）
+
+GitHub Actions按提交SHA检出时可能没有当前分支。`tests/test_scripts/test_check.py` 的编排测试必须模拟upstream发现，而不能读取开发者真实checkout；否则本地有跟踪分支会通过，CI却失败。用拒绝任何未模拟subprocess调用的Mock检验隔离边界，Git审计本身仍由独立临时仓库测试覆盖，生产失败关闭策略保持不变。

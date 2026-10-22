@@ -34,3 +34,7 @@ DOC-INTEGRATION-20261022记录组件缺少页面挂接并当次修复；开放�
 已删除5个祖先已在main中的旧远端分支：backend-bw021、e0-validation-checkpoint、frontend-integration、intraday-frontend-client、kr-3b-2-failure-diagnostics（均codex/前缀）。清理2个已不存在工作区的注册记录，并用branch -d删除已合并的company-research-errors、screening-search本地分支；其提交仍可从main追溯。其他在用worktree与源目录未提交内容保留。
 
 GitHub CI已启动（run 39768656527）；首次查询Python3.12/3.13与前端均运行中。顺带确认此前main的10月8日CI曾在Pytest失败，不能将历史本地通过写成远端全绿。最终CI结果由会话收尾核对；后续纯日志提交也会触发CI。
+
+## 远端CI根因与修复
+
+run39768656527前端成功，Python两版本均失败于test_check的两个编排测试：真实读取宿主upstream，而CI按SHA检出为detached HEAD。本地跟踪分支掩盖了问题；另两个负向测试也可能因同一外部条件假阳性。已在4个编排测试模拟configured_upstream_ref，并禁止未模拟subprocess调用，生产检查脚本和失败关闭策略不变。学习卡20同步。已合并README远端分支也已清理，远端仅main和仍有后续未提交工作的integration-project-20261001；本地main已同步8b8891a。

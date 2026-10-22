@@ -408,7 +408,12 @@ def test_main_checks_backend_types_and_changed_frontend(
 
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": {"frontend/app/page.tsx"})
+    monkeypatch.setattr(check, "configured_upstream_ref", lambda: "origin/main")
     monkeypatch.setattr(check, "git_commit_batches", lambda target: [])
+    monkeypatch.setattr(
+        check.subprocess, "run",
+        Mock(side_effect=AssertionError("gate orchestration must not inspect the host checkout")),
+    )
     monkeypatch.setattr(check, "run_step", fake_run_step)
     monkeypatch.setattr(sys, "argv", ["check.py"])
 
@@ -433,7 +438,12 @@ def test_full_mode_runs_python_and_frontend_gates(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": set())
+    monkeypatch.setattr(check, "configured_upstream_ref", lambda: "origin/main")
     monkeypatch.setattr(check, "git_commit_batches", lambda target: [])
+    monkeypatch.setattr(
+        check.subprocess, "run",
+        Mock(side_effect=AssertionError("gate orchestration must not inspect the host checkout")),
+    )
     monkeypatch.setattr(check, "run_step", fake_run_step)
     monkeypatch.setattr(sys, "argv", ["check.py", "--full"])
 
@@ -461,7 +471,12 @@ def test_full_mode_fails_when_public_status_lacks_root_readme(
         "git_diff",
         lambda target="HEAD": {"docs/00-overview/ROADMAP.md"},
     )
+    monkeypatch.setattr(check, "configured_upstream_ref", lambda: "origin/main")
     monkeypatch.setattr(check, "git_commit_batches", lambda target: [])
+    monkeypatch.setattr(
+        check.subprocess, "run",
+        Mock(side_effect=AssertionError("gate orchestration must not inspect the host checkout")),
+    )
     monkeypatch.setattr(check, "run_step", lambda name, cmd: True)
     monkeypatch.setattr(sys, "argv", ["check.py", "--full"])
 
@@ -526,7 +541,12 @@ def test_run_step_returns_command_status(
 def test_main_returns_failure_when_a_gate_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(check, "ensure_deps", lambda: None)
     monkeypatch.setattr(check, "git_diff", lambda target="HEAD": set())
+    monkeypatch.setattr(check, "configured_upstream_ref", lambda: "origin/main")
     monkeypatch.setattr(check, "git_commit_batches", lambda target: [])
+    monkeypatch.setattr(
+        check.subprocess, "run",
+        Mock(side_effect=AssertionError("gate orchestration must not inspect the host checkout")),
+    )
     monkeypatch.setattr(check, "run_step", lambda name, cmd: name != "ruff")
     monkeypatch.setattr(sys, "argv", ["check.py"])
 
