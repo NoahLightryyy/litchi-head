@@ -1,6 +1,6 @@
 # Litchi Head
 
-**An evidence-aware multi-agent research and decision-support platform for Chinese A-share equities.**
+**A multi-agent research platform for Chinese A-share markets, connecting market data, evidence validation and peer review in a traceable workflow.**
 
 [中文](README.md) · [Architecture decisions](docs/05-decisions/README.md) · [Module documentation](docs/03-modules/README.md) · [CI](https://github.com/NoahLightryyy/litchi-head/actions)
 
@@ -8,66 +8,61 @@ Python · LangGraph · Pydantic · FastAPI · Next.js · TypeScript
 
 ## Overview
 
-Litchi Head explores how LLM-based analysis can become a traceable, testable research workflow that a human can review. It connects market, news and financial data to specialized agents, peer review, aggregation and risk assessment, then presents structured results through a web application.
+Litchi Head is a locally runnable, full-stack AI research system. Users can explore markets, sectors, stocks and ETFs, inspect prices and financial data, trace policy evidence, and obtain structured research through specialized agents, peer review and risk assessment.
 
-The project has an implemented MVP and ongoing reliability and evaluation work. It is a personal research and engineering project. Implemented workflows do not establish investment performance or model superiority. The trading module produces plans and position calculations; live brokerage execution is not integrated.
+The central engineering question is: **How can multi-agent analysis depend on inspectable evidence while remaining understandable when data is incomplete, services fail or tasks are interrupted?** The implementation connects data provenance, typed contracts, task state and model output within one workflow.
+
+Delivered components include a LangGraph orchestration engine, cross-source data validation, recoverable research tasks, a web application and automated validation. The October 22, 2026 integration snapshot recorded **2,451 passing Python tests and 160 passing frontend tests**, with successful Python 3.12/3.13 and frontend [CI jobs](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194). [Validation log](docs/04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md)
+
+## User workflow
+
+1. **Find a research subject:** explore markets and sectors, search stocks or ETFs, and inspect quotes, charts, financial indicators and source timestamps.
+2. **Inspect the evidence:** review policy materials, citations and industry relationships. Source-backed maps and AI drafts labeled as unverified inference are presented separately.
+3. **Run multi-perspective analysis:** once evidence gates pass, initiate analysts, strategy perspectives, peer review, independent assessment and aggregation.
+4. **Review and follow up:** inspect structured findings and risk information, restore debate status when revisiting a page, and retain research and action records for reflection.
+
+Stock, sector and ETF pages provide research entry points. `/policy` and `/capital` provide historical-policy and hypothetical-capital demonstrations. Capital previews use deterministic calculations and show whether account, fee and other required inputs are available.
 
 ## Engineering contributions
 
-| Area | Implementation and trade-off | Entry point |
+| Engineering question | Implementation | Entry point |
 |---|---|---|
-| Multi-agent orchestration | LangGraph coordinates analysis, strategy perspectives, peer review, independent assessment, aggregation and risk review; Pydantic validates module boundaries | [Orchestrator](src/debate/orchestrator.py), [models](src/debate/models.py) |
-| Evidence validation | Cross-source market/news checks retain provenance, timestamps and diagnostics; incomplete critical evidence blocks formal debate | [Evidence service](src/data/evidence_service.py), [gate](src/debate/evidence_gate.py) |
-| Auditable price data | Separates completed daily bars from provisional intraday state; implements RAW-data auditing and corporate-action adjustment verification; full production integration remains ongoing | [Contracts](src/data/kline_business.py), [adjustments](src/data/kline_adjustment.py) |
-| Recoverable research | Policy research links archived evidence and citations, with SQLite task recovery, budget checks and explicit failure states | [Research service](backend/policy_research.py), [tests](tests/test_backend/test_policy_research_runtime.py) |
-| Deterministic calculations | Decimal-based single-buy previews block when verified account, fee or permission context is missing | [Capital preview](backend/capital_preview.py), [contract tests](tests/test_backend/test_policy_capital_contract.py) |
-| Full-stack delivery | FastAPI APIs and a Next.js interface for market discovery, sectors, stocks, charts and research status | [Backend](backend/main.py), [frontend](frontend/) |
-| Feedback foundations | Research/action records, reflection, trust statistics and dynamic weighting; continuous real-outcome validation remains incomplete | [Reflection](src/debate/reflection.py), [trust](src/debate/trust.py), [memory](src/memory/) |
+| How can multiple roles share a consistent structure? | LangGraph coordinates analysis, peer review, independent assessment and risk review; Pydantic validates data across module boundaries | [Orchestrator](src/debate/orchestrator.py) · [Models](src/debate/models.py) |
+| What happens when evidence conflicts or expires? | Cross-source market/news checks retain provenance, timestamps and diagnostics; missing critical evidence blocks formal debate before model calls | [Evidence service](src/data/evidence_service.py) · [Gate](src/debate/evidence_gate.py) |
+| How are intraday states separated from historical bars? | Separate completed daily bars from provisional intraday data, with components for RAW-data auditing, corporate actions and adjustment verification | [Price-data contracts](src/data/kline_business.py) · [Adjustments](src/data/kline_adjustment.py) |
+| How can long-running research recover? | SQLite-backed policy research tasks link archived evidence and citations, enforce budget checks and preserve explicit failure states | [Research runtime](backend/policy_research.py) · [Runtime tests](tests/test_backend/test_policy_research_runtime.py) |
+| How are monetary calculations kept out of language-model output? | Research generation is separate from Decimal-based single-buy calculations; typed contracts validate account, fee and permission context | [Capital preview](backend/capital_preview.py) · [Contract tests](tests/test_backend/test_policy_capital_contract.py) |
+| How is the system delivered to users? | FastAPI and Next.js expose market data, charts, research status, failure diagnostics and task recovery, with CI across both stacks | [API](backend/main.py) · [Web app](frontend/) · [CI configuration](.github/workflows/ci.yml) |
 
-## Integrated mainline capabilities
-
-The mainline also includes three-source index checks, intraday percentage axes and volume panels, staged company-research errors, sector-aware screening, traceable sector maps, and [E0 offline evaluation infrastructure](src/backtest/e0/). E0 sampling, execution and result storage are implemented; this does not establish model superiority.
-
-## Additional integrated user features
-
-- Dedicated ETF search and detail pages with identity checks, three-decimal quotes, source timestamps and explicit single-source limitations.
-- Cached AI industry drafts when reviewed maps are unavailable, clearly labeled as unverified inference, with bounded recovery and existing source-backed maps retained.
-- Restored running debate sessions when revisiting a stock, preserving identity isolation and terminal failure states.
-- Inline policy evidence and capital-input checks on stocks, sectors and ETFs; `/policy` and `/capital` retain historical/hypothetical demonstrations.
-- A [six-case research smoke test](docs/02-requirements/differentiation/SMOKE_RESULT_2026-10-18.md) recorded 4/6 for direct answers and 6/6 after self-review. The small, unequal-budget sample does not establish model superiority or investment performance.
-
-Automatic draft generation may incur model-provider charges. Successful results are cached and failures have bounded recovery. Drafts are general-knowledge inferences, not verified company relationships.
-
-## Workflow
+## Architecture
 
 ```text
-Market / news / financial data
-              ↓
-Provenance and freshness checks → missing evidence: diagnostics / debate blocked
-              ↓
-Analysts → strategy perspectives → peer review → independent assessment
-              ↓
-Aggregation / risk review / planning → structured research → human review
-              ↓
-Records / reflection / trust statistics (real-outcome loop still incomplete)
+Market / news / financial data / policy materials
+                       ↓
+Adapters → provenance and freshness checks → typed evidence
+                       ↓
+Evidence gate → analysts → strategy perspectives → peer review
+                       ↓
+Independent assessment / aggregation → risk / planning → human review
+                       ↓
+Research records / reflection / trust statistics
 
 FastAPI API ←→ Next.js web interface
 ```
 
-Research availability and trade readiness are separate states. Displaying historical evidence or generating research does not establish that an executable order quantity can be calculated. All model calls use the shared [LLM adapter](src/utils/llm.py); the current default is `deepseek-v4-pro` with thinking disabled, governed by `DEFAULT_MODEL` in code.
+Evidence validity, research generation and trade readiness are modeled separately, allowing the interface to expose errors and missing inputs. All model calls use a shared [LLM adapter](src/utils/llm.py). The current default is `deepseek-v4-pro` with thinking disabled, governed by `DEFAULT_MODEL`.
 
-## Evidence and limitations
+## Validation and research evaluation
 
-- **Historical integration snapshot, October 8, 2026:** 2,371 Python tests passed, 7 skipped and 19 deselected; 141 frontend tests passed and the production build passed. These are historical results, not live scores for the current branch. [Validation log, Chinese](docs/04-changelog/logs/2026-10-08/2026-10-08-branch-consolidation.md)
-- **CI configuration:** Python 3.12/3.13, Ruff, Pyright, pytest, frontend tests, type checks and builds. The configured coverage threshold is 80%; a threshold is not a measured coverage result. [Workflow](.github/workflows/ci.yml)
-- **Reproducibility:** isolated tests establish contract and control-flow behavior. Live data availability, paid-model quality and investment outcomes require separate validation. News coverage needs time to accumulate on a fresh deployment; unavailable upstream data can block formal debate.
-- **Open work:** complete production provenance, continuous shadow evaluation, confidence calibration against real outcomes, and verified brokerage/account/fee integration. No excess-return claim or demonstrated advantage over a single-model baseline is made.
+**Engineering validation.** The October 22, 2026 integration snapshot recorded 2,451 passing Python tests, 7 skipped and 19 deselected; 160 frontend tests and the production build passed. CI includes Ruff, Pyright, Python 3.12/3.13 tests and coverage checks, plus frontend tests, type checking and builds. These snapshot-specific results are documented in the [validation log](docs/04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md) and [CI run](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194).
 
-The next research step follows the [baseline and shadow-validation plan](docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md): preregistered comparisons, immutable samples and outcomes after costs. A confidence field is not an empirically validated probability of success.
+**Research evaluation.** The repository implements [E0 offline sampling, execution and result storage](src/backtest/e0/) and preserves a [six-case research smoke test with raw records](docs/02-requirements/differentiation/SMOKE_RESULT_2026-10-18.md). The smoke test checks the research workflow; its small sample and unequal call budgets do not establish an advantage over a single-model baseline. Further comparisons follow the [baseline and shadow-validation plan](docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md).
+
+**Scope.** The system supports research and human review. Its trading module provides plans and position calculations without live brokerage execution. Complete production provenance, continuous shadow evaluation and confidence calibration against real outcomes remain ongoing; test results do not establish investment returns. AI industry drafts are explicitly unverified inferences, not evidence of actual company relationships.
 
 ## Run locally
 
-Requires Python 3.12+. Node.js 24 and pnpm 10.33.0 match the frontend CI environment. Live AI research requires DeepSeek credentials and access to upstream data services.
+Requires Python 3.12+. Node.js 24 and pnpm 10.33.0 match the frontend CI environment. Live AI research requires DeepSeek credentials and access to upstream data services. A fresh deployment needs time to accumulate news coverage; unavailable critical sources produce explicit debate-blocking diagnostics. Automatic AI drafts may incur provider charges; successful results are cached.
 
 ```bash
 git clone https://github.com/NoahLightryyy/litchi-head.git

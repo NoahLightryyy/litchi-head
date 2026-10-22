@@ -1,73 +1,68 @@
 # Litchi Head · 荔枝头
 
-**面向 A 股研究的多智能体决策支持平台：让分析过程、数据来源和证据缺口可检查。**
+**面向 A 股研究的多智能体平台，将市场数据、证据校验与交叉评审连接成可追溯的分析流程。**
 
 [English](README.en.md) · [架构决策](docs/05-decisions/README.md) · [模块文档](docs/03-modules/README.md) · [CI](https://github.com/NoahLightryyy/litchi-head/actions)
 
 Python · LangGraph · Pydantic · FastAPI · Next.js · TypeScript
 
-## 项目简介
+## 项目概览
 
-Litchi Head 探索一个具体问题：如何把大语言模型的多角度分析组织成可追溯、可检验、可由人审阅的投资研究流程？项目将行情、新闻与财务数据接入多智能体工作流，通过独立分析、同侪复核、聚合与风控生成结构化研究结果，并在 Web 界面展示。
+Litchi Head 是一个可本地运行的全栈 AI 研究系统。用户可以从市场、板块、股票或 ETF 进入研究，查看行情与财务信息、追踪政策证据，并通过多智能体分析、同侪复核和风控审阅获得结构化研究结果。
 
-当前阶段为 **MVP 已实现、可靠性与评测持续完善**。这是个人研究与工程项目；已经实现的工作流不代表投资收益或模型优势已经得到验证。交易执行模块目前提供计划与仓位计算，尚未接入实盘券商自动下单。
+项目关注的技术问题是：**如何让多智能体分析依赖可检查的数据，并在证据不足、外部服务失败或任务中断时保持行为可解释？** 为此，系统将数据来源、类型契约、任务状态和模型输出纳入同一条处理链路。
 
-## 核心工程工作
+已交付的工程成果包括 LangGraph 编排引擎、多源数据校验、可恢复研究任务、Web 应用与自动化验证。2026-10-22 集成验收记录为 **2,451 项 Python 测试、160 项前端测试通过**；Python 3.12/3.13 与前端 [CI 均通过](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194)。[验收记录](docs/04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md)
 
-| 方向 | 实现与设计取舍 | 代码入口 |
+## 使用流程
+
+1. **发现研究对象**：浏览市场与行业板块，搜索股票或 ETF，查看行情、K 线、财务指标与数据时间。
+2. **核对研究证据**：查看政策材料、引用与产业关系；资料地图与标注为“待核验”的 AI 推断草图区分展示。
+3. **组织多角度分析**：通过证据门禁后启动分析师、策略观点、同侪复核、独立评审与聚合流程。
+4. **审阅并跟踪结果**：阅读结构化分析与风险信息；返回页面可恢复辩论任务状态，研究与操作记录支持后续反思。
+
+股票、板块和 ETF 页面提供研究入口；`/policy` 与 `/capital` 提供历史政策与假设资金演示。本金预览使用确定性计算，并明确展示账户、费用等输入是否满足要求。
+
+## 核心技术贡献
+
+| 技术问题 | 实现方式 | 代码入口 |
 |---|---|---|
-| 多智能体编排 | LangGraph 状态图串联分析、策略观点、互评、独立评审、聚合与风控；Pydantic 约束跨模块输出 | [辩论引擎](src/debate/orchestrator.py)、[数据模型](src/debate/models.py) |
-| 数据证据与门禁 | 多源行情/新闻对账，保留来源、时间与失败诊断；关键证据不完整时阻断正式辩论 | [证据服务](src/data/evidence_service.py)、[辩论门禁](src/debate/evidence_gate.py) |
-| K 线审计 | 区分已完成日线与盘中临时状态；实现 RAW 数据审计、公司行动与复权核验，完整生产链路仍在接入 | [K 线业务契约](src/data/kline_business.py)、[复权模块](src/data/kline_adjustment.py) |
-| 可追踪研究任务 | 政策研究关联归档材料与引用，支持 SQLite 任务恢复、预算检查及明确失败状态 | [政策研究服务](backend/policy_research.py)、[专项测试](tests/test_backend/test_policy_research_runtime.py) |
-| 确定性金额计算 | 使用 Decimal 计算单笔买入预览；缺少已核验账户、费用或权限上下文时返回阻断状态 | [本金预览](backend/capital_preview.py)、[契约测试](tests/test_backend/test_policy_capital_contract.py) |
-| 全栈交付 | FastAPI 提供结构化 API，Next.js 展示市场、板块、个股、图表与研究状态 | [后端](backend/main.py)、[前端](frontend/) |
-| 结果反馈基础 | 保存研究与操作记录，提供反思、信任度统计和动态权重机制；连续真实结果验证尚未完成 | [反思](src/debate/reflection.py)、[信任度](src/debate/trust.py)、[记忆层](src/memory/) |
+| 多角色分析如何保持结构一致？ | 使用 LangGraph 状态图组织分析、互评、独立评审与风控，以 Pydantic 校验跨模块数据 | [编排引擎](src/debate/orchestrator.py) · [类型模型](src/debate/models.py) |
+| 数据冲突或过期时如何控制分析？ | 对行情与新闻进行多源校验，记录来源、时间与诊断；关键证据不足时在模型调用前阻断正式辩论 | [证据服务](src/data/evidence_service.py) · [门禁](src/debate/evidence_gate.py) |
+| 如何区分盘中状态与历史日线？ | 分离完成日线与临时盘中数据，实现 RAW 数据审计、公司行动与复权核验组件 | [K 线契约](src/data/kline_business.py) · [复权核验](src/data/kline_adjustment.py) |
+| 长耗时研究如何恢复和追踪？ | 以 SQLite 保存政策研究任务，关联归档材料与引用，执行预算检查并保留失败状态 | [研究运行时](backend/policy_research.py) · [运行时测试](tests/test_backend/test_policy_research_runtime.py) |
+| 如何避免语言模型承担金额运算？ | 将研究生成与 Decimal 单笔买入计算分离，以类型契约校验账户、费用和权限上下文 | [本金预览](backend/capital_preview.py) · [契约测试](tests/test_backend/test_policy_capital_contract.py) |
+| 如何将系统交付给用户？ | 通过 FastAPI 与 Next.js 实现行情、图表、研究状态、失败诊断和任务恢复，并以 CI 验证前后端 | [API](backend/main.py) · [Web 应用](frontend/) · [CI 配置](.github/workflows/ci.yml) |
 
-## 主线已整合的能力
-
-主线还包含三源指数核验、分时百分比轴与量额副图、公司解读阶段错误、行业选股搜索、可追溯产业地图，以及 [E0 离线评测基础设施](src/backtest/e0/)。E0 的采样、运行与结果存储已实现，尚未据此证明模型优势。
-
-## 本次整合的用户功能
-
-- ETF 独立搜索与详情页：目录身份、三位小数行情、报价时间和单源限制分开展示，支持缺报价与失败状态。
-- 产业链草图：缺少已核验图时生成并缓存明确标注“待核验”的 AI 推断图；保留现有资料地图，支持有界失败恢复。
-- 辩论任务恢复：返回个股页可恢复服务端运行状态，保持股票身份隔离并展示失败终态。
-- 政策与本金：股票、板块及 ETF 同页证据与缺项核验；`/policy`、`/capital` 保留历史政策与假设资金的演示入口。
-- [六题研究烟测记录](docs/02-requirements/differentiation/SMOKE_RESULT_2026-10-18.md)：直接回答4/6、独立回答后复核6/6。样本小且预算不等，不代表模型优势或投资收益。
-
-AI 草图自动生成可能调用付费模型；成功缓存避免重复生成，失败按有界策略恢复。草图属于一般知识推断，不能充当真实公司关系证据。
-
-## 工作流
+## 系统架构
 
 ```text
-行情 / 新闻 / 财务数据
-          ↓
-来源与时间校验 → 证据不足：明确诊断 / 阻断正式辩论
-          ↓
-分析师 → 策略观点 → 同侪复核 → 独立评审与聚合
-          ↓
-风控 / 交易计划 → 结构化研究结果 → 人工审阅
-          ↓
-记录 / 反思 / 信任度统计（真实结果闭环仍待完善）
+行情 / 新闻 / 财务 / 政策材料
+              ↓
+数据适配 → 来源与时间校验 → 类型化证据
+              ↓
+证据门禁 → 分析师 → 策略观点 → 同侪复核
+              ↓
+独立评审与聚合 → 风控 / 计划 → 人工审阅
+              ↓
+研究记录 / 反思 / 信任度统计
 
 FastAPI API ←→ Next.js Web 界面
 ```
 
-研究展示与交易就绪状态分开：能够展示历史材料或生成研究，不意味着可以生成可执行交易数量。模型统一经过 [LLM 适配层](src/utils/llm.py)；当前默认是 `deepseek-v4-pro` 非思考模式，以代码中的 `DEFAULT_MODEL` 为准。
+数据校验、研究生成和交易就绪状态分别建模，错误与缺项可被前端直接展示。所有模型调用通过统一的 [LLM 适配层](src/utils/llm.py)；当前默认模型为 `deepseek-v4-pro` 非思考模式，以 `DEFAULT_MODEL` 为准。
 
-## 验证证据与当前边界
+## 验证与研究评估
 
-- **历史集成验收（2026-10-08）**：本地检查记录为 Python 2,371 项通过、7 项跳过、19 项排除；前端 141 项通过，生产构建通过。该数字对应当时的集成快照，不是当前分支的实时成绩。[验收记录](docs/04-changelog/logs/2026-10-08/2026-10-08-branch-consolidation.md)
-- **持续集成配置**：Python 3.12/3.13、Ruff、Pyright、pytest，以及前端测试、类型和构建检查；覆盖率门禁配置为 80%，不把门槛当成实测覆盖率。[工作流](.github/workflows/ci.yml)
-- **可复现边界**：离线测试可验证契约与控制流程；真实数据可用性、付费模型质量和投资效果需要分别验证。首次部署的新闻缓存需要积累覆盖窗口，部分上游不可用时正式辩论可能被阻断。
-- **尚未完成**：完整生产数据血缘、连续影子验证、真实结果上的置信度校准、券商账户与费用证明接入。没有声称获得超额收益，也没有声称多智能体优于单模型基线。
+**工程验证。** 2026-10-22 集成快照中，Python 测试 2,451 项通过、7 项跳过、19 项排除；前端 160 项通过，生产构建通过。CI 包含 Ruff、Pyright、Python 3.12/3.13 测试与覆盖率检查，以及前端测试、类型检查和构建。数字对应该快照，可通过 [验收记录](docs/04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md) 和 [CI 运行](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194) 核查。
 
-研究评估下一步是按 [Baseline 与影子验证计划](docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)，使用预注册对照、不可变样本与成本后结果检验系统价值。置信度字段的存在不代表它已经是真实胜率。
+**研究评估。** 已实现 [E0 离线评测的采样、运行与结果存储](src/backtest/e0/)，并保存 [六题研究烟测及原始记录](docs/02-requirements/differentiation/SMOKE_RESULT_2026-10-18.md)。后者用于检查研究流程：样本小、调用预算不同，因此不用于推断多智能体优于单模型。后续对照设计见 [Baseline 与影子验证计划](docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)。
+
+**适用范围。** 本项目用于研究辅助与人工审阅，交易模块提供计划和仓位计算，未连接券商自动下单。完整生产数据血缘、连续影子验证与真实结果上的置信度校准仍在推进；测试成绩不代表投资收益。AI 草图是明确标注的未核验推断，不能作为真实公司关系证据。
 
 ## 本地运行
 
-需要 Python 3.12+；前端建议与 CI 一致使用 Node.js 24、pnpm 10.33.0。真实 AI 研究还需要 DeepSeek 凭据与可访问的数据源。
+需要 Python 3.12+；前端建议与 CI 一致使用 Node.js 24、pnpm 10.33.0。真实 AI 研究还需要 DeepSeek 凭据与可访问的数据源。首次部署需要积累新闻覆盖窗口；关键上游不可用时，正式辩论会展示阻断诊断。AI 草图自动生成可能调用付费模型，成功结果会缓存。
 
 ```bash
 git clone https://github.com/NoahLightryyy/litchi-head.git
