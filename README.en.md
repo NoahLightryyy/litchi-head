@@ -133,4 +133,4 @@ Development uses AI-assisted coding and documentation, with records in the [work
 
 ## License
 
-[MIT](LICENSE)
+[GNU AGPL v3](LICENSE)

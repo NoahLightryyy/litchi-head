@@ -133,4 +133,4 @@ pnpm --dir frontend build
 
 ## License
 
-[MIT](LICENSE)
+[GNU AGPL v3](LICENSE)

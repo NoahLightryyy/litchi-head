@@ -22,3 +22,5 @@
 ## 截图清单
 
 `docs/assets/screenshots/market-overview.jpg`、`stock-chart.jpg`、`news-topics.jpg`：均为1280×720浏览器原始JPEG，没有后期抹除或改字。总览含历史板块快照标记；600276日线为腾讯备用历史日线；新闻选择半导体主题。未展示个人账户或真实资金。顶部诊断链接与展开后HTTP502原文已实际验证。
+
+GitHub渲染验收：三张图片complete=true，均为1280×720，路径有效。验收另发现README的MIT标签与既有LICENSE不一致，按现有GNU AGPL v3正文纠正中英文标签，登记在既有DOC-README债务；不改变许可证。
