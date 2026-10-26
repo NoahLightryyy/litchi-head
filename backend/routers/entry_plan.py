@@ -52,7 +52,8 @@ def configured() -> bool:
 async def read_entry_plan(session_id: SessionId) -> EntryPlanResult | None | JSONResponse:
     try:
         result = await asyncio.to_thread(store.get, session_id)
-        return result.model_copy(update={"cached": True}) if result else None
+        return qualify_historical_conditions(result).model_copy(update={"cached": True}) \
+            if result else None
     except Exception:
         logger.exception("Entry-plan read failed: session=%s", session_id)
         return failure("ENTRY_PLAN_READ_FAILED", "已保存的买入计划读取失败，请重试", 503)
@@ -73,7 +74,7 @@ async def generate_entry_plan(
     try:
         existing = await asyncio.to_thread(store.get, session_id)
         if existing is not None and not body.refresh:
-            return existing.model_copy(update={"cached": True})
+            return qualify_historical_conditions(existing).model_copy(update={"cached": True})
         record = await sessions.get(session_id)
         if record is None:
             return failure("ENTRY_PLAN_NOT_FOUND", "未找到这次辩论，请先完成标的分析", 404,

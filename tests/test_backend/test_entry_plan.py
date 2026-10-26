@@ -20,6 +20,7 @@ from backend.entry_plan import (
     build_entry_prompt,
     collect_entry_context,
     current_market_facts,
+    qualify_historical_conditions,
 )
 from backend.routers import entry_plan as module
 from src.debate.models import DebateResult
@@ -310,7 +311,30 @@ def test_history_only_condition_is_explicitly_qualified_as_unverified(client, cl
     for plan in response.json()["plans"]:
         assert plan["status"] == "waiting"
         assert plan["conditions"][0]["status"] == "unknown"
-        assert "仅引用历史AI研究，本次未重新核验" in plan["conditions"][0]["explanation"]
+        assert "包含历史AI引用，本次未重新核验相关事实" in plan["conditions"][0]["explanation"]
+
+
+@pytest.mark.parametrize("claimed_status", ["met", "unmet"])
+def test_mixed_quote_and_history_cannot_upgrade_unverified_valuation(client, claimed_status):
+    payload = result_payload()
+    payload["evidence"].append({"id": "debate", "kind": "analysis", "title": "旧研究",
+                                "data_time": "2026-10-23", "content": "旧AI净资产未核实"})
+    for plan in payload["plans"]:
+        plan["conditions"][0].update(status=claimed_status, evidence_ids=["quote", "debate"])
+        if claimed_status == "met":
+            plan["status"] = "consider"
+    original = EntryPlanResult(**payload)
+    qualified = qualify_historical_conditions(original)
+    assert qualify_historical_conditions(qualified) == qualified  # Repeated reads are idempotent.
+    for plan in qualified.plans:
+        assert plan.status == "waiting"
+        assert plan.conditions[0].status == "unknown"
+        assert "未重新核验相关事实" in plan.conditions[0].explanation
+    module.store.save(original)
+    for response in (client.get(URL), client.post(URL, json={})):
+        assert response.status_code == 200
+        assert response.json()["plans"][0]["conditions"][0]["status"] == "unknown"
+    assert module.store.get("deb_test") == original  # Read projection never rewrites history.
 
 
 def test_current_computed_facts_take_priority_without_promoting_volume_conflicts():

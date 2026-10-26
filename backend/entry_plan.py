@@ -416,22 +416,26 @@ def build_entry_prompt(
             "说明具体缺口，不为填字段编造价格；成交量口径冲突不能冒充价格冲突。"
             "中长期估值资料不足可null，仍给未来观察条件和分批逻辑。"
             "历史财务/新闻/公告只可说原研究曾称、本次未重新核验，相关状态为unknown。"
+            "summary和price_basis同样适用：新报价不能把旧AI净资产/盈利数字变成当前已确认PB/PE。"
+            "即使混引quote与debate，由旧AI财务主张推导的估值仍未核验，不能标unmet或met。"
             "不得断言三季报尚未披露、当日全部新闻无利好或旧减持已确认形成当前抛压。"
         ),
     }, ensure_ascii=False, allow_nan=False)
 
 
 def qualify_historical_conditions(result: EntryPlanResult) -> EntryPlanResult:
-    """Historical model text alone establishes neither met nor unmet current conditions."""
+    """Mixing a fresh quote with historical AI claims does not verify those claims."""
     history_ids = {item.id for item in result.evidence if item.kind == "analysis"}
     payload = result.model_dump()
     for plan in payload["plans"]:
         for condition in plan["conditions"]:
-            if set(condition["evidence_ids"]) <= history_ids:
+            if set(condition["evidence_ids"]) & history_ids:
                 condition["status"] = "unknown"
-                condition["explanation"] = (
-                    "仅引用历史AI研究，本次未重新核验。原说明：" + condition["explanation"]
-                )[:600]
+                notice = "包含历史AI引用，本次未重新核验相关事实。"
+                if not condition["explanation"].startswith(notice):
+                    condition["explanation"] = (
+                        notice + "原说明：" + condition["explanation"]
+                    )[:600]
         if plan["status"] == "consider" and any(
             item["status"] != "met" for item in plan["conditions"]
         ):
@@ -450,6 +454,9 @@ ENTRY_PLAN_PROMPT = """你是条件交易计划研究助手。依据输入的同
 conditions每项必须给condition、met/unmet/unknown、explanation、输入中的evidence_ids。
 met只能来自实际输入证据明确支持；历史AI推断不能单独证明met。尚未发生/无法核对为unknown，
 仅依据历史AI的财务/新闻说法也不能标unmet，一律unknown，并写明原研究曾称、尚未重新核验。
+混合引用新quote和旧debate仍不能核实旧AI主张，例如不能拿历史AI每股净资产配本次价格就宣称
+当前PB已确认；summary、price_basis、conditions全部必须标“基于原研究未核数据的假设推算”，
+或直接不报这种未核估值，不得无条件说“当前PB约多少”。任何含debate引用的条件状态均unknown。
 已明确观察到不满足为unmet。说明核对的数据时间。不是持续实时监测，不能声称已实时触发或自动下单。
 status=consider必须所有必要条件met且有合法候选价格；否则waiting或insufficient。
 entry_low、entry_high、stop_loss都是可修改的候选研究价格，不是行情事实，不是承诺成交价。
@@ -457,6 +464,10 @@ entry_low、entry_high、stop_loss都是可修改的候选研究价格，不是�
 必须0<stop_loss<entry_low<=entry_high；无可靠价格依据则三项全null，并说明补什么资料。
 当当前日线OHLC和MA可用时，短期应给一个基于所示前高/前低/均线的未来确认场景及候选区间，
 例如回踩所示价位后企稳再观察，或突破所示前高后回踩确认；具体锚点来自输入而非套模板数字。
+短期必须选择一个连贯场景。conditions中的各项是同时必要条件（逻辑与），不能把回踩买入与
+突破追随这两个备选场景用“或”混装为两项必选条件。候选价、撤销价和各批trigger必须围绕
+所选同一场景；其他备选仅在limitations写“需另行研究”，不加入当前conditions。
+成交量口径冲突放在limitations；只有所选场景确实依赖量能确认时才作为必要条件。
 候选止损/撤销价以场景何时被否定推导，不把固定百分比当市场依据。未来确认尚未出现就waiting。
 有明确价格冲突、已识别除权断点或现有锚点不足以解释入场与撤销关系时仍可不填短期价，
 并解释具体原因；不为填字段编造价格。成交量口径冲突不等于价格冲突，不要求全部振荡指标齐全。
