@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import Awaitable
 from datetime import UTC, datetime
+from decimal import ROUND_HALF_UP, Decimal
 from typing import TypeVar
 
 from pydantic import BaseModel
@@ -25,6 +27,81 @@ _T = TypeVar("_T", bound=BaseModel)
 
 class NoUsableEtfResearchError(ValueError):
     """All research inputs are missing; do not spend on identity-only debate."""
+
+
+def etf_daily_facts(daily: EtfKlineDisplay) -> dict[str, object] | None:
+    """Calculate recent price/volume comparisons from supplied RAW bars only."""
+    if not daily.bars:
+        return None
+
+    def rounded(value: Decimal, precision: str) -> str:
+        return format(value.quantize(Decimal(precision), rounding=ROUND_HALF_UP), "f")
+
+    rows: list[dict[str, object]] = []
+    largest_change: tuple[Decimal, dict[str, object]] | None = None
+    bars = daily.bars
+    for index in range(len(bars)):
+        bar = bars[index]
+        previous = bars[index - 1] if index else None
+        close = Decimal(str(bar.close))
+        prior_close = Decimal(str(previous.close)) if previous else None
+        change = close - prior_close if prior_close is not None else None
+        percentage = change / prior_close * 100 if (
+            change is not None and prior_close is not None and prior_close > 0
+        ) else None
+        volume_ratio = Decimal(bar.volume) / Decimal(previous.volume) if (
+            previous is not None and previous.volume > 0
+        ) else None
+        row: dict[str, object] = {
+            "date": bar.date.isoformat(),
+            "close_cny": rounded(close, "0.001"),
+            "previous_available_date": previous.date.isoformat() if previous else None,
+            "previous_close_cny": (
+                rounded(prior_close, "0.001") if prior_close is not None else None
+            ),
+            "change_cny": rounded(change, "0.001") if change is not None else None,
+            "change_pct": rounded(percentage, "0.01") if percentage is not None else None,
+            "close_direction": (
+                "up" if change > 0 else "down" if change < 0 else "flat"
+            ) if change is not None else None,
+            "volume_fund_units": bar.volume,
+            "previous_volume_fund_units": previous.volume if previous else None,
+            "volume_ratio": rounded(volume_ratio, "0.01") if volume_ratio is not None else None,
+        }
+        rows.append(row)
+        if percentage is not None and (
+            largest_change is None or abs(percentage) > largest_change[0]
+        ):
+            largest_change = (abs(percentage), {
+                "date": row["date"],
+                "previous_available_date": row["previous_available_date"],
+                "previous_close_cny": row["previous_close_cny"],
+                "close_cny": row["close_cny"],
+                "change_pct": row["change_pct"],
+            })
+    minimum = min(Decimal(str(bar.close)) for bar in bars)
+    return {
+        "source": daily.source,
+        "price_basis": "raw",
+        "fetched_at": daily.fetched_at.isoformat(),
+        "sample_start": bars[0].date.isoformat(),
+        "sample_end": bars[-1].date.isoformat(),
+        "sample_count": len(bars),
+        "sample_min_close_cny": rounded(minimum, "0.001"),
+        "sample_min_close_dates": [
+            bar.date.isoformat() for bar in bars if Decimal(str(bar.close)) == minimum
+        ],
+        "largest_abs_observation_change": largest_change[1] if largest_change else None,
+        "comparison_basis": (
+            "仅与同一来源序列的前一条已提供日线比较，previous_available_date为比较基准。"
+            "日期非相邻交易日时，不将跨缺口变化称为单日变化。volume_ratio为当条成交量/"
+            "前一条成交量，非开盘行情软件的量比；无前条或分母为零时相应值为null。"
+            "以上最低价仅指本次样本最低收盘，不是上市以来最低或盘中最低。"
+            "最大绝对涨跌遍历完整已提供样本，仍是未复权交易价格比较；不能据此认定基金净资产"
+            "实际涨跌，不能声称复权不影响趋势，也不能反推已经发生分红或份额折算。"
+        ),
+        "recent": rows[-5:],
+    }
 
 
 async def _bounded(label: str, operation: Awaitable[_T]) -> _T | None:
@@ -112,9 +189,15 @@ async def collect_etf_research(
             ))
     if daily and daily.bars:
         sections.append(
+            "【确定性日线比较摘要】\n"
+            + json.dumps(etf_daily_facts(daily), ensure_ascii=False, separators=(",", ":"))
+        )
+        sections.append(
             "【日线解释】上述为已结束交易日的未复权价格，单位元；成交量单位基金份额。"
             "最后行情日期以data_end为准，fetched_at仅为采集时间。本模块未计算MA/RSI/MACD，"
             "不得声称已有这些指标值或把分红、折算形成的价格变化当作总回报。"
+            "涨跌方向和成交量变化以确定性摘要及其比较日期为准，不能把上涨日说成下跌日；"
+            "引用量比须说明基准日期，不能将不同区间的量价关系混为一谈。"
         )
     if related:
         sections.append(

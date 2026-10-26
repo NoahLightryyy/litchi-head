@@ -1,3 +1,5 @@
+> **2026-10-26 ETF补齐**：ETF日线三位精度与腾讯/新浪回退、专用基金资料接入原多轮辩论、类型隔离历史已实现。契约为ETF_KLINE_CONTRACT.md和ETF_DEBATE_CONTRACT.md，位于docs/03-modules/08-backend-api；集成验收见本日etf-chart-debate日志。下文旧脚手架信息为历史记录。
+
 # 前端模块交接 — AI 上下文恢复
 
 > 用于新 AI 会话快速恢复前端开发上下文。

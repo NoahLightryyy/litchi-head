@@ -23,7 +23,7 @@
 | R07 | `src/data/fundamental_research.py::get_fundamental_research` | 合并财务事实与确定性指标 | 政策相关业务收入占比 | PC-01B |
 | R08 | `src/data/providers/cninfo.py::CninfoDirectAnnouncementSource/CninfoAnnouncementSource` | 公告元数据适配器和附件URL结构 | 生产研究入口已接线、正文已提取 | PC-01B |
 | R09 | `backend/routers/discovery.py`、`backend/routers/market.py`、`eastmoney_boards.py` | ETF目录与来源内板块成分、代码绑定 | 分类成员就一定受政策影响 | PC-01B |
-| R10 | `backend/etf_contract.py::EtfIdentity/EtfQuote/EtfDetail`、`routers/etfs.py` | ETF身份、市场、报价时间、缺口 | 已有指数、持仓、交易规则；契约是display-only | PC-01B/08 |
+| R10 | `backend/etf_contract.py::EtfIdentity/EtfQuote/EtfDetail`、`routers/etfs.py` | ETF身份、市场、报价时间、缺口 | 已有指数、持仓、交易规则；身份/报价契约不包含这些数据；2026-10-26另增ETF日线和专用辩论契约 | PC-01B/08 |
 | R11 | `src/utils/llm.py::LLMService.invoke_structured/ainvoke` | 统一模型入口、Pydantic输出、有限重试 | 完整调用审计与硬预算闸门 | PC-10 |
 | R12 | `backend/debate_research.py::collect_research_context/supplement_research` | 主动补证、上下文长度/超时/身份控制 | 政策原文关联已实现 | PC-02/03 |
 | R13 | `src/debate/orchestrator.py::_run_independent_review`、`research_evidence.py` | 独立复核、研究证据与交易准入分开 | 多角色共识等于事实核验 | PC-02 |

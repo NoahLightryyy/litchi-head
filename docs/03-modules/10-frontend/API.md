@@ -490,3 +490,12 @@ StockDiscovery共享，保留最近20条去重关键词；提交/打开结果才
 - 查询切换使用独立 query key 和取消信号；成分股响应校验放在查询函数内，坏数据进入错误态。
 
 - 搜索三条只读请求遇到网络失败、503 或后端明确 TimeoutError 时最多自动重试一次（800ms间隔）；404、422 和契约解析错误不自动重试。成分股重试阶段可见，最终失败仍保留手动重试。
+
+## 2026-10-26 ETF消费者契约
+
+- `GET /api/etfs/{code}/kline?days=730`：直接返回EtfKlineDisplay，bars/date及原始OHLCV，
+  ready/empty/unavailable，.001价步，volume_unit=fund_units。来源诊断可折叠。
+- 原`POST /api/debate/run`、history/status/result新增`instrument_type`；ETF显式etf，旧默认stock。
+  完整字段和错误/重试语义见[ETF辩论契约](../08-backend-api/ETF_DEBATE_CONTRACT.md)，
+  日线见[ETF日线契约](../08-backend-api/ETF_KLINE_CONTRACT.md)。
+- 缓存、历史选择和结果归属同时核对类型与代码；只读刷新不能触发分析；主动运行不自动付费重试。

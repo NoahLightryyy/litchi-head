@@ -1,3 +1,5 @@
+> **2026-10-26 ETF补齐**：ETF日线三位精度与腾讯/新浪回退、专用基金资料接入原多轮辩论、类型隔离历史已实现。契约为ETF_KLINE_CONTRACT.md和ETF_DEBATE_CONTRACT.md，位于docs/03-modules/08-backend-api；集成验收见本日etf-chart-debate日志。下文旧脚手架信息为历史记录。
+
 ---
 
 > **2026-10-01 项目集成更新**：现行集成分支 `codex/integration-project-20261001`，未 push。新闻、UA-03、主题云、财务板块、辩论修复及 KR-4A 适配层已聚合。全量闸门 5/5，Python 1939 passed、前端 90 passed、构建通过。预览 3041/8041；生产血缘及 KR-4 运行时注入仍待完成。以下旧测试数字和旧分支状态为历史快照。

@@ -1,7 +1,9 @@
 /* ── 辩论类型 ── */
+export type InstrumentType = "stock" | "etf";
 
 export interface DebateRequest {
   stock_code: string;
+  instrument_type?: InstrumentType;
   question: string;
   enable_risk?: boolean;
   enable_trader?: boolean;
@@ -9,8 +11,10 @@ export interface DebateRequest {
 }
 
 export interface DebateStatus {
-  session_id: string;
-  status: "running" | "completed" | "failed";
+  session_id?: string | null;
+  stock_code?: string | null;
+  instrument_type?: InstrumentType | null;
+  status: "queued" | "running" | "completed" | "failed" | "not_found" | "unknown";
   progress?: number;
   current_stage?: string;
 }
@@ -74,6 +78,7 @@ export interface EvidenceLimitation {
 export interface DebateResult {
   session_id: string;
   stock_code: string;
+  instrument_type?: InstrumentType;
   stock_name: string;
   question: string;
   vote_summary: VoteSummary;
@@ -98,6 +103,7 @@ export interface TrustReport {
 export interface DebateHistoryItem {
   session_id: string;
   stock_code: string;
+  instrument_type?: InstrumentType;
   status: "queued" | "running" | "completed" | "failed";
   created_at: string;
   updated_at: string;

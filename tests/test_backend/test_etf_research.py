@@ -37,6 +37,16 @@ def daily():
     )
 
 
+def daily_observations(observations):
+    payload = daily().model_dump()
+    payload.update(
+        data_start=observations[0][0], data_end=observations[-1][0],
+        bars=[dict(date=date, open=close, high=close, low=close, close=close, volume=volume)
+              for date, close, volume in observations],
+    )
+    return EtfKlineDisplay.model_validate(payload)
+
+
 def related():
     return RelatedResearchResult(
         subject_kind="etf", subject_id=IDENTITY.code, subject_name=IDENTITY.name, query="",
@@ -181,3 +191,71 @@ async def test_unavailable_source_keeps_failure_classification(sources):
         item for item in result.evidence_limitations if item.capability == "etf_daily"
     )
     assert limitation.source_statuses == {"历史日线": "unavailable"}
+
+
+def test_daily_facts_use_decimal_price_changes_and_same_date_volume_basis():
+    series = daily_observations([
+        ("2026-10-22", 0.784, 600000000),
+        ("2026-10-23", 0.792, 847322400),
+        ("2026-10-26", 0.749, 516826000),
+    ])
+    facts = etf_research.etf_daily_facts(series)
+    first, rebound, latest = facts["recent"]
+    assert first["change_cny"] is None and first["change_pct"] is None
+    assert first["volume_ratio"] is None and first["close_direction"] is None
+    assert rebound["close_direction"] == "up" and rebound["change_pct"] == "1.02"
+    assert latest["close_direction"] == "down" and latest["previous_available_date"] == "2026-10-23"
+    assert latest["change_cny"] == "-0.043" and latest["change_pct"] == "-5.43"
+    assert latest["volume_ratio"] == "0.61" and latest["volume_fund_units"] == 516826000
+    assert facts["sample_count"] == 3 and facts["sample_min_close_cny"] == "0.749"
+    assert facts["sample_start"] == "2026-10-22" and facts["sample_end"] == "2026-10-26"
+    assert facts["sample_min_close_dates"] == ["2026-10-26"]
+    assert "不是上市以来最低" in facts["comparison_basis"]
+
+
+def test_daily_facts_zero_volume_is_not_an_invented_ratio():
+    series = daily_observations([
+        ("2026-10-22", 0.784, 0),
+        ("2026-10-23", 0.784, 100),
+    ])
+    latest = etf_research.etf_daily_facts(series)["recent"][-1]
+    assert latest["volume_ratio"] is None and latest["previous_volume_fund_units"] == 0
+    assert latest["change_cny"] == "0.000" and latest["close_direction"] == "flat"
+
+
+def test_daily_facts_cover_full_sample_but_only_return_five_recent_rows():
+    series = daily_observations([
+        ("2026-10-08", 1.000, 100),
+        ("2026-10-09", 0.500, 100),
+        ("2026-10-12", 0.510, 100),
+        ("2026-10-13", 0.520, 100),
+        ("2026-10-14", 0.530, 100),
+        ("2026-10-15", 0.540, 100),
+        ("2026-10-16", 0.550, 100),
+    ])
+    facts = etf_research.etf_daily_facts(series)
+    assert facts["sample_count"] == 7 and len(facts["recent"]) == 5
+    assert facts["recent"][0]["previous_available_date"] == "2026-10-09"
+    assert facts["largest_abs_observation_change"] == {
+        "date": "2026-10-09", "previous_available_date": "2026-10-08",
+        "previous_close_cny": "1.000", "close_cny": "0.500", "change_pct": "-50.00",
+    }
+    assert "不能反推已经发生分红或份额折算" in facts["comparison_basis"]
+
+
+def test_daily_facts_missing_history_keeps_null_and_empty_is_not_summarized():
+    facts = etf_research.etf_daily_facts(daily())
+    assert facts["largest_abs_observation_change"] is None
+    assert facts["recent"][0]["previous_close_cny"] is None
+    assert etf_research.etf_daily_facts(daily().model_copy(update={"bars": []})) is None
+
+
+async def test_prepared_brief_includes_facts_only_when_history_exists(sources):
+    result = await etf_research.collect_etf_research(IDENTITY, CATALOG)
+    assert "【确定性日线比较摘要】" in result.brief
+    assert '"sample_count":1' in result.brief
+    sources["get_etf_kline"].return_value = daily().model_copy(update={
+        "status": "empty", "source": None, "bars": [], "data_start": None, "data_end": None,
+    })
+    empty = await etf_research.collect_etf_research(IDENTITY, CATALOG)
+    assert "【确定性日线比较摘要】" not in empty.brief

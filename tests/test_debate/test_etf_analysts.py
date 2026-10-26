@@ -19,4 +19,8 @@ def test_every_etf_role_retains_missing_data_and_price_basis_limits():
         assert "市场价格不等于基金净值" in persona.system_prompt
         assert "主题关键词命中不证明实际持仓" in persona.system_prompt
         assert "未复权" in persona.system_prompt
+        assert "不能声称趋势不受复权影响" in persona.system_prompt
+        assert "样本最低不等于上市以来最低" in persona.system_prompt
+        assert "不能将上涨日称为下跌日" in persona.system_prompt
+        assert "不能反推已经发生分红或份额折算" in persona.system_prompt
         assert "5-10%" not in persona.system_prompt

@@ -1,4 +1,4 @@
-"""Display-only ETF routes; no stock research or trading semantics."""
+"""ETF identity, quote and daily prices; analysis is served by the debate router."""
 
 import asyncio
 import logging
