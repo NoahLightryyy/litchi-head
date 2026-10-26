@@ -4,6 +4,7 @@ import {useQuery} from '@tanstack/react-query';
 import {chainDraftRecovery} from '@/lib/chain-draft-query';
 import {api} from '@/lib/api/client';
 import {parseChainDraft} from '@/lib/chain-draft';
+import {ChainCompaniesPanel} from './chain-companies';
 
 export function ChainDraftMap({code,name}:{code:string;name:string}) {
   const arrowId=useId();
@@ -20,8 +21,9 @@ export function ChainDraftMap({code,name}:{code:string;name:string}) {
     {query.isFetching && <p role="status" className="animate-pulse text-sm text-accent-blue">{query.failureCount>0 ? '请求暂未成功，正在自动恢复，请稍候…' : 'AI 正在梳理环节、绘制关系并保存结果，通常需要几十秒…'}</p>}
     {query.isError && <div role="alert" className="text-sm text-accent-red"><p>{query.error instanceof Error ? query.error.message : 'AI绘图请求未成功，请稍后重试'}</p><button className="mt-3 rounded border px-3 py-2" onClick={()=>void query.refetch()} disabled={query.isFetching}>重试 AI 绘图</button></div>}
     {result && <>
-      <p className="rounded bg-accent-gold/10 p-3 text-sm">AI推断 · 未经来源核验<br/>{result.graph.scope}</p>
+      <details className="text-xs text-text-muted"><summary className="cursor-pointer">结构范围与推断说明</summary><p className="mt-2">{result.graph.scope}</p></details>
       <p className="text-xs text-text-muted">{result.model} · {new Date(result.generated_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})}（北京时间） · {result.cached?'已保存草图':'本次生成，已保存'}</p>
+      <ChainCompaniesPanel key={`${code}:${name}:${result.generated_at}`} draft={result} />
       <div className="relative space-y-4 pl-10" aria-label="AI推断环节">
         <svg className="absolute left-0 top-0 h-full w-10 overflow-visible text-accent-blue/60" viewBox={`0 0 40 ${result.graph.nodes.length*160-16}`} preserveAspectRatio="none" aria-hidden="true">
           <defs><marker id={arrowId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" /></marker></defs>

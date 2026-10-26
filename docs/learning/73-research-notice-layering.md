@@ -35,3 +35,5 @@ if (failed) highlights.push({ label: "分析完成情况", tone: "warning", mess
 4. 在个股页面展开来源详情，再收起；无需重新点击触发辩论。
 
 上一篇：[72 新闻摘要与可追溯的产业影响](72-related-news-impact.md)。
+
+下一篇：[74 产业环节与企业身份分开建模](74-chain-company-identity.md)。

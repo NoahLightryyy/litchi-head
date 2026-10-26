@@ -192,3 +192,10 @@ ETF页将其放在K线和辩论之后。相关性不等同于已核验的标的�
 收盘价和有限新闻样本用中性色；数据冲突、分析失败、缺评审仍直显，未知能力不隐藏。
 消费者仅补齐后端已有可选 `error_codes` 字段；不修改历史结果、不重跑AI或调整交易门禁。
 相关验证：`tests/debate-limitations.test.mts`、`tests/debate-data-notice.test.mts`、`tests/debate-instrument.test.mts`。
+
+### 产业结构代表企业（2026-10-26）
+
+AI结构图增加按环节分组的企业清单、业务与影响力理由及来源；人形机器人已有6家公司官方资料。
+新消费者 `lib/chain-companies.ts` 校验板块、节点、企业与来源；A股身份核对后才给股票入口。
+图和公司补充独立缓存，首次自动补充，显式更新才重新生成；失败仍保留原图及旧成功清单。
+契约见 `docs/03-modules/08-backend-api/CHAIN_COMPANIES_CONTRACT.md`；测试 `tests/chain-companies.test.mts`。

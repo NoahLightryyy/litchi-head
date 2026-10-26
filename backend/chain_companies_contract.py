@@ -1,4 +1,5 @@
 """Representative companies supplement a draft; they are not supply-chain edges."""
+import re
 from datetime import datetime
 from typing import Literal, Self
 
@@ -41,6 +42,16 @@ class ChainCompany(StrictModel):
             raise ValueError("Company reference status mismatch")
         if self.a_share_code and not self.sources:
             raise ValueError("A-share links require checked identity")
+        if self.a_share_code:
+            expected_path = f"/corp/go.php/vCI_CorpInfo/stockid/{self.a_share_code}.phtml"
+            name = re.sub(r"[\W_]", "", self.name).casefold()
+            if not any(
+                source.url.host == "vip.stock.finance.sina.com.cn"
+                and source.url.path == expected_path
+                and name in re.sub(r"[\W_]", "", source.excerpt).casefold()
+                for source in self.sources
+            ):
+                raise ValueError("A-share code has no matching identity reference")
         return self
 
 

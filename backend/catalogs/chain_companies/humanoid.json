@@ -1,0 +1,98 @@
+{
+  "version": "2026-10-26-v1",
+  "sector_names": [
+    "人形机器人"
+  ],
+  "companies": [
+    {
+      "name": "绿的谐波",
+      "aliases": [
+        "Leaderdrive",
+        "苏州绿的谐波传动科技股份有限公司"
+      ],
+      "suggested_code": "688017",
+      "business": "谐波减速器、旋转执行器和无框力矩电机等精密传动产品。",
+      "source": {
+        "title": "绿的谐波官方公司介绍",
+        "url": "https://www.leaderdrive.com/about/profile.html",
+        "excerpt": "公司官网介绍其精密机器人零部件与谐波减速器研发制造业务；产品目录包括谐波减速器、旋转执行器、无框力矩电机。",
+        "accessed_at": "2026-10-26T21:51:53.633065+00:00"
+      }
+    },
+    {
+      "name": "拓普集团",
+      "aliases": [
+        "Tuopu",
+        "拓普"
+      ],
+      "suggested_code": "601689",
+      "business": "执行器及机械臂系统，并具有汽车零部件制造业务基础。",
+      "source": {
+        "title": "拓普集团官方执行器产品页",
+        "url": "https://www.tuopu.com/en/product_category/robot-actuator/",
+        "excerpt": "官网列出Actuator产品及Robot Arm System，页脚披露Stock Code:601689；该页未确认具体人形机器人客户及供货量。",
+        "accessed_at": "2026-10-26T21:51:53.633065+00:00"
+      }
+    },
+    {
+      "name": "宇树科技",
+      "aliases": [
+        "Unitree",
+        "宇树"
+      ],
+      "suggested_code": null,
+      "business": "G1等人形机器人及灵巧手，面向运动控制、操作与机器人开发。",
+      "source": {
+        "title": "宇树G1官方产品页",
+        "url": "https://www.unitree.com/g1/",
+        "excerpt": "官网展示G1人形机器人、关节电机、模仿与强化学习以及力控灵巧手能力。",
+        "accessed_at": "2026-10-26T21:51:53.633065+00:00"
+      }
+    },
+    {
+      "name": "优必选",
+      "aliases": [
+        "UBTECH",
+        "优必选科技"
+      ],
+      "suggested_code": null,
+      "business": "Walker S2工业人形机器人，面向工厂作业与持续运行。",
+      "source": {
+        "title": "优必选Walker S2官方产品页",
+        "url": "https://www.ubtrobot.com/en/humanoid/products/walker-s2",
+        "excerpt": "官网介绍Walker S2工业人形机器人、自主换电、搬运、视觉及协作智能体能力，并展示量产交付；不据此推断实际产能利用率或盈利。",
+        "accessed_at": "2026-10-26T21:51:53.633065+00:00"
+      }
+    },
+    {
+      "name": "特斯拉",
+      "aliases": [
+        "Tesla",
+        "Tesla Optimus"
+      ],
+      "suggested_code": null,
+      "business": "Optimus通用双足人形机器人及感知、规划、控制软件。",
+      "source": {
+        "title": "特斯拉AI与机器人官方介绍",
+        "url": "https://www.tesla.com/AI",
+        "excerpt": "官网将Optimus定义为执行危险、重复或枯燥任务的通用双足自主机器人，开发平衡、导航、感知及物理交互软件栈。",
+        "accessed_at": "2026-10-26T21:51:53.633065+00:00"
+      }
+    },
+    {
+      "name": "英伟达",
+      "aliases": [
+        "NVIDIA",
+        "Nvidia"
+      ],
+      "suggested_code": null,
+      "business": "Isaac机器人开发与仿真平台、机器人学习框架和Jetson端侧计算。",
+      "source": {
+        "title": "英伟达机器人平台官方介绍",
+        "url": "https://www.nvidia.com/en-us/industries/robotics/",
+        "excerpt": "Isaac提供仿真、机器人学习、CUDA库、AI模型和参考工作流，支持人形机器人；平台涵盖训练、仿真和端侧推理。",
+        "accessed_at": "2026-10-26T21:51:53.633065+00:00"
+      }
+    }
+  ]
+}

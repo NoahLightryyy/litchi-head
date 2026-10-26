@@ -24,6 +24,25 @@ _busy: set[str] = set()
 TIMEOUT = 90
 
 
+def draft_path(sector_id: str, sector_name: str) -> FilePath:
+    key = hashlib.sha256(json.dumps(
+        ["v1", sector_id, sector_name, DEFAULT_MODEL], ensure_ascii=False,
+    ).encode()).hexdigest()
+    return CACHE_ROOT / f"{key}.json"
+
+
+def load_draft(sector_id: str, sector_name: str) -> DraftResponse | None:
+    path = draft_path(sector_id, sector_name)
+    if not path.is_file():
+        return None
+    cached = DraftResponse.model_validate_json(path.read_text(encoding="utf-8"))
+    if (cached.sector_code, cached.sector_name, cached.model) != (
+        sector_id, sector_name, DEFAULT_MODEL,
+    ):
+        raise ValueError("cache identity mismatch")
+    return cached.model_copy(update={"cached": True})
+
+
 def failure(code: str, message: str, status: int) -> JSONResponse:
     return JSONResponse(
         status_code=status,
@@ -44,23 +63,12 @@ async def generate_draft(
     body: DraftRequest,
     sector_id: Annotated[str, Path(pattern=r"^(BK\d{4}|sina:(new_|gn_)[A-Za-z0-9_]+)$")],
 ) -> DraftResponse | JSONResponse:
-    key = hashlib.sha256(
-        json.dumps(
-            ["v1", sector_id, body.sector_name, DEFAULT_MODEL],
-            ensure_ascii=False,
-        ).encode()
-    ).hexdigest()
-    path = CACHE_ROOT / f"{key}.json"
+    path = draft_path(sector_id, body.sector_name)
+    key = path.stem
     try:
-        if path.is_file():
-            cached = DraftResponse.model_validate_json(path.read_text(encoding="utf-8"))
-            if (cached.sector_code, cached.sector_name, cached.model) != (
-                sector_id,
-                body.sector_name,
-                DEFAULT_MODEL,
-            ):
-                raise ValueError("cache identity mismatch")
-            return cached.model_copy(update={"cached": True})
+        cached = load_draft(sector_id, body.sector_name)
+        if cached is not None:
+            return cached
     except (ValueError, OSError):
         logger.exception("Invalid draft cache: %s", sector_id)
         return failure("CHAIN_DRAFT_STORAGE", "草图缓存读取失败，请修复存储后重试", 503)
@@ -82,7 +90,7 @@ async def generate_draft(
                     "指数资格等跨行业分类画concept_structure，明确不是统一产业链。"
                     "输出4至6个通用环节或概念节点，id用小写英文；节点role说明作用，"
                     "verify给出需要核验的具体指标或文件；边解释环节关系。scope说明适用"
-                    "边界。全部内容是待核验推断。禁止具体公司名称、股票代码、公司供货"
+                    "边界。结构节点只画环节，代表企业由独立公司清单补充。禁止编造公司供货"
                     "关系、来源URL、伪造引文、市场份额、实时价格、买卖评级或确定性收益。"
                     "不声称已联网、已查阅资料、已核验。内容用中文，每字段保持简洁。"
                 ),
