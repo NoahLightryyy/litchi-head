@@ -1,11 +1,25 @@
 """Entry-plan contracts and service behavior; no live model calls."""
 from copy import deepcopy
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from backend.entry_plan import EntryPlanDraft, EntryPlanRequest, EntryPlanResult
+from backend.entry_plan import (
+    EntryEvidence,
+    EntryPlanDraft,
+    EntryPlanRequest,
+    EntryPlanResult,
+    EntryPlanStore,
+    collect_entry_context,
+)
+from backend.routers import entry_plan as module
+from src.debate.models import DebateResult
+from src.debate.session_store import DebateSessionRecord
 
 
 def plan_payload() -> dict:
@@ -43,6 +57,8 @@ def test_entry_contract_roundtrip_and_no_account_fields():
     {"entry_low": float("nan")}, {"stop_loss": float("inf")}, {"stop_loss": 0},
     {"entry_low": 12}, {"stop_loss": 10}, {"entry_high": None}, {"status": "consider"},
     {"batches": [{"budget_pct": 60, "trigger": "观察"}]},
+    {"batches": [{"budget_pct": 33.333, "trigger": "观察"},
+                 {"budget_pct": 66.667, "trigger": "再确认"}]},
     {"price_evidence_ids": []}, {"invalidation": [" "]},
 ])
 def test_invalid_price_state_or_allocation_is_rejected(changes):
@@ -74,3 +90,230 @@ def test_reference_and_horizon_validation():
             payload["plans"][1]["horizon"] = "short"
         with pytest.raises(ValidationError):
             EntryPlanResult(**payload)
+
+
+def record(kind="stock") -> DebateSessionRecord:
+    code = "688648" if kind == "stock" else "560780"
+    return DebateSessionRecord(
+        session_id="deb_test", stock_code=code, instrument_type=kind,
+        status="completed", progress=100,
+        result=DebateResult(session_id="deb_test", stock_code=code, instrument_type=kind,
+                            stock_name="测试标的", question="投资研究"),
+    )
+
+
+def context() -> tuple[list[EntryEvidence], list[str]]:
+    return [EntryEvidence(**result_payload()["evidence"][0])], ["未复权，未连续监测"]
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    monkeypatch.setattr(module, "store", EntryPlanStore(tmp_path / "plans.db"))
+    monkeypatch.setattr(module, "configured", lambda: True)
+    monkeypatch.setattr(module.sessions, "get", AsyncMock(return_value=record()))
+    module._busy.clear()
+    module.limiter.reset()
+    app = FastAPI()
+    app.state.limiter = module.limiter
+    app.include_router(module.router)
+    with TestClient(app) as test_client:
+        yield test_client
+    module._busy.clear()
+
+
+URL = "/api/debate/deb_test/entry-plan"
+
+
+@pytest.mark.parametrize("kind", ["stock", "etf"])
+def test_generate_once_read_free_and_explicit_refresh(client, kind):
+    module.sessions.get.return_value = record(kind)
+    with patch.object(module, "collect_entry_context",
+                      AsyncMock(return_value=context())) as collect, \
+            patch.object(module.llm_service, "invoke_structured",
+                         AsyncMock(return_value=EntryPlanDraft(**plan_payload()))) as generate:
+        assert client.get(URL).json() is None
+        generate.assert_not_called()
+        first = client.post(URL, json={})
+        assert first.status_code == 200
+        assert first.json()["instrument_type"] == kind
+        assert first.json()["source_session_id"] == "deb_test"
+        assert not first.json()["cached"]
+        assert client.get(URL).json()["cached"]
+        assert client.post(URL, json={}).json()["cached"]
+        assert generate.await_count == collect.await_count == 1
+        assert client.post(URL, json={"refresh": True}).status_code == 200
+        assert generate.await_count == 2
+        assert "cash" not in generate.call_args.kwargs["prompt"]
+        assert EntryPlanStore(module.store.path).get("deb_test") is not None
+
+
+@pytest.mark.parametrize("error,status", [(TimeoutError(), 504), (RuntimeError("provider"), 502)])
+def test_failure_keeps_previous_and_releases_busy(client, error, status):
+    previous = EntryPlanResult(**result_payload())
+    module.store.save(previous)
+    with patch.object(module, "collect_entry_context", AsyncMock(return_value=context())), \
+            patch.object(module.llm_service, "invoke_structured", AsyncMock(side_effect=error)):
+        response = client.post(URL, json={"refresh": True})
+        assert response.status_code == status
+        assert response.json()["error"]["retryable"]
+        assert module.store.get("deb_test") == previous
+        assert not module._busy
+
+
+@pytest.mark.parametrize("defect", ["reference", "price", "history_met"])
+def test_untrusted_output_revalidated_before_persistence(client, defect):
+    output = EntryPlanDraft(**plan_payload())
+    evidence, gaps = context()
+    if defect == "reference":
+        output.plans[0].conditions[0].evidence_ids = ["fake"]
+    elif defect == "price":
+        output.plans[0].stop_loss = 50
+    else:
+        evidence[0].kind = "analysis"
+        for plan in output.plans:
+            plan.entry_low = plan.entry_high = plan.stop_loss = None
+            plan.price_evidence_ids = []
+        output.plans[0].conditions[0].status = "met"
+    with patch.object(module, "collect_entry_context", AsyncMock(return_value=(evidence, gaps))), \
+            patch.object(module.llm_service, "invoke_structured", AsyncMock(return_value=output)):
+        response = client.post(URL, json={})
+        assert response.status_code == 502
+        assert response.json()["error"]["code"] == "ENTRY_PLAN_INVALID_OUTPUT"
+        assert module.store.get("deb_test") is None
+
+
+@pytest.mark.parametrize("case,status", [("missing", 404), ("running", 409),
+                                       ("busy", 429), ("capacity", 429), ("config", 503)])
+def test_preconditions_do_not_start_model(client, monkeypatch, case, status):
+    if case == "missing":
+        module.sessions.get.return_value = None
+    elif case == "running":
+        module.sessions.get.return_value = DebateSessionRecord(
+            session_id="deb_test", stock_code="688648", status="running", progress=50)
+    elif case == "busy":
+        module._busy.add("deb_test")
+    elif case == "capacity":
+        module._busy.update({"deb_other", "deb_third"})
+    else:
+        monkeypatch.setattr(module, "configured", lambda: False)
+    with patch.object(module.llm_service, "invoke_structured", AsyncMock()) as generate:
+        assert client.post(URL, json={}).status_code == status
+        generate.assert_not_called()
+
+
+def test_corrupted_storage_and_invalid_request_do_not_generate(client):
+    module.store.save(EntryPlanResult(**result_payload()))
+    with module.store._connect() as connection:
+        connection.execute("UPDATE entry_plans SET digest='invalid'")
+    with patch.object(module.llm_service, "invoke_structured", AsyncMock()) as generate:
+        assert client.get(URL).status_code == 503
+        assert client.post(URL, json={}).status_code == 503
+        assert client.post(URL, json={"cash": 20000}).status_code == 422
+        generate.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_stock_partial_sources_preserve_research_and_available_daily():
+    from datetime import date
+
+    from backend.kline_display import RawDailyDisplay
+    from src.data.evidence import SourceStatus
+    from src.data.kline import MarketCode, RawDailyBar
+
+    daily = RawDailyDisplay(
+        symbol="688648", status=SourceStatus.SUCCESS_DATA, fetched_at=datetime.now(UTC),
+        data_start=date(2026, 10, 23), data_end=date(2026, 10, 23), bars=[RawDailyBar(
+            code="688648", market=MarketCode.SSE, trade_date=date(2026, 10, 23),
+            open=10, close=10, high=11, low=9, volume=1000,
+        )],
+    )
+    with patch("backend.quote_display.get_display_quote", side_effect=RuntimeError("offline")), \
+            patch("backend.kline_display.get_raw_daily_display", return_value=daily):
+        evidence, gaps = await collect_entry_context(record())
+    assert [item.kind for item in evidence] == ["analysis", "daily"]
+    assert evidence[1].data_time == "2026-10-23"
+    assert "ma5" in evidence[1].content and 'null' in evidence[1].content
+    assert any("行情暂不可用" in gap for gap in gaps)
+
+
+@pytest.mark.asyncio
+async def test_etf_catalog_unavailable_preserves_historical_context():
+    with patch("backend.etf_display.get_catalog", AsyncMock(side_effect=RuntimeError("offline"))):
+        evidence, gaps = await collect_entry_context(record("etf"))
+    assert len(evidence) == 1 and evidence[0].kind == "analysis"
+    assert '"instrument_type":"etf"' in evidence[0].content
+    assert any("ETF身份目录" in gap for gap in gaps)
+
+
+def test_storage_failure_does_not_return_unsaved_success(client):
+    with patch.object(module, "collect_entry_context", AsyncMock(return_value=context())), \
+            patch.object(module.llm_service, "invoke_structured",
+                         AsyncMock(return_value=EntryPlanDraft(**plan_payload()))), \
+            patch.object(module.store, "save", side_effect=OSError("disk full")):
+        response = client.post(URL, json={})
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "ENTRY_PLAN_SAVE_FAILED"
+    assert module.store.get("deb_test") is None
+    assert not module._busy
+
+
+@pytest.mark.asyncio
+async def test_concurrent_duplicate_is_rejected_and_total_deadline_cancels(client, monkeypatch):
+    import asyncio
+
+    entered = asyncio.Event()
+
+    async def slow_model(**kwargs):
+        entered.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(module, "GENERATION_TIMEOUT", 0.1)
+    with patch.object(module, "collect_entry_context", AsyncMock(return_value=context())), \
+            patch.object(module.llm_service, "invoke_structured", slow_model):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=client.app),
+                                     base_url="http://test") as caller:
+            first = asyncio.create_task(caller.post(URL, json={}))
+            await asyncio.wait_for(entered.wait(), timeout=1)
+            assert (await caller.post(URL, json={})).status_code == 429
+            assert (await first).status_code == 504
+    assert not module._busy
+    assert module.store.get("deb_test") is None
+
+
+@pytest.mark.asyncio
+async def test_quote_time_is_upstream_timestamp_not_collection_clock():
+    from backend.quote_display import DisplayQuote
+
+    stamp = datetime(2026, 10, 23, 7, tzinfo=UTC)
+    quote = DisplayQuote(code="688648", name="测试标的", price=10, change=0, change_pct=0,
+                         high=11, low=9, prev_close=10, volume=1000, amount=10000,
+                         fetched_at=stamp, source="sina")
+    with patch("backend.quote_display.get_display_quote", return_value=quote), \
+            patch("backend.kline_display.get_raw_daily_display", side_effect=RuntimeError("down")):
+        evidence, gaps = await collect_entry_context(record())
+    assert evidence[1].data_time == stamp.isoformat()
+    assert evidence[0].data_time != evidence[1].data_time
+    assert any("日线暂不可用" in gap for gap in gaps)
+
+
+@pytest.mark.asyncio
+async def test_etf_valid_quote_is_preserved_when_daily_fails():
+    from pydantic import HttpUrl
+
+    from backend.etf_contract import EtfCatalog, EtfDetail, EtfIdentity, EtfQuote
+
+    stamp = datetime(2026, 10, 23, 7, tzinfo=UTC)
+    identity = EtfIdentity(code="560780", symbol="sh560780", exchange="SH", name="测试ETF")
+    catalog = EtfCatalog(items=(identity,), fetched_at=datetime.now(UTC))
+    detail = EtfDetail(identity=identity, status="ready", quote=EtfQuote(
+        price=0.749, previous_close=0.792, change=-0.043, change_pct=-5.43,
+        quoted_at=stamp, source_name="测试ETF"), source_url=HttpUrl("https://example.com"),
+        catalog_fetched_at=catalog.fetched_at, fetched_at=datetime.now(UTC), limitations=["单源"])
+    with patch("backend.etf_display.get_catalog", AsyncMock(return_value=catalog)), \
+            patch("backend.etf_display.detail", AsyncMock(return_value=detail)), \
+            patch("backend.etf_kline.get_etf_kline", AsyncMock(side_effect=RuntimeError("down"))):
+        evidence, gaps = await collect_entry_context(record("etf"))
+    assert [item.kind for item in evidence] == ["analysis", "quote"]
+    assert evidence[1].data_time == stamp.isoformat()
+    assert "0.749" in evidence[1].content
+    assert any("日线暂不可用" in gap for gap in gaps)

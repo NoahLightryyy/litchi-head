@@ -19,7 +19,7 @@
 - 每项 `status:consider|waiting|insufficient`、`summary:string`。
 - `conditions[1..6]`：`condition:string, status:met|unmet|unknown, explanation:string, evidence_ids:string[]`。状态是 AI 对所示时间资料的核对，不代表实时监控。无验证依据必须 unknown。
 - `entry_low:number|null, entry_high:number|null, stop_loss:number|null`：三项同时有值或同时 null。有值须为有限正数且 `stop_loss < entry_low <= entry_high`；`price_basis:string` 解释计算/研究依据，`price_evidence_ids:string[]` 至少引用实际 quote/daily。候选价是条件性建议，不是行情事实或保证成交价。禁止固定8%止损及无依据阈值。
-- `invalidation[1..5]:string[]`；`batches[1..4]` 每项 `{budget_pct:number, trigger:string}`，比例大于0且总和100%，指本计划预算的分配，不是账户总资产仓位。
+- `invalidation[1..5]:string[]`；`batches[1..4]` 每项 `{budget_pct:number, trigger:string}`，比例大于0、最多两位小数且总和100%，指本计划预算的分配，不是账户总资产仓位。
 - `position_note:string`；`limitations[1..6]:string[]`。不提供账户仓位默认比例。资金/账户数据不发送模型；前端按用户填写预算和允许损失测算上限。
 - `consider` 只有全部 conditions 为 met 且候选价格有效时才允许；看跌结果仍可提供将来转强的 waiting 条件计划，不把看跌成立条件冒充买入信号。
 
@@ -29,4 +29,4 @@
 
 统一 `{error:{code,message,retryable}}`，中文 message 稳定。404 `ENTRY_PLAN_NOT_FOUND`；409 `ENTRY_PLAN_SESSION_NOT_READY`；429 `ENTRY_PLAN_BUSY`；504 `ENTRY_PLAN_TIMEOUT`；502 `ENTRY_PLAN_INVALID_OUTPUT` / `ENTRY_PLAN_FAILED`；503 `ENTRY_PLAN_READ_FAILED` / `ENTRY_PLAN_SAVE_FAILED` / `ENTRY_PLAN_NOT_CONFIGURED`。请求结构不合法返回 FastAPI 422，不启动推理。
 
-SQLite 按 session 原子保存最后成功结果，包含证券身份、模型、证据与生成时间，校验哈希与引用。历史方向研究不被覆盖。后台不自动重试付费推理；失败后用户可显式重试。
+SQLite 按 session 原子保存最后成功结果，包含证券身份、模型、证据与生成时间，校验哈希与引用。历史方向研究不被覆盖。单次生成总超时120秒（包含补采），每路补采16秒；应用只调用一次 `llm_service.invoke_structured`，不额外重跑辩论或重试生成，底层沿用统一LLM层的供应商重试策略；失败后用户可显式重试。股票 DisplayQuote.fetched_at 沿用东财f86/新浪日期时间字段的报价时点，ETF取quoted_at，日线取最后交易日期。
