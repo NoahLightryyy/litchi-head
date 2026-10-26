@@ -44,7 +44,7 @@ class FundFlowResult(BaseModel):
     fetched_at: datetime
     cached: bool = False
     scope: str = SCOPE
-    reason: str = DATE_NOTE
+    reason: str = ""
 
 
 def amount(text: str) -> float:
@@ -103,6 +103,8 @@ async def fetch_page(period: ThsPeriod = "latest") -> str:
     async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
         response = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
         response.raise_for_status()
+        if response.url.host != "data.10jqka.com.cn" or response.url.path != httpx.URL(url).path:
+            raise ValueError("ranking response changed requested period")
         return response.text
 
 
@@ -122,10 +124,17 @@ async def fund_flow(period: ThsPeriod = "latest", refresh: bool = False) -> Fund
             _cache[period] = (time.monotonic(), result)
             return result
         except Exception as exc:
-            _cache.pop(period, None)
             logger.warning(
                 "THS funds ranking failed: period=%s error=%s", period, type(exc).__name__
             )
+            if cached and time.monotonic() - cached[0] < TTL_SECONDS:
+                retained = cached[1].model_copy(update={
+                    "cached": True,
+                    "reason": "刷新未成功，保留上次采集数据。" + DATE_NOTE,
+                })
+                _cache[period] = (cached[0], retained)
+                return retained
+            _cache.pop(period, None)
             return FundFlowResult(
                 status="unavailable", period=period, fetched_at=datetime.now(SHANGHAI),
                 reason="同花顺资金净流入暂不可用，可重试或查看东方财富主力榜。",

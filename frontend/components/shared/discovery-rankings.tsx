@@ -4,14 +4,20 @@ import Link from "next/link";
 import {useQuery} from "@tanstack/react-query";
 import {api} from "@/lib/api/client";
 import {parseRankingResult, rankingPeriods, type RankingPeriod, type RankingMetric} from "@/lib/discovery-rankings";
+import {ThsFundRanking} from "./ths-fund-ranking";
 
 export function DiscoveryRankings() {
-  return <div className="space-y-5"><RankingPanel funds={false}/><RankingPanel funds/></div>;
+  return <div className="space-y-5"><RankingPanel funds={false}/><ThsFundRanking/>
+    <details className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
+      <summary className="cursor-pointer text-sm text-accent-blue">东方财富主力／总流入榜（独立统计口径）</summary>
+      <div className="mt-3"><RankingPanel funds/></div>
+    </details>
+  </div>;
 }
 function RankingPanel({funds}:{funds:boolean}) {
   const [period,setPeriod] = useState<RankingPeriod>("latest");
   const [metric,setMetric] = useState<RankingMetric>(funds ? "main_net" : "change");
-  const title = funds ? "资金流入排行" : "个股涨幅排行";
+  const title = funds ? "东方财富主力／总流入排行" : "个股涨幅排行";
   const forceRefresh = useRef(false);
   const query = useQuery({queryKey:["discovery","rankings",metric,period],
     queryFn: async ({signal}) => { const force = forceRefresh.current; forceRefresh.current = false; return parseRankingResult(await api.getRaw<unknown>(`/discovery/rankings?metric=${metric}&period=${period}&refresh=${force}`,undefined,{signal}),metric,period); },

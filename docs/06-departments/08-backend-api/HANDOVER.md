@@ -378,3 +378,8 @@ PC-08：牵头冻结证据、约束、任务和错误语义；依赖S2真实样�
 2026-10-18 S2/S3：两组证据及缺口见 `docs/02-requirements/differentiation/S2_EVIDENCE.md`；v1冻结契约见 `docs/03-modules/08-backend-api/policy-capital/CONTRACT.md`。依任务表进入S4/S5，生产接口未上线；最新持仓/客户费用缺失必须显式阻断。
 
 2026-10-18 S4/S5/S6：政策研究任务、确定性单笔计算、三类标的同页面板已接入。后端50项/前端152项通过及浏览器预算/缺项/返回恢复验收。账户费用/权限适配、真实模型质量和组合约束仍待完成，详见 `docs/04-changelog/logs/2026-10-18/2026-10-18-policy-capital-runtime.md`。
+
+## 2026-10-26 同花顺资金备用API
+
+新增/api/discovery/fund-flow/ths，源周期latest/3/5/10/20；真实资金净额、前50、CNY，日期为空且采集时间独立。
+已冻结FundFlowResult并通过前端消费者接线；原东财main_net契约不变。缓存120秒，不复活过期失败数据。

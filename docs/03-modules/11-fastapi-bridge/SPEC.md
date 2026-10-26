@@ -153,6 +153,6 @@ unit固定CNY；status=partial|unavailable，data元素为code/name/price（可n
 period原样回传；data_as_of固定null（来源不提供日期），fetched_at仅采集时间；cached/scope/reason必填。
 partial有净额降序前50范围的数据但没有报价时间；不可标成已核验交易日，不进入历史收盘存档。
 传输/解析失败HTTP200 unavailable且data为空，reason为安全可见文案；日志保留异常类型。
-每周期120秒内存缓存与请求锁，强刷失败清除该周期缓存；10秒请求总预算，无自动无限重试。
+每周期120秒内存缓存与请求锁；刷新失败保留TTL内缓存及原采集时间并提示失败，不延长TTL。过期后失败不复活缓存；10秒请求总预算，无自动无限重试。
 原有`/rankings`及东方财富主力口径不变。前端并行请求两源，显示同花顺独立口径与缺时间旁注；
 旧源失败不遮挡同花顺数据，不能把同花顺净额填入main_net字段。用户已批准此范围，不重复确认。
