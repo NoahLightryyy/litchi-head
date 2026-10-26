@@ -147,3 +147,22 @@ test("复制研究要点保留资料、推断和时间边界", () => {
   const text = copyableRelatedInterpretation(value);
   for (const expected of ["未经人工复核", "查询：物流", "资料快照检索", "资料概况", "产业怎样受影响（AI 推断）", "2026-10-26", "https://example.org/report", "后续核查", "资料限制"]) assert.ok(text.includes(expected));
 });
+
+test("综合解读覆盖保留来源，不可拿排除新闻投票；旧记录仍可读取", () => {
+  const value = fixture(), inference = { text: "预期可能先升温，订单未落地时也可能回落", basis: "inference" as const };
+  value.analysis.synthesis = { what_happened: "报道讨论设备更新需求", price_impact: inference, industry_impact: inference, duration: inference, market_reaction: inference, business_realization: inference, watchpoints: ["留意订单是否落实"], source_ids: ["report-1"] };
+  assert.ok(parseRelatedInterpretation(value, request)?.analysis.synthesis);
+  const copied = copyableRelatedInterpretation(value);
+  assert.match(copied, /可能怎样影响股价（AI 推断）/);
+  assert.match(copied, /留意订单是否落实/);
+  for (const source_ids of [["policy-1"], ["report-1", "policy-1"], ["report-1", "report-1"]]) {
+    const invalid = structuredClone(value); invalid.analysis.synthesis!.source_ids = source_ids;
+    assert.throws(() => parseRelatedInterpretation(invalid, request));
+  }
+  value.analysis.synthesis.price_impact.text = "长".repeat(181);
+  assert.throws(() => parseRelatedInterpretation(value, request));
+  delete value.analysis.synthesis;
+  assert.ok(parseRelatedInterpretation(value, request));
+  value.analysis.synthesis = null;
+  assert.ok(parseRelatedInterpretation(value, request));
+});

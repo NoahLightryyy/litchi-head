@@ -2,6 +2,16 @@ import { api } from "./api/client.ts";
 import { parseRelatedResearch, type RelatedResearchRequest, type RelatedResearchResult } from "./related-research.ts";
 
 export interface RelatedInference { text: string; basis: "inference" }
+export interface RelatedSynthesis {
+  what_happened: string;
+  price_impact: RelatedInference;
+  industry_impact: RelatedInference;
+  duration: RelatedInference;
+  market_reaction: RelatedInference;
+  business_realization: RelatedInference;
+  watchpoints: string[];
+  source_ids: string[];
+}
 export interface RelatedEvent {
   title: string;
   source_ids: string[];
@@ -30,6 +40,7 @@ export interface RelatedInterpretationResult {
   snapshot_sha256: string;
   snapshot: RelatedResearchResult;
   analysis: {
+    synthesis?: RelatedSynthesis | null;
     overview: string;
     events: RelatedEvent[];
     excluded_sources: { source_id: string; reason: string }[];
@@ -43,6 +54,11 @@ export const INTERPRETATION_DIMENSIONS = [
   ["business_realization", "经营兑现节奏"], ["subject_relation", "与当前标的的关系"],
 ] as const;
 export const INTERPRETATION_DIRECTION = { positive: "偏正面", negative: "偏负面", mixed: "影响有利有弊", unclear: "方向尚不明确" };
+export const SYNTHESIS_DIMENSIONS = [
+  ["price_impact", "可能怎样影响股价"], ["industry_impact", "哪些环节受益，哪些可能承压"],
+  ["duration", "能持续多久，什么情况会失效"], ["market_reaction", "市场可能多快反应"],
+  ["business_realization", "什么时候才可能变成业绩"],
+] as const;
 export const relatedInterpretationKey = (request: RelatedResearchRequest) => ["related-interpretation", request.kind, request.code, request.q.trim()] as const;
 export const relatedInterpretationQueryPolicy = { retry: false, staleTime: 60_000, refetchOnWindowFocus: false } as const;
 
@@ -81,7 +97,8 @@ export function parseRelatedInterpretation(value: unknown, request: RelatedResea
   check(snapshot.data.length > 0);
   const sources = new Map(snapshot.data.map((source) => [source.id, source]));
   const used = new Set<string>();
-  const analysis = object(result.analysis, ["overview", "events", "excluded_sources", "limitations"]);
+  const rawAnalysis = result.analysis as Record<string, unknown> | null;
+  const analysis = object(result.analysis, ["overview", "events", "excluded_sources", "limitations", ...(rawAnalysis && Object.hasOwn(rawAnalysis, "synthesis") ? ["synthesis"] : [])]);
   check(text(analysis.overview, 600) && strings(analysis.limitations, 1, 8));
   check(Array.isArray(analysis.events) && analysis.events.length <= 6 && (analysis.events.length > 0) === (result.status === "interpreted"));
   for (const rawEvent of analysis.events) {
@@ -100,6 +117,15 @@ export function parseRelatedInterpretation(value: unknown, request: RelatedResea
       check(text(quote.source_id) && event.source_ids.includes(quote.source_id));
       check((quote.field === "title" || quote.field === "excerpt") && text(quote.quote, 300) && quote.quote.length >= 2);
       check(sources.get(quote.source_id)![quote.field].includes(quote.quote));
+    }
+  }
+  if (analysis.synthesis !== undefined && analysis.synthesis !== null) {
+    const brief = object(analysis.synthesis, ["what_happened", ...SYNTHESIS_DIMENSIONS.map(([key]) => key), "watchpoints", "source_ids"]);
+    check(text(brief.what_happened, 240) && strings(brief.watchpoints, 1, 3) && strings(brief.source_ids, 1, 12));
+    check(brief.source_ids.length === used.size && new Set(brief.source_ids).size === used.size && brief.source_ids.every(id => used.has(id)));
+    for (const [key] of SYNTHESIS_DIMENSIONS) {
+      const inference = object(brief[key], ["text", "basis"]);
+      check(inference.basis === "inference" && text(inference.text, 180));
     }
   }
   check(Array.isArray(analysis.excluded_sources) && analysis.excluded_sources.length <= 12);
@@ -143,6 +169,12 @@ export function copyableRelatedInterpretation(result: RelatedInterpretationResul
     `查询：${result.query || "自动提词"}；生成：${result.generated_at}；资料快照检索：${result.snapshot.searched_at}`,
     result.analysis.overview,
   ];
+  const brief = result.analysis.synthesis;
+  if (brief) {
+    lines.push("综合解读", brief.what_happened);
+    for (const [key, label] of SYNTHESIS_DIMENSIONS) lines.push(`${label}（AI 推断）：${brief[key].text}`);
+    lines.push(`接下来留意：${brief.watchpoints.join("；")}`);
+  }
   for (const event of result.analysis.events) {
     lines.push("", event.title, `资料概况：${event.summary.text}`, `影响方向（推断）：${INTERPRETATION_DIRECTION[event.impact_direction]}`);
     for (const [key, label] of INTERPRETATION_DIMENSIONS) lines.push(`${label}（AI 推断）：${event[key].text}`);

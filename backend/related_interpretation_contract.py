@@ -78,7 +78,7 @@ class RelatedInterpretationDraft(BaseModel):
 class RelatedInterpretationGeneration(RelatedInterpretationDraft):
     """New calls require a combined brief; old saved drafts remain readable."""
 
-    synthesis: RelatedSynthesis | None
+    synthesis: RelatedSynthesis | None = Field(...)
     events: list[RelatedEvent] = Field(max_length=3)
 
     @model_validator(mode="after")

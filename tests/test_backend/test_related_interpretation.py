@@ -18,8 +18,10 @@ from backend.related_interpretation_contract import (
     RelatedEvent,
     RelatedInference,
     RelatedInterpretationDraft,
+    RelatedInterpretationGeneration,
     RelatedInterpretationRequest,
     RelatedInterpretationResult,
+    RelatedSynthesis,
 )
 from backend.related_research_contract import RelatedResearchResult
 from backend.routers import related_interpretation as routes
@@ -75,6 +77,16 @@ def draft(*, two_sources=False):
     inference = RelatedInference(text="可能先影响预期，需观察资金、招标及订单才能判断经营兑现。")
     return RelatedInterpretationDraft(
         overview="物流网方案与物流主题有关，尚不能认定本公司已取得订单。",
+        synthesis=RelatedSynthesis(
+            what_happened="物流网方案提出建设目标。",
+            price_impact=inference.model_dump(),
+            industry_impact=inference.model_dump(),
+            duration=inference.model_dump(),
+            market_reaction=inference.model_dump(),
+            business_realization=inference.model_dump(),
+            watchpoints=["看后续订单能否落地"],
+            source_ids=["news:1"],
+        ),
         events=[
             RelatedEvent(
                 title="物流网建设方案",
@@ -188,7 +200,7 @@ def test_get_is_free_post_reuses_success_and_refresh_is_explicit(client, monkeyp
     assert call["llm_config"].reasoning_effort is None
     assert call["llm_config"].model == service.DEFAULT_MODEL
     assert "到2030年物流网建设取得明显成效" in call["prompt"]
-    assert call["output_model"] is RelatedInterpretationDraft
+    assert call["output_model"] is RelatedInterpretationGeneration
 
 
 @pytest.mark.parametrize(
@@ -344,9 +356,12 @@ def test_invalid_model_quote_is_replaced_with_same_source_fragment(client, monke
     invoke.assert_awaited_once()
 
 
-@pytest.mark.parametrize("invalid", ["foreign", "outside", "missing", "duplicate", "empty"])
+@pytest.mark.parametrize("invalid", ["foreign", "outside", "duplicate", "empty"])
 def test_quote_recovery_never_repairs_invalid_source_ownership(
-    client, monkeypatch, invalid, caplog,
+    client,
+    monkeypatch,
+    invalid,
+    caplog,
 ):
     prior = saved_result()
     service.store.save(prior)
@@ -356,8 +371,6 @@ def test_quote_recovery_never_repairs_invalid_source_ownership(
         analysis.events[0].summary.quotes[0].source_id = "unknown"
     elif invalid == "outside":
         analysis.events[0].summary.quotes[0].source_id = "news:2"
-    elif invalid == "missing":
-        analysis.excluded_sources = []
     elif invalid == "duplicate":
         analysis.events[0].source_ids.append("news:2")
     else:
@@ -534,3 +547,68 @@ async def test_openapi_exposes_frozen_contract(isolated):
     assert schema["additionalProperties"] is False
     assert schema["properties"]["refresh"]["default"] is False
     assert document["components"]["schemas"]["RelatedEvent"]["properties"]["summary"]
+
+
+def test_new_generation_requires_brief_but_legacy_saved_records_still_read(isolated):
+    legacy = saved_result().model_dump(mode="json")
+    legacy["analysis"].pop("synthesis")
+    restored = RelatedInterpretationResult.model_validate(legacy)
+    assert restored.analysis.synthesis is None
+    service.store.save(restored)
+    assert service.get_saved("stock", "688648").analysis.synthesis is None
+    with pytest.raises(ValidationError):
+        RelatedInterpretationGeneration.model_validate(legacy["analysis"])
+    data = draft().model_dump()
+    data["events"] *= 4
+    with pytest.raises(ValidationError):
+        RelatedInterpretationGeneration.model_validate(data)
+
+
+@pytest.mark.parametrize("ids", [["news:2"], ["news:1", "news:2"], ["news:1", "news:1"]])
+def test_brief_cannot_use_excluded_material_or_duplicate_votes(ids):
+    analysis = draft(two_sources=True)
+    analysis.synthesis.source_ids = ids
+    with pytest.raises(ValueError, match="Synthesis"):
+        service.validate_interpretation(analysis, snapshot(two_sources=True))
+
+
+def test_missing_combined_brief_never_replaces_success_or_retries(client, monkeypatch):
+    prior = saved_result()
+    service.store.save(prior)
+    invalid = draft()
+    invalid.synthesis = None
+    invoke = AsyncMock(return_value=invalid)
+    monkeypatch.setattr(service, "related_research", AsyncMock(return_value=snapshot()))
+    monkeypatch.setattr(service.llm_service, "invoke_structured", invoke)
+    result = client.post(URL, params=PARAMS, json={"refresh": True})
+    assert result.status_code == 502
+    invoke.assert_awaited_once()
+    assert service.get_saved("stock", "688648") == prior
+
+
+def test_saved_brief_reaches_debate_context_with_sources_and_original_dates(isolated):
+    prior = saved_result()
+    service.store.save(prior)
+    formatted = service.format_saved_interpretation("stock", "688648")
+    payload = json.loads(formatted[formatted.index("{") :])
+    assert payload["analysis"]["synthesis"] == prior.analysis.synthesis.model_dump()
+    assert payload["generated_at"] == prior.generated_at.isoformat()
+    assert payload["sources"][0]["published_at"] == prior.snapshot.data[0].published_at
+    assert "不能当新事实或当前信号" in formatted
+
+
+def test_unused_article_is_retained_without_rejecting_good_brief(client, monkeypatch):
+    analysis = draft(two_sources=True)
+    analysis.excluded_sources = []
+    invoke = AsyncMock(return_value=analysis)
+    monkeypatch.setattr(
+        service, "related_research", AsyncMock(return_value=snapshot(two_sources=True))
+    )
+    monkeypatch.setattr(service.llm_service, "invoke_structured", invoke)
+    response = client.post(URL, params=PARAMS, json={"refresh": True})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["analysis"]["synthesis"] == analysis.synthesis.model_dump()
+    assert result["analysis"]["excluded_sources"][0]["source_id"] == "news:2"
+    assert "不据此认定无关" in result["analysis"]["excluded_sources"][0]["reason"]
+    invoke.assert_awaited_once()

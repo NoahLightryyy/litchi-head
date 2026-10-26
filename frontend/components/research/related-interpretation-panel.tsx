@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RelatedResearchRequest, RelatedResearchResult } from "@/lib/related-research";
-import { copyableRelatedInterpretation, generateRelatedInterpretation, INTERPRETATION_DIMENSIONS, INTERPRETATION_DIRECTION, readRelatedInterpretation, relatedInterpretationKey, relatedInterpretationQueryPolicy, relatedSnapshotChanged, type RelatedEvent, type RelatedInterpretationResult } from "@/lib/related-interpretation";
+import { copyableRelatedInterpretation, generateRelatedInterpretation, INTERPRETATION_DIMENSIONS, INTERPRETATION_DIRECTION, SYNTHESIS_DIMENSIONS, readRelatedInterpretation, relatedInterpretationKey, relatedInterpretationQueryPolicy, relatedSnapshotChanged, type RelatedEvent, type RelatedInterpretationResult } from "@/lib/related-interpretation";
 
 const button = "rounded-md border border-bg-tertiary px-3 py-2 text-sm text-accent-blue disabled:opacity-50";
 const time = (value: string) => new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false });
@@ -68,6 +68,23 @@ function EventCard({ event, result }: { event: RelatedEvent; result: RelatedInte
   </article>;
 }
 
+function CombinedBrief({ result }: { result: RelatedInterpretationResult }) {
+  const brief = result.analysis.synthesis;
+  if (!brief) return <div className="space-y-3 rounded-md bg-accent-blue/5 p-4 text-sm leading-7">
+    <p className="font-medium text-accent-blue">先看重点</p><p>{result.analysis.overview}</p>
+    {result.analysis.events.length > 0 && <><p className="font-medium">股价可能怎样反应 · 原有解读中的判断</p>
+      <ul className="list-disc space-y-2 pl-4">{result.analysis.events.slice(0, 3).map((event, index) => <li key={index}>{event.title}：{event.market_reaction.text}</li>)}</ul>
+      <p className="text-xs text-text-muted">这是原有解读，尚未生成跨事件综合结论；更新后会把产业、股价与业绩节奏放在一起讲清楚。</p></>}
+  </div>;
+  return <section aria-label="综合影响解读" className="space-y-4 rounded-lg bg-accent-blue/5 p-4 text-sm leading-7">
+    <div><h5 className="font-semibold">这件事，一起看</h5><p className="mt-1">{brief.what_happened}</p></div>
+    <div className="rounded-md border border-accent-blue/20 bg-bg-secondary p-3"><h5 className="font-semibold text-accent-blue">可能怎样影响股价</h5><p className="mt-1">{brief.price_impact.text}</p></div>
+    <p className="text-xs text-text-muted">下面是基于这些资料的推测，是否成立要看后续变化。</p>
+    <dl className="grid gap-4 sm:grid-cols-2">{SYNTHESIS_DIMENSIONS.slice(1).map(([key, label]) => <div key={key}><dt className="font-medium">{label}</dt><dd className="mt-1 text-text-secondary">{brief[key].text}</dd></div>)}</dl>
+    <div><h5 className="font-semibold">接下来只盯这几件事</h5><ul className="mt-1 list-disc space-y-1 pl-4">{brief.watchpoints.map((point, index) => <li key={index}>{point}</li>)}</ul></div>
+  </section>;
+}
+
 export interface RelatedInterpretationContentProps {
   data: RelatedInterpretationResult | null;
   current?: RelatedResearchResult;
@@ -93,7 +110,7 @@ export function RelatedInterpretationContent(props: RelatedInterpretationContent
   }
   return <section aria-label="政策与资讯通俗解读" className="rounded-lg border border-accent-blue/20 bg-bg-secondary p-4 space-y-4">
     <header className="flex flex-wrap items-start justify-between gap-3">
-      <div><h4 className="font-semibold">政策与资讯通俗解读</h4><p className="mt-1 text-sm text-text-muted">把相关报道按事件整理，看清产业影响、持续条件与反馈节奏。</p></div>
+      <div><h4 className="font-semibold">政策与资讯通俗解读</h4><p className="mt-1 text-sm text-text-muted">把相关消息合起来讲清楚：发生了什么、可能怎样影响股价、多久能看到经营变化。</p></div>
       <div className="flex flex-wrap gap-2">
         <button type="button" className={button} disabled={reading || generating || offline} onClick={props.onRead}>{reading ? "正在读取…" : "读取已存解读"}</button>
         <button type="button" className={`${button} bg-accent-blue text-white`} disabled={!props.canGenerate || loading || generating || offline} onClick={props.onGenerate}>{generating ? "AI 正在解读…" : props.readFailed ? "AI 重新生成" : data ? "AI 更新解读" : "AI 生成解读"}</button>
@@ -112,10 +129,11 @@ export function RelatedInterpretationContent(props: RelatedInterpretationContent
         <p>{data.snapshot.data.length} 篇资料 · {data.analysis.events.length} 个事件 · 时刻按北京时间显示，只有日期的按来源保留</p>
       </div>
       {relatedSnapshotChanged(data, props.current) && <p role="status" className="rounded-md bg-bg-primary p-3 text-sm text-text-secondary">当前检索资料已变化；下方解读仍基于原资料快照。点击「AI 更新解读」可重新整理。</p>}
-      <div className="rounded-md bg-accent-blue/5 p-3 text-sm leading-7 whitespace-pre-line break-words"><p className="mb-1 text-xs font-medium text-accent-blue">先读这段</p>{data.analysis.overview}</div>
+      <CombinedBrief result={data} />
       {data.status === "no_relevant_events" && <p className="text-sm text-text-secondary">这批资料没有适合展开的相关事件。可在下方查看排除原因，或调整关键词后重新检索。</p>}
-      <div className="space-y-4" aria-label="主要相关事件">{data.analysis.events.slice(0, 3).map((event, index) => <EventCard key={index} event={event} result={data} />)}</div>
-      {data.analysis.events.length > 3 && <details className="text-sm"><summary className="cursor-pointer text-accent-blue">展开其余 {data.analysis.events.length - 3} 个事件</summary><div className="mt-4 space-y-4">{data.analysis.events.slice(3).map((event, index) => <EventCard key={index} event={event} result={data} />)}</div></details>}
+      {data.analysis.events.length > 0 && <details className="text-sm"><summary className="cursor-pointer text-accent-blue">为什么这样判断？查看 {data.analysis.events.length} 条事件主线与资料依据</summary>
+        <div className="mt-4 space-y-3" aria-label="主要相关事件">{data.analysis.events.map((event, index) => <details key={index} className="rounded-md border border-bg-tertiary p-3"><summary className="cursor-pointer font-medium">{event.title} · {INTERPRETATION_DIRECTION[event.impact_direction]}</summary><div className="mt-3"><EventCard event={event} result={data} /></div></details>)}</div>
+      </details>}
       <div className="flex flex-wrap items-center gap-3"><button type="button" className={button} onClick={() => void copy()}>复制研究要点</button><p className="text-xs text-text-muted">{props.query.trim() ? "自定关键词的解读可复制到后续研究中，保留来源与推断标记。" : "自动提词的已存解读会供后续辩论参考，保留资料来源与推断标记。"}</p></div>
       {copyMessage && <p role="status" className="text-xs text-text-muted">{copyMessage}</p>}
       <details className="border-t border-bg-tertiary pt-3 text-xs text-text-muted"><summary className="cursor-pointer">本次资料范围与排除原因</summary><div className="mt-3 space-y-3 leading-6">

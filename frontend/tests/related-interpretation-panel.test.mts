@@ -145,9 +145,9 @@ test("真实面板仅显式生成，成功时先取消同键旧读取再写入�
   }
 });
 
-test("通俗概况、六个推断维度、核查点及原始发布时间直接可见", () => {
+test("旧解读仍可读取，资料细节折叠并保留原始日期", () => {
   const html = render({ data: fixture() });
-  for (const text of ["先读这段", "资料说了什么", "产业怎样受影响", "涉及哪些范围", "影响可能持续多久", "市场情绪反应", "经营兑现节奏", "与当前标的的关系", "接下来核查什么", "核查订单公告", "AI 推断", "未经人工复核"]) assert.ok(html.includes(text));
+  for (const text of ["先看重点", "资料说了什么", "产业怎样受影响", "涉及哪些范围", "影响可能持续多久", "市场情绪反应", "经营兑现节奏", "与当前标的的关系", "接下来核查什么", "核查订单公告", "AI 推断", "未经人工复核"]) assert.ok(html.includes(text));
   assert.match(html, /发布 2025-10-01/);
   assert.match(html, /href="https:\/\/example.org\/0"/);
   assert.match(html, /生成于 2026\/10\/27 12:00:00/);
@@ -172,12 +172,11 @@ test("来源时刻统一北京时间，日期和未知文本保留，排除资�
   assert.doesNotMatch(html, /T11:51:55|T20:03:04|Invalid Date/);
 });
 
-test("前三个事件默认展示，余下事件、引用细节和排除原因折叠", () => {
+test("旧版多个事件全部收进依据，不展开长卡片占据首屏", () => {
   const html = render({ data: fixture(4) });
-  assert.match(html, /展开其余 1 个事件/);
+  assert.match(html, /为什么这样判断？查看 4 条事件主线与资料依据/);
   assert.match(html, /设备更新事件4/);
-  assert.ok(html.indexOf("设备更新事件3") < html.indexOf("展开其余 1 个事件"));
-  assert.ok(html.indexOf("设备更新事件4") > html.indexOf("展开其余 1 个事件"));
+  assert.ok(html.indexOf("设备更新事件4") > html.indexOf("为什么这样判断"));
   assert.match(html, /查看引用片段与原始资料范围/);
   assert.match(html, /弱相关，暂不展开/);
   assert.doesNotMatch(html, /<details[^>]*\sopen(?:[=>\s])/);
@@ -205,4 +204,15 @@ test("全部弱相关时展示排除结果，来源内容始终作为文本渲�
   const unsafe = fixture(); unsafe.analysis.events[0].summary.text = "<script>window.evil()</script>";
   assert.match(render({ data: unsafe }), /&lt;script&gt;/);
   assert.doesNotMatch(render({ data: unsafe }), /<script>/);
+});
+
+test("多条新闻只展示一份综合解读，股价在前、产业和节奏随后，事件依据折叠", () => {
+  const value = fixture(3), inference = (text: string) => ({ text, basis: "inference" as const });
+  value.analysis.synthesis = { what_happened: "政策和设备更新需求形成同一产业变化", price_impact: inference("若需求落地，盈利预期可能改善；只有炒作则可能回落"), industry_impact: inference("设备上游可能受益，但本公司仍要拿到订单"), duration: inference("取决于投入能否持续"), market_reaction: inference("情绪可能几天内反应"), business_realization: inference("交付确认收入需要更久"), watchpoints: ["留意新增订单和回款"], source_ids: value.analysis.events.flatMap(event => event.source_ids) };
+  const html = render({ data: value });
+  assert.equal((html.match(/aria-label="综合影响解读"/g) ?? []).length, 1);
+  assert.ok(html.indexOf("若需求落地") < html.indexOf("设备上游可能受益"));
+  for (const text of ["这件事，一起看", "能持续多久", "市场可能多快反应", "什么时候才可能变成业绩", "留意新增订单和回款"]) assert.ok(html.includes(text));
+  assert.match(html, /<details[^>]*><summary[^>]*>为什么这样判断/);
+  assert.doesNotMatch(html, /<details[^>]*\sopen(?:[=>\s])/);
 });
