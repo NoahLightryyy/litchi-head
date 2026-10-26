@@ -68,3 +68,13 @@ Pydantic 事实源：`backend/related_interpretation_contract.py`。
 ## 保存与后续消费
 
 SQLite 保存完整结果及整体 SHA-256，读取时校验整体哈希、快照哈希、身份和引用归属。成功才替换同键旧结果。新增模块提供同步 `get_saved(kind, code, query='') -> RelatedInterpretationResult | None` 及 `format_saved_interpretation(kind, code, query='') -> str`，后者内部同键读取，无记录返回空字符串，损坏则抛异常由消费者记录；两者均无网络或模型调用。默认辩论只读取 `q=''`，不自动付费生成。格式化材料保留快照 ID、生成时间、来源日期、URL 和历史未复核标记，当前原始资料优先，不能把 AI 推断转写为事实证据。
+
+## 2026-10-27 综合解读扩展（向后兼容）
+
+保留schema_version=1与现有端点、错误和只读缓存语义。`analysis.synthesis`新增为可空字段；旧记录缺字段按null处理，不自动重新生成。
+新模型输出使用`RelatedInterpretationGeneration`：最多3个主线事件，有事件必须有一份综合解读，无相关事件则synthesis=null。
+综合解读由what_happened（240字以内）和price_impact、industry_impact、duration、market_reaction、business_realization五项条件性推断（每项180字以内，basis=inference），以及最多3条watchpoints和source_ids组成。
+它综合所有保留事件，source_ids必须恰好覆盖各事件来源，不得引用排除材料；资料事实仍在事件原句中追溯。
+产业影响包含上中下游/需求成本竞争及影响边界；持续条件与市场情绪、订单收入利润的兑现时间分开。
+默认页面展示一份综合结论，事件依据折叠。旧结果显示兼容摘要并保持旧时间，不把缺字段当失败或触发付费。
+复制与后续股票/ETF辩论都携带同一综合解读、来源和日期；AI推断不升级为事实。

@@ -48,12 +48,44 @@ class ExcludedRelatedSource(BaseModel):
     reason: str = Field(min_length=1, max_length=240)
 
 
+class BriefInference(RelatedInference):
+    text: str = Field(min_length=1, max_length=180)
+
+
+class RelatedSynthesis(BaseModel):
+    """One combined explanation for the subject, regardless of article count."""
+
+    model_config = ConfigDict(extra="forbid")
+    what_happened: str = Field(min_length=1, max_length=240)
+    price_impact: BriefInference
+    industry_impact: BriefInference
+    duration: BriefInference
+    market_reaction: BriefInference
+    business_realization: BriefInference
+    watchpoints: list[str] = Field(min_length=1, max_length=3)
+    source_ids: list[str] = Field(min_length=1, max_length=12)
+
+
 class RelatedInterpretationDraft(BaseModel):
     model_config = ConfigDict(extra="forbid")
     overview: str = Field(min_length=1, max_length=600)
     events: list[RelatedEvent] = Field(max_length=6)
     excluded_sources: list[ExcludedRelatedSource] = Field(max_length=12)
     limitations: list[str] = Field(min_length=1, max_length=8)
+    synthesis: RelatedSynthesis | None = None
+
+
+class RelatedInterpretationGeneration(RelatedInterpretationDraft):
+    """New calls require a combined brief; old saved drafts remain readable."""
+
+    synthesis: RelatedSynthesis | None
+    events: list[RelatedEvent] = Field(max_length=3)
+
+    @model_validator(mode="after")
+    def synthesis_matches_events(self) -> "RelatedInterpretationGeneration":
+        if bool(self.events) != (self.synthesis is not None):
+            raise ValueError("Relevant events require one combined synthesis")
+        return self
 
 
 class RelatedInterpretationRequest(BaseModel):
