@@ -1,4 +1,5 @@
 """Entry-plan contracts and service behavior; no live model calls."""
+import json
 from copy import deepcopy
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
@@ -15,7 +16,10 @@ from backend.entry_plan import (
     EntryPlanRequest,
     EntryPlanResult,
     EntryPlanStore,
+    _daily_content,
+    build_entry_prompt,
     collect_entry_context,
+    current_market_facts,
 )
 from backend.routers import entry_plan as module
 from src.debate.models import DebateResult
@@ -160,7 +164,7 @@ def test_failure_keeps_previous_and_releases_busy(client, error, status):
         assert not module._busy
 
 
-@pytest.mark.parametrize("defect", ["reference", "price", "history_met"])
+@pytest.mark.parametrize("defect", ["reference", "price"])
 def test_untrusted_output_revalidated_before_persistence(client, defect):
     output = EntryPlanDraft(**plan_payload())
     evidence, gaps = context()
@@ -168,12 +172,6 @@ def test_untrusted_output_revalidated_before_persistence(client, defect):
         output.plans[0].conditions[0].evidence_ids = ["fake"]
     elif defect == "price":
         output.plans[0].stop_loss = 50
-    else:
-        evidence[0].kind = "analysis"
-        for plan in output.plans:
-            plan.entry_low = plan.entry_high = plan.stop_loss = None
-            plan.price_evidence_ids = []
-        output.plans[0].conditions[0].status = "met"
     with patch.object(module, "collect_entry_context", AsyncMock(return_value=(evidence, gaps))), \
             patch.object(module.llm_service, "invoke_structured", AsyncMock(return_value=output)):
         response = client.post(URL, json={})
@@ -294,6 +292,54 @@ async def test_quote_time_is_upstream_timestamp_not_collection_clock():
     assert evidence[1].data_time == stamp.isoformat()
     assert evidence[0].data_time != evidence[1].data_time
     assert any("日线暂不可用" in gap for gap in gaps)
+
+
+@pytest.mark.parametrize("claimed_status", ["met", "unmet"])
+def test_history_only_condition_is_explicitly_qualified_as_unverified(client, claimed_status):
+    output = EntryPlanDraft(**plan_payload())
+    evidence, gaps = context()
+    evidence[0].kind = "analysis"
+    for plan in output.plans:
+        plan.entry_low = plan.entry_high = plan.stop_loss = None
+        plan.price_evidence_ids = []
+        plan.conditions[0].status = claimed_status
+    with patch.object(module, "collect_entry_context", AsyncMock(return_value=(evidence, gaps))), \
+            patch.object(module.llm_service, "invoke_structured", AsyncMock(return_value=output)):
+        response = client.post(URL, json={})
+    assert response.status_code == 200
+    for plan in response.json()["plans"]:
+        assert plan["status"] == "waiting"
+        assert plan["conditions"][0]["status"] == "unknown"
+        assert "仅引用历史AI研究，本次未重新核验" in plan["conditions"][0]["explanation"]
+
+
+def test_current_computed_facts_take_priority_without_promoting_volume_conflicts():
+    rows = [{"date": f"2026-10-{day:02d}", "open": 10, "high": 11, "low": 9,
+             "close": 10.1, "volume": 100000} for day in range(1, 27)]
+    daily = _daily_content({"source": "tencent", "bars": rows}, rows)
+    evidence = [
+        EntryEvidence(id="debate", kind="analysis", title="旧研究",
+                      data_time="2026-10-23", content="技术指标无法计算，需要双源校验"),
+        EntryEvidence(id="quote", kind="quote", title="行情", data_time="2026-10-26",
+                      content=json.dumps({"price": 10.1, "volume": 1000})),
+        EntryEvidence(id="daily", kind="daily", title="日线", data_time="2026-10-26",
+                      content=daily),
+    ]
+    facts = current_market_facts(evidence)
+    assert facts["daily"]["ma"]["ma5"] == 10.1
+    assert "ma60" not in facts["daily"]["ma"]  # No invented warm-up values.
+    assert facts["daily"]["available_ma_count"] == 3
+    assert "成交量明显不一致" in facts["volume_limitation"]
+    assert "价格与MA仍可用于条件研究" in facts["volume_limitation"]
+    prompt = build_entry_prompt(record(), evidence, [])
+    parsed = json.loads(prompt)
+    assert parsed["current_observations_and_calculations"] == facts
+    assert len(parsed["current_market_evidence"][1]["data"]["bars"]) == 20
+    assert "技术指标无法计算，需要双源校验" not in prompt  # No repeated legacy transcript.
+    assert "单源" in parsed["final_priority"]
+    assert "2至3批" in parsed["final_priority"]
+    assert "原研究曾称" in parsed["final_priority"]
+    assert json.loads(daily)["computed"]["ma"]["ma5"] == 10.1
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from datetime import UTC, datetime
 from typing import Annotated
@@ -18,7 +17,9 @@ from backend.entry_plan import (
     EntryPlanRequest,
     EntryPlanResult,
     EntryPlanStore,
+    build_entry_prompt,
     collect_entry_context,
+    qualify_historical_conditions,
     research_time,
 )
 from backend.limiter import limiter
@@ -90,11 +91,7 @@ async def generate_entry_plan(
         stage = "generation"
         async with asyncio.timeout(GENERATION_TIMEOUT):
             evidence, gaps = await collect_entry_context(record)
-            prompt = json.dumps({
-                "session_id": record.session_id, "stock_code": record.stock_code,
-                "instrument_type": record.instrument_type, "stock_name": record.result.stock_name,
-                "evidence": [item.model_dump() for item in evidence], "gaps": gaps,
-            }, ensure_ascii=False)
+            prompt = build_entry_prompt(record, evidence, gaps)
             raw = await llm_service.invoke_structured(
                 prompt=prompt, output_model=EntryPlanDraft, system_prompt=ENTRY_PLAN_PROMPT,
                 provider="deepseek", agent_name="conditional_entry_plan", session_id=session_id,
@@ -109,12 +106,7 @@ async def generate_entry_plan(
                 stock_name=record.result.stock_name, generated_at=datetime.now(UTC),
                 model=DEFAULT_MODEL, evidence=evidence, gaps=gaps,
             )
-            # A historical model opinion cannot establish that a current trigger was met.
-            market_ids = {item.id for item in evidence if item.kind in {"quote", "daily"}}
-            for plan in result.plans:
-                if any(item.status == "met" and not set(item.evidence_ids) & market_ids
-                       for item in plan.conditions):
-                    raise ValueError("met condition needs current market evidence")
+            result = qualify_historical_conditions(result)
         stage = "storage"
         await asyncio.to_thread(store.save, result)
         logger.info("Entry-plan persisted: session=%s instrument=%s code=%s",

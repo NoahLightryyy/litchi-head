@@ -25,6 +25,12 @@
 
 所有对象禁止额外字段，所有数值禁止 NaN/Infinity。引用必须来自当次实际输入证据；不从其他标的补用。
 
+## 本次资料优先与历史语义
+
+模型输入先列本次quote/daily及程序计算的MA、最近20根高低，再列旧AI观点摘录。MA四位小数；计算使用补采完整序列，提示中只列最近20根日线，完整来源仍随结果保存。单源行情可供条件研究，双源一致不是该功能前置门槛；本次已有MA时，不得照抄旧辩论“指标全部缺失”的描述。日线价格锚点可用于未来回踩/突破确认场景，候选价需要解释入场和撤销关系；资料确实不足仍允许null，不为填字段编造价格。优先设计2至3个不同条件阶段，避免100%单批加“暂不买”替代分批研究。
+
+旧AI财务、新闻、公告描述没有本次重新核验，只能作为历史主张。仅引用analysis的条件由服务端明确降为unknown，说明“仅引用历史AI研究，本次未重新核验”；有此项则不能consider。同日量口径明显冲突单列，不声称跨源放量已确认，也不抹去可用价格与MA。市场事实与历史分析生成时点分别保留，状态仅对应显示的资料日期。
+
 ## 错误与持久化
 
 统一 `{error:{code,message,retryable}}`，中文 message 稳定。404 `ENTRY_PLAN_NOT_FOUND`；409 `ENTRY_PLAN_SESSION_NOT_READY`；429 `ENTRY_PLAN_BUSY`；504 `ENTRY_PLAN_TIMEOUT`；502 `ENTRY_PLAN_INVALID_OUTPUT` / `ENTRY_PLAN_FAILED`；503 `ENTRY_PLAN_READ_FAILED` / `ENTRY_PLAN_SAVE_FAILED` / `ENTRY_PLAN_NOT_CONFIGURED`。请求结构不合法返回 FastAPI 422，不启动推理。
