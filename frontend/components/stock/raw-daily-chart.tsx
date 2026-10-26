@@ -1,18 +1,13 @@
 "use client";
 import type { SemanticZoom } from "@/lib/chart-zoom";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api/client";
-import { parseRawDaily } from "@/lib/raw-daily";
+import { useRawDaily } from "@/lib/hooks/use-raw-daily";
 import { aggregateRawPeriod, periodLabels, type DisplayPeriod } from "@/lib/raw-period";
 import { CandlestickChart } from "./candlestick-chart";
 
 export function RawDailyChart({code, zoom, period = "daily"}: {code:string; zoom?: SemanticZoom; period?: DisplayPeriod}) {
   const label = periodLabels[period];
   const days = period === "daily" ? 240 : 900;
-  const query = useQuery({queryKey:["stocks",code,"raw-daily-display", days],
-    queryFn: async ({signal}) => parseRawDaily(await api.getRaw(`/stocks/${code}/kline-raw-display`, {days: String(days)},
-      {signal:AbortSignal.any([signal,AbortSignal.timeout(15000)])}),code),
-    retry:false, staleTime:300000});
+  const query = useRawDaily(code, days);
   return <section className="space-y-3" aria-label={`腾讯备用不复权${label}`}>
     <div className="flex flex-wrap items-start gap-3 text-xs text-text-muted">
       <span className="rounded bg-bg-tertiary px-2 py-1">不复权</span>

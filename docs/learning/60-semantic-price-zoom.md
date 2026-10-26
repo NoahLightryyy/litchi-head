@@ -25,3 +25,7 @@ API 参考：[ITimeScaleApi](https://tradingview.github.io/lightweight-charts/do
 上一篇：[59｜本机记录](59-local-record-validation.md)
 
 下一篇：[61｜不可变用户操作账本](61-immutable-user-action-ledger.md)
+
+## 指标也要复用同一份数据（2026-10-27）
+
+`useRawDaily`让备用图表和指标卡共享代码/窗口/口径相同的缓存；`technical-summary.ts`从chartIndicators同一序列取末值。样本不足只影响相应窗口，不应把所有指标一起阻断。短均线高于长均线才是多头排列；单根MACD柱的正负不等于动能正在增强或减弱。

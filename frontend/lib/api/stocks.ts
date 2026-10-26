@@ -34,9 +34,10 @@ export async function fetchCapitalFlow(code: string): Promise<CapitalFlow[]> {
 /** 技术指标（MA/RSI/MACD/布林带） */
 export async function fetchTechnicalIndicators(
   code: string,
-  period: string = "daily"
+  period: string = "daily",
+  signal?: AbortSignal
 ): Promise<TechnicalIndicators | null> {
-  return api.get(`/stocks/${code}/technical-indicators`, { period });
+  return api.get(`/stocks/${code}/technical-indicators`, { period }, { signal });
 }
 
 /** 个股财务指标（ROE/毛利率/负债率等） */

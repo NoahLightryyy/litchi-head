@@ -41,7 +41,8 @@ export function useKline(code: string, period: string = "daily") {
 export function useTechnicalIndicators(code: string, period: string = "daily") {
   return useQuery({
     queryKey: ["stocks", code, "technical-indicators", period],
-    queryFn: () => fetchTechnicalIndicators(code, period),
+    queryFn: ({ signal }) => fetchTechnicalIndicators(code, period, AbortSignal.any([signal, AbortSignal.timeout(15_000)])),
+    retry: false,
     staleTime: 120_000,
     enabled: !!code,
   });
