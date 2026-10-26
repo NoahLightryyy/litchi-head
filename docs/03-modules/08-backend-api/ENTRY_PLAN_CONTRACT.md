@@ -1,0 +1,32 @@
+# 条件买入与分批计划 API · v1
+
+2026-10-27 冻结。供股票与 ETF 已完成辩论使用，不改旧交易员默认值、不提交订单。
+
+## 路由与读取语义
+
+`GET /api/debate/{session_id}/entry-plan` 返回已保存的 `EntryPlanResult` 或 `null`；读取绝不调用 LLM。
+
+`POST /api/debate/{session_id}/entry-plan` 请求仅 `{ "refresh": false }`。默认复用已保存成功结果；显式 `true` 重新生成，失败保留原结果。同一会话不可并发生成，全服务最多两次生成。仅接受已完成且身份一致的辩论。服务补采该股票或 ETF 的行情与日线，单项失败保留其他资料。
+
+成功直接返回对象（无 data 包装）：`schema_version:1, session_id, source_session_id, source_research_generated_at:ISO时间, stock_code, instrument_type:stock|etf, stock_name, generated_at:ISO时间, model, evidence, gaps, cached, purpose:conditional_research_plan, status_basis:ai_review_of_dated_evidence, plans`。两个 session_id 必须相等；source_research_generated_at 为原辩论最近流派生成时点（旧记录无该字段时使用会话完成时间），generated_at 是本计划生成时间，行情时间在 evidence.data_time 中，不得混用。
+
+## 精确字段
+
+权威模型：`backend/entry_plan.py`。可用 `EntryPlanResult.model_json_schema()` 导出完整 JSON Schema。
+
+- `evidence[]`：`id, kind:analysis|quote|daily, title, data_time:string, content:string`。资料由服务端建立，模型不能新增来源。analysis 是既有 AI 研究，不是独立核实的事实；quote/daily 保留来源与原数据日期。
+- `plans`：恰好短中长各一项，`horizon:short|medium|long`。
+- 每项 `status:consider|waiting|insufficient`、`summary:string`。
+- `conditions[1..6]`：`condition:string, status:met|unmet|unknown, explanation:string, evidence_ids:string[]`。状态是 AI 对所示时间资料的核对，不代表实时监控。无验证依据必须 unknown。
+- `entry_low:number|null, entry_high:number|null, stop_loss:number|null`：三项同时有值或同时 null。有值须为有限正数且 `stop_loss < entry_low <= entry_high`；`price_basis:string` 解释计算/研究依据，`price_evidence_ids:string[]` 至少引用实际 quote/daily。候选价是条件性建议，不是行情事实或保证成交价。禁止固定8%止损及无依据阈值。
+- `invalidation[1..5]:string[]`；`batches[1..4]` 每项 `{budget_pct:number, trigger:string}`，比例大于0且总和100%，指本计划预算的分配，不是账户总资产仓位。
+- `position_note:string`；`limitations[1..6]:string[]`。不提供账户仓位默认比例。资金/账户数据不发送模型；前端按用户填写预算和允许损失测算上限。
+- `consider` 只有全部 conditions 为 met 且候选价格有效时才允许；看跌结果仍可提供将来转强的 waiting 条件计划，不把看跌成立条件冒充买入信号。
+
+所有对象禁止额外字段，所有数值禁止 NaN/Infinity。引用必须来自当次实际输入证据；不从其他标的补用。
+
+## 错误与持久化
+
+统一 `{error:{code,message,retryable}}`，中文 message 稳定。404 `ENTRY_PLAN_NOT_FOUND`；409 `ENTRY_PLAN_SESSION_NOT_READY`；429 `ENTRY_PLAN_BUSY`；504 `ENTRY_PLAN_TIMEOUT`；502 `ENTRY_PLAN_INVALID_OUTPUT` / `ENTRY_PLAN_FAILED`；503 `ENTRY_PLAN_READ_FAILED` / `ENTRY_PLAN_SAVE_FAILED` / `ENTRY_PLAN_NOT_CONFIGURED`。请求结构不合法返回 FastAPI 422，不启动推理。
+
+SQLite 按 session 原子保存最后成功结果，包含证券身份、模型、证据与生成时间，校验哈希与引用。历史方向研究不被覆盖。后台不自动重试付费推理；失败后用户可显式重试。
