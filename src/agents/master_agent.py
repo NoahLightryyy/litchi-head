@@ -237,9 +237,10 @@ class MasterAgent(BaseAgent):
 
         if analysis.research_queries and ctx.input_data.get("stock_code"):
             # Unresolved follow-up must not become a supported horizon conclusion.
+            followup_gap = "；补证尚未完成，需核验后重新研究"
             analysis.horizons = [opinion.model_copy(update={
                 "status": "insufficient", "direction": None,
-                "limitations": [*opinion.limitations, "补证尚未完成，需核验后重新研究"],
+                "limitations": opinion.limitations[:600 - len(followup_gap)] + followup_gap,
             }) for opinion in analysis.horizons]
 
         # ── 4. 组装结果 ───────────────────────────────────

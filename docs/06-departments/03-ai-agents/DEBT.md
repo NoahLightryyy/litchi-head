@@ -22,3 +22,22 @@ department: AI Agent 架构部
 |:---|:-----|:--------|:---------|
 | TD-002 | AgentResult 缺泛型 | 2026-06-07 | Pydantic BaseModel + Generic[T]，88 tests |
 | TD-014 | AgentContext 缺辩论槽位 | 2026-06-07 | +3 字段 +7 测试 |
+
+###### RESEARCH-FOLLOWUP-TYPE-001 未完成补证破坏周期限制字段类型
+
+| 属性 | 值 |
+|---|---|
+| 分类 | `[bug]` `severity:moderate` `module:agents` `impact:research` |
+| 发现日期 | 2026-10-26 |
+| 发现人 | 入场计划链路核查 |
+| 状态 | ✅ 已修复 |
+| 本金估算 | 本轮完成 |
+| 日利息 | 补证失败可能升级为整个流派结果校验失败 |
+| 实盘影响 | 已有分析不能呈现，周期观点丢失 |
+| 触发场景 | 检索失败、复核失败或时间预算不足，research_queries仍非空 |
+| 用户能发现吗 | 会看到分析失败，不知道是本地字段类型错误 |
+
+**描述／具体问题**：model_copy不重新验证字段，旧代码把limitations字符串展开成字符列表。
+**利息分析**：临时补证缺口变成模型契约错误，掩盖可读的初稿。
+**修复结果**：保持字符串，原缺口与追加提示总长不超过600，仍标insufficient。
+真实run的三个mock分支和AgentAnalysis JSON往返回归通过；该测试文件28项通过。

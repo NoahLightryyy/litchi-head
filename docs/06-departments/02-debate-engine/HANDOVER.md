@@ -1,3 +1,5 @@
+> **2026-10-26 条件入场计划：在已完成辩论上新增三周期入场条件、候选价格/止损与分批方案，独立API和持久化，不启用旧trader默认值。单源行情可用，历史AI引用不得充当当前核验事实；见本日entry-plan日志与ENTRY_PLAN_CONTRACT。**
+
 ---
 department: 辩论引擎部
 codebase: src/debate/

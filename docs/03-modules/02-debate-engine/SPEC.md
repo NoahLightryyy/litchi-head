@@ -266,3 +266,14 @@ weighted_score = Σ(score × confidence × combined_factor)
 
 > **关联文档**：[RESEARCH.md](RESEARCH.md) — 战线分析 / 竞品对比 / 设计决策背景
 > **最后更新**：2026-06-16（M4 动态权重完成）
+
+
+## 2026-10-26 条件入场计划扩展
+
+完成的DebateResult可由独立 `backend/entry_plan.py` 服务补充买入观察、止损和分批计划，
+读取不重跑辩论，生成需用户显式点击。它不是旧trader的TradeSignal，也不修改原方向投票或历史会话。
+完整API契约见[ENTRY_PLAN_CONTRACT](../08-backend-api/ENTRY_PLAN_CONTRACT.md)。
+
+本次补采的单源可用行情、日线和确定性MA优先于旧AI关于缺数据的说法；历史AI财务、
+新闻与公告没有重新核验时只用于提出观察条件，不作为已发生事实。短中长各自列明候选价及依据，
+当前尚未满足时保持等待；无估值锚点的周期保留具体缺项。账户仓位由本地用户输入独立试算。

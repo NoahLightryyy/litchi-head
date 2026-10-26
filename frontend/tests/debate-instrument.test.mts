@@ -66,6 +66,7 @@ test("真实API消费者给请求和历史带ETF类型；读取历史不触发�
 function renderDebate(kind: "stock" | "etf", recordType: "stock" | "etf" | undefined, resultType: "stock" | "etf" | undefined, historyPending = false) {
   let runs = 0;
   const hookTypes: unknown[] = [];
+  const entryPlanProps: { result: unknown; instrumentType: string }[] = [];
   const record = { session_id: "saved", stock_code: code, instrument_type: recordType, status: "completed", created_at: "2026-10-26T08:00:00+08:00" };
   const result = { session_id: "saved", stock_code: code, instrument_type: resultType, vote_summary: {}, analyses: [] };
   const panel = compile("../components/stock/debate-panel.tsx", {
@@ -77,10 +78,11 @@ function renderDebate(kind: "stock" | "etf", recordType: "stock" | "etf" | undef
     "@/lib/debate-instrument": instrument, "@/lib/debate-error": errors, "@/lib/debate-session": sessions,
     "@/lib/debate-history": history, "@/lib/debate-limitations": limitations,
     "./horizon-research": { HorizonResearch: () => createElement("div", null, "horizon-result") },
+    "./entry-plan-panel": { EntryPlanPanel: (props: { result: unknown; instrumentType: string }) => { entryPlanProps.push(props); return createElement("div", null, "entry-plan-result"); } },
     "./agent-analysis-list": { AgentAnalysisList: () => createElement("div", null, "agent-result") },
   }).DebatePanel as (props: never) => unknown;
   const html = renderToStaticMarkup(createElement(panel, { stockCode: code, stockName: "设备ETF", instrumentType: kind } as never));
-  return { html, runs, hookTypes };
+  return { html, runs, hookTypes, entryPlanProps, result };
 }
 
 test("ETF面板自动读取历史但不提交，错误类型结果不能显示成基金结论", () => {
@@ -89,9 +91,12 @@ test("ETF面板自动读取历史但不提交，错误类型结果不能显示�
   assert.deepEqual(good.hookTypes, ["etf", "etf"]);
   assert.match(good.html, /horizon-result/);
   assert.match(good.html, /围绕 ETF 主题/);
+  assert.deepEqual(good.entryPlanProps, [{ result: good.result, instrumentType: "etf" }]);
+  assert.ok(good.html.indexOf("entry-plan-result") < good.html.indexOf("horizon-result"));
   for (const resultType of ["stock", undefined] as const) {
     const bad = renderDebate("etf", "etf", resultType);
     assert.doesNotMatch(bad.html, /horizon-result|agent-result/);
+    assert.equal(bad.entryPlanProps.length, 0);
     assert.match(bad.html, /本次分析失败/);
   }
   assert.doesNotMatch(renderDebate("etf", undefined, undefined).html, /horizon-result|查看结果/);

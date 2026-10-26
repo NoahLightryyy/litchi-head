@@ -7,6 +7,7 @@ import type { AgentAnalysis, VoteSummary, InstrumentType } from "@/lib/types/deb
 import { debateInstrumentMatches, debateRequest } from "@/lib/debate-instrument";
 import { debateErrorMessage } from "@/lib/debate-error";
 import { HorizonResearch } from "./horizon-research";
+import { EntryPlanPanel } from "./entry-plan-panel";
 import { AgentAnalysisList } from "./agent-analysis-list";
 import { DEBATE_FAILURE_MESSAGE, DEBATE_TIMEOUT_MESSAGE } from "@/lib/debate-session";
 import { selectDebateView } from "@/lib/debate-history";
@@ -178,6 +179,7 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
       {/* 结果 — 来自后端真实辩论数据 */}
       {results && (
         <>
+          {debateResult && <EntryPlanPanel result={debateResult} instrumentType={instrumentType} />}
           {limitations.length > 0 && (
             <div role="status" className="p-3 mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 text-sm text-text-primary">
               <p className="font-semibold">本次研究的限制</p>
