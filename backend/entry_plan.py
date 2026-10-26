@@ -423,11 +423,19 @@ def build_entry_prompt(
     }, ensure_ascii=False, allow_nan=False)
 
 
+POSITION_NOTE = (
+    "资金规模由用户填写的可用现金、投入上限和新增风险预算在本地试算；"
+    "仅按计划价格估算，实际亏损可能超过估算，未计入费用、滑点与已有持仓风险。"
+)
+
+
 def qualify_historical_conditions(result: EntryPlanResult) -> EntryPlanResult:
     """Mixing a fresh quote with historical AI claims does not verify those claims."""
     history_ids = {item.id for item in result.evidence if item.kind == "analysis"}
     payload = result.model_dump()
     for plan in payload["plans"]:
+        # Financial limits are product semantics, never a model's loss guarantee.
+        plan["position_note"] = POSITION_NOTE
         for condition in plan["conditions"]:
             if set(condition["evidence_ids"]) & history_ids:
                 condition["status"] = "unknown"

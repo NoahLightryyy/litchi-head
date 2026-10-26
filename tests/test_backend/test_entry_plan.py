@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from backend.entry_plan import (
+    POSITION_NOTE,
     EntryEvidence,
     EntryPlanDraft,
     EntryPlanRequest,
@@ -335,6 +336,30 @@ def test_mixed_quote_and_history_cannot_upgrade_unverified_valuation(client, cla
         assert response.status_code == 200
         assert response.json()["plans"][0]["conditions"][0]["status"] == "unknown"
     assert module.store.get("deb_test") == original  # Read projection never rewrites history.
+
+
+def test_position_note_is_server_owned_for_generation_and_cached_reads(client):
+    output = EntryPlanDraft(**plan_payload())
+    for plan in output.plans:
+        plan.position_note = "止损触发时损失不超过可承受范围"
+    with patch.object(module, "collect_entry_context", AsyncMock(return_value=context())), \
+            patch.object(module.llm_service, "invoke_structured", AsyncMock(return_value=output)):
+        response = client.post(URL, json={})
+    assert response.status_code == 200
+    assert all(plan["position_note"] == POSITION_NOTE for plan in response.json()["plans"])
+    stored = module.store.get("deb_test")
+    assert stored is not None
+    assert all(plan.position_note == POSITION_NOTE for plan in stored.plans)
+
+    legacy = EntryPlanResult(**result_payload())
+    for plan in legacy.plans:
+        plan.position_note = "保证止损只亏预算金额"
+    module.store.save(legacy)
+    for response in (client.get(URL), client.post(URL, json={})):
+        assert response.status_code == 200
+        assert all(plan["position_note"] == POSITION_NOTE for plan in response.json()["plans"])
+        assert "实际亏损可能超过估算" in response.json()["plans"][0]["position_note"]
+    assert module.store.get("deb_test") == legacy
 
 
 def test_current_computed_facts_take_priority_without_promoting_volume_conflicts():

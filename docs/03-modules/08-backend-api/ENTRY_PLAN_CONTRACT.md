@@ -20,7 +20,7 @@
 - `conditions[1..6]`：`condition:string, status:met|unmet|unknown, explanation:string, evidence_ids:string[]`。状态是 AI 对所示时间资料的核对，不代表实时监控。无验证依据必须 unknown。
 - `entry_low:number|null, entry_high:number|null, stop_loss:number|null`：三项同时有值或同时 null。有值须为有限正数且 `stop_loss < entry_low <= entry_high`；`price_basis:string` 解释计算/研究依据，`price_evidence_ids:string[]` 至少引用实际 quote/daily。候选价是条件性建议，不是行情事实或保证成交价。禁止固定8%止损及无依据阈值。
 - `invalidation[1..5]:string[]`；`batches[1..4]` 每项 `{budget_pct:number, trigger:string}`，比例大于0、最多两位小数且总和100%，指本计划预算的分配，不是账户总资产仓位。
-- `position_note:string`；`limitations[1..6]:string[]`。不提供账户仓位默认比例。资金/账户数据不发送模型；前端按用户填写预算和允许损失测算上限。
+- `position_note:string`；`limitations[1..6]:string[]`。不提供账户仓位默认比例。资金/账户数据不发送模型；前端按用户填写预算和允许损失测算上限。position_note由服务端规范，忽略模型对此字段的资金保证，固定说明：“资金规模由用户填写的可用现金、投入上限和新增风险预算在本地试算；仅按计划价格估算，实际亏损可能超过估算，未计入费用、滑点与已有持仓风险。”生成保存和读取旧缓存投影都使用此说明；读投影不改写原存储。
 - `consider` 只有全部 conditions 为 met 且候选价格有效时才允许；看跌结果仍可提供将来转强的 waiting 条件计划，不把看跌成立条件冒充买入信号。
 
 所有对象禁止额外字段，所有数值禁止 NaN/Infinity。引用必须来自当次实际输入证据；不从其他标的补用。
