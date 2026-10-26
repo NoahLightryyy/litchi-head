@@ -17,12 +17,14 @@ from backend.async_utils import run_sync
 from backend.discovery_rankings import router as rankings_router
 from backend.etf_display import get_catalog
 from backend.routers.stocks import collector
+from backend.ths_fund_rankings import router as ths_funds_router
 from src.data.evidence import EvidenceCapability, EvidenceRequest, SourceStatus
 from src.data.providers.quotes import SHANGHAI, SinaQuoteSource
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/discovery")
 router.include_router(rankings_router)
+router.include_router(ths_funds_router)
 
 
 class SearchHit(BaseModel):
