@@ -587,3 +587,50 @@ async def test_missing_forced_tool_output_retries_once_without_accepting_prose()
         with pytest.raises(ValueError, match="返回类型不匹配"):
             await service.invoke_structured("probe", Probe)
     assert structured.ainvoke.await_count == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("content,finish_reason,accepted", [
+    ('{"answer":"OK"}', "stop", True),
+    ('', "stop", False),
+    ('普通文字', "stop", False),
+    ('{"answer":"OK"', "stop", False),
+    ('{"answer":"OK"}', "length", False),
+    ('{"wrong":"OK"}', "stop", False),
+])
+async def test_explicit_json_output_is_strict_and_never_regenerates(
+    content, finish_reason, accepted
+):
+    from langchain_core.messages import AIMessage
+    from pydantic import BaseModel
+
+    class Probe(BaseModel):
+        answer: str
+
+    model = MagicMock()
+    bound = AsyncMock()
+    raw = AIMessage(content=content, response_metadata={"finish_reason": finish_reason})
+    bound.ainvoke.return_value = raw
+    model.bind.return_value = bound
+    service = LLMService()
+    with patch.object(service, "get_llm", return_value=model), patch(
+        "src.utils.llm._record_usage"
+    ) as usage:
+        if accepted:
+            result = await service.invoke_structured(
+                "原资料", Probe, system_prompt="只分析原资料", agent_name="json-test",
+                output_method="json_mode",
+            )
+            assert result.answer == "OK"
+        else:
+            with pytest.raises(ValueError):
+                await service.invoke_structured(
+                    "原资料", Probe, system_prompt="只分析原资料", agent_name="json-test",
+                    output_method="json_mode",
+                )
+    model.bind.assert_called_once_with(response_format={"type": "json_object"})
+    model.with_structured_output.assert_not_called()
+    assert bound.ainvoke.await_count == 1
+    assert '"answer"' in bound.ainvoke.call_args.args[0][0].content
+    assert "只分析原资料" in bound.ainvoke.call_args.args[0][0].content
+    usage.assert_called_once_with(model, raw, "json-test", "")

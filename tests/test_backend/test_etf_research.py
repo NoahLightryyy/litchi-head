@@ -2,7 +2,8 @@
 
 import asyncio
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock
+from threading import get_ident
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -13,6 +14,13 @@ from backend.related_research_contract import RelatedResearchResult
 NOW = datetime(2026, 10, 26, 18, tzinfo=UTC)
 IDENTITY = EtfIdentity(code="560780", symbol="sh560780", exchange="SH", name="半导体设备ETF广发")
 CATALOG = EtfCatalog(items=(IDENTITY,), fetched_at=NOW)
+
+
+@pytest.fixture(autouse=True)
+def saved_interpretation(monkeypatch):
+    read = Mock(return_value="")
+    monkeypatch.setattr(etf_research, "format_saved_interpretation", read)
+    return read
 
 
 def quote():
@@ -259,3 +267,48 @@ async def test_prepared_brief_includes_facts_only_when_history_exists(sources):
     })
     empty = await etf_research.collect_etf_research(IDENTITY, CATALOG)
     assert "【确定性日线比较摘要】" not in empty.brief
+
+
+@pytest.mark.parametrize("saved_state", ["present", "missing", "failed"])
+async def test_saved_interpretation_stays_separate_from_etf_raw_material(
+    sources, saved_interpretation, saved_state, caplog
+):
+    event_thread = get_ident()
+    read_threads = []
+    saved_text = (
+        "【已保存AI解读，非原始事实】版本test-etf-1，生成于2026-10-26；"
+        "来源https://example.com/policy，报道日期2026-10-20。"
+    )
+
+    def read(*args):
+        read_threads.append(get_ident())
+        if saved_state == "failed":
+            raise ValueError("private corrupt record")
+        return saved_text if saved_state == "present" else ""
+
+    saved_interpretation.side_effect = read
+    with patch("src.utils.llm.llm_service.invoke_structured", new_callable=AsyncMock) as generate:
+        result = await etf_research.collect_etf_research(IDENTITY, CATALOG)
+
+    saved_interpretation.assert_called_once_with("etf", "560780", "")
+    assert len(read_threads) == 1 and read_threads[0] != event_thread
+    generate.assert_not_called()
+    assert "0.749" in result.brief and "https://example.com/policy" in result.brief
+    assert "【确定性日线比较摘要】" in result.brief
+    assert [item.capability for item in result.evidence_limitations] == ["etf_research_scope"]
+    assert (saved_text in result.brief) == (saved_state == "present")
+    assert ("已保存的政策与新闻解读】读取失败" in result.brief) == (saved_state == "failed")
+    assert "private corrupt record" not in result.brief
+    if saved_state == "failed":
+        assert "Saved related interpretation read failed: kind=etf code=560780" in caplog.text
+
+
+async def test_saved_ai_interpretation_does_not_replace_missing_original_etf_material(
+    sources, saved_interpretation,
+):
+    saved_interpretation.return_value = "【已保存AI解读】半导体政策可能影响市场预期"
+    for source in sources.values():
+        source.side_effect = TimeoutError
+    with pytest.raises(etf_research.NoUsableEtfResearchError):
+        await etf_research.collect_etf_research(IDENTITY, CATALOG)
+    saved_interpretation.assert_not_called()

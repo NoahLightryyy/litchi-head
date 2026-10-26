@@ -136,3 +136,5 @@
 - [70｜证据时间与缺项阻断](70-evidence-dates-and-blocked-execution.md)
 
 - [71｜持久研究任务与可信计算边界](71-durable-research-and-trusted-preview.md)
+
+- [72｜新闻摘要与可追溯的产业影响](72-related-news-impact.md)

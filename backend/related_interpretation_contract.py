@@ -81,8 +81,10 @@ class RelatedInterpretationResult(BaseModel):
     @model_validator(mode="after")
     def consistent_identity(self) -> "RelatedInterpretationResult":
         if (self.subject_kind, self.subject_id, self.subject_name, self.query) != (
-            self.snapshot.subject_kind, self.snapshot.subject_id,
-            self.snapshot.subject_name, self.snapshot.query,
+            self.snapshot.subject_kind,
+            self.snapshot.subject_id,
+            self.snapshot.subject_name,
+            self.snapshot.query,
         ):
             raise ValueError("Related interpretation identity and snapshot disagree")
         if bool(self.analysis.events) != (self.status == "interpreted"):

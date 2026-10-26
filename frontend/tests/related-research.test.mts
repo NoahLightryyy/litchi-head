@@ -178,3 +178,19 @@ test("默认先展示关联检索，旧证据与本金表单独立折叠且缺�
   assert.match(html, /需先取得当前标的证据包/);
   assert.doesNotMatch(html, />开始研究<|当前标的专属证据与约束/);
 });
+
+test("相关资料消费者把解读放在原文列表前，传入本查询快照并区分检索与AI生成", () => {
+  const received: unknown[] = [];
+  const data = fixture();
+  const panel = compileView("../components/research/related-research-panel.tsx", {
+    "@tanstack/react-query": { useQuery: () => ({ data, isPending: false, isFetching: false, isPaused: false, isError: false, refetch: () => {} }) },
+    "@/lib/related-research": { fetchRelatedResearch, relatedResearchKey, relatedResearchQueryPolicy, relatedResearchRequest },
+    "./related-interpretation-panel": { RelatedInterpretationPanel: (props: unknown) => { received.push(props); return createElement("section", null, "通俗解读入口"); } },
+    "./related-research-content": { RelatedResearchContent: () => createElement("section", null, "原文列表") },
+  }).RelatedResearchPanel;
+  const html = renderToStaticMarkup(createElement(panel, { kind: request.kind, code: request.code, name: request.name } as never));
+  assert.deepEqual(received, [{ request, current: data }]);
+  assert.ok(html.indexOf("通俗解读入口") < html.indexOf("原文列表"));
+  assert.match(html, /「刷新资料」和「搜索资料」只做检索，不调用 AI/);
+  assert.match(html, /解读由下方按钮单独生成/);
+});

@@ -1,3 +1,5 @@
+> **2026-10-26 相关资料产业解读**：新增GET/POST `/api/research/related/interpretation`，独立于正式证据包；资料快照、引用、事件归并及产业影响结构见RELATED_INTERPRETATION_CONTRACT。默认读取不调用模型，显式更新才生成；见本日related-interpretation日志。
+
 > **2026-10-26 ETF补齐**：ETF日线三位精度与腾讯/新浪回退、专用基金资料接入原多轮辩论、类型隔离历史已实现。契约为ETF_KLINE_CONTRACT.md和ETF_DEBATE_CONTRACT.md，位于docs/03-modules/08-backend-api；集成验收见本日etf-chart-debate日志。下文旧脚手架信息为历史记录。
 
 ---

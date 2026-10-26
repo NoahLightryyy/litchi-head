@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Subject } from "@/lib/policy-capital";
 import { fetchRelatedResearch, relatedResearchKey, relatedResearchQueryPolicy, relatedResearchRequest } from "@/lib/related-research";
 import { RelatedResearchContent } from "./related-research-content";
+import { RelatedInterpretationPanel } from "./related-interpretation-panel";
 
 export function RelatedResearchPanel(props: Subject & { name: string }) {
   return <Panel key={`${props.kind}:${props.code}`} {...props} />;
@@ -34,7 +35,8 @@ function Panel(props: Subject & { name: string }) {
       <button type="submit" disabled={query.isFetching || query.isPaused} className="rounded border border-bg-tertiary px-3 py-2 text-sm text-accent-blue disabled:opacity-50">搜索资料</button>
       <button type="button" onClick={() => search("")} disabled={query.isFetching || query.isPaused} className="rounded border border-bg-tertiary px-3 py-2 text-sm text-accent-blue disabled:opacity-50">恢复自动提词</button>
     </form>
-    <p className="text-xs text-text-muted">多个关键词用空格或逗号分隔，匹配任意一个即可。此处只检索资料，不产生 AI 研究费用。</p>
+    <p className="text-xs text-text-muted">多个关键词用空格或逗号分隔，匹配任意一个即可。「刷新资料」和「搜索资料」只做检索，不调用 AI；解读由下方按钮单独生成。</p>
+    <RelatedInterpretationPanel request={request} current={query.data} />
     <RelatedResearchContent data={query.data} pending={query.isPending} failed={query.isError} paused={query.isPaused} error={query.error?.message} onKeyword={search} />
   </section>;
 }

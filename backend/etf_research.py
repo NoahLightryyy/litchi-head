@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from backend.etf_contract import EtfCatalog, EtfDetail, EtfIdentity, EtfKlineDisplay
 from backend.etf_display import detail
 from backend.etf_kline import get_etf_kline
+from backend.related_interpretation import format_saved_interpretation
 from backend.related_research import related_research
 from backend.related_research_contract import RelatedResearchResult
 from src.debate.etf_analysts import ETF_SCOPE_PROMPT
@@ -204,6 +205,17 @@ async def collect_etf_research(
             "【资料关联范围】相关报道来自已入库材料；direct为名称/代码提及，topic为主题匹配。"
             "政策原文与政策报道应依来源区分，不能将转载算作独立验证。"
         )
+    try:
+        saved_interpretation = await asyncio.to_thread(
+            format_saved_interpretation, "etf", identity.code, "",
+        )
+    except Exception:
+        logger.exception(
+            "Saved related interpretation read failed: kind=etf code=%s", identity.code,
+        )
+        saved_interpretation = "【已保存的政策与新闻解读】读取失败，本轮继续使用原始资料。"
+    if saved_interpretation:
+        sections.append(saved_interpretation)
     return InstrumentResearchContext(
         stock_code=identity.code,
         stock_name=identity.name,

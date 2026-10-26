@@ -12,6 +12,7 @@ department: 基础设施部
 
 | ID | 标题 | 严重度 | 类型 | 状态 |
 |:---|:-----|:------:|:----|:----|
+| LLM-TOOL-OUTPUT-001 | 工具模式偶发无可解析调用 | 🟡 moderate | 缺陷 | 📋 局部绕过，待专项验证 |
 | TD-005 | 双配置源未协调 | 🟡 moderate | 架构设计 | 📋 待评估 |
 | TD-007 | ensure_dirs() 从未被调用 | 🟢 low | 缺陷 | 📋 待评估 |
 | TD-008 | cost_tracker 价格硬编码 | 🟢 low | 代码质量 | 📋 待评估 |
@@ -106,3 +107,26 @@ department: 基础设施部
 **修复方向**：对所有已响应调用记录原始usage并区分未知；预算预约和实际账单口径分开。
 
 关联：[能力盘点](../../02-requirements/differentiation/CAPABILITY_INVENTORY.md)。
+
+
+###### LLM-TOOL-OUTPUT-001 工具模式偶发成功状态却没有可解析调用
+
+| 属性 | 值 |
+|---|---|
+| 分类 | `[bug]` `severity:moderate` `module:utils/llm` `impact:availability` |
+| 发现日期 | 2026-10-26 |
+| 发现人 | 相关资料解读实网验收 |
+| 状态 | 🟡 新解读已局部绕过；其他工具模式调用仍待专项处理 |
+| 本金估算 | ∼2h，需保留供应商响应结构的脱敏诊断与跨调用评估 |
+| 日利息 | 重试也可能无结果，用户无法完成分析并产生无效模型费用 |
+| 实盘影响 | 研究功能不可用；现有失败路径不伪造结论 |
+| 触发场景 | DeepSeek HTTP 200、finish_reason=tool_calls，但LangChain parsed与parsing_error均为空 |
+| 用户能发现吗 | 能看到生成失败，页面不能定位上游工具调用缺失 |
+
+**描述**：本轮RelatedInterpretationDraft两次出现，历史InvestmentAnalysis日志也有同样症状。
+本地解析器、工具名和schema检查没有发现本功能特有错误；未保存raw，不能断言供应商缺少的具体字段。
+**具体问题**：调用成功状态不能保证结构化载荷存在；原通用层一次重试仍会失败。
+**利息分析**：用户反复点击成本增加；问题可影响其他依赖工具模式的研究入口。
+**修复方向**：本轮统一层提供显式json_mode，仅新资料解读启用，完整JSON/Pydantic/来源校验不放宽；
+其他调用保留默认行为，需专项验证后再决定迁移，不在新功能交付中宣称全部解决。
+详见[诊断](../../01-guides/triage/llm-structured-output.md)。
