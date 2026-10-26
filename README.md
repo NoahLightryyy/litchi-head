@@ -30,7 +30,7 @@ ETF 详情现可查看三位价格的日/周/月 K 线并启动完整多轮辩�
 | 技术问题 | 实现方式 | 代码入口 |
 |---|---|---|
 | 多角色分析如何保持结构一致？ | 使用 LangGraph 状态图组织分析、互评、独立评审与风控，以 Pydantic 校验跨模块数据 | [编排引擎](src/debate/orchestrator.py) · [类型模型](src/debate/models.py) |
-| 数据冲突或过期时如何控制分析？ | 对行情与新闻进行多源校验，记录来源、时间与诊断；关键证据不足时在模型调用前阻断正式辩论 | [证据服务](src/data/evidence_service.py) · [门禁](src/debate/evidence_gate.py) |
+| 数据冲突或过期时如何控制分析？ | 记录行情与新闻来源、时间与诊断；关键身份或价格冲突阻断分析，覆盖缺口允许带范围说明的研究 | [证据服务](src/data/evidence_service.py) · [门禁](src/debate/evidence_gate.py) |
 | 如何区分盘中状态与历史日线？ | 分离完成日线与临时盘中数据，实现 RAW 数据审计、公司行动与复权核验组件 | [K 线契约](src/data/kline_business.py) · [复权核验](src/data/kline_adjustment.py) |
 | 长耗时研究如何恢复和追踪？ | 以 SQLite 保存政策研究任务，关联归档材料与引用，执行预算检查并保留失败状态 | [研究运行时](backend/policy_research.py) · [运行时测试](tests/test_backend/test_policy_research_runtime.py) |
 | 如何避免语言模型承担金额运算？ | 将研究生成与 Decimal 单笔买入计算分离，以类型契约校验账户、费用和权限上下文 | [本金预览](backend/capital_preview.py) · [契约测试](tests/test_backend/test_policy_capital_contract.py) |
@@ -52,7 +52,7 @@ ETF 详情现可查看三位价格的日/周/月 K 线并启动完整多轮辩�
 FastAPI API ←→ Next.js Web 界面
 ```
 
-数据校验、研究生成和交易就绪状态分别建模，错误与缺项可被前端直接展示。所有模型调用通过统一的 [LLM 适配层](src/utils/llm.py)；当前默认模型为 `deepseek-v4-pro` 非思考模式，以 `DEFAULT_MODEL` 为准。
+数据校验、研究生成和交易就绪状态分别建模。研究结果默认展示简短的数据依据与影响，完整来源诊断可展开；休市收盘价和有限新闻样本不作为整体报错，数据冲突、缺评审和分析失败仍单独提示。所有模型调用通过统一的 [LLM 适配层](src/utils/llm.py)；当前默认模型为 `deepseek-v4-pro` 非思考模式，以 `DEFAULT_MODEL` 为准。
 
 ## 验证与研究评估
 

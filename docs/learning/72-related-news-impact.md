@@ -69,3 +69,5 @@ GET与 `format_saved_interpretation` 仅读取明确的kind/code/q成功快照�
    看 mock 测试如何拒绝缺右括号及 `finish_reason=length`，此测试不调用真实模型。
 
 上一篇：[71 持久研究任务与可信计算边界](71-durable-research-and-trusted-preview.md)。
+
+下一篇：[73 研究说明与故障提示分层](73-research-notice-layering.md)。

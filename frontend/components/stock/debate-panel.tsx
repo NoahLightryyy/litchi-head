@@ -11,7 +11,7 @@ import { EntryPlanPanel } from "./entry-plan-panel";
 import { AgentAnalysisList } from "./agent-analysis-list";
 import { DEBATE_FAILURE_MESSAGE, DEBATE_TIMEOUT_MESSAGE } from "@/lib/debate-session";
 import { selectDebateView } from "@/lib/debate-history";
-import { debateLimitations } from "@/lib/debate-limitations";
+import { DebateDataNotice } from "./debate-data-notice";
 
 interface DebatePanelProps {
   stockCode: string;
@@ -79,8 +79,6 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
         analyses: (debateResult.analyses ?? []) as AgentAnalysis[],
       }
     : null;
-
-  const limitations = debateLimitations(debateResult);
 
   return (
     <div>
@@ -180,14 +178,7 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
       {results && (
         <>
           {debateResult && <EntryPlanPanel result={debateResult} instrumentType={instrumentType} />}
-          {limitations.length > 0 && (
-            <div role="status" className="p-3 mb-3 rounded-md border border-amber-500/30 bg-amber-500/10 text-sm text-text-primary">
-              <p className="font-semibold">本次研究的限制</p>
-              <ul className="mt-1 space-y-1 list-disc pl-4">
-                {limitations.map((item) => <li key={item}>{item}</li>)}
-              </ul>
-            </div>
-          )}
+          {debateResult && <DebateDataNotice key={debateResult.session_id} result={debateResult} />}
           <HorizonResearch analyses={results.analyses} />
           <details className="rounded-md border border-bg-tertiary p-3">
             <summary className="cursor-pointer text-sm">原始流派论证（未限定周期的历史方向不作结论）</summary>

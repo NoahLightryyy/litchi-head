@@ -138,3 +138,5 @@
 - [71｜持久研究任务与可信计算边界](71-durable-research-and-trusted-preview.md)
 
 - [72｜新闻摘要与可追溯的产业影响](72-related-news-impact.md)
+
+- [73｜研究说明与故障提示分层](73-research-notice-layering.md)

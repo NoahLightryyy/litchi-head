@@ -68,6 +68,7 @@ export interface VoteSummary {
 export interface EvidenceLimitation {
   status: "limited";
   research_note?: string | null;
+  error_codes?: string[];
   capability: string;
   missing_upstream_ids: string[];
   missing_independent_upstreams: number;

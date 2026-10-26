@@ -184,3 +184,11 @@ ETF页将其放在K线和辩论之后。相关性不等同于已核验的标的�
 板块缺核验地图时，ChainDraftMap自动调用独立chain-draft接口，绘制通用环节/概念结构与虚线推断关系，显示待核验项、模型和生成时间。后端持久化后再返回，重访复用；仅对暂时错误有限次自动恢复。核验图与草图保持不同契约，详见docs/06-departments/08-backend-api/CHAIN-DRAFT-CONTRACT.md。
 
 2026-10-18恢复逻辑修正：首次缺图自动请求；失败后返回页面或恢复联网重新获取，成功结果保持新鲜且不重复生成。繁忙最多6次自动重试，网络/429最多2次，模型失败/超时最多1次；间隔5至15秒。参数、缓存存储及消费者结构错误不在当前页面自动重试。次数耗尽显示错误与手动重试，不永久锁死失败缓存。
+
+### 辩论结果的数据说明（2026-10-26）
+
+`lib/debate-limitations.ts` 将现有证据限制转为按能力分组的简短说明；
+`components/stock/debate-data-notice.tsx` 默认折叠原始诊断，股票与ETF共用。
+收盘价和有限新闻样本用中性色；数据冲突、分析失败、缺评审仍直显，未知能力不隐藏。
+消费者仅补齐后端已有可选 `error_codes` 字段；不修改历史结果、不重跑AI或调整交易门禁。
+相关验证：`tests/debate-limitations.test.mts`、`tests/debate-data-notice.test.mts`、`tests/debate-instrument.test.mts`。
