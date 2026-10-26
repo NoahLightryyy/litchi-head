@@ -1,4 +1,5 @@
 import type { MarketMeta } from "@/lib/types/market";
+import { SECTOR_SCOPE_NOTES } from "./sector-availability.ts";
 
 export function marketNoticeFacts(
   meta: MarketMeta | undefined,
@@ -34,10 +35,29 @@ export function marketNoticeFacts(
 export function boardNoticeSummary(meta: MarketMeta | undefined, refreshError = false): string | null {
   if (!meta?.limitations.some(item => item.code.startsWith("BOARD_"))) return null;
   if (refreshError || meta.status === "stale") {
-    return "刷新未成功，当前为历史快照；排名仅对应所示行情时间。";
+    return "更新暂不可用，显示上次行情。";
   }
   if (meta.failed_sources.length) return "部分板块来源刷新失败，当前仅展示可用数据。";
-  return "东方财富快照已加载；请结合行情时间查看排名。";
+  return "快照已加载，行情可能延迟。";
+}
+
+/** Separate actionable failures from informational scope notes; never hide unknown limits. */
+export function sectorNoticeFacts(meta: MarketMeta | undefined): { details: string[]; warnings: string[] } {
+  const details = new Set<string>();
+  const warnings = new Set<string>();
+  const sina = meta?.limitations.some(item => item.code === "SINA_BOARD_BASIS");
+  const failures = meta?.limitations.filter(item => item.code === "BOARD_REFRESH_FAILED") ?? [];
+  // One status line already explains cached/history/delayed data and its timestamp.
+  const summarized = new Set(["BOARD_HISTORY_ONLY", "BOARD_SNAPSHOT_MAY_BE_DELAYED", "SOURCE_SERVICE_TIME_ONLY"]);
+  for (const item of meta?.limitations ?? []) {
+    if (summarized.has(item.code)) continue;
+    if (item.code === "BOARD_REFRESH_FAILED" || SECTOR_SCOPE_NOTES.has(item.code) ||
+      (sina && item.code === "FUND_FLOW_UNAVAILABLE")) details.add(item.message);
+    else warnings.add(item.message);
+  }
+  if (meta?.failed_sources.length && !failures.length) details.add(`未更新分类或来源：${meta.failed_sources.join("、")}`);
+  if (meta?.missing_codes.length) warnings.add(`缺少代码：${meta.missing_codes.join("、")}`);
+  return { details: [...details], warnings: [...warnings] };
 }
 
 /** Only redundant-source diagnostics may be collapsed; data quality stays visible. */

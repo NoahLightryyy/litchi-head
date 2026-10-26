@@ -92,3 +92,15 @@ else:
 **上一篇：[52｜证据不完整时怎样继续推理而不伪装完整](52-evidence-limited-reasoning.md)**
 
 **下一篇：[55｜多源汇总不是把两个数字取平均](55-multi-source-index-reconciliation.md)**
+
+## 2026-10-26｜诚实状态也要有信息层级
+
+partial既可能是请求失败，也可能只是来源口径说明，不能直接画成整屏警告。
+frontend/lib/sector-availability.ts使用现有失败分类、历史状态和已知说明代码判断展示顺序；
+可用新浪榜优先于东财旧行情，但仍标明净流入与服务更新时间，不能叫作已核验实时主力数据。
+frontend/components/macro/market-data-notice.tsx将上次行情及原行情时间只说一次，
+将502和分类说明放在折叠详情。未知限制仍显式提示，不能为降噪隐藏所有错误。
+
+自己试试：打开/industries，比较两来源提示；展开东财详情查看502，再切换行业/概念。
+frontend/tests/sector-availability.test.mts覆盖一类旧行情不污染另一类新行情、
+离线、缺时间、未知限制及两源可用性排序。

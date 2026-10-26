@@ -50,6 +50,68 @@ async function probeBackend(): Promise<BackendProbe> {
   }
 }
 
+const CHECK_LABELS: Record<string, string> = {
+  "kline:daily": "日 K 线",
+  "kline:weekly": "周 K 线",
+  "kline:monthly": "月 K 线",
+  valuation: "估值数据",
+  quotes: "实时行情",
+  news: "新闻资讯",
+  "market_index:eastmoney": "指数 · 东方财富",
+  "market_index:sina": "指数 · 新浪",
+  "market_index:tencent": "指数 · 腾讯",
+};
+
+/** Global source diagnostics are secondary to the data shown by each page. */
+export function BackendDiagnosticsNotice({
+  degraded,
+  diagnose,
+  message,
+  t,
+}: {
+  degraded: boolean;
+  diagnose: DiagnoseResult | null;
+  message: string | null;
+  t: (text: string) => string;
+}) {
+  if (!degraded && diagnose?.status !== "healthy_with_warnings") return null;
+  const checks = Object.entries(diagnose?.checks ?? {});
+  const issueCount = checks.filter(([, check]) => check.status !== "pass").length;
+  const summary = message
+    ? t("数据诊断暂不可用")
+    : degraded
+      ? `${t("数据诊断")} · ${issueCount > 0 ? `${issueCount} ${t("项异常")}` : t("部分异常")}`
+      : t("数据诊断 · 备用来源暂不可用");
+
+  return (
+    <details className="px-4 py-2 text-xs text-text-muted border-b border-bg-tertiary">
+      <summary className="cursor-pointer">
+        <span aria-hidden="true" className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mx-1.5" />
+        {summary}
+      </summary>
+      <div className="mt-2 space-y-2">
+        <p>{t("以下为已访问数据服务的诊断；各页面的数据可用性以对应内容提示为准。")}</p>
+        {message && <p>{t(message)}</p>}
+        {checks.length > 0 && (
+          <ul className="space-y-1">
+            {checks.map(([name, check]) => {
+              const label = CHECK_LABELS[name];
+              const status = check.status === "pass" ? "可用" : check.status === "warn" ? "暂无数据" : "请求失败";
+              const details = [...new Set([check.message, check.error].filter(Boolean))];
+              return (
+                <li key={name}>
+                  {label ? `${t(label)} (${name})` : name}：{t(status)}
+                  {details.length > 0 && ` · ${details.join("；")}`}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </details>
+  );
+}
+
 /* ── 后端状态横幅（页面顶部） ── */
 export function BackendStatusIndicator() {
   const { t } = useLocale();
@@ -117,39 +179,7 @@ export function BackendStatusIndicator() {
     );
   }
 
-  /* ── 降级警告（精简横幅） ── */
-  if (state === "degraded") {
-    const fails = Object.entries(diagnose?.checks ?? {})
-      .filter(([, v]) => v.status === "fail" || v.status === "warn")
-      .slice(0, 2);
-    const detail =
-      (message ? t(message) : null) ??
-      (fails.length > 0
-        ? `${t("部分服务降级")}: ${fails
-            .map(([k, v]) => `${k}: ${v.message || v.error || v.status}`)
-            .join("；")}`
-        : t("后端已连接，部分服务状态异常"));
-    return (
-      <div className="px-4 py-2 bg-amber-500/10 text-amber-600 text-xs text-center border-b border-amber-500/20 flex items-center justify-center gap-2">
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
-        <span>{detail}</span>
-      </div>
-    );
-  }
-
-  if (diagnose?.status === "healthy_with_warnings") {
-    return (
-      <details className="px-4 py-2 text-xs text-text-muted border-b border-bg-tertiary">
-        <summary className="cursor-pointer">行情来源诊断</summary>
-        <ul className="mt-2 space-y-1">
-          {Object.entries(diagnose.checks).map(([name, check]) => (
-            <li key={name}>{name}: {check.status === "pass" ? "可用" : check.error || "暂不可用"}</li>
-          ))}
-        </ul>
-      </details>
-    );
-  }
-  return null;
+  return <BackendDiagnosticsNotice degraded={state === "degraded"} diagnose={diagnose} message={message} t={t} />;
 }
 
 /* ── 顶部栏右侧连接状态小点 ── */
