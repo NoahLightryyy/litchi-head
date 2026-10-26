@@ -96,6 +96,7 @@ from src.debate.models import (  # noqa: E402
     EvidenceLimitation,
     EvidenceReference,
     IndependentReview,
+    InstrumentResearchContext,
     MirrorReport,
     PeerReviewRound,
     RebuttalAnalysis,
@@ -202,6 +203,7 @@ def _trim_market_data(market_data: dict) -> dict:
         "brief": market_data.get("brief", ""),
         "industry": market_data.get("industry", ""),
         "chain_position": market_data.get("chain_position", ""),
+        **({"instrument_type": "etf"} if market_data.get("instrument_type") == "etf" else {}),
     }
 
 # ── LangGraph State ──────────────────────────────────────────────
@@ -258,6 +260,7 @@ def collect_data_node(
     quote_evidence_service: RealtimeQuoteEvidenceService | None = None,
     kline_business_provider: KlineBusinessProvider | None = None,
     research_supplement: Callable[[str], str] | None = None,
+    prepared_research: InstrumentResearchContext | None = None,
 ) -> dict:
     """数据采集节点 —— 从 DataCollector 获取行情 + K线 + 新闻
 
@@ -270,6 +273,31 @@ def collect_data_node(
     """
     inp = state.get("debate_input", {})
     code = inp.get("stock_code", "")
+    if inp.get("instrument_type", "stock") == "etf":
+        if (
+            prepared_research is None
+            or prepared_research.stock_code != code
+            or prepared_research.stock_name != inp.get("stock_name")
+        ):
+            return {
+                "evidence_failure_kind": "detail",
+                "evidence_envelope": {
+                    "capability": "etf_research",
+                    "error_codes": ["instrument_identity_conflict"],
+                },
+                "errors": ["EVIDENCE_INCOMPLETE"],
+            }
+        return {
+            "market_data": {
+                "brief": prepared_research.brief,
+                "industry": prepared_research.industry,
+                "chain_position": "ETF主题与组合",
+                "instrument_type": "etf",
+            },
+            "evidence_limitations": [
+                item.model_dump(mode="json") for item in prepared_research.evidence_limitations
+            ],
+        }
     quote_evidence_envelope: EvidenceEnvelope | None = None
     news_evidence_envelope: EvidenceEnvelope | None = None
     evidence_limitations: list[dict[str, object]] = []
@@ -1066,6 +1094,10 @@ async def _run_independent_review(
             "不受任何大师立场影响。如果发现集体偏见或盲点，请明确指出。"
             "你的评审将对最终投票聚合产生直接影响。"
         )
+        if market_data.get("instrument_type") == "etf":
+            from src.debate.etf_analysts import ETF_SCOPE_PROMPT
+
+            system_prompt += "\n" + ETF_SCOPE_PROMPT
 
         raw = cast(IndependentReview, await llm_service.invoke_structured(
             prompt=review_prompt,
@@ -1683,6 +1715,7 @@ class DebateOrchestrator:
         ),
         kline_business_provider: KlineBusinessProvider | None = None,
         research_supplement: Callable[[str], str] | None = None,
+        prepared_research: InstrumentResearchContext | None = None,
     ):
         """初始化辩论编排器
 
@@ -1725,6 +1758,7 @@ class DebateOrchestrator:
         self.enable_trust = enable_trust
         self.enable_mirror = enable_mirror
         self.research_supplement = research_supplement
+        self.prepared_research = prepared_research
         self.news_evidence_service = news_evidence_service
         self.quote_evidence_service = (
             get_realtime_quote_evidence_runtime().service
@@ -1752,6 +1786,16 @@ class DebateOrchestrator:
         else:
             self.master_skills = self.skill_disk.load_defaults()
 
+        if prepared_research is not None:
+            from src.debate.etf_analysts import ETF_SCOPE_PROMPT
+
+            self.master_skills = [
+                skill.model_copy(update={
+                    "system_prompt": skill.system_prompt + "\n" + ETF_SCOPE_PROMPT,
+                })
+                for skill in self.master_skills
+            ]
+
         # 缓存编译好的图
         self._compiled_graph: Any = None
 
@@ -1776,6 +1820,7 @@ class DebateOrchestrator:
                 self.quote_evidence_service,
                 self.kline_business_provider,
                 self.research_supplement,
+                self.prepared_research,
             ),
         )
         graph.set_entry_point("collect_data")
@@ -2249,6 +2294,7 @@ class DebateOrchestrator:
         result = DebateResult(
             session_id=debate_input.session_id,
             stock_code=debate_input.stock_code,
+            instrument_type=debate_input.instrument_type,
             stock_name=debate_input.stock_name,
             question=debate_input.question,
             analyses=analyses,

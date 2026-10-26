@@ -97,6 +97,7 @@ class DebateInput(BaseModel):
     """
 
     stock_code: str
+    instrument_type: Literal["stock", "etf"] = "stock"
     stock_name: str = ""
     question: str = "请分析这只股票的投资价值"
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -379,6 +380,17 @@ class EvidenceReference(BaseModel):
     quote_upstream_ids: list[str]
 
 
+class InstrumentResearchContext(BaseModel):
+    """Server-collected ETF research input, independent of corporate financials."""
+
+    instrument_type: Literal["etf"] = "etf"
+    stock_code: str = Field(pattern=r"^\d{6}$")
+    stock_name: str = Field(min_length=1)
+    brief: str = Field(min_length=1)
+    industry: str = ""
+    evidence_limitations: list[EvidenceLimitation] = Field(min_length=1)
+
+
 class DebateResult(BaseModel):
     """辩论最终结果
 
@@ -397,6 +409,7 @@ class DebateResult(BaseModel):
 
     session_id: str
     stock_code: str
+    instrument_type: Literal["stock", "etf"] = "stock"
     stock_name: str
     question: str
     analyses: list[AgentAnalysis] = Field(default_factory=list)
