@@ -8,7 +8,7 @@ SubjectKind = Literal["stock", "etf", "sector"]
 
 
 class RelatedKeyword(BaseModel):
-    term: str = Field(min_length=2, max_length=80)
+    term: str = Field(min_length=1, max_length=80)
     origin: Literal["name", "business", "expanded", "user", "code"]
 
 

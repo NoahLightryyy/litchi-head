@@ -169,3 +169,63 @@ async def test_http_identity_validation_and_read_only_contract(monkeypatch, tmp_
             ).status_code == 422
         assert (await client.post("/api/research/related")).status_code == 405
         assert "/api/research/related" in (await client.get("/openapi.json")).json()["paths"]
+
+
+def test_generic_corporate_notices_are_not_policy_and_recency_wins():
+    def document(identity, title, stamp, content=""):
+        return make_document(
+            identity=identity,
+            title=title,
+            content=content,
+            url=f"https://example.com/{identity}",
+            publisher="来源",
+            stamp=stamp,
+            source="news_archive",
+            keywords=KEYWORDS,
+            code="560780",
+            name="",
+            now=NOW,
+        )
+
+    dividend = document("dividend", "半导体ETF年度分红通知", "2026-10-25")
+    meeting = document("meeting", "半导体设备公司股东大会的通知", "2026-10-25")
+    assert dividend.category == meeting.category == "report"
+    old = document("old", "560780半导体报道", "2026-07-01")
+    new = document("new", "560780报道", "2026-10-01")
+    assert rank_documents([old, new])[0].id == "new"
+    roundup = document("roundup", "监管新规", "2026-10-25", "其他资料。" * 80 + "半导体行业走势")
+    assert roundup.category == "report"
+    adjacent = document(
+        "adjacent", "全球要闻", "2026-10-25", "1、央行调整货币政策。2、半导体涨价。"
+    )
+    forecast = document("forecast", "财政部长预计半导体市场增长", "2026-10-25")
+    assert adjacent.category == forecast.category == "report"
+    headline = document("headline", "半导体出口管制新规发布", "2026-10-25")
+    flash = document("flash", "【半导体出口管制新规发布】半导体消息全文。", "2026-10-25")
+    assert flash.title == headline.title
+    assert len(rank_documents([headline, flash])) == 1
+
+
+@pytest.mark.asyncio
+async def test_manual_query_validation_and_profile_name_echo(monkeypatch, tmp_path):
+    import backend.related_research as service
+
+    async def profile(code):
+        return "测试银行股份有限公司", "主营业务：商业银行"
+
+    monkeypatch.setattr(service, "company_context", profile)
+    original = service.retrieve
+    store = NewsArchive(tmp_path / "profile.db")
+    monkeypatch.setattr(service, "retrieve", lambda *args: original(*args, store=store, now=NOW))
+    result = await service.related_research("stock", "000001", "000001", "")
+    assert result.subject_name == "000001"
+    assert any(term.term == "银行" for term in result.keywords)
+    app = FastAPI()
+    app.include_router(routes.router)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        bad = await client.get(
+            "/api/research/related", params={"kind": "etf", "code": "560780", "q": ", ;"}
+        )
+        assert bad.status_code == 422 and "关键词" in bad.json()["detail"]

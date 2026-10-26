@@ -71,6 +71,18 @@ def test_user_query_replaces_automatic_themes_and_preserves_user_terms():
     assert "芯片" not in result and "560780" not in result
 
 
+def test_single_character_cjk_user_terms_are_meaningful_refinements():
+    assert terms("etf", "560780", "半导体设备ETF广发", query="铜，锂 铜") == {
+        "铜": "user", "锂": "user",
+    }
+    assert terms("stock", "600001", "铜") == {"600001": "code"}
+
+
+@pytest.mark.parametrize("query", ["A", "a 1", "!!", "……。", "!!! ,，； ??"])
+def test_punctuation_and_single_character_ascii_are_not_keywords(query):
+    assert terms("etf", "560780", "半导体设备ETF广发", query=query) == {}
+
+
 def test_terms_are_bounded_deduplicated_and_whitespace_normalized():
     result = extract_keywords("stock", "600001", "  AI 公司  ", business=(
         "AI人工智能 半导体芯片 集成电路 光伏 电网 核电 医药 创新药 银行 白酒 物流 黄金 软件"

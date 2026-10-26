@@ -32,7 +32,9 @@ from src.data.news_archive import NewsArchive, archive
 
 logger = logging.getLogger(__name__)
 POLICY = re.compile(
-    r"政策|国务院|部委|工信部|发改委|财政部|央行|监管|条例|办法|补贴|关税|出口管制|指导意见|行动方案|实施方案|通知"
+    r"政策|监管(?:新规|规定)|补贴|关税|出口管制|指导意见|行动方案|减税|税收优惠|降准|降息"
+    r"|(?:国务院|部委|工信部|发改委|财政部|央行|监管总局).{0,25}"
+    r"(?:印发|出台|颁布|下发|实施|部署|支持|推进|推动)"
 )
 _runner = BoundedSyncRunner(max_workers=2, thread_name_prefix="related-research")
 _profile_cache: dict[str, tuple[float, str, str]] = {}
@@ -63,6 +65,17 @@ def excerpt(text: str, terms: list[str]) -> str:
     )
 
 
+def policy_related(text: str, terms: list[str]) -> bool:
+    # A long news digest can mention a government notice and an unrelated stock.
+    # Require the policy cue near a matched term, not anywhere in the document.
+    for sentence in re.split(r"[。！？!?；;\n]|\d+、", text):
+        for term in terms:
+            for match in re.finditer(re.escape(term), sentence, flags=re.I):
+                if POLICY.search(sentence[max(0, match.start() - 90) : match.end() + 90]):
+                    return True
+    return False
+
+
 def make_document(
     *,
     identity: str,
@@ -88,10 +101,17 @@ def make_document(
             published > now
             or parsed.scheme not in {"http", "https"}
             or not parsed.hostname
-            or parsed.username
+            or parsed.username is not None
+            or parsed.password is not None
         ):
             return None
         title, content = clean_text(title), clean_text(content)
+        # Some feeds put the entire flash article in title; retain its headline
+        # for readability and cross-source dedup, while searching the full body.
+        headline = re.match(r"^【([^】]{2,150})】", title)
+        if headline:
+            content = content or title
+            title = headline.group(1)
         if len(title) < 2 or title.lower() in {"nan", "none", "null"}:
             return None
         text = title + " " + content
@@ -109,7 +129,9 @@ def make_document(
             published_at=stamp,
             excerpt=excerpt(content or title, hits),
             source="policy_archive" if source == "policy_archive" else "news_archive",
-            category="policy" if POLICY.search(text) else "report",
+            category="policy"
+            if policy_related(title, hits) or policy_related(content, hits)
+            else "report",
             relevance="direct" if direct else "topic",
             matched_keywords=hits,
             reason=("直接提及标的名称或代码" if direct else "主题关键词相关")
@@ -131,7 +153,7 @@ def search_news(
         return []
     # One bounded OR query; each article keeps the source's date and URL.
     matching = " OR ".join("instr(lower(title || ' ' || content),?)>0" for _ in keywords)
-    policy_words = ("政策", "国务院", "工信部", "发改委", "监管", "补贴", "关税", "通知")
+    policy_words = ("政策", "国务院", "工信部", "发改委", "监管新规", "补贴", "关税")
     policy_title = " OR ".join("instr(title,?)>0" for _ in policy_words)
     with closing(store.connect()) as conn:
         conn.set_progress_handler(lambda: int(time.monotonic() >= deadline), 10000)
@@ -203,13 +225,15 @@ def search_policies(
 
 
 def rank_documents(documents: list[RelatedDocument]) -> list[RelatedDocument]:
-    def score(item: RelatedDocument) -> tuple[int, int, int, int, str]:
+    def score(item: RelatedDocument) -> tuple[int, int, int, int, str, int]:
+        title_hits = sum(term_matches(term, item.title) for term in item.matched_keywords)
         return (
+            int(title_hits > 0),
             int(item.relevance == "direct"),
             int(item.category == "policy"),
             int(item.source == "policy_archive"),
-            sum(term_matches(term, item.title) for term in item.matched_keywords),
             item.published_at,
+            title_hits,
         )
 
     found: list[RelatedDocument] = []
@@ -321,9 +345,7 @@ async def related_research(
     profile = RelatedSourceStatus(source="company_profile", status="not_requested")
     if kind == "stock" and not query:
         try:
-            company_name, business = await asyncio.wait_for(company_context(code), timeout=4.5)
-            if not name or name == code:
-                name = company_name
+            _, business = await asyncio.wait_for(company_context(code), timeout=4.5)
             profile = RelatedSourceStatus(source="company_profile", status="ok")
         except Exception:
             logger.warning("Related research company profile unavailable: %s", code)

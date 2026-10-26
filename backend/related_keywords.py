@@ -99,7 +99,10 @@ def extract_keywords(
     def add(term: str, origin: Literal["name", "business", "expanded", "user", "code"]) -> None:
         term = _clean(term)[:80]
         key = term.casefold()
-        if 2 <= len(term) and key not in seen and len(result) < 12:
+        single_cjk_query = origin == "user" and bool(re.fullmatch(r"[\u3400-\u9fff]", term))
+        searchable = bool(re.search(r"[A-Za-z0-9\u3400-\u9fff]", term))
+        if (searchable and (len(term) >= 2 or single_cjk_query)
+                and key not in seen and len(result) < 12):
             result.append(RelatedKeyword(term=term, origin=origin))
             seen.add(key)
 
