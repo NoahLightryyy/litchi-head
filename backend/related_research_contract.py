@@ -19,7 +19,7 @@ class RelatedDocument(BaseModel):
     publisher: str
     published_at: str
     excerpt: str = Field(max_length=600)
-    source: Literal["policy_archive", "news_archive"]
+    source: Literal["policy_archive", "news_archive", "company_news"]
     category: Literal["policy", "report"]
     relevance: Literal["direct", "topic"]
     matched_keywords: list[str] = Field(min_length=1)
@@ -27,7 +27,7 @@ class RelatedDocument(BaseModel):
 
 
 class RelatedSourceStatus(BaseModel):
-    source: Literal["policy_archive", "news_archive", "company_profile"]
+    source: Literal["policy_archive", "news_archive", "company_profile", "company_news"]
     status: Literal["ok", "unavailable", "not_requested"]
     message: str = ""
 
