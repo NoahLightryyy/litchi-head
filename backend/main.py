@@ -36,6 +36,7 @@ from backend.routers import (
     news,
     news_archive,
     policy_research,
+    related_research,
     retro,
     sector_chain,
     sector_maps,
@@ -208,6 +209,7 @@ app.include_router(retro.router)
 app.include_router(evidence.router)
 app.include_router(user_actions.router)
 app.include_router(policy_research.router)
+app.include_router(related_research.router)
 
 
 def policy_evidence_for_preview(package_id: str) -> EvidencePackage | None:
