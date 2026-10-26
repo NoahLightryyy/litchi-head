@@ -6,6 +6,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryObserver, onlineManager } from "@tanstack/react-query";
 import ts from "typescript";
+import { rankingPage } from "../lib/ranking-page.ts";
 import {
   parseThsFundResult, requireThsFundData, thsFundQueryPolicy,
   type ThsFundPeriod, type ThsFundResult,
@@ -108,7 +109,16 @@ const compiled = ts.transpileModule(readFileSync(componentUrl, "utf8"), {
 }).outputText;
 type ViewProps = { data?: ThsFundResult; pending: boolean; failed: boolean; paused: boolean };
 const componentModule = { exports: {} as { ThsFundRankingContent: (props: ViewProps) => unknown } };
-new Function("require", "module", "exports", compiled)(createRequire(componentUrl), componentModule, componentModule.exports);
+const paginationUrl = new URL("../components/shared/ranking-pagination.tsx", import.meta.url);
+const paginationModule = { exports: {} };
+new Function("require", "module", "exports", ts.transpileModule(readFileSync(paginationUrl, "utf8"), {
+  compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS },
+}).outputText)(createRequire(paginationUrl), paginationModule, paginationModule.exports);
+new Function("require", "module", "exports", compiled)((id: string) => {
+  if (id === "@/lib/ranking-page") return { rankingPage };
+  if (id === "./ranking-pagination") return paginationModule.exports;
+  return createRequire(componentUrl)(id);
+}, componentModule, componentModule.exports);
 const render = (props: Partial<ViewProps> = {}) => renderToStaticMarkup(createElement(componentModule.exports.ThsFundRankingContent, {
   pending: false, failed: false, paused: false, ...props,
 }));
@@ -140,4 +150,20 @@ test("加载、空数据、失败、离线均明确展示，失败刷新不隐�
   assert.match(cached, /测试股票/);
   const failedPayload = render({ data: { ...fixture(), status: "unavailable" } });
   assert.doesNotMatch(failedPayload, /测试股票/);
+});
+
+test("资金榜首次仅展示10条，失败保留榜单也按页展示", () => {
+  const data = { ...fixture(), data: Array.from({ length: 21 }, (_, i) => ({
+    code: String(600000 + i), name: `排行股票${i + 1}`, price: 10, net_inflow: 210000 - i * 10000,
+  })) };
+  for (const failed of [false, true]) {
+    const html = render({ data, failed });
+    assert.equal((html.match(/href="\/stock\//g) ?? []).length, 10);
+    assert.match(html, /排行股票10/);
+    assert.doesNotMatch(html, /排行股票11/);
+    assert.match(html, /第 1 \/ 3 页/);
+    assert.match(html, /disabled="">上一页/);
+    assert.doesNotMatch(html, /disabled="">下一页/);
+  }
+  assert.doesNotMatch(render(), /aria-label="同花顺资金净流入分页"/);
 });

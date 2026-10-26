@@ -28,6 +28,6 @@ export function ThsFundRanking() {
     <label className="block text-sm">统计周期<select aria-label="同花顺资金净流入统计周期" value={period} onChange={event => setPeriod(event.target.value as ThsFundPeriod)} className="ml-2 rounded border border-bg-tertiary bg-bg-primary p-2">
       {thsFundPeriods.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
     </select></label>
-    <ThsFundRankingContent data={query.data} pending={query.isPending} failed={query.isError} paused={query.isPaused} />
+    <ThsFundRankingContent key={period} data={query.data} pending={query.isPending} failed={query.isError} paused={query.isPaused} />
   </section>;
 }
