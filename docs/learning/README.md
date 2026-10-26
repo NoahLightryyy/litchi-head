@@ -142,3 +142,5 @@
 - [73｜研究说明与故障提示分层](73-research-notice-layering.md)
 
 - [74｜产业环节与企业身份分开建模](74-chain-company-identity.md)
+
+- [75｜普通用户提醒与历史研究时间](75-plain-watchlist-reminders.md)

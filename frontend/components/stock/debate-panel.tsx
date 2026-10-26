@@ -83,9 +83,9 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
   return (
     <div>
       {/* 头部 */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-text-primary">各流派分析与辩论</h3>
+          <h3 className="text-sm font-semibold text-text-primary">帮你看机会和风险</h3>
           <p className="text-xs text-text-muted mt-0.5">
             {stockName} · 同时研究短期 1–5 个交易日、中期 1–3 个月、长期 1–3 年
           </p>
@@ -101,7 +101,7 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
           ) : history.isPending ? (
             <><RefreshCw className="w-4 h-4 animate-spin" /> 读取记录…</>
           ) : (
-            <><MessageSquare className="w-4 h-4" /> 触发辩论</>
+            <><MessageSquare className="w-4 h-4" /> 帮我看看机会和风险</>
           )}
         </button>
       </div>
@@ -192,7 +192,7 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
         <div className="text-center py-8">
           <div className="text-3xl mb-3">🤖</div>
           <p className="text-sm text-text-muted">
-            点击「触发辩论」生成{instrumentType === "etf" ? "该 ETF" : "该股"}各流派分析；成功返回后可逐个展开依据和风险。
+            点击「帮我看看机会和风险」，自动分析{instrumentType === "etf" ? "这只 ETF" : "这只股票"}，不用自己写问题。完成后查看机会、风险和买入前需要等待的条件。
           </p>
         </div>
       )}

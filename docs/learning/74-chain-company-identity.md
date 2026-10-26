@@ -29,3 +29,5 @@
 4. 在BK1184页面展开绿的谐波资料，查看官网业务描述与新浪名称/代码依据分别负责什么。
 
 上一篇：[73 研究说明与故障提示分层](73-research-notice-layering.md)。
+
+下一篇：[75 普通用户提醒](75-plain-watchlist-reminders.md)。

@@ -14,6 +14,8 @@ Litchi Head 是一个可本地运行的全栈 AI 研究系统。用户可以从�
 
 已交付的工程成果包括 LangGraph 编排引擎、多源数据校验、可恢复研究任务、Web 应用与自动化验证。2026-10-22 集成验收记录为 **2,451 项 Python 测试、160 项前端测试通过**；Python 3.12/3.13 与前端 [CI 均通过](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194)。[验收记录](docs/04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md)
 
+2026-10-27 本地体验改进：自选支持一键关注和通俗提醒，报价与历史研究时间分别展示；股票目录不可用时可按完整代码恢复公司身份。仅 `codex/market-availability` 本地预览，未推送。[工作记录](docs/04-changelog/logs/2026-10-27/2026-10-27-plain-watchlist.md)
+
 ## 使用流程
 
 1. **发现研究对象**：浏览市场与行业板块，搜索股票或 ETF，查看行情、K 线、财务指标与数据时间。

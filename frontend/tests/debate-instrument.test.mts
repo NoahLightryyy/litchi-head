@@ -120,7 +120,7 @@ test("初次历史读取完成前禁用触发，避免尚未发现运行会话�
     assert.match(button[1], /disabled=""/);
     assert.equal(pending.runs, 0);
     const ready = renderDebate(kind, kind, kind);
-    const trigger = [...ready.html.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>/g)].find(match => match[2].includes("触发辩论"));
+    const trigger = [...ready.html.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>/g)].find(match => match[2].includes("帮我看看机会和风险"));
     assert.ok(trigger);
     assert.doesNotMatch(trigger[1], /\sdisabled=/);
   }

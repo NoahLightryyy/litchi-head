@@ -9,6 +9,7 @@ import Link from "next/link";
 import { TrendingUp, DollarSign, MessageSquare, ShieldCheck, BarChart3 } from "lucide-react";
 import { useStockQuote } from "@/lib/hooks/use-stock";
 import { QuoteCard } from "@/components/stock/quote-card";
+import { WatchButton } from "@/components/stock/watch-button";
 import { CompanyResearchPanel } from "@/components/stock/company-research-panel";
 import { DebatePanel } from "@/components/stock/debate-panel";
 import { NewsFeed } from "@/components/stock/news-feed";
@@ -58,6 +59,7 @@ export default function StockPage() {
       </div>
 
       {/* 行情卡片 */}
+      <WatchButton code={code} name={stockName} />
       {!quoteLoading && (quoteError || !quote) ? <div role="status" className="rounded-lg border border-bg-tertiary bg-bg-secondary p-5">
         <p>{t("个股名称与报价尚未取得")}（{code}）</p>
         <p className="mt-2 text-sm text-text-muted">{t("当前报价接口未提供有效数据。分时、K线等模块独立加载；不把未知报价填成零。")}</p>
@@ -94,7 +96,7 @@ export default function StockPage() {
       </div>
 
       {/* Tab 内容（带淡入过渡） */}
-      <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-5 min-h-64 transition-opacity duration-200">
+      <div id="research" className="scroll-mt-24 rounded-lg border border-bg-tertiary bg-bg-secondary p-5 min-h-64 transition-opacity duration-200">
         {activeTab === "technical" && (
           <TechnicalIndicatorsPanel key={`tech-${code}`} code={code} />
         )}
