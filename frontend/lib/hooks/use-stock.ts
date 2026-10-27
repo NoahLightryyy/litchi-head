@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchQuote, fetchKline, fetchCapitalFlow, fetchTechnicalIndicators, fetchFinancials, fetchValuation, fetchIndicators, fetchIntradayBattlefield, searchStocks } from "@/lib/api/stocks";
 import { useDebounce } from "./use-debounce";
+import { findStockIdentity } from "@/lib/stock-identity";
 
 /* ── 搜索（300ms 防抖） ── */
 export function useStockSearch(query: string) {
@@ -15,11 +16,28 @@ export function useStockSearch(query: string) {
   });
 }
 
+/** A catalog failure must not prevent quotes, or a quote failure erase known identity. */
+export function useStockIdentity(code: string) {
+  return useQuery({
+    queryKey: ["stocks", code, "identity"],
+    queryFn: async () => findStockIdentity(code, await searchStocks(code)),
+    enabled: /^[0-9]{6}$/.test(code),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
 /* ── 个股行情 ── */
 export function useStockQuote(code: string) {
   return useQuery({
     queryKey: ["stocks", code, "quote"],
-    queryFn: () => fetchQuote(code),
+    queryFn: async () => {
+      const quote = await fetchQuote(code);
+      // Treat empty refreshes as errors so React Query retains same-key last good data.
+      if (!quote || quote.code !== code) throw new Error("报价暂未取得");
+      return quote;
+    },
+    retry: false,
     refetchInterval: 30_000,
     staleTime: 15_000,
     enabled: !!code,

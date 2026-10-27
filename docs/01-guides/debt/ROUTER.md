@@ -239,3 +239,6 @@ ETF-EXPERIENCE-001新增即关闭，不增加开放数。模型超时补记既�
 
 
 2026-10-27搜索恢复：DATA-CATALOG-RECOVERY-001与FW-SEARCH-RECOVERY-001当轮关闭（high开放净增0）；DATA-CATALOG-TRANSPORT-001记录SDK强制截止与非当前主备配置兼容残余（moderate开放+1）。ENV-DNS-20261027仍开放；当前目录成功不等于所有行情源恢复。
+
+
+2026-10-27 单股详情续修：DATA-STOCK-QT-001 与 FW-STOCK-IDENTITY-001 当轮发现并关闭，分别见数据/前端DEBT；未新增开放债务。现有ENV-DNS-20261027仍开放，不能因腾讯报价可用就宣称东财/新浪/腾讯分钟接口均已恢复。

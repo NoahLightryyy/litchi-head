@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
+import * as quoteDisplay from "../lib/quote-display.ts";
 import * as reminders from "../lib/watchlist-reminders.ts";
 import type { EntryPlanResult } from "../lib/entry-plan.ts";
 import type { StockQuote } from "../lib/types/stock.ts";
@@ -49,7 +50,7 @@ test("读取自选只使用已有GET，不会新建AI分析；没有记录不继
 function compile(path:string, overrides:Record<string,unknown>={}) {
   const url=new URL(path,import.meta.url), mod={exports:{} as Record<string,unknown>}, require=createRequire(url);
   new Function("require","module","exports",ts.transpileModule(readFileSync(url,"utf8"),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText)(
-    (name:string)=>name in overrides?overrides[name]: name==="@/lib/watchlist-reminders"?reminders:name==="@/lib/api/client"?{}:name==="next/link"?{default:(p:{href:string;children:unknown})=>createElement("a",{href:p.href},p.children as never)}:require(name),mod,mod.exports);
+    (name:string)=>name in overrides?overrides[name]: name==="@/lib/quote-display"?quoteDisplay:name==="@/lib/watchlist-reminders"?reminders:name==="@/lib/api/client"?{}:name==="next/link"?{default:(p:{href:string;children:unknown})=>createElement("a",{href:p.href},p.children as never)}:require(name),mod,mod.exports);
   return mod.exports;
 }
 interface ContentProps {code:string;quote?:StockQuote|null;research?:reminders.WatchResearch;quoteLoading:boolean;researchLoading:boolean;quoteError:boolean;researchError:boolean;offline:boolean;onRefresh:()=>void}
@@ -80,4 +81,9 @@ test("自选首屏只要求搜索股票，旧备注保留，每页只挂载十�
   const html=renderToStaticMarkup(createElement(Page));
   assert.equal(mounted,10);assert.match(html,/每页 10 只/);assert.match(html,/原来的备注/);
   assert.doesNotMatch(html,/跟踪假设与验证条件|下次财报中核对/);assert.match(html,/搜名称或代码就行/);
+});
+
+
+test("自选报价也显示已接入的腾讯来源名称", () => {
+  assert.match(render({quote: {...quote, source: "tencent"}}), /腾讯/);
 });

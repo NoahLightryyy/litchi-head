@@ -2,7 +2,7 @@
 
 import type { StockQuote } from "@/lib/types/stock";
 import { formatPrice, formatChangePct } from "@/lib/utils";
-import { formatQuoteOptionalNumber, formatQuoteTime } from "@/lib/quote-display";
+import { formatQuoteOptionalNumber, formatQuoteTime, quoteSourceLabel } from "@/lib/quote-display";
 
 interface QuoteCardProps {
   quote: StockQuote | null;
@@ -63,7 +63,7 @@ export function QuoteCard({ quote, loading }: QuoteCardProps) {
 
       {/* 数据新鲜度 */}
       <p className="mt-3 text-xs text-text-muted">
-        {quote.source === "sina" ? "新浪" : quote.source === "eastmoney" ? "东方财富" : "行情来源"}
+        {quoteSourceLabel(quote.source)}
         {quote.verification_status === "single_source" ? " · 单源报价，未交叉验证" : ""}
         {quote.fetched_at ? ` · 报价时间 ${formatQuoteTime(quote.fetched_at)}（北京时间）` : ""}
       </p>

@@ -1,3 +1,5 @@
+> 2026-10-27 单股详情续修：已有腾讯日线qt可用但报价未接入，现通过展示专用适配器与有界并发恢复002885报价；公司身份独立于quote。后端契约冻结d9866de，页面实网及回归见 `docs/04-changelog/logs/2026-10-27/2026-10-27-stock-quote-recovery.md`。只读展示不改变实时辩论/交易门禁，无新增供应商、付费调用或推送。
+
 > **2026-10-26 代表企业契约**：chain-companies在既有草图上补充企业，合同993b1db先提交；缓存绑定完整图、目录内容和模型，最多2任务/120秒，失败不覆盖旧成功。使用现有DeepSeek JSON路径、既有公司资料接口与官方资料目录。见本日chain-companies日志。
 
 > **2026-10-26 相关资料产业解读**：新增GET/POST `/api/research/related/interpretation`，独立于正式证据包；资料快照、引用、事件归并及产业影响结构见RELATED_INTERPRETATION_CONTRACT。默认读取不调用模型，显式更新才生成；见本日related-interpretation日志。

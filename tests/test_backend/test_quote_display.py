@@ -42,9 +42,12 @@ def result(source, *, failed=False, **changes):
 @pytest.fixture(autouse=True)
 def no_live_tencent():
     # Keep all tests offline and drain unfinished fake fetches before unpatching.
-    with patch(
-        "backend.quote_display.TencentDisplayQuoteSource.fetch",
-        return_value=result("tencent", failed=True),
+    with (
+        patch("httpx.get", side_effect=AssertionError("No network in unit tests")) as network,
+        patch(
+            "backend.quote_display.TencentDisplayQuoteSource.fetch",
+            return_value=result("tencent", failed=True),
+        ),
     ):
         yield
         with display._pending_lock:
@@ -52,6 +55,7 @@ def no_live_tencent():
         wait(pending, timeout=1)
         with display._pending_lock:
             display._pending.clear()
+        network.assert_not_called()
 
 
 def test_bulk_failure_does_not_block_single_quote():
@@ -156,3 +160,26 @@ def test_all_slow_sources_respect_response_budget_and_global_inflight_bound():
             with display._pending_lock:
                 pending = list(display._pending.values())
             wait(pending, timeout=1)
+
+
+def test_concurrent_symbols_wait_for_a_slot_instead_of_becoming_false_empty():
+    from concurrent.futures import ThreadPoolExecutor
+    from time import sleep
+
+    def unavailable(request):
+        sleep(0.03)
+        return result("eastmoney", failed=True)
+
+    def available(request):
+        sleep(0.03)
+        return result("tencent", code=request.stock_code)
+
+    with (
+        patch("backend.quote_display.EastmoneyQuoteSource.fetch", side_effect=unavailable),
+        patch("backend.quote_display.SinaQuoteSource.fetch", side_effect=unavailable),
+        patch("backend.quote_display.TencentDisplayQuoteSource.fetch", side_effect=available),
+    ):
+        with ThreadPoolExecutor(max_workers=10) as clients:
+            codes = [f"{2880 + i:06d}" for i in range(10)]
+            quotes = list(clients.map(get_display_quote, codes))
+    assert [q.code if q else None for q in quotes] == codes

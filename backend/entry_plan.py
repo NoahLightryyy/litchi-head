@@ -254,7 +254,7 @@ async def collect_entry_context(
             if item is None or item.code != record.stock_code:
                 raise ValueError("stock quote missing or foreign")
             # DisplayQuote retains upstream quote time in fetched_at (Eastmoney f86 /
-            # Sina date+time fields); this is not the time our request was collected.
+            # Sina date+time / Tencent qt[30]); not the time our request was collected.
             return EntryEvidence(id="quote", kind="quote", title="股票行情（单源）",
                                  data_time=item.fetched_at.isoformat(),
                                  content=item.model_dump_json())

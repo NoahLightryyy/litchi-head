@@ -88,6 +88,6 @@ const degraded = value.status !== "ok" || summary.failing_endpoints > 0
 
 `src/data/providers/tencent_display_quote.py` 复用现有日线响应的 `qt`（独立报价快照），而非拿最后一根日线的收盘价伪装实时价格。
 `parse_tencent_snapshot()` 同时校验证券类型（个股GP-A/指数ZS）、交易所、代码和数据时间；手转股乘100、成交额直接用人民币元。
-`backend/quote_display.py` 用固定线程池与在途表控制实际任务数；9秒等待预算不等于杀死工作线程。同代码同通道正在请求时复用，六个槽位满时不无限排队。一个有效源就能显示，来源和时间仍可见。
+`backend/quote_display.py` 用固定线程池与在途表控制实际任务数；9秒等待预算不等于杀死工作线程。同代码同通道正在请求时复用，六个槽位满时在响应预算内等待条件通知，不提前报空，也不无限提交任务。一个有效源就能显示，来源和时间仍可见。
 
 **自己试试（5分钟）**：运行 `pytest tests/test_backend/test_quote_display.py tests/test_data/test_tencent_display_quote.py -q`；慢主源/快备源测试应立即返回备用报价。把qt移除但保留day，必须得到失败而不是历史收盘冒充现价。身份/报价前端回归见 `frontend/tests/stock-identity.test.mts` 与 `stock-page-recovery.test.mts`（本轮页面集成）。

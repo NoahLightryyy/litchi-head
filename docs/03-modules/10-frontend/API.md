@@ -359,7 +359,7 @@ ws://localhost:8000/ws/quotes?codes=000001,300750
 ### 2026-10-06 单股顶部报价恢复
 
 `GET /stocks/{code}/quote`冻结契约d60d1fd，见[单股报价展示契约](../../06-departments/08-backend-api/QUOTE-DISPLAY-CONTRACT.md)。
-不再拉全市场后过滤；复用东财/新浪现有单股适配器。新增source、single_source标记；turnover_rate/fund_flow/market_cap允许null。
+不再拉全市场后过滤；复用东财/新浪现有单股适配器与腾讯日线qt报价。source=eastmoney|sina|tencent、single_source标记；turnover_rate/fund_flow/market_cap允许null。2026-10-27兼容增量冻结见d9866de及同一报价契约。
 QuoteCard显示名称、价格、真实北京时间日期、来源及未交叉验证；未知增强字段显示“—”。
 
 ### 2026-10-06 休市研究说明
@@ -499,3 +499,12 @@ StockDiscovery共享，保留最近20条去重关键词；提交/打开结果才
   完整字段和错误/重试语义见[ETF辩论契约](../08-backend-api/ETF_DEBATE_CONTRACT.md)，
   日线见[ETF日线契约](../08-backend-api/ETF_KLINE_CONTRACT.md)。
 - 缓存、历史选择和结果归属同时核对类型与代码；只读刷新不能触发分析；主动运行不自动付费重试。
+
+
+### 2026-10-27 个股身份与报价解耦
+
+- `useStockIdentity(code)`复用股票专用 `/stocks/search?q={code}`，严格同代码且非空名称；不凭ETF/板块或旧页面缓存当公司身份。
+- 顶部、自选、政策资料和辩论显示名共享该身份后备；quote失败不再抹掉已知公司名。
+- `useStockQuote`将200/null视作该次查询失败（无自动密集重试，保留30秒轮询与显式按钮）；React Query保留同代码上次成功报价，页面另显“刷新未成功”及原始报价时间。没有历史报价才显示空态；不同代码旧数据不显示。
+- QuoteCard显示腾讯实际来源及上游时间，不将日线收盘或当前电脑时间补作报价。
+- 英文词典同步删除旧“名称与报价同时丢失”文案。与前轮搜索恢复相互独立。

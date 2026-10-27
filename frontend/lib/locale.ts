@@ -19,8 +19,9 @@ export const EN_MESSAGES: Readonly<Record<string, string>> = {
   "股票名称搜索可能不完整": "Stock name search may be incomplete",
   "指数已使用备用来源": "Indices available from an alternative source",
   "技术分析": "Technical analysis", "资金流向": "Capital flows", "财务分析": "Financial analysis", "流派分析": "Investment perspectives", "信任度": "Reliability",
-  "个股名称与报价尚未取得": "Stock name and quote unavailable", "正在获取…": "Loading…", "重新获取报价": "Retry quote",
-  "当前报价接口未提供有效数据。分时、K线等模块独立加载；不把未知报价填成零。": "The quote service has not returned valid data. Charts load independently; missing quotes are not replaced with zero.",
+  "报价暂未取得": "Quote temporarily unavailable", "正在获取…": "Loading…", "重新获取报价": "Retry quote",
+  "报价来源暂时不可用，可稍后重试。公司资料和K线仍可单独查看。": "Quote providers are temporarily unavailable. Retry later; company information and charts remain independent.",
+  "刷新未成功，先显示上次报价，请留意报价时间。": "Refresh failed. Showing the previous quote; check its timestamp.",
   "AI 投资决策平台": "AI investment research platform",
   "语言偏好仅在本次页面生效，浏览器未允许保存。": "This language applies to the current page only; your browser did not allow saving the preference.",
 };

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timedelta
-from threading import Lock
+from threading import Condition, RLock
+from time import monotonic
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -57,14 +59,19 @@ class _QuoteSource(Protocol):
 MAX_PENDING_QUOTES = 6
 DISPLAY_QUOTE_BUDGET_SECONDS = 9.0
 _pool = ThreadPoolExecutor(max_workers=MAX_PENDING_QUOTES, thread_name_prefix="display-quote")
-_pending_lock = Lock()
+_pending_lock = RLock()
+_pending_changed = Condition(_pending_lock)
 _pending: dict[tuple[str, str], Future[DisplayQuote | None]] = {}
 
 
-def _fetch_display_quote(source: _QuoteSource, request: EvidenceRequest) -> DisplayQuote | None:
+def _fetch_display_quote(
+    source: _QuoteSource,
+    request: EvidenceRequest,
+    fetch: Callable[[EvidenceRequest], SourceResult[StockQuote]],
+) -> DisplayQuote | None:
     code = request.stock_code
     try:
-        result = source.fetch(request)
+        result = fetch(request)
         if result.status != SourceStatus.SUCCESS_DATA or len(result.items) != 1:
             logger.warning(
                 "Display quote unavailable: code=%s source=%s status=%s error=%s",
@@ -103,6 +110,11 @@ def _fetch_display_quote(source: _QuoteSource, request: EvidenceRequest) -> Disp
         return None
 
 
+def _notify_quote_done(_future: Future[DisplayQuote | None]) -> None:
+    with _pending_changed:
+        _pending_changed.notify_all()
+
+
 def get_display_quote(code: str) -> DisplayQuote | None:
     request = EvidenceRequest(stock_code=code, capability=EvidenceCapability.REALTIME_QUOTE)
     sources: tuple[_QuoteSource, ...] = (
@@ -110,30 +122,44 @@ def get_display_quote(code: str) -> DisplayQuote | None:
         SinaQuoteSource(),
         TencentDisplayQuoteSource(),
     )
-    with _pending_lock:
-        for key in list(_pending):
-            if _pending[key].done():
-                del _pending[key]
-        futures: list[Future[DisplayQuote | None]] = []
-        for source in sources:
-            key = (code, source.descriptor.source_id)
-            future = _pending.get(key)
-            if future is None:
-                if len(_pending) >= MAX_PENDING_QUOTES:
-                    logger.warning(
-                        "Display quote capacity busy: code=%s source=%s",
-                        code,
-                        source.descriptor.upstream_id,
-                    )
+    deadline = monotonic() + DISPLAY_QUOTE_BUDGET_SECONDS
+    futures: dict[str, Future[DisplayQuote | None]] = {}
+    with _pending_changed:
+        while True:
+            if monotonic() >= deadline:
+                logger.warning("Display quote response budget exhausted: code=%s", code)
+                return None
+            for key in list(_pending):
+                if _pending[key].done():
+                    del _pending[key]
+            for source in sources:
+                source_id = source.descriptor.source_id
+                if source_id in futures:
                     continue
-                future = _pool.submit(_fetch_display_quote, source, request)
-                _pending[key] = future
-            futures.append(future)
-    try:
-        for future in as_completed(futures, timeout=DISPLAY_QUOTE_BUDGET_SECONDS):
-            quote = future.result()
-            if quote is not None:
-                return quote
-    except TimeoutError:
-        logger.warning("Display quote response budget exhausted: code=%s", code)
-    return None
+                key = (code, source_id)
+                future = _pending.get(key)
+                if future is None and len(_pending) < MAX_PENDING_QUOTES:
+                    future = _pool.submit(_fetch_display_quote, source, request, source.fetch)
+                    _pending[key] = future
+                    # RLock also permits callbacks invoked inline for an already finished future.
+                    future.add_done_callback(_notify_quote_done)
+                if future is not None:
+                    futures[source_id] = future
+            for future in futures.values():
+                if future.done():
+                    quote = future.result()
+                    if quote is not None:
+                        return quote
+            if len(futures) == len(sources) and all(f.done() for f in futures.values()):
+                return None
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                logger.warning("Display quote response budget exhausted: code=%s", code)
+                return None
+            # A busy pool is not an upstream failure. Wait within the same response budget
+            # for admission, rather than making every stock after the first two appear empty.
+            # A completion callback may have fired inline before this wait. Reclaim those
+            # slots now; otherwise that notification would be lost until the deadline.
+            if any(f.done() for f in _pending.values()):
+                continue
+            _pending_changed.wait(timeout=remaining)

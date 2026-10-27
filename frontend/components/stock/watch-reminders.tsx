@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { checkedWatchQuote, planReminder, priceReminder, readWatchResearch, type WatchResearch } from "@/lib/watchlist-reminders";
+import { quoteSourceLabel } from "@/lib/quote-display";
 import type { StockQuote } from "@/lib/types/stock";
 
 const stamp = (value: string) => new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
@@ -40,7 +41,7 @@ export function WatchReminderContent({ code, quote, research, quoteLoading, rese
     {quote && movement && <div className="rounded-md bg-bg-primary p-3">
       <div className="flex flex-wrap items-baseline gap-3"><strong className="font-number text-xl">¥{quote.price.toFixed(2)}</strong><span className="text-sm">{movement.title}</span></div>
       <p className="mt-1 text-sm">{movement.detail}</p>
-      <p className="mt-2 text-xs text-text-muted">最近报价：{quote.fetched_at ? `${stamp(quote.fetched_at)}（北京时间）` : "时间未提供，先核对再用"} · {quote.source === "sina" ? "新浪" : quote.source === "eastmoney" ? "东方财富" : "行情来源"}</p>
+      <p className="mt-2 text-xs text-text-muted">最近报价：{quote.fetched_at ? `${stamp(quote.fetched_at)}（北京时间）` : "时间未提供，先核对再用"} · {quoteSourceLabel(quote.source)}</p>
     </div>}
     {quoteError && <p role="status" className="text-sm text-accent-gold">这次没拿到新报价。{quote ? "上面保留的是之前的价格，请看报价时间。" : "暂时看不出价格变化，可以稍后刷新。"}</p>}
     {!quote && !quoteError && <p role="status" className="text-sm text-text-muted">{quoteLoading ? "正在查看价格变化…" : "暂时没有报价，先看看已有分析。"}</p>}
