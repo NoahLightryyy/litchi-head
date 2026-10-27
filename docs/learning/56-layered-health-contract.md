@@ -79,3 +79,15 @@ const degraded = value.status !== "ok" || summary.failing_endpoints > 0
 - `frontend/components/shared/stock-discovery.tsx` 的搜索按钮不只记历史：相同关键词会真正 `refetch()`。新关键词交给 debounce，正在请求时不重复发送。部分目录无匹配只说明这批资料未找到，不证明股票不存在。
 
 **自己试试（5分钟）**：运行 `pytest tests/test_data/test_stock_catalog.py -q`，查看慢沪市与正常深市组合；再运行 `cd frontend && npm test` 的 discovery-retry/backend-status 用例，核对同词重试和混合异常数量。实网恢复例为京泉华002885，测试不依赖该股票的行情涨跌。
+
+
+## 个股名称和报价也要分层（2026-10-27）
+
+搜索已找到公司，不表示报价接口一定成功；反过来报价失败也不能抹掉公司名称。
+`frontend/lib/hooks/use-stock.ts` 的身份读取复用股票目录，严格匹配当前代码，不从旧股票或用户随手输入的名称推断。
+
+`src/data/providers/tencent_display_quote.py` 复用现有日线响应的 `qt`（独立报价快照），而非拿最后一根日线的收盘价伪装实时价格。
+`parse_tencent_snapshot()` 同时校验证券类型（个股GP-A/指数ZS）、交易所、代码和数据时间；手转股乘100、成交额直接用人民币元。
+`backend/quote_display.py` 用固定线程池与在途表控制实际任务数；9秒等待预算不等于杀死工作线程。同代码同通道正在请求时复用，六个槽位满时不无限排队。一个有效源就能显示，来源和时间仍可见。
+
+**自己试试（5分钟）**：运行 `pytest tests/test_backend/test_quote_display.py tests/test_data/test_tencent_display_quote.py -q`；慢主源/快备源测试应立即返回备用报价。把qt移除但保留day，必须得到失败而不是历史收盘冒充现价。身份/报价前端回归见 `frontend/tests/stock-identity.test.mts` 与 `stock-page-recovery.test.mts`（本轮页面集成）。

@@ -1,8 +1,12 @@
+from concurrent.futures import wait
 from datetime import datetime, timedelta
+from threading import Event
+from time import monotonic
 from unittest.mock import patch
 
 import pytest
 
+import backend.quote_display as display
 from backend.quote_display import get_display_quote
 from src.data.evidence import EvidenceCapability, SourceResult, SourceStatus
 from src.data.models import StockQuote
@@ -33,6 +37,21 @@ def result(source, *, failed=False, **changes):
             )
         ],
     )
+
+
+@pytest.fixture(autouse=True)
+def no_live_tencent():
+    # Keep all tests offline and drain unfinished fake fetches before unpatching.
+    with patch(
+        "backend.quote_display.TencentDisplayQuoteSource.fetch",
+        return_value=result("tencent", failed=True),
+    ):
+        yield
+        with display._pending_lock:
+            pending = list(display._pending.values())
+        wait(pending, timeout=1)
+        with display._pending_lock:
+            display._pending.clear()
 
 
 def test_bulk_failure_does_not_block_single_quote():
@@ -70,3 +89,70 @@ def test_invalid_display_data_is_not_published(changes):
         ),
     ):
         assert get_display_quote("920344") is None
+
+
+def test_two_failed_sources_do_not_hide_available_existing_tencent_snapshot():
+    with (
+        patch(
+            "backend.quote_display.EastmoneyQuoteSource.fetch",
+            return_value=result("eastmoney", failed=True),
+        ),
+        patch("backend.quote_display.SinaQuoteSource.fetch", side_effect=RuntimeError("offline")),
+        patch(
+            "backend.quote_display.TencentDisplayQuoteSource.fetch", return_value=result("tencent")
+        ),
+    ):
+        quote = get_display_quote("920344")
+    assert quote is not None and quote.source == "tencent"
+    assert quote.verification_status == "single_source"
+
+
+def test_slow_primary_does_not_block_fast_backup_or_spawn_duplicate_work():
+    release = Event()
+
+    def slow(_):
+        release.wait(1)
+        return result("eastmoney", failed=True)
+
+    with (
+        patch("backend.quote_display.EastmoneyQuoteSource.fetch", side_effect=slow) as primary,
+        patch("backend.quote_display.SinaQuoteSource.fetch", return_value=result("sina")),
+    ):
+        try:
+            started = monotonic()
+            assert get_display_quote("920344") is not None
+            assert get_display_quote("920344") is not None
+            assert monotonic() - started < 0.5
+            assert primary.call_count == 1
+        finally:
+            release.set()
+            with display._pending_lock:
+                pending = list(display._pending.values())
+            wait(pending, timeout=1)
+
+
+def test_all_slow_sources_respect_response_budget_and_global_inflight_bound():
+    release = Event()
+
+    def slow(_):
+        release.wait(1)
+        return result("eastmoney", failed=True)
+
+    with (
+        patch("backend.quote_display.EastmoneyQuoteSource.fetch", side_effect=slow),
+        patch("backend.quote_display.SinaQuoteSource.fetch", side_effect=slow),
+        patch("backend.quote_display.TencentDisplayQuoteSource.fetch", side_effect=slow),
+        patch("backend.quote_display.DISPLAY_QUOTE_BUDGET_SECONDS", 0.02),
+    ):
+        try:
+            start = monotonic()
+            assert get_display_quote("002885") is None
+            assert get_display_quote("300750") is None
+            assert get_display_quote("688648") is None
+            assert monotonic() - start < 0.3
+            assert len(display._pending) <= display.MAX_PENDING_QUOTES
+        finally:
+            release.set()
+            with display._pending_lock:
+                pending = list(display._pending.values())
+            wait(pending, timeout=1)

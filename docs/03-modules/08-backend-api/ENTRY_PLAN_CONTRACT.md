@@ -37,4 +37,4 @@
 
 统一 `{error:{code,message,retryable}}`，中文 message 稳定。404 `ENTRY_PLAN_NOT_FOUND`；409 `ENTRY_PLAN_SESSION_NOT_READY`；429 `ENTRY_PLAN_BUSY`；504 `ENTRY_PLAN_TIMEOUT`；502 `ENTRY_PLAN_INVALID_OUTPUT` / `ENTRY_PLAN_FAILED`；503 `ENTRY_PLAN_READ_FAILED` / `ENTRY_PLAN_SAVE_FAILED` / `ENTRY_PLAN_NOT_CONFIGURED`。请求结构不合法返回 FastAPI 422，不启动推理。
 
-SQLite 按 session 原子保存最后成功结果，包含证券身份、模型、证据与生成时间，校验哈希与引用。历史方向研究不被覆盖。单次生成总超时120秒（包含补采），每路补采16秒；应用只调用一次 `llm_service.invoke_structured`，不额外重跑辩论或重试生成，底层沿用统一LLM层的供应商重试策略；失败后用户可显式重试。股票 DisplayQuote.fetched_at 沿用东财f86/新浪日期时间字段的报价时点，ETF取quoted_at，日线取最后交易日期。
+SQLite 按 session 原子保存最后成功结果，包含证券身份、模型、证据与生成时间，校验哈希与引用。历史方向研究不被覆盖。单次生成总超时120秒（包含补采），每路补采16秒；应用只调用一次 `llm_service.invoke_structured`，不额外重跑辩论或重试生成，底层沿用统一LLM层的供应商重试策略；失败后用户可显式重试。股票 DisplayQuote.fetched_at 沿用东财f86/新浪日期时间字段/腾讯qt[30]的报价时点，ETF取quoted_at，日线取最后交易日期。
