@@ -18,3 +18,5 @@
 4. 检查网络失败后页面是否保留已保存的备注和原有信息。
 
 上一篇：[74 产业环节与企业身份](74-chain-company-identity.md)。
+
+下一篇：[76 自动市场观察与榜单解读](76-observation-and-ranking-context.md)。

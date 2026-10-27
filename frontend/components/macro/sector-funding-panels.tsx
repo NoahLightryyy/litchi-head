@@ -1,15 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchHotNews } from "@/lib/api/market";
+import type { HotNewsItem } from "@/lib/types/market";
+import { SectorSummary } from "./sector-summary";
 import { useSectors } from "@/lib/hooks/use-market";
 import { preferredSectorSource, sectorCategoryMeta, sectorFeedPriority } from "@/lib/sector-availability";
 import { SectorRanking } from "./sector-ranking";
 
-function FundingPanel({ source, category, query, onSortChange }: {
+function FundingPanel({ source, category, query, onSortChange, news }: {
   source: "eastmoney" | "sina";
   category: string;
   query: ReturnType<typeof useSectors>;
   onSortChange: (sort: string) => void;
+  news?: HotNewsItem[];
 }) {
   const isSina = source === "sina";
   const title = isSina ? "新浪 · 净流入" : "东方财富 · 主力净流入";
@@ -32,6 +37,7 @@ function FundingPanel({ source, category, query, onSortChange }: {
       </button>
     </div>
     {sortLabel && <p className="text-xs text-text-muted">{sortLabel}</p>}
+    <SectorSummary items={filtered} source={source} news={news} historical={query.isError || meta?.status === "stale" || filtered.some(item => item.snapshot_may_be_delayed)} />
     <SectorRanking key={category} sectors={filtered} loading={query.isLoading}
       error={query.isError || failedCategory} meta={meta}
       refreshError={query.isError && !!query.data}
@@ -46,6 +52,7 @@ export function SectorFundingPanels({ category = "all" }: { category?: string })
   const [sinaSort, setSinaSort] = useState("net_flow");
   const eastmoney = useSectors(eastSort, "eastmoney");
   const sina = useSectors(sinaSort, "sina");
+  const news = useQuery({ queryKey: ["market", "hot-news"], queryFn: fetchHotNews, retry: false, staleTime: 120_000, refetchOnWindowFocus: false });
   const first = preferredSectorSource(eastmoney, sina, category);
   const sources = first === "sina" ? ["sina", "eastmoney"] as const : ["eastmoney", "sina"] as const;
   const alternativeAvailable = first === "sina" && sectorFeedPriority(sina, category) === 0 && sectorFeedPriority(eastmoney, category) >= 2;
@@ -53,7 +60,7 @@ export function SectorFundingPanels({ category = "all" }: { category?: string })
     <p className="text-sm text-text-muted">{alternativeAvailable && "优先展示已获取的新浪榜单。"}两源按各自分类和资金口径独立展示。</p>
     <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
       {sources.map(source => <FundingPanel key={source} source={source} category={category}
-        query={source === "sina" ? sina : eastmoney}
+        query={source === "sina" ? sina : eastmoney} news={news.data?.data}
         onSortChange={source === "sina" ? setSinaSort : setEastSort} />)}
     </div>
   </div>;

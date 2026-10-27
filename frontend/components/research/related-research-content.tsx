@@ -1,7 +1,7 @@
 import type { RelatedDocument, RelatedKeywordOrigin, RelatedResearchResult } from "@/lib/related-research";
 
 const origins: Record<RelatedKeywordOrigin, string> = { name: "名称", business: "主营业务", expanded: "关联主题", user: "自定", code: "代码" };
-const sourceLabels = { policy_archive: "政策归档", news_archive: "报道资料库", company_profile: "主营资料" };
+const sourceLabels = { policy_archive: "政策归档", news_archive: "报道资料库", company_profile: "主营资料", company_news: "公司新闻与公告" };
 
 function DocumentCard({ item }: { item: RelatedDocument }) {
   return <article className="rounded-md border border-bg-tertiary bg-bg-primary p-3 space-y-2">

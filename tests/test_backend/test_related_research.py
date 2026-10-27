@@ -208,7 +208,11 @@ def test_generic_corporate_notices_are_not_policy_and_recency_wins():
 
 @pytest.mark.asyncio
 async def test_manual_query_validation_and_profile_name_echo(monkeypatch, tmp_path):
+    from unittest.mock import AsyncMock
+
     import backend.related_research as service
+
+    monkeypatch.setattr(service.company_news_service, "get", AsyncMock(side_effect=TimeoutError()))
 
     async def profile(code):
         return "测试银行股份有限公司", "主营业务：商业银行"
@@ -229,3 +233,124 @@ async def test_manual_query_validation_and_profile_name_echo(monkeypatch, tmp_pa
             "/api/research/related", params={"kind": "etf", "code": "560780", "q": ", ;"}
         )
         assert bad.status_code == 422 and "关键词" in bad.json()["detail"]
+
+
+def test_existing_company_news_is_recent_input_not_archived_fact(tmp_path):
+    from backend.news_display import DisplayNewsItem, NewsDisplay, NewsOrigin
+    from backend.related_research import merge_company_news
+
+    result = retrieve(
+        "stock",
+        "300916",
+        "朗特智能",
+        "",
+        "",
+        PROFILE,
+        store=NewsArchive(tmp_path / "news.db"),
+        now=NOW,
+    )
+    display = NewsDisplay(
+        symbol="300916",
+        status="ready",
+        start_date="2026-07-28",
+        end_date="2026-10-26",
+        fetched_at=NOW,
+        sources=[],
+        items=[
+            DisplayNewsItem(
+                id="recent",
+                title="朗特智能拟收购相关公司",
+                kind="report",
+                published_at="2026-10-26T12:00:00+08:00",
+                time_precision="second",
+                association="title_match",
+                provenance=[
+                    NewsOrigin(
+                        source="eastmoney", publisher="证券时报", url="https://example.com/recent"
+                    )
+                ],
+            ),
+            DisplayNewsItem(
+                id="unknown-date",
+                title="朗特智能旧消息",
+                kind="report",
+                published_at=None,
+                time_precision="unknown",
+                association="title_match",
+                provenance=[],
+            ),
+        ],
+    )
+    merged = merge_company_news(result, display)
+    assert len(merged.data) == 1
+    assert merged.data[0].source == "company_news"
+    assert merged.data[0].published_at == "2026-10-26T12:00:00+08:00"
+    assert merged.data[0].excerpt == merged.data[0].title
+    assert "仅标题" in merged.data[0].reason
+    display.status = "partial"
+    assert merge_company_news(result, display).status == "partial"
+    display.symbol = "000001"
+    with pytest.raises(ValueError):
+        merge_company_news(result, display)
+
+
+@pytest.mark.asyncio
+async def test_company_failure_keeps_archive_without_model_call(tmp_path, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from backend import related_research as service
+
+    base = retrieve(
+        "stock",
+        "300916",
+        "朗特智能",
+        "",
+        "朗特智能",
+        PROFILE,
+        store=NewsArchive(tmp_path / "news.db"),
+        now=NOW,
+    )
+    monkeypatch.setattr(service._runner, "run", AsyncMock(return_value=base))
+    getter = AsyncMock(side_effect=TimeoutError())
+    monkeypatch.setattr(service.company_news_service, "get", getter)
+    result = await service.related_research("stock", "300916", "朗特智能", "朗特智能")
+    assert result.data == base.data and result.sources[-1].source == "company_news"
+    assert result.sources[-1].status == "unavailable"
+    await service.related_research("etf", "560780", "半导体ETF", "")
+    assert getter.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_archive_timeout_does_not_block_available_company_news(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from backend import related_research as service
+    from backend.news_display import DisplayNewsItem, NewsDisplay, NewsOrigin
+
+    monkeypatch.setattr(service._runner, "run", AsyncMock(side_effect=TimeoutError()))
+    news = NewsDisplay(
+        symbol="300916",
+        status="ready",
+        start_date="2026-07-28",
+        end_date="2026-10-26",
+        fetched_at=NOW,
+        sources=[],
+        items=[
+            DisplayNewsItem(
+                id="recent",
+                title="朗特智能披露业务进展",
+                kind="report",
+                published_at="2026-10-26T12:00:00+08:00",
+                time_precision="second",
+                association="title_match",
+                provenance=[
+                    NewsOrigin(
+                        source="eastmoney", publisher="证券时报", url="https://example.com/recent"
+                    )
+                ],
+            ),
+        ],
+    )
+    monkeypatch.setattr(service.company_news_service, "get", AsyncMock(return_value=news))
+    result = await service.related_research("stock", "300916", "朗特智能", "朗特智能")
+    assert result.status == "partial" and result.data[0].source == "company_news"

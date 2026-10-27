@@ -82,3 +82,10 @@ GET与 `format_saved_interpretation` 仅读取明确的kind/code/q成功快照�
 上一篇：[71 持久研究任务与可信计算边界](71-durable-research-and-trusted-preview.md)。
 
 下一篇：[73 研究说明与故障提示分层](73-research-notice-layering.md)。
+
+## 同一页面已有资料，要复用而非再建一个孤岛
+
+`backend/news_display.py::service`现在被公司新闻面板与相关资料检索共同使用，同股同窗口并发只采一次。
+`company_news`保留独立来源标签，不伪装成归档。只拿到标题就以标题为输入，不补写全文。
+实际300916从两条旧归档补到12条近期报道；综合为3条事件并保留所有源，后续辩论仅读保存结果。
+相关新闻与上涨同期发生，不证明前者造成后者。提示词与界面都应明确这一点；格式校验不是语义核验。

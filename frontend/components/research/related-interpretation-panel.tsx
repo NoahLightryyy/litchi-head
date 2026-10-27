@@ -78,8 +78,8 @@ function CombinedBrief({ result }: { result: RelatedInterpretationResult }) {
   </div>;
   return <section aria-label="综合影响解读" className="space-y-4 rounded-lg bg-accent-blue/5 p-4 text-sm leading-7">
     <div><h5 className="font-semibold">这件事，一起看</h5><p className="mt-1">{brief.what_happened}</p></div>
+    <p className="text-xs text-text-muted">影响判断是 AI 推测；报道与涨跌同期出现，不等于已经证明因果。</p>
     <div className="rounded-md border border-accent-blue/20 bg-bg-secondary p-3"><h5 className="font-semibold text-accent-blue">可能怎样影响股价</h5><p className="mt-1">{brief.price_impact.text}</p></div>
-    <p className="text-xs text-text-muted">下面是基于这些资料的推测，是否成立要看后续变化。</p>
     <dl className="grid gap-4 sm:grid-cols-2">{SYNTHESIS_DIMENSIONS.slice(1).map(([key, label]) => <div key={key}><dt className="font-medium">{label}</dt><dd className="mt-1 text-text-secondary">{brief[key].text}</dd></div>)}</dl>
     <div><h5 className="font-semibold">接下来只盯这几件事</h5><ul className="mt-1 list-disc space-y-1 pl-4">{brief.watchpoints.map((point, index) => <li key={index}>{point}</li>)}</ul></div>
   </section>;

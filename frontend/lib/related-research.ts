@@ -8,7 +8,7 @@ export interface RelatedDocument {
   publisher: string;
   published_at: string;
   excerpt: string;
-  source: "policy_archive" | "news_archive";
+  source: "policy_archive" | "news_archive" | "company_news";
   category: "policy" | "report";
   relevance: "direct" | "topic";
   matched_keywords: string[];
@@ -23,7 +23,7 @@ export interface RelatedResearchResult {
   status: "ready" | "partial" | "empty" | "unavailable";
   keywords: { term: string; origin: RelatedKeywordOrigin }[];
   data: RelatedDocument[];
-  sources: { source: "policy_archive" | "news_archive" | "company_profile"; status: "ok" | "unavailable" | "not_requested"; message: string }[];
+  sources: { source: "policy_archive" | "news_archive" | "company_news" | "company_profile"; status: "ok" | "unavailable" | "not_requested"; message: string }[];
   searched_at: string;
   window_days: 365;
   limitations: string[];
@@ -70,13 +70,13 @@ export function parseRelatedResearch(value: unknown, request: RelatedResearchReq
     if (!item || !nonempty(item.id) || ids.has(item.id) || !nonempty(item.title) || !validUrl(item.url)
       || !nonempty(item.publisher) || !publishedDate(item.published_at)
       || typeof item.excerpt !== "string" || item.excerpt.length > 600
-      || !["policy_archive", "news_archive"].includes(item.source)
+      || !["policy_archive", "news_archive", "company_news"].includes(item.source)
       || !["policy", "report"].includes(item.category) || !["direct", "topic"].includes(item.relevance)
       || !strings(item.matched_keywords) || !item.matched_keywords.length || !nonempty(item.reason)) return fail();
     ids.add(item.id);
   }
   for (const source of result.sources) {
-    if (!source || !["policy_archive", "news_archive", "company_profile"].includes(source.source)
+    if (!source || !["policy_archive", "news_archive", "company_profile", "company_news"].includes(source.source)
       || !["ok", "unavailable", "not_requested"].includes(source.status) || typeof source.message !== "string") return fail();
   }
   return result;

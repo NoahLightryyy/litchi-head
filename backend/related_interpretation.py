@@ -21,7 +21,7 @@ from backend.related_research_contract import RelatedDocument, RelatedResearchRe
 from src.utils.llm import DEFAULT_MODEL, LLMConfig, llm_service
 
 logger = logging.getLogger(__name__)
-PROMPT_VERSION = "related-materials-v3-synthesis"
+PROMPT_VERSION = "related-materials-v3.1-synthesis"
 GENERATION_TIMEOUT = 120
 _busy: set[tuple[str, str, str]] = set()
 SOURCE_QUOTE_NOTE = (
@@ -56,7 +56,8 @@ overview和limitations不要统计资料篇数或匹配数量，数量由程序�
 事件title简短。summary.text只讲输入明确记载的报道事实，basis为reported，不能把报道当独立核验。
 summary.quotes必须逐字复制输入title或excerpt的一段连续原文，填写对应source_id和field，
 引用不得自行加省略号、改数字、改标点或拼接句子；每段2至300字，每事件1至4段。
-news_archive的excerpt只是已取得的报道节选，可能仅重复标题，不代表全文；policy_archive的excerpt
+不得把消息与涨跌同时出现写成“消息已引发涨停”等已证实因果；可以说“报道显示股价已涨停，可能与题材预期有关”。
+company_news仅取得标题，不能补出公告全文细节。news_archive的excerpt只是已取得的报道节选，可能仅重复标题，不代表全文；policy_archive的excerpt
 是档案摘要，引用时只能说“档案摘要记载”，不能说已读政策原文。标题材料可作有限解读，不补造正文条款。
 原文写明的政策目标期、涉及面、数值只放summary并附原句；保留作者、报道日期和归因，
 例如券商预测不是政府预算，媒体转述不是官方确认。历史计划保留日期，结束的减持窗口不能说正在减持，

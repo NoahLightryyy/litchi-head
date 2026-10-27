@@ -14,7 +14,7 @@
 
 POST 全过程最多 120 秒，最多两个并发，同键重复请求返回 429，不再发起生成。服务只执行一次结构化模型调用，不额外重试。调用经过 `src/utils/llm.py`，采用 `DEFAULT_MODEL`，不启用思考模式。刷新失败保留旧成功结果，GET 不自动补发任务。
 
-本功能显式指定 `output_method="json_mode"`，提示版本为 `related-materials-v2-json`。统一调用层发送 `response_format={"type":"json_object"}` 并在系统消息注入完整 Pydantic JSON Schema；收到消息后先记录用量，再用 `model_validate_json` 校验完整 JSON。空响应、普通文本、缺字段、非法 JSON 或 `finish_reason=length` 均失败，不补括号、不修复截断、不因解析失败自动再生成。网络异常仍使用统一层已有的有限重试。本功能以外的调用继续默认 `function_calling`，没有全局切换。
+本功能显式指定 `output_method="json_mode"`，当前提示版本为 `related-materials-v3.1-synthesis`（旧结果保留原版本）。统一调用层发送 `response_format={"type":"json_object"}` 并在系统消息注入完整 Pydantic JSON Schema；收到消息后先记录用量，再用 `model_validate_json` 校验完整 JSON。空响应、普通文本、缺字段、非法 JSON 或 `finish_reason=length` 均失败，不补括号、不修复截断、不因解析失败自动再生成。网络异常仍使用统一层已有的有限重试。本功能以外的调用继续默认 `function_calling`，没有全局切换。
 
 选择 JSON 模式的背景：2026-10-26 实测工具模式两次 HTTP 200，返回元数据为 `finish_reason=tool_calls`，但解析结果为 `parsed=None` 且 `parsing_error=None`；另一 `InvestmentAnalysis` 调用也出现相同症状。未保存原始返回，不能断言供应商缺了哪个字段。这里采用显式格式路径回避不可用工具输出，保留全部来源和内容校验；排查步骤见 [结构化输出急救](../../01-guides/triage/llm-structured-output.md)。
 
@@ -90,3 +90,5 @@ RelatedDocument.source及RelatedSourceStatus.source新增company_news，表示�
 只在股票相关资料检索时并行复用既有90日公司新闻缓存服务；ETF/板块不调用。仍按用户关键词筛选、按标题/URL去重，最多12份材料。
 保留标题、原发布日、出版者、原文链接；没有取得全文时excerpt仅重复标题，并在reason明确“仅标题”。未知日期/不安全链接/错标的丢弃。
 公司查询失败保留原归档结果，source状态unavailable、总体partial；单来源成功即可展示。不会写成已核验事实，不自动触发模型。
+
+2026-10-27 v3.1追加因果措辞要求：即使输入标题提到涨停，也不能把同期新闻写成已证实原因。v3实网验收成功保留原文；前端统一标记影响判断为AI推测，语义仍需用户结合原文评估，不冒称已做事实核验。

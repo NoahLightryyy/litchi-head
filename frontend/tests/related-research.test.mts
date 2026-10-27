@@ -194,3 +194,11 @@ test("相关资料消费者把解读放在原文列表前，传入本查询快�
   assert.match(html, /「刷新资料」和「搜索资料」只做检索，不调用 AI/);
   assert.match(html, /解读由下方按钮单独生成/);
 });
+
+ test("公司新闻复用保留独立来源标签与发布时间", () => {
+  const query = { ...request, kind: "stock" as const, code: "300916", name: "朗特智能" };
+  const data = fixture(query);
+  data.data[0].source = "company_news";
+  data.sources.push({ source: "company_news", status: "ok", message: "仅标题" });
+  assert.equal(parseRelatedResearch(data, query).data[0].source, "company_news");
+});

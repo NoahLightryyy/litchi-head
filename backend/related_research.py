@@ -19,6 +19,8 @@ from pydantic import HttpUrl
 
 from backend.async_utils import BoundedSyncRunner
 from backend.company_research import HOST, parse_profile
+from backend.news_display import NewsDisplay
+from backend.news_display import service as company_news_service
 from backend.policy_evidence import EvidenceRepository
 from backend.related_keywords import extract_keywords
 from backend.related_research_contract import (
@@ -128,7 +130,11 @@ def make_document(
             publisher=publisher or "来源未标明",
             published_at=stamp,
             excerpt=excerpt(content or title, hits),
-            source="policy_archive" if source == "policy_archive" else "news_archive",
+            source="policy_archive"
+            if source == "policy_archive"
+            else "company_news"
+            if source == "company_news"
+            else "news_archive",
             category="policy"
             if policy_related(title, hits) or policy_related(content, hits)
             else "report",
@@ -338,22 +344,121 @@ def retrieve(
     )
 
 
+def merge_company_news(
+    result: RelatedResearchResult, display: NewsDisplay
+) -> RelatedResearchResult:
+    if display.symbol != result.subject_id:
+        raise ValueError("Company news identity mismatch")
+    additions: list[RelatedDocument] = []
+    for item in display.items:
+        if not item.published_at or not item.provenance:
+            continue
+        origin = item.provenance[0]
+        document = make_document(
+            identity="company:" + item.id,
+            title=item.title,
+            content="",
+            url=origin.url,
+            publisher=origin.publisher,
+            stamp=item.published_at,
+            source="company_news",
+            keywords=result.keywords,
+            code=result.subject_id,
+            name=result.subject_name,
+            now=result.searched_at,
+        )
+        if document:
+            document.reason += "；公司新闻查询，仅标题，未读取全文"
+            additions.append(document)
+    sources = [
+        *result.sources,
+        RelatedSourceStatus(
+            source="company_news",
+            status="unavailable" if display.status in {"failed", "partial"} else "ok",
+            message="已复用近90日公司新闻；仅代表已取得的标题范围。"
+            if display.items
+            else "公司新闻暂无可用材料。",
+        ),
+    ]
+    data = rank_documents([*result.data, *additions])
+    failed = any(s.status == "unavailable" for s in sources)
+    all_failed = all(s.status == "unavailable" for s in sources if s.source != "company_profile")
+    return result.model_copy(
+        update={
+            "data": data,
+            "sources": sources,
+            "status": ("partial" if failed else "ready")
+            if data
+            else ("unavailable" if all_failed else "empty"),
+            "limitations": [
+                *result.limitations,
+                "另补充近90日公司新闻和公告标题，未取得全文；标题不能证明订单或利润已兑现。",
+            ],
+        }
+    )
+
+
 async def related_research(
     kind: SubjectKind, code: str, name: str, query: str
 ) -> RelatedResearchResult:
-    business = ""
-    profile = RelatedSourceStatus(source="company_profile", status="not_requested")
-    if kind == "stock" and not query:
-        try:
-            _, business = await asyncio.wait_for(company_context(code), timeout=4.5)
-            profile = RelatedSourceStatus(source="company_profile", status="ok")
-        except Exception:
-            logger.warning("Related research company profile unavailable: %s", code)
-            profile = RelatedSourceStatus(
-                source="company_profile",
-                status="unavailable",
-                message="主营资料暂未取得，已按名称和代码检索。",
-            )
-    return await asyncio.wait_for(
-        _runner.run(retrieve, kind, code, name, business, query, profile), timeout=8
+    async def archive_result() -> RelatedResearchResult:
+        business = ""
+        profile = RelatedSourceStatus(source="company_profile", status="not_requested")
+        if kind == "stock" and not query:
+            try:
+                _, business = await asyncio.wait_for(company_context(code), timeout=4.5)
+                profile = RelatedSourceStatus(source="company_profile", status="ok")
+            except Exception:
+                logger.warning("Related research company profile unavailable: %s", code)
+                profile = RelatedSourceStatus(
+                    source="company_profile",
+                    status="unavailable",
+                    message="主营资料暂未取得，已按名称和代码检索。",
+                )
+        return await asyncio.wait_for(
+            _runner.run(retrieve, kind, code, name, business, query, profile), timeout=8
+        )
+
+    if kind != "stock":
+        return await archive_result()
+    result, news = await asyncio.gather(
+        archive_result(), company_news_service.get(code, 90), return_exceptions=True
     )
+    if isinstance(result, asyncio.CancelledError):
+        raise result
+    if isinstance(result, BaseException):
+        logger.warning("Related archive retrieval failed; retaining company news: %s", code)
+        result = RelatedResearchResult(
+            subject_kind=kind,
+            subject_id=code,
+            subject_name=name,
+            query=query,
+            status="unavailable",
+            keywords=extract_keywords(kind, code, name, "", query),
+            data=[],
+            sources=[
+                RelatedSourceStatus(source=source, status="unavailable")
+                for source in ("news_archive", "policy_archive")
+            ],
+            searched_at=datetime.now(UTC),
+            limitations=["归档资料暂未取得，先查看已取得的公司新闻。"],
+        )
+    try:
+        if isinstance(news, BaseException):
+            raise news
+        return merge_company_news(result, news)
+    except Exception:
+        logger.exception("Company news reuse failed: %s", code)
+        return result.model_copy(
+            update={
+                "status": "partial" if result.data else result.status,
+                "sources": [
+                    *result.sources,
+                    RelatedSourceStatus(
+                        source="company_news",
+                        status="unavailable",
+                        message="公司新闻暂未取得，保留其他资料。",
+                    ),
+                ],
+            }
+        )
