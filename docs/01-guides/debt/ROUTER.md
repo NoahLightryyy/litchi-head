@@ -236,3 +236,6 @@ ETF-EXPERIENCE-001新增即关闭，不增加开放数。模型超时补记既�
 
 
 2026-10-27运行续检：新增基础设施ENV-PREVIEW-LIFETIME-001（moderate，开放+1）；前后端重复退出已通过独立后台会话恢复，但根因与长期存续待确认。没有将立即HTTP200等同永久修复，历史汇总不覆盖重算。
+
+
+2026-10-27搜索恢复：DATA-CATALOG-RECOVERY-001与FW-SEARCH-RECOVERY-001当轮关闭（high开放净增0）；DATA-CATALOG-TRANSPORT-001记录SDK强制截止与非当前主备配置兼容残余（moderate开放+1）。ENV-DNS-20261027仍开放；当前目录成功不等于所有行情源恢复。

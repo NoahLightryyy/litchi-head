@@ -66,3 +66,16 @@ const degraded = value.status !== "ok" || summary.failing_endpoints > 0
 ## 备用源失败与业务可用（2026-10-22）
 
 并联备用源不是必须全部健康的依赖。`frontend/lib/backend-health.ts` 将有完整健康指数源的纯指数故障归为 healthy_with_warnings；check 内保留失败事实，UI 折叠诊断。`canCollapseIndexDiagnostics` 另按本次响应检查三指数完整性、缓存、冲突和刷新状态。自己试试：运行 frontend 的 backend-health 与 market-notice 测试，将最后一个 healthy 改为 failed，观察恢复告警。
+
+
+## 搜索目录与混合故障恢复（2026-10-27）
+
+“有一个可用就先用”需要在数据管道实现，而不只是把红字藏起来。
+
+- `src/data/providers/stock_catalog.py` 把原 AKShare 聚合函数内部已有的沪市主板、深市、科创板、北交所请求独立执行。一个交易所失败时，其他交易所的真实名称/代码继续可搜；完整性随 `StockCatalogSnapshot` 传到消费者。
+- `src/data/collector.py::get_stock_catalog()` 只把完整成功目录放入一小时缓存。空结果/部分结果使用独立15秒退避缓存，避免失败被长期固化，也避免连点搜索请求轰炸。旧空成功缓存直接失效。
+- 每个交易所最多一个在途任务、总共最多四个；等待预算8秒，超时先返回已取得的部分。等待结束不等于强杀网络线程，晚到结果下一次合并；不可取消的SDK调用仍需运输层超时治理。
+- `frontend/lib/backend-health.ts::partitionDiagnostics()` 在“股票目录失败 + 两个指数源失败 + 一个完整指数源成功”时，只计一个未恢复业务问题，两个备用源故障仍在折叠诊断里。价格冲突不能当作可忽略的备用故障。
+- `frontend/components/shared/stock-discovery.tsx` 的搜索按钮不只记历史：相同关键词会真正 `refetch()`。新关键词交给 debounce，正在请求时不重复发送。部分目录无匹配只说明这批资料未找到，不证明股票不存在。
+
+**自己试试（5分钟）**：运行 `pytest tests/test_data/test_stock_catalog.py -q`，查看慢沪市与正常深市组合；再运行 `cd frontend && npm test` 的 discovery-retry/backend-status 用例，核对同词重试和混合异常数量。实网恢复例为京泉华002885，测试不依赖该股票的行情涨跌。

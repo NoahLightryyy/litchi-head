@@ -20,6 +20,7 @@ from backend.routers.stocks import collector
 from backend.ths_fund_rankings import router as ths_funds_router
 from src.data.evidence import EvidenceCapability, EvidenceRequest, SourceStatus
 from src.data.providers.quotes import SHANGHAI, SinaQuoteSource
+from src.data.providers.stock_catalog import PartialStockCatalogError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/discovery")
@@ -81,10 +82,10 @@ def board_catalog() -> list[SearchHit]:
 
 
 def stock_catalog() -> list[SearchHit]:
-    items = collector.get_all_stocks()
-    if not items:
-        raise ValueError("Stock directory unavailable")
-    return [SearchHit(code=s.code, name=s.name, kind="stock") for s in items]
+    snapshot = collector.get_stock_catalog()
+    if not snapshot.complete:
+        raise PartialStockCatalogError(snapshot)
+    return [SearchHit(code=s.code, name=s.name, kind="stock") for s in snapshot.items]
 
 
 async def etf_catalog() -> list[SearchHit]:
@@ -102,7 +103,12 @@ async def search(q: str = Query("", max_length=80)) -> SearchResult:
     matches: dict[tuple[str, str], SearchHit] = {}
     failed = []
     for name, outcome in zip(("股票目录", "板块目录", "ETF目录"), outcomes, strict=True):
-        if isinstance(outcome, BaseException):
+        if isinstance(outcome, PartialStockCatalogError):
+            failed.append(name)
+            outcome = [
+                SearchHit(code=s.code, name=s.name, kind="stock") for s in outcome.snapshot.items
+            ]
+        elif isinstance(outcome, BaseException):
             logger.warning("Discovery source failed: %s %s", name, type(outcome).__name__)
             failed.append(name)
             continue

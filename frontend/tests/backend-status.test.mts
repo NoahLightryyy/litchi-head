@@ -77,3 +77,22 @@ test("未知数据服务和诊断文本仍可查阅，并作为普通文本呈�
   assert.match(html, /&lt;script&gt;/);
   assert.doesNotMatch(html, /<script>/);
 });
+
+test("目录失败加两个备用源失败只提示一项受限，指数继续可用且原始诊断可查", () => {
+  const html = render({ diagnose: {
+    status: "degraded", checks: {
+      all_stocks: { status: "fail", error: "数据源请求失败" },
+      "market_index:eastmoney": { status: "fail", error: "数据源请求失败" },
+      "market_index:sina": { status: "fail", error: "数据源请求失败" },
+      "market_index:tencent": { status: "pass" },
+    },
+  } });
+  const summary = html.match(/<summary[^>]*>(.*?)<\/summary>/)?.[1] ?? "";
+  assert.match(summary, /1 项异常/);
+  assert.doesNotMatch(summary, /3 项异常/);
+  assert.match(summary, /股票名称搜索暂不可用/);
+  assert.match(summary, /指数已使用备用来源/);
+  assert.match(html, /股票搜索目录 \(all_stocks\)：请求失败/);
+  assert.match(html, /指数 · 东方财富 \(market_index:eastmoney\)：请求失败/);
+  assert.match(html, /指数 · 腾讯 \(market_index:tencent\)：可用/);
+});

@@ -307,15 +307,15 @@ class TestAKShareRowToNews:
 class TestAKShareErrorHandling:
     """AKShareSource 异常路径"""
 
-    def test_get_all_stocks_returns_empty_on_error(self, mocker):
-        import akshare as ak
-
+    def test_get_all_stocks_propagates_error_to_collector(self, mocker):
         from src.data.providers.akshare import AKShareSource
+        from src.data.providers.stock_catalog import PartialStockCatalogError, StockCatalogSnapshot
 
-        mocker.patch.object(ak, "stock_info_a_code_name", side_effect=ConnectionError("网络错误"))
+        mocker.patch("src.data.providers.akshare.exchange_stock_catalog.snapshot",
+                     return_value=StockCatalogSnapshot(failed_markets=["深市"]))
         source = AKShareSource()
-        result = source.get_all_stocks()
-        assert result == []
+        with pytest.raises(PartialStockCatalogError):
+            source.get_all_stocks()
 
     def test_get_realtime_quotes_propagates_error_to_collector(self, mocker):
         import akshare as ak

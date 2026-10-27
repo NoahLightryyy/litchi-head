@@ -49,8 +49,10 @@ async def search_stocks(q: str = Query("", description="搜索关键词")):
     q = q.strip()
     if not q:
         return {"data": [], "meta": {"cached": False, "latency_ms": 0}}
+    complete = False
     try:
-        stocks = await run_sync(collector.get_all_stocks)
+        snapshot = await run_sync(collector.get_stock_catalog)
+        stocks, complete = snapshot.items, snapshot.complete
     except Exception:
         logger.exception("Stock directory unavailable during search")
         stocks = []
@@ -70,7 +72,7 @@ async def search_stocks(q: str = Query("", description="搜索关键词")):
             recovered = True
         except Exception:
             logger.warning("Exact stock identity recovery unavailable: %s", q, exc_info=True)
-    if not stocks and not results:
+    if not complete and not results:
         logger.warning("Stock search has no usable directory or recovered identity")
         return JSONResponse(status_code=503, content=StockSearchError().model_dump())
     cached = collector.cache_hit.get("all_stocks", False)

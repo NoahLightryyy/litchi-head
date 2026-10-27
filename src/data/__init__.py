@@ -6,7 +6,7 @@
     akshare API → DataCollector → Pydantic Models → 缓存层 → 下游消费者
 
 已实现功能：
-    - 全部 A 股代码列表（stock_info_a_code_name，TTL 1h）
+    - A 股身份目录（原四市场独立采集；成功 TTL 1h，失败退避 15s，保留部分结果）
     - 全市场实时行情（stock_zh_a_spot_em，TTL 30s）
     - 个股历史 K 线（stock_zh_a_hist，TTL 5min）
     - 个股新闻（stock_news_em，TTL 2min）

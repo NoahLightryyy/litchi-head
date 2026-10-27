@@ -5,6 +5,7 @@ export type DiagnoseStatus = "healthy" | "degraded" | "healthy_with_warnings";
 export interface DiagnoseCheck {
   status: string;
   error?: string;
+  errorCode?: string;
   message?: string;
 }
 
@@ -19,6 +20,30 @@ export interface BackendClassification {
 }
 
 export const DIAGNOSTICS_UNAVAILABLE_MESSAGE = "后端已连接，诊断信息暂不可用";
+
+/** Count unavailable capabilities separately from interchangeable failed sources. */
+export function partitionDiagnostics(checks: Record<string, DiagnoseCheck>) {
+  const entries = Object.entries(checks);
+  // A successful backend index batch covers all three indices, not just one quote.
+  const hasIndexFallback = entries.some(([name, check]) =>
+    name.startsWith("market_index:") && check.status === "pass");
+  const failures = entries.filter(([, check]) => check.status !== "pass");
+  const redundant = ([name, check]: [string, DiagnoseCheck]) => hasIndexFallback &&
+    name.startsWith("market_index:") && check.errorCode !== "index_quote_conflict";
+  return {
+    issues: failures.filter(entry => !redundant(entry)),
+    backupFailures: failures.filter(redundant),
+  };
+}
+
+export function backendStateLabel(state: BackendState, message: string | null): string {
+  return {
+    checking: "连接中",
+    connected: "已连接",
+    degraded: message ? "已连接 · 诊断暂缺" : "已连接 · 数据受限",
+    disconnected: "未连接",
+  }[state];
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -57,6 +82,9 @@ export function normalizeDataSourceDiagnostics(value: unknown): DiagnoseResult |
         ...(typeof rawCheck.last_error === "string"
           ? { error: rawCheck.last_error }
           : {}),
+        ...(typeof rawCheck.last_error_code === "string"
+          ? { errorCode: rawCheck.last_error_code }
+          : {}),
       };
     } else {
       checks[name] = { status: "pass" };
@@ -68,13 +96,8 @@ export function normalizeDataSourceDiagnostics(value: unknown): DiagnoseResult |
     summary.failing_endpoints > 0 ||
     summary.empty_endpoints > 0 ||
     Object.values(checks).some((check) => check.status !== "pass");
-  // Index sources are substitutes. A healthy batch covers all three indices.
-  const entries = Object.entries(checks);
-  const hasIndexFallback = entries.some(([name, check]) =>
-    name.startsWith("market_index:") && check.status === "pass");
-  const issues = entries.filter(([, check]) => check.status !== "pass");
-  const onlyRedundantIndexFailures = hasIndexFallback && issues.length > 0 &&
-    issues.every(([name]) => name.startsWith("market_index:"));
+  const { issues, backupFailures } = partitionDiagnostics(checks);
+  const onlyRedundantIndexFailures = backupFailures.length > 0 && issues.length === 0;
   return {
     status: onlyRedundantIndexFailures ? "healthy_with_warnings" : degraded ? "degraded" : "healthy",
     checks,

@@ -7,6 +7,8 @@ import {
   type DiagnoseResult,
   classifyBackendProbe,
   normalizeDataSourceDiagnostics,
+  partitionDiagnostics,
+  backendStateLabel,
 } from "@/lib/backend-health";
 
 /* ── 后端连接状态 ── */
@@ -51,6 +53,7 @@ async function probeBackend(): Promise<BackendProbe> {
 }
 
 const CHECK_LABELS: Record<string, string> = {
+  all_stocks: "股票搜索目录",
   "kline:daily": "日 K 线",
   "kline:weekly": "周 K 线",
   "kline:monthly": "月 K 线",
@@ -76,7 +79,8 @@ export function BackendDiagnosticsNotice({
 }) {
   if (!degraded && diagnose?.status !== "healthy_with_warnings") return null;
   const checks = Object.entries(diagnose?.checks ?? {});
-  const issueCount = checks.filter(([, check]) => check.status !== "pass").length;
+  const { issues, backupFailures } = partitionDiagnostics(diagnose?.checks ?? {});
+  const issueCount = issues.length;
   const summary = message
     ? t("数据诊断暂不可用")
     : degraded
@@ -88,6 +92,9 @@ export function BackendDiagnosticsNotice({
       <summary className="cursor-pointer">
         <span aria-hidden="true" className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mx-1.5" />
         {summary}
+        {!message && issues.some(([name]) => name === "all_stocks") && ` · ${t(
+          diagnose?.checks.all_stocks?.errorCode === "STOCK_CATALOG_PARTIAL" ? "股票名称搜索可能不完整" : "股票名称搜索暂不可用")}`}
+        {!message && backupFailures.length > 0 && ` · ${t("指数已使用备用来源")}`}
       </summary>
       <div className="mt-2 space-y-2">
         <p>{t("以下为已访问数据服务的诊断；各页面的数据可用性以对应内容提示为准。")}</p>
@@ -231,12 +238,7 @@ export function HeaderStatusDot() {
     disconnected: "bg-red-500",
   }[state];
 
-  const label = {
-    checking: "连接中",
-    connected: "已连接",
-    degraded: message ? "诊断不可用" : "部分异常",
-    disconnected: "未连接",
-  }[state];
+  const label = backendStateLabel(state, message);
 
   const title = t(message ?? label);
 

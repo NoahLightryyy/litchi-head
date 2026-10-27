@@ -3,6 +3,20 @@
 from unittest.mock import AsyncMock, patch
 
 from backend.quote_display import DisplayQuote
+from src.data.models import StockInfo
+from src.data.providers.stock_catalog import StockCatalogSnapshot
+
+
+def test_partial_directory_returns_matches_but_not_false_empty_success(client):
+    partial = StockCatalogSnapshot(
+        items=[StockInfo(code="002885", name="京泉华")], failed_markets=["沪市"],
+    )
+    with patch("backend.routers.stocks.collector.get_stock_catalog", return_value=partial):
+        found = client.get("/api/stocks/search", params={"q": "京泉华"})
+        absent = client.get("/api/stocks/search", params={"q": "沪市公司"})
+    assert found.status_code == 200
+    assert found.json()["data"][0]["code"] == "002885"
+    assert absent.status_code == 503
 
 
 def test_empty_directory_recovers_checked_company(client, mock_collector):
@@ -39,7 +53,7 @@ def test_directory_error_uses_profile_then_matching_short_name(client, mock_coll
         source="sina",
     )
     with (
-        patch("backend.routers.stocks.collector.get_all_stocks", side_effect=TimeoutError),
+        patch("backend.routers.stocks.collector.get_stock_catalog", side_effect=TimeoutError),
         patch(
             "backend.routers.stocks.company_context",
             AsyncMock(return_value=("中邮科技股份有限公司", "公司资料")),

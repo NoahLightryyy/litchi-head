@@ -21,6 +21,7 @@ from src.data.models import (
     StockQuote,
 )
 from src.data.providers.base import safe_float, safe_int, safe_str
+from src.data.providers.stock_catalog import PartialStockCatalogError, exchange_stock_catalog
 
 logger = logging.getLogger("data.providers.akshare")
 
@@ -52,15 +53,10 @@ class AKShareSource:
     # ── 股票信息 ─────────────────────────────────────────────────────
 
     def get_all_stocks(self) -> list[StockInfo]:
-        try:
-            df: pd.DataFrame = ak.stock_info_a_code_name()
-            return [
-                StockInfo(code=safe_str(row["code"]), name=safe_str(row["name"]))
-                for _, row in df.iterrows()
-            ]
-        except Exception:
-            logger.exception("akshare stock_info_a_code_name 失败")
-            return []
+        snapshot = exchange_stock_catalog.snapshot()
+        if not snapshot.complete:
+            raise PartialStockCatalogError(snapshot)
+        return snapshot.items
 
     # ── 实时行情 ─────────────────────────────────────────────────────
 

@@ -32,6 +32,7 @@ from src.data.models import (
     StockQuote,
     ValuationMetrics,
 )
+from src.data.providers.stock_catalog import StockCatalogSnapshot
 
 # ═══════════════════════════════════════════════════════════════════════
 # Pydantic 模型工厂
@@ -271,6 +272,9 @@ class MockCollector:
 
     def get_all_stocks(self) -> list[StockInfo]:
         return self._stocks
+
+    def get_stock_catalog(self) -> StockCatalogSnapshot:
+        return StockCatalogSnapshot(items=self.get_all_stocks())
 
     def get_klines(
         self,
