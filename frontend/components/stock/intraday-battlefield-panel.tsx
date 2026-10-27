@@ -6,11 +6,9 @@ import { FiveDayChart } from "./five-day-chart";
 import { KlineChart } from "./kline-chart";
 import {
   Activity,
-  AlertTriangle,
   ChevronDown,
   Database,
   RefreshCw,
-  WifiOff,
 } from "lucide-react";
 
 import { IntradayLineChart } from "@/components/stock/intraday-line-chart";
@@ -21,6 +19,8 @@ import {
   resolveIntradayPanelMode,
   type IntradaySourceState,
 } from "@/lib/intraday-source-state";
+import { useFiveDayDisplay } from "@/lib/hooks/use-five-day-display";
+import { automaticPriceWindow, IntradayUnavailableError, latestMinuteSession } from "@/lib/intraday-recovery";
 import { intradayReferenceClose } from "@/lib/intraday-percent";
 import { useStockQuote, useIntradayBattlefield } from "@/lib/hooks/use-stock";
 import type {
@@ -182,33 +182,44 @@ function LoadingState() {
 
 /** 盘中价格事实、指标解释与逐源诊断的正式展示面板。 */
 export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps) {
-  const [priceWindow, setPriceWindow] = useState<PriceWindow>("intraday");
+  return <PricePanel key={code} code={code} />;
+}
+
+function PricePanel({ code }: IntradayBattlefieldPanelProps) {
+  const [selectedWindow, setPriceWindow] = useState<PriceWindow | null>(null);
+  const query = useIntradayBattlefield(code);
+  const quote = useStockQuote(code);
+  const failedResponse = query.error instanceof IntradayUnavailableError ? query.error.data : undefined;
+  const mode = resolveIntradayPanelMode({
+    data: query.data ?? failedResponse,
+    isLoading: query.isLoading,
+    isError: query.isError && (!!query.data || !failedResponse),
+  });
+  const unavailable = mode === "unavailable" || mode === "network_error";
+  const backup = useFiveDayDisplay(code, unavailable && (selectedWindow === null || selectedWindow === "intraday"));
+  const session = latestMinuteSession(backup.data, code);
+  const priceWindow = automaticPriceWindow(selectedWindow, unavailable, backup.isPending, !!session);
+  const retryMinutes = () => {
+    void query.refetch();
+    void backup.refetch();
+  };
   const controls = useRef<ZoomControls | null>(null);
   const entry = useRef<ZoomDirection | null>(null);
   const [zoomReady, setZoomReady] = useState(false);
   const zoom = useMemo<SemanticZoom>(() => ({controls, entry, window: priceWindow, onReady: setZoomReady,
-    onOut: priceWindow === "daily" ? undefined : () => setPriceWindow(v => stepPriceWindow(v, "out")),
-    onIn: priceWindow === "intraday" ? undefined : () => setPriceWindow(v => stepPriceWindow(v, "in")),
+    onOut: priceWindow === "daily" ? undefined : () => setPriceWindow(stepPriceWindow(priceWindow, "out")),
+    onIn: priceWindow === "intraday" ? undefined : () => setPriceWindow(stepPriceWindow(priceWindow, "in")),
     inThreshold: priceWindow === "five-day" ? 260 : 8,
   }), [priceWindow]);
-  const query = useIntradayBattlefield(code);
-  const quote = useStockQuote(code);
   const referenceClose = intradayReferenceClose(code, quote.data, query.data?.price_points ?? []);
-  const mode = resolveIntradayPanelMode({
-    data: query.data,
-    isLoading: query.isLoading,
-    isError: query.isError,
-  });
   const requestError = describeIntradayRequestError(query.error);
-  const sourceState: IntradaySourceState = query.data
+  const sourceState: IntradaySourceState = unavailable
+    ? session
+      ? { label: "备用分时 · 腾讯", detail: `单源 · ${session.day}`, tone: "warning" }
+      : { label: backup.isPending ? "正在尝试备用分时" : "分钟数据暂未取得", detail: "当日接口未取得数据", tone: "unavailable" }
+    : query.data
     ? describeIntradaySourceState(query.data)
-    : mode === "network_error"
-      ? {
-          label: requestError.title,
-          detail: "未取得新的数据来源诊断",
-          tone: "unavailable",
-        }
-      : {
+    : {
           label: "正在核验数据来源",
           detail: "等待分钟数据返回",
           tone: "unavailable",
@@ -239,50 +250,35 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
         <button aria-label="缩小图表" disabled={!zoomReady} className="rounded border border-bg-tertiary px-3 py-2 text-xs disabled:opacity-40" onClick={() => controls.current?.step("out")}>－ 缩小</button>
       </nav>
       {priceWindow === "five-day" && <FiveDayChart code={code} zoom={zoom} />}
-      {priceWindow === "daily" && <KlineChart code={code} zoom={zoom} />}
+
       {priceWindow === "intraday" && mode === "loading" && <LoadingState />}
 
-      {priceWindow === "intraday" && mode === "network_error" && (
-        <div className="flex min-h-56 flex-col items-center justify-center rounded-md border border-bg-tertiary bg-bg-primary px-6 text-center">
-          <WifiOff className="mb-3 h-7 w-7 text-accent-red" />
-          <p className="text-sm font-medium text-text-primary">
-            {requestError.title}
-          </p>
-          <p className="mt-1 text-xs text-text-muted">
-            {requestError.detail}
-          </p>
-          <button
-            type="button"
-            onClick={() => void query.refetch()}
-            className="mt-4 flex items-center gap-2 rounded-md border border-bg-elevated bg-bg-tertiary px-3 py-2 text-xs text-text-secondary transition-colors hover:text-text-primary"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            重新获取
-          </button>
-        </div>
-      )}
-
-      {priceWindow === "intraday" && mode === "unavailable" && query.data && (
+      {unavailable && priceWindow !== "five-day" && (
         <>
-          <div className="flex min-h-44 items-start gap-3 rounded-md border border-bg-tertiary bg-bg-primary p-5">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-accent-gold" />
-            <div>
-              <p className="text-sm font-medium text-text-primary">
-                实时数据暂不可用
-              </p>
-              <p className="mt-1 text-xs leading-5 text-text-muted">
-                当前没有通过本地结构与时间校验的分钟序列，因此不绘图。逐源返回状态见下方，页面不会用示意数据替代真实行情。
-              </p>
-              <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching}
-                className="mt-4 flex items-center gap-2 rounded-md border border-bg-elevated bg-bg-tertiary px-3 py-2 text-xs text-text-secondary disabled:opacity-50">
-                <RefreshCw className="h-3.5 w-3.5" />
-                {query.isFetching ? "正在获取…" : "重新获取"}
-              </button>
-            </div>
+          <div role="status" className="mb-3 rounded-md border border-bg-tertiary bg-bg-primary p-3 text-xs leading-5 text-text-secondary">
+            {session && priceWindow === "intraday" ? <>
+              当日接口暂未取得数据，已使用腾讯五日记录中的{session.isToday ? "当日" : "最近交易日"}分时。
+              <span className="block">{session.day} · 截至 {new Date(session.asOf).toLocaleTimeString("zh-CN", {timeZone: "Asia/Shanghai", hour: "2-digit", minute: "2-digit"})}（北京时间） · {session.points.length} 个分钟点 · 单源
+                {!session.isToday && " · 非今日实时行情"}{session.incomplete && " · 部分分钟缺失，只画已返回的点"}
+              </span>
+              {backup.isError && <span className="block text-accent-gold">备用分时刷新未成功，保留上次记录。</span>}
+            </> : priceWindow === "daily" ? "分时暂未取得，先查看日 K；分钟接口恢复后可重新查看分时。"
+              : backup.isPending ? "当日接口暂未取得数据，正在尝试备用分钟记录…"
+              : "当前和备用分时都暂未取得数据，可切换日 K 查看历史走势。"}
+            <button type="button" disabled={query.isFetching || backup.isFetching}
+              onClick={retryMinutes} className="mt-2 flex items-center gap-2 text-accent-blue disabled:opacity-50">
+              <RefreshCw className="h-3.5 w-3.5" />重新获取分时
+            </button>
+            {mode === "network_error" && <details className="mt-2"><summary className="cursor-pointer">请求详情</summary>{requestError.title}：{requestError.detail}</details>}
           </div>
-          <SourceDisclosure data={query.data} />
+          {priceWindow === "intraday" && session && <IntradayLineChart
+            points={session.points} zoom={zoom} reference={quote.data}
+            referenceClose={intradayReferenceClose(code, quote.data, session.points)} />}
+          {failedResponse && <SourceDisclosure data={failedResponse} />}
         </>
       )}
+
+      {priceWindow === "daily" && <KlineChart code={code} zoom={zoom} />}
 
       {priceWindow === "intraday" && (mode === "usable" || mode === "stale_error") && query.data && (
         <>
@@ -314,7 +310,7 @@ export function IntradayBattlefieldPanel({ code }: IntradayBattlefieldPanelProps
             </div>
             <SnapshotMetrics snapshot={query.data.snapshot} data={query.data} />
           </div>
-          <SourceDisclosure data={query.data} />
+          <SourceDisclosure data={failedResponse ?? query.data} />
         </>
       )}
     </section>

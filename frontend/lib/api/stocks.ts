@@ -58,9 +58,10 @@ export async function fetchIndicators(code: string, signal?: AbortSignal): Promi
 /** 分时曲线、战况与数据源诊断。 */
 export async function fetchIntradayBattlefield(
   code: string,
+  signal?: AbortSignal,
 ): Promise<IntradayBattlefield> {
-  const response: unknown = await api.post("/v1/evidence/intraday/battlefield", {
+  const response: unknown = await api.postRaw("/v1/evidence/intraday/battlefield", {
     symbol: code,
-  });
+  }, { signal });
   return parseIntradayBattlefield(response);
 }

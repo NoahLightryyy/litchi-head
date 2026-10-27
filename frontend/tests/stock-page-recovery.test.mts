@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement, type ReactElement } from "react";
 import ts from "typescript";
+import * as recovery from "../lib/intraday-recovery.ts";
 import * as identity from "../lib/stock-identity.ts";
 
 function compile(file: string, mocks: Record<string, unknown>) {
@@ -31,6 +32,7 @@ function page(quote: object | null, failed = false, named = true, fetching = fal
     },
     "@/lib/hooks/use-debate": { useTrustLeaderboard: () => ({ data: [], isLoading: false }) },
     "@/lib/stock-identity": identity,
+    "@/lib/intraday-recovery": recovery,
   };
   for (const [file, symbol] of [
     ["research/research-context", "ResearchContext"], ["stock/quote-card", "QuoteCard"],
@@ -76,6 +78,7 @@ test("identity hook uses existing stock-only search; a null quote is a retryable
     "@tanstack/react-query": { useQuery: (options: unknown) => options },
     "@/lib/api/stocks": { searchStocks: async () => [{ code: "002885", name: "京泉华" }], fetchQuote: async () => current },
     "@/lib/stock-identity": identity,
+    "@/lib/intraday-recovery": recovery,
     "./use-debounce": { useDebounce: (value: string) => value },
   }) as { useStockIdentity: (code: string) => { queryFn: () => Promise<unknown>; enabled: boolean };
     useStockQuote: (code: string) => { queryFn: () => Promise<unknown>; retry: boolean } };

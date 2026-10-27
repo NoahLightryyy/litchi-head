@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchQuote, fetchKline, fetchCapitalFlow, fetchTechnicalIndicators, fetchFinancials, fetchValuation, fetchIndicators, fetchIntradayBattlefield, searchStocks } from "@/lib/api/stocks";
 import { useDebounce } from "./use-debounce";
+import { requireIntradayDisplay } from "@/lib/intraday-recovery";
 import { findStockIdentity } from "@/lib/stock-identity";
 
 /* ── 搜索（300ms 防抖） ── */
@@ -110,7 +111,9 @@ export function useIndicators(code: string) {
 export function useIntradayBattlefield(code: string) {
   return useQuery({
     queryKey: ["stocks", code, "intraday-battlefield"],
-    queryFn: () => fetchIntradayBattlefield(code),
+    queryFn: async ({ signal }) => requireIntradayDisplay(await fetchIntradayBattlefield(code,
+      AbortSignal.any([signal, AbortSignal.timeout(20000)])), code),
+    retry: false,
     refetchInterval: 30_000,
     staleTime: 15_000,
     enabled: !!code,

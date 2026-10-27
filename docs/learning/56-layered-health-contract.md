@@ -91,3 +91,12 @@ const degraded = value.status !== "ok" || summary.failing_endpoints > 0
 `backend/quote_display.py` 用固定线程池与在途表控制实际任务数；9秒等待预算不等于杀死工作线程。同代码同通道正在请求时复用，六个槽位满时在响应预算内等待条件通知，不提前报空，也不无限提交任务。一个有效源就能显示，来源和时间仍可见。
 
 **自己试试（5分钟）**：运行 `pytest tests/test_backend/test_quote_display.py tests/test_data/test_tencent_display_quote.py -q`；慢主源/快备源测试应立即返回备用报价。把qt移除但保留day，必须得到失败而不是历史收盘冒充现价。身份/报价前端回归见 `frontend/tests/stock-identity.test.mts` 与 `stock-page-recovery.test.mts`（本轮页面集成）。
+
+
+## 空响应也可能是失败（2026-10-27 分时恢复）
+
+**一句话**：HTTP成功只是传输成功，不能让一个“没有有效点”的200把上次成功曲线清空。
+
+`frontend/lib/intraday-recovery.ts::requireIntradayDisplay()` 对不可用信封抛出带诊断的错误；React Query保持同query key的last-good数据，UI同时显示刷新失败与原交易日期。不能将旧数据变成新时间。首次没有last-good时，`useFiveDayDisplay` 复用现有五日分钟接口，只截取真实最后交易日；既不合成分钟，也不提升研究证据等级。两个分钟路径都无数据才默认展示日 K，手选标签不受影响。
+
+**自己试试（5分钟）**：运行 `node --test tests/intraday-recovery*.test.mts`（frontend目录）。真实QueryClient测试先放成功序列，再返回usable=false，检查缓存仍是原对象且状态为error；换证券代码后必须没有前一只股票的缓存。把测试now改为下一天，备用记录必须标历史，不能称当日。
