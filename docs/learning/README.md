@@ -146,3 +146,5 @@
 - [75｜普通用户提醒与历史研究时间](75-plain-watchlist-reminders.md)
 
 - [76｜自动市场观察与榜单解读](76-observation-and-ranking-context.md)
+
+- [77｜搜索词可以灵活，证券身份不能猜](77-etf-keyword-identity-search.md)

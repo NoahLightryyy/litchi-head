@@ -400,7 +400,8 @@ DebateResult.evidence_limitations 新增 research_note?: string | null，由后�
 也进入辩论研究链路，按公司与时间筛选，不满足完整覆盖/独立验证准入。
 
 2026-10-07：统一搜索与新闻历史库
-- `/api/discovery/search` 同时返回stock/industry/concept，前端根据kind进入股票或板块。
+- `/api/discovery/search` 同时返回stock/industry/concept/etf，前端根据kind进入股票、板块或ETF。
+  ETF支持主题+管理人组合及顺序互换，原名称和代码保留；详细匹配规则见后端部门DISCOVERY-CONTRACT.md。
 - `/api/discovery/gainers` 是新浪沪深A股前20候选及逐只核验的报价时间，不是全市场热度排名。
 - `/api/news-archive` 按时间/渠道/关键词分页检索入库历史，coverage公开逐源边界及缺口；
   后续页携带end_at固定检索上界。见DISCOVERY-CONTRACT.md及NEWS-ARCHIVE-CONTRACT.md。
