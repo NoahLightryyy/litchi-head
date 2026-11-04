@@ -164,3 +164,20 @@ CNINFO 上的上市公司法定披露 PDF，只有正文出现明确的“某日
 - 相关：[32｜多源证据契约](32-multi-source-evidence-contract.md)
 - 相关：[34｜实时行情对账](34-realtime-quote-reconciliation.md)
 - 下一张：[37｜不可变 K 线证据](37-immutable-kline-audit-replay.md)
+
+
+## 实战补充：展示今天，不等于把盘中数据当已收盘（2026-11-04）
+
+588110当日报价已更新，但日线只到昨天，不是供应商没数据，而是请求`end=today-1`
+叠加前端`requested_end >= fetched_day`拒绝规则。把研究边界直接搬到图表造成体验缺口。
+
+- `backend/etf_kline.py::get_etf_kline`用`include_today`区分展示和默认研究；
+  展示路由显式开启，研究/入场计划不暗中改变输入范围。
+- `frontend/lib/etf-kline.ts::parseEtfKline`允许北京时间当日，仍拒绝未来日及无效OHLC。
+- `etfKlineSnapshotNote`用采集时间区分15:00前未收盘、之后收盘后采集；
+  14:59的缓存到16:00仍是14:59的快照，不能因本机时钟变化改称已收盘。
+- 主源落后时尝试原有备用源，选较新**整套序列**；失败保留原图，不用quote补造蜡烛。
+
+自己试试（3分钟）：运行`node --test frontend/tests/etf-kline.test.mts`，比较
+`2026-10-27T06:59:59Z`与`07:00:00Z`。它们是北京时间14:59:59与15:00:00，
+不会被电脑所在时区改变。再看后端测试，确认研究默认仍不含盘中记录。

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
-import { requireEtfKline, type EtfKline } from "@/lib/etf-kline";
+import { etfKlineSnapshotNote, requireEtfKline, type EtfKline } from "@/lib/etf-kline";
 import { aggregateRawPeriod, periodLabels, type DisplayPeriod } from "@/lib/raw-period";
 import { CandlestickChart } from "@/components/stock/candlestick-chart";
 
@@ -17,10 +17,11 @@ export function EtfKlineContent({ data, pending, failed, paused, error, period }
     {paused ? <p role="status" className="text-sm text-text-muted">当前离线。{available ? "保留上次取得的历史行情。" : "联网后可重试。"}</p>
       : pending ? <p role="status" className="py-6 text-sm text-text-muted">正在读取 ETF 历史行情…</p>
       : failed && <p role="alert" className="text-sm">{error || "ETF K线读取失败，请重试。"}{available && "下方保留上次成功的图表，行情日期未更新。"}</p>}
-    {data?.status === "empty" && !failed && <p role="status" className="py-4 text-sm text-text-muted">所选区间暂无 ETF 日线，新上市基金可能尚无已结束交易日数据。</p>}
+    {data?.status === "empty" && !failed && <p role="status" className="py-4 text-sm text-text-muted">所选区间暂无 ETF 日线，来源可能尚未提供该基金的日线记录。</p>}
     {available && <>
       <p className="text-xs text-text-muted">{sources[data.source!]} · 不复权 · 成交量单位：份 · {data.data_start} — {data.data_end} · {bars.length} 根{periodLabels[period]}</p>
-      <p className="text-xs text-text-muted">展示场内交易价格，非基金净值；不含今日行情。{period !== "daily" && "周线／月线由已取得日线聚合，首尾周期可能不完整。"}</p>
+      <p className="text-xs text-text-muted">展示场内交易价格，非基金净值。{period !== "daily" && "周线／月线由已取得日线聚合，首尾周期可能不完整。"}</p>
+      <p className="text-sm text-text-secondary">{etfKlineSnapshotNote(data)}</p>
       <CandlestickChart data={bars} pricePrecision={3} priceUnit="元" volumeLabel="成交量（份）" />
     </>}
     {data && <details className="text-xs leading-6 text-text-muted">

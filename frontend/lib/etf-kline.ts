@@ -37,7 +37,7 @@ export function parseEtfKline(value: unknown, code: string): EtfKline {
     || data.volume_unit !== "fund_units" || data.verification !== "single_source"
     || !stamp(data.fetched_at) || !date(data.requested_start) || !date(data.requested_end)
     || data.requested_start > data.requested_end
-    || data.requested_end >= new Date(Date.parse(data.fetched_at) + 8 * 3600_000).toISOString().slice(0, 10)
+    || data.requested_end > new Date(Date.parse(data.fetched_at) + 8 * 3600_000).toISOString().slice(0, 10)
     || !Array.isArray(data.bars) || data.bars.length > 730 || !Array.isArray(data.diagnostics)
     || !Array.isArray(data.limitations) || !data.limitations.every(item => typeof item === "string")
     || (data.bars.length > 0) !== (data.status === "ready") || (data.bars.length > 0) !== (data.source !== null)) return fail();
@@ -63,4 +63,17 @@ export function requireEtfKline(value: unknown, code: string): EtfKline {
   const data = parseEtfKline(value, code);
   if (data.status === "unavailable") throw new Error("ETF 历史行情暂不可用，请重试。");
   return data;
+}
+
+/** Snapshot phase comes from fetch time in Beijing, never the viewer's current clock. */
+export function etfKlineSnapshotNote(data: EtfKline): string {
+  if (!data.data_end) return "";
+  const fetchedInBeijing = new Date(Date.parse(data.fetched_at) + 8 * 3600_000);
+  if (data.data_end !== fetchedInBeijing.toISOString().slice(0, 10)) {
+    return `当前来源日线截至 ${data.data_end}；可点“刷新K线”获取更新。`;
+  }
+  if (fetchedInBeijing.getUTCHours() < 15) {
+    return `${data.data_end} 当日日线（采集时尚未收盘）。收盘价栏为当时最新价，价格和成交量仍会变化。`;
+  }
+  return `已含 ${data.data_end} 当日日线（收盘后采集），以上游返回为准。`;
 }

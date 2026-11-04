@@ -193,7 +193,9 @@ async def test_shenzhen_identity_and_stock_precision_are_preserved():
     "2026-11-04T10:30:00+08:00", "2026-11-04T15:35:00+08:00",
     "2026-11-03T16:30:00+00:00",
 ])
-async def test_display_includes_provider_today_in_beijing_without_synthetic_bars(clock):
+async def test_display_includes_provider_today_in_beijing_without_synthetic_bars(
+    clock: str,
+) -> None:
     identity = EtfIdentity(code="588110", symbol="sh588110", exchange="SH", name="科创成长ETF广发")
     rows = [
         ["2026-11-03", "0.409", "0.385", "0.410", "0.382", "1703511.000"],
@@ -220,7 +222,7 @@ async def test_display_includes_provider_today_in_beijing_without_synthetic_bars
 
 
 @pytest.mark.asyncio
-async def test_display_tries_existing_fallback_for_newer_whole_series():
+async def test_display_tries_existing_fallback_for_newer_whole_series() -> None:
     def handler(request):
         if request.url.host == "web.ifzq.gtimg.cn":
             return httpx.Response(200, json=tencent())
@@ -238,7 +240,9 @@ async def test_display_tries_existing_fallback_for_newer_whole_series():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("fallback", ["http_error", "empty", "older", "timeout"])
-async def test_display_keeps_usable_history_when_fallback_cannot_improve_it(monkeypatch, fallback):
+async def test_display_keeps_usable_history_when_fallback_cannot_improve_it(
+    monkeypatch: pytest.MonkeyPatch, fallback: str,
+) -> None:
     import asyncio
 
     async def handler(request):
@@ -270,7 +274,9 @@ async def test_display_keeps_usable_history_when_fallback_cannot_improve_it(monk
     [["2026-10-27", *ROW[1:]], ["2026-10-27", *ROW[1:]]],
     [["2026-10-27", "0.781", "0.999", "0.790", "0.747", "100"]],
 ])
-async def test_today_permission_does_not_relax_future_order_or_ohlc_validation(rows):
+async def test_today_permission_does_not_relax_future_order_or_ohlc_validation(
+    rows: list[list[str]],
+) -> None:
     def handler(request):
         if request.url.host == "web.ifzq.gtimg.cn":
             return httpx.Response(200, json=tencent(rows))

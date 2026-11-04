@@ -65,7 +65,7 @@
 | 33 | 🆕 [滚动证据与 Fail-Closed 门禁](33-rolling-evidence-fail-closed.md) | `src/data/news_store.py` + `src/debate/orchestrator.py` |
 | 34 | 🆕 [实时行情对账：新鲜不等于一致](34-realtime-quote-reconciliation.md) | `src/data/providers/quotes.py` + `src/data/quote_runtime.py` |
 | 35 | 🆕 [分时证据分级：看见行为，不等于认出账户](35-intraday-evidence-levels.md) | L1 分时 + 盘中 AI 双时间尺度：`FINAL_DAILY` / `PROVISIONAL` |
-| 36 | 🆕 [K 线事实与复权：同一根蜡烛为什么有多种价格](36-raw-adjusted-kline-evidence.md) | RAW 双源、公司行动、点时复权、交易/回测价格坐标 |
+| 36 | 🆕 [K 线事实与复权：同一根蜡烛为什么有多种价格](36-raw-adjusted-kline-evidence.md) | RAW 双源、公司行动、点时复权、交易/回测价格坐标；当日展示与采集时点 |
 | 37 | 🆕 [不可变 K 线证据：为什么“存过”不等于“可审计回放”](37-immutable-kline-audit-replay.md) | SQLite 清单、内容寻址 Parquet、篡改失败关闭、无未来 `as_of` |
 | 38 | 🆕 [K 线覆盖证明：返回了数据，不等于覆盖了请求](38-kline-coverage-proof.md) | 逐源覆盖、腾讯连续分段、新浪 recent-tail、canonical RAW 血缘 |
 | 39 | 🆕 [决策 Baseline 与影子验证：没有比较线，就只有故事](39-decision-baseline-shadow-validation.md) | 预注册对照、不可变样本、成本后结果、置信度校准 |
