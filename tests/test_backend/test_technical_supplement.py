@@ -7,7 +7,7 @@ import pytest
 
 from backend.technical_supplement import build_adjusted_evidence, build_volume_evidence
 from src.data.kline import RawDailyBar
-from src.data.providers.tencent_qfq import parse_qfq_daily
+from src.data.providers.tencent_qfq import ProviderQfqBar, parse_qfq_daily
 
 
 def bars(count=61):
@@ -214,3 +214,33 @@ def test_read_only_route_contract(monkeypatch):
         assert data["stock_code"] == "002885" and data["volume"]["volume_basis"] == "raw_shares"
         assert data["adjusted"]["price_basis"] == "provider_qfq_current"
         assert client.get("/api/stocks/not-a-code/technical-research").status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_future_debate_receives_adjusted_and_volume_facts_without_llm(monkeypatch):
+    from unittest.mock import AsyncMock, Mock
+
+    from backend import debate_research as module
+    from backend.technical_research import build_technical_research
+    from tests.test_backend.test_technical_research import envelope
+
+    result = build_technical_research("002885", envelope(code="002885"))
+    result.adjusted = build_adjusted_evidence(
+        result.bars,
+        [
+            ProviderQfqBar(code=b.code, trade_date=b.trade_date, open=9, high=9, low=9, close=9)
+            for b in result.bars
+        ],
+        datetime.now(UTC),
+        "a" * 64,
+    )
+    monkeypatch.setattr(module, "fetch_evidence", AsyncMock(side_effect=ValueError("offline")))
+    monkeypatch.setattr(module, "collect_display", AsyncMock(side_effect=ValueError("offline")))
+    monkeypatch.setattr(module, "get_fundamental_research", Mock(side_effect=ValueError("offline")))
+    monkeypatch.setattr(module, "format_saved_interpretation", lambda *args: "")
+    monkeypatch.setattr(module, "get_technical_research", lambda code: result)
+    text = await module.collect_research_context("002885")
+    assert '"adjusted":{"status":"available"' in text
+    assert '"volume":{"status":"available"' in text
+    assert '"bars":[' not in text
+    assert "数据缺失与条件未满足" in text and "不混用均线" in text

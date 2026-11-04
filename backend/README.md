@@ -1,3 +1,5 @@
+> 2026-11-04 普通股票研究补充：现有腾讯日线通道接入当前前复权指标，成交量按原始股数对比前5/20日均量。单源有效即可用，数据齐全不代表买入条件已满足。旧研究不自动重算，不触发付费模型；详见 `docs/04-changelog/logs/2026-11-04/2026-11-04-adjusted-volume.md`。
+
 # litchi-head FastAPI 桥接层
 
 > 连接 Python 后端（akshare / LangGraph / TrustTracker / 技术指标）与 React 前端的 API 中间层。

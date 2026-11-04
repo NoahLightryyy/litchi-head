@@ -309,3 +309,11 @@ weighted_score = Σ(score × confidence × combined_factor)
 
 回归入口：`tests/test_data/test_market_research_policy.py`；前端
 `frontend/tests/market-source-policy.test.mts`。真实模型输出未在本轮付费重新采样。
+
+
+### 普通研究价格与量能补证（2026-11-04）
+
+`backend/technical_research.py` 保留raw口径字段，增加独立`adjusted`当前来源前复权指标与`volume`原始股数均量比较。
+未来普通辩论的`collect_research_context`优先使用adjusted价格趋势；不向模型重复投喂整段raw数组，保留最近20根指标、日期、来源与计算口径。
+成交量数据与条件状态分开：数据可用但尚未放量是有效结论，不能改写为“数据缺失”；高于均量也不自动确认反转或资金流入。
+仅使用请求当时来源当前复权，不能当历史时点回测；官方公司行为审计/交易执行策略不变。旧研究与旧计划不重算，用户新发起分析才带入新事实。

@@ -1,6 +1,6 @@
-"""Available-source completed RAW daily history and reproducible research indicators.
+"""Completed RAW history with separate provider-QFQ indicators and volume facts.
 
-Research context only: this does not replace adjusted-price or trading gates.
+Research context only: this does not replace official adjustment audits or trading gates.
 """
 
 from __future__ import annotations

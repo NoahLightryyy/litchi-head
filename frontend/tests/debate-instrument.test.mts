@@ -78,6 +78,7 @@ function renderDebate(kind: "stock" | "etf", recordType: "stock" | "etf" | undef
     "@/lib/debate-instrument": instrument, "@/lib/debate-error": errors, "@/lib/debate-session": sessions,
     "@/lib/debate-history": history,
     "./debate-data-notice": compile("../components/stock/debate-data-notice.tsx", { "@/lib/debate-limitations": limitations }),
+    "./technical-supplement-panel": { TechnicalSupplementPanel: () => createElement("div", null, "technical-supplement-result") },
     "./horizon-research": { HorizonResearch: () => createElement("div", null, "horizon-result") },
     "./entry-plan-panel": { EntryPlanPanel: (props: { result: unknown; instrumentType: string }) => { entryPlanProps.push(props); return createElement("div", null, "entry-plan-result"); } },
     "./agent-analysis-list": { AgentAnalysisList: () => createElement("div", null, "agent-result") },
@@ -92,6 +93,7 @@ test("ETF面板自动读取历史但不提交，错误类型结果不能显示�
   assert.deepEqual(good.hookTypes, ["etf", "etf"]);
   assert.match(good.html, /horizon-result/);
   assert.match(good.html, /围绕 ETF 主题/);
+  assert.doesNotMatch(good.html, /technical-supplement-result/);
   assert.deepEqual(good.entryPlanProps, [{ result: good.result, instrumentType: "etf" }]);
   assert.ok(good.html.indexOf("entry-plan-result") < good.html.indexOf("horizon-result"));
   for (const resultType of ["stock", undefined] as const) {
@@ -101,7 +103,10 @@ test("ETF面板自动读取历史但不提交，错误类型结果不能显示�
     assert.match(bad.html, /本次分析失败/);
   }
   assert.doesNotMatch(renderDebate("etf", undefined, undefined).html, /horizon-result|查看结果/);
-  assert.match(renderDebate("stock", undefined, undefined).html, /horizon-result/);
+  const stock = renderDebate("stock", undefined, undefined);
+  assert.match(stock.html, /horizon-result/);
+  assert.match(stock.html, /technical-supplement-result/);
+  assert.ok(stock.html.indexOf("technical-supplement-result") < stock.html.indexOf("horizon-result"));
 });
 
 test("ETF错误不提示恢复股票财务或等待连续竞价", () => {

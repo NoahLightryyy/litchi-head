@@ -6,6 +6,7 @@ import { useRunDebate, useDebateResult, useDebateHistory } from "@/lib/hooks/use
 import type { AgentAnalysis, VoteSummary, InstrumentType } from "@/lib/types/debate";
 import { debateInstrumentMatches, debateRequest } from "@/lib/debate-instrument";
 import { debateErrorMessage } from "@/lib/debate-error";
+import { TechnicalSupplementPanel } from "./technical-supplement-panel";
 import { HorizonResearch } from "./horizon-research";
 import { EntryPlanPanel } from "./entry-plan-panel";
 import { AgentAnalysisList } from "./agent-analysis-list";
@@ -179,6 +180,7 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
         <>
           {debateResult && <EntryPlanPanel result={debateResult} instrumentType={instrumentType} />}
           {debateResult && <DebateDataNotice key={debateResult.session_id} result={debateResult} />}
+          {instrumentType === "stock" && <TechnicalSupplementPanel stockCode={stockCode} />}
           <HorizonResearch analyses={results.analyses} />
           <details className="rounded-md border border-bg-tertiary p-3">
             <summary className="cursor-pointer text-sm">原始流派论证（未限定周期的历史方向不作结论）</summary>
