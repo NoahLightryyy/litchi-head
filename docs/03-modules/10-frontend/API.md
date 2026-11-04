@@ -524,3 +524,17 @@ API 字段与 `single_source` 枚举保持不变。来源数不等于风险或�
 `available` 中性样式而非 `verified`，身份/时间缺失仍告警。三周期观点共享一条规则说明。
 旧限制文案只移除精确匹配的独立单源句，原文在“旧口径”折叠项保留；方向、统计分母、
 分数和数据库记录不变。不得把一句话同时含有的价格冲突/过期/财务缺失删掉。
+
+
+## 股票复权与量能补充（2026-11-04 冻结）
+
+`GET /api/stocks/{code}/technical-research`，code 必须为六位股票代码。
+返回 `TechnicalResearch`（Pydantic/OpenAPI），不使用 data 包装；只读数据，不触发模型、交易或风险默认值。
+
+- `stock_code/status/fetched_at/sources/diagnostics/bars/indicators/price_basis`：原有日线研究；`bars/indicators` 永远为 raw，不改旧调用语义。
+- `adjusted`：`status=available|unavailable`、`price_basis=provider_qfq_current`、`source=tencent`、`fetched_at/data_start/data_end/bar_count/response_hash/indicators/reason/methodology`。请求现有腾讯同一日线端点的 qfq 参数，必须明确返回 qfqday；不得把 day 冒充复权。与原始日线逐日期、身份对齐后独立计算 MA/RSI/MACD/KDJ，精度保留，不拼接 raw。不是官方公司行为审计或历史时点复权。
+- `volume`：`status=available|partial|unavailable`、`data_date/sample_bars/volume_basis=raw_shares/latest_shares/previous5_mean_shares/previous20_mean_shares/ratio_to_previous5/ratio_to_previous20/comparison/methodology`。
+  均值窗口不含最新日，至少6/21根才分别计算；零均值比值为 null。comparison 为 above_both / below_both / equal_both / mixed / insufficient，纯算术比较，不等于买入或反转确认。
+- 只统计已结束交易日，展示资料日期而不是宣称实时。复权失败时 raw/volume 独立可用；已有真实冲突不绕过。
+- 正常和无数据均200（按各子状态处理）；非法代码422；整体30秒超时504；无自动重试。专用池最多2线程。按股票锁合并并发：完整复权结果缓存300秒，部分/空结果30秒，返回深拷贝。
+- 旧研究的生成时间、方向、评分和原限制不改写；新补充卡片明确是另一时点。未来用户手动发起研究时复用补充字段，不因单源否决。

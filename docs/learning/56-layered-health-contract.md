@@ -118,3 +118,13 @@ const degraded = value.status !== "ok" || summary.failing_endpoints > 0
 分别让仅新浪/东财/腾讯成功，检查完整研究仍可得；再把价格改为0、时点改到未来或
 制造同刻价差，确认质量检查没被绕过。前端 `market-source-policy.test.mts` 证明混合
 风险句不被误删。全程使用夹具，不产生模型费用。
+
+
+## 研究缺口：有数据不等于条件满足（2026-11-04）
+
+一句话：先补取得到的资料，再计算现状，不替用户把“还没出现的信号”填成已确认。
+
+`backend/technical_supplement.py` 将日成交股数与前5/20日均量比较（不含当日），短窗口和零分母留空；`src/data/providers/tencent_qfq.py` 只接受明确qfqday，把来源当前复权与raw、官方point-in-time审计分开。
+价格前复权因子包含分红，不等于股本变化，所以不能拿它来调整成交量。
+
+自己试试：运行 `pytest tests/test_backend/test_technical_supplement.py -q`，把最新成交量从2000改为500，观察比较从above_both变为below_both。两者均不是数据缺失，也都不能直接推导买入确认。将qfqday改名day，应拒绝而不是假装复权成功。
