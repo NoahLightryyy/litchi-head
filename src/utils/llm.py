@@ -426,6 +426,7 @@ class LLMService:
 
         Raises:
             ValueError: LLM 返回内容无法解析为 output_model
+            RuntimeError: 模型请求失败（包括余额不足），不是输出解析失败
         """
         llm = self.get_llm(provider, llm_config)
         if output_method == "json_mode":

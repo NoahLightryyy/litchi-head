@@ -1,3 +1,4 @@
+import { analysisFailureMessage } from "../../lib/debate-failure.ts";
 import type { AgentAnalysis } from "../../lib/types/debate";
 
 /** Render only returned research; failed agents never become neutral recommendations. */
@@ -34,7 +35,7 @@ export function AgentAnalysisList({ analyses }: { analyses: AgentAnalysis[] }) {
     {failed.length > 0 && <div className="rounded-lg border border-accent-gold/30 p-4">
       <h4 className="font-semibold">未完成的流派</h4>
       <p className="mt-1 text-xs text-text-muted">下列流派没有可用结论，不按中性或零分参与展示。</p>
-      <ul className="mt-2 space-y-2 text-sm">{failed.map((a, i) => <li key={`${a.agent_name}-${i}`} className="flex flex-wrap justify-between gap-2"><span>{a.skill_name || a.agent_name}</span><span className="text-text-muted">分析未成功</span></li>)}</ul>
+      <ul className="mt-2 space-y-2 text-sm">{failed.map((a, i) => <li key={`${a.agent_name}-${i}`} className="flex flex-wrap justify-between gap-2"><span>{a.skill_name || a.agent_name}</span><span className="text-text-muted">{analysisFailureMessage(a.error)}</span></li>)}</ul>
     </div>}
   </section>;
 }

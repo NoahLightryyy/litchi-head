@@ -28,7 +28,7 @@ test("历史范围原文只在默认折叠的详情中，正常说明不用警�
 });
 
 test("真实数据冲突、分析失败和评审缺失不折叠，危险数据优先显示", () => {
-  const html = render({ evidence_limitations: [{ capability: "realtime_quote", error_codes: ["quote_price_conflict"] }], analyses: [{ success: false }], review_report: null });
+  const html = render({ evidence_limitations: [{ capability: "realtime_quote", error_codes: ["quote_price_conflict"] }], analyses: [{ success: true }, { success: false }], review_report: null });
   const summary = html.slice(0, html.indexOf("<details"));
   assert.match(summary, /数据存在冲突或校验异常/);
   assert.match(summary, /bg-accent-red/);

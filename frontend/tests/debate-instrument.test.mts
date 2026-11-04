@@ -68,7 +68,7 @@ function renderDebate(kind: "stock" | "etf", recordType: "stock" | "etf" | undef
   const hookTypes: unknown[] = [];
   const entryPlanProps: { result: unknown; instrumentType: string }[] = [];
   const record = { session_id: "saved", stock_code: code, instrument_type: recordType, status: "completed", created_at: "2026-10-26T08:00:00+08:00" };
-  const result = { session_id: "saved", stock_code: code, instrument_type: resultType, vote_summary: {}, analyses: [] };
+  const result = { session_id: "saved", stock_code: code, instrument_type: resultType, vote_summary: {}, analyses: [{ success: true }] };
   const panel = compile("../components/stock/debate-panel.tsx", {
     "@/lib/hooks/use-debate": {
       useRunDebate: () => ({ trigger: () => { runs++; }, sessionId: null, running: false }),
@@ -77,6 +77,7 @@ function renderDebate(kind: "stock" | "etf", recordType: "stock" | "etf" | undef
     },
     "@/lib/debate-instrument": instrument, "@/lib/debate-error": errors, "@/lib/debate-session": sessions,
     "@/lib/debate-history": history,
+    "./debate-failure-notice": { DebateFailureNotice: () => createElement("div", null, "failure-result") },
     "./debate-data-notice": compile("../components/stock/debate-data-notice.tsx", { "@/lib/debate-limitations": limitations }),
     "./technical-supplement-panel": { TechnicalSupplementPanel: () => createElement("div", null, "technical-supplement-result") },
     "./horizon-research": { HorizonResearch: () => createElement("div", null, "horizon-result") },

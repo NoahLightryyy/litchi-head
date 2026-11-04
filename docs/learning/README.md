@@ -148,3 +148,5 @@
 - [76｜自动市场观察与榜单解读](76-observation-and-ranking-context.md)
 
 - [77｜搜索词可以灵活，证券身份不能猜](77-etf-keyword-identity-search.md)
+
+- [78 · 分析失败与没有共识](78-analysis-failure-vs-no-consensus.md)：调用状态、业务结果、旧记录只读呈现。

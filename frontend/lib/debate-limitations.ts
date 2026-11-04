@@ -1,3 +1,5 @@
+import { isBalanceFailure, noResearchMessage } from "./debate-failure.ts";
+
 /** Present the frozen disclosures; never turn a display summary into a trading gate. */
 export interface DebateNoticeInput {
   evidence_limitations?: {
@@ -7,7 +9,7 @@ export interface DebateNoticeInput {
     error_codes?: string[];
   }[];
   review_report?: { overall_quality: number } | null;
-  analyses?: { success: boolean }[];
+  analyses?: { success: boolean; error?: string | null }[];
 }
 
 export interface DebateNoticeItem {
@@ -108,9 +110,14 @@ export function debateLimitations(result: DebateNoticeInput | null | undefined):
     diagnostics.push(diagnostic);
     highlights.push(summarize(items, diagnostic));
   }
-  if (result?.review_report === null) highlights.push({ label: "独立评审", tone: "warning", message: "本次未取得有效独立评审，结论尚缺这一步复核。" });
+  const analyses = result?.analyses ?? [];
+  const allFailed = analyses.length > 0 && !analyses.some(item => item.success === true);
+  if (!allFailed && result?.review_report === null) highlights.push({ label: "独立评审", tone: "warning", message: "本次未取得有效独立评审，结论尚缺这一步复核。" });
   const failed = (result?.analyses ?? []).filter((item) => item.success === false).length;
-  if (failed) highlights.push({ label: "分析完成情况", tone: "warning", message: `${failed} 位分析未成功，当前结论只包含已完成的分析。` });
+  if (failed) highlights.push({ label: "分析完成情况", tone: allFailed ? "danger" : "warning",
+    message: allFailed ? `${failed} 位分析未成功。${noResearchMessage(analyses)}`
+      : `${analyses.some(a => !a.success && isBalanceFailure(a.error)) ? "模型服务余额不足；" : ""}${failed} 位分析未成功，当前结论只包含已完成的分析。`,
+  });
   const priority = { danger: 0, warning: 1, info: 2 };
   highlights.sort((a, b) => priority[a.tone] - priority[b.tone]);
   return { highlights, diagnostics, researchOnly: limitations.length > 0 };

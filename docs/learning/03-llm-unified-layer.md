@@ -95,7 +95,7 @@ result = await llm_service.infer(
 ```
 
 **2. 自动重试**
-网络波动时 LLM 调用会失败。统一层帮你自动重试 3 次，你不必在每个调用处写 try/except。
+ConnectionError、TimeoutError 等既有可重试异常有最多3次有界重试。HTTP余额/账户错误不自动重试，更不能伪装为解析失败进入付费纠正；见[卡片78](78-analysis-failure-vs-no-consensus.md)。
 
 **3. 费用追踪**
 每次调用自动记录花费，最后可以生成报表——"这周 AI 帮我分析了 500 次，花了 0.5 美元"。

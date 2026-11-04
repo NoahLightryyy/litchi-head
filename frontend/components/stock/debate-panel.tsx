@@ -12,6 +12,7 @@ import { EntryPlanPanel } from "./entry-plan-panel";
 import { AgentAnalysisList } from "./agent-analysis-list";
 import { DEBATE_FAILURE_MESSAGE, DEBATE_TIMEOUT_MESSAGE } from "@/lib/debate-session";
 import { selectDebateView } from "@/lib/debate-history";
+import { DebateFailureNotice } from "./debate-failure-notice";
 import { DebateDataNotice } from "./debate-data-notice";
 
 interface DebatePanelProps {
@@ -81,6 +82,8 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
       }
     : null;
 
+  const hasResearch = results?.analyses.some(a => a.success === true) ?? false;
+
   return (
     <div>
       {/* 头部 */}
@@ -122,7 +125,7 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
             {records.map((record) => (
               <li key={record.session_id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span>{new Date(record.created_at).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}（北京时间） · {
-                  record.status === "completed" ? "已完成" : record.status === "failed" ? "失败" : "分析中"
+                  record.status === "completed" ? (results && effectiveSessionId === record.session_id ? (hasResearch ? "已完成" : "未生成成功") : "已结束（可查看记录）") : record.status === "failed" ? "失败" : "分析中"
                 }</span>
                 {record.status === "completed" ? (
                   <button className="text-accent-blue" onClick={() => setSelectedHistory(record.session_id)}>
@@ -144,7 +147,7 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
       </section>
       {viewingHistory && selectedRecord && (
         <p className="mb-3 text-xs text-text-muted">
-          历史分析 · {new Date(selectedRecord.created_at).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}（北京时间）。以下为当时的数据与结论。
+          历史分析 · {new Date(selectedRecord.created_at).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}（北京时间）。{results && !hasResearch ? "以下为当时的失败记录。" : "以下为当时的数据与结论。"}
         </p>
       )}
 
@@ -178,12 +181,13 @@ function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" 
       {/* 结果 — 来自后端真实辩论数据 */}
       {results && (
         <>
-          {debateResult && <EntryPlanPanel result={debateResult} instrumentType={instrumentType} />}
-          {debateResult && <DebateDataNotice key={debateResult.session_id} result={debateResult} />}
+          {!hasResearch && <DebateFailureNotice analyses={results.analyses} />}
+          {hasResearch && debateResult && <EntryPlanPanel result={debateResult} instrumentType={instrumentType} />}
+          {hasResearch && debateResult && <DebateDataNotice key={debateResult.session_id} result={debateResult} />}
           {instrumentType === "stock" && <TechnicalSupplementPanel stockCode={stockCode} />}
-          <HorizonResearch analyses={results.analyses} />
+          {hasResearch && <HorizonResearch analyses={results.analyses} />}
           <details className="rounded-md border border-bg-tertiary p-3">
-            <summary className="cursor-pointer text-sm">原始流派论证（未限定周期的历史方向不作结论）</summary>
+            <summary className="cursor-pointer text-sm">{hasResearch ? "原始流派论证（未限定周期的历史方向不作结论）" : "查看未完成的流派与失败原因"}</summary>
             <AgentAnalysisList analyses={results.analyses} />
           </details>
         </>

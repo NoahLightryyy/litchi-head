@@ -94,3 +94,12 @@ test("同能力重复说明去重且保留不同诊断；重要提醒排在一�
   assert.equal(result.highlights[0].label, "独立评审");
   assert.equal(result.highlights[0].tone, "warning");
 });
+
+
+test("billing failure has a concrete cause, including legacy wrapped errors", () => {
+ const result=debateLimitations({analyses:Array.from({length:5},()=>({success:false,error:"LLM 结构化输出解析失败: Error code: 402 - Insufficient Balance secret"})),review_report:null});
+ const text=result.highlights.map(item=>item.message).join(" ");
+ assert.match(text,/余额不足/); assert.match(text,/没有.*研究结论|未生成研究结论/);
+ assert.doesNotMatch(text,/当前结论只包含|secret|尚缺这一步复核/);
+ assert.equal(result.highlights[0].tone,"danger");
+});

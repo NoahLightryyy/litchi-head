@@ -1,3 +1,5 @@
+> 2026-11-04：若五流派均失败却显示“条件或证据未齐”，先只读检查 analyses[].success/error；明确 Insufficient Balance/HTTP402 是模型账户故障，不是行情证据不足。不要刷新采集或反复付费生成；见[辩论失败契约](../../06-departments/08-backend-api/DEBATE-PREFLIGHT-CONTRACT.md#模型调用失败与空研究2026-11-04)。
+
 # 🚑 技术急救手册
 
 > **出问题先翻这里。** 扫一眼症状速查表，定位到对应分类文件。
