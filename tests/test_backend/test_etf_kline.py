@@ -130,8 +130,8 @@ async def test_route_validates_directory_and_days(monkeypatch):
     async def catalog():
         return EtfCatalog(items=(IDENTITY,), fetched_at=NOW)
 
-    async def history(identity, days=90):
-        assert identity == IDENTITY and days == 730
+    async def history(identity, days=90, *, include_today=False):
+        assert identity == IDENTITY and days == 730 and include_today
         return await fetch(lambda request: httpx.Response(200, json=tencent()), days=days)
 
     monkeypatch.setattr(etfs, "get_catalog", catalog)
@@ -186,3 +186,96 @@ async def test_shenzhen_identity_and_stock_precision_are_preserved():
     )
     assert result.status == "ready" and result.identity.exchange == "SZ"
     assert str(RawDailyBar.model_fields["price_tick"].default) == "0.01"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("clock", [
+    "2026-11-04T10:30:00+08:00", "2026-11-04T15:35:00+08:00",
+    "2026-11-03T16:30:00+00:00",
+])
+async def test_display_includes_provider_today_in_beijing_without_synthetic_bars(clock):
+    identity = EtfIdentity(code="588110", symbol="sh588110", exchange="SH", name="科创成长ETF广发")
+    rows = [
+        ["2026-11-03", "0.409", "0.385", "0.410", "0.382", "1703511.000"],
+        ["2026-11-04", "0.386", "0.426", "0.429", "0.382", "2438380.000"],
+    ]
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        assert request.url.params["param"] == "sh588110,day,2024-11-05,2026-11-04,740,"
+        return httpx.Response(200, json=tencent(rows, symbol=identity.symbol))
+
+    result = await etf_kline.get_etf_kline(
+        identity, days=730, include_today=True, now=datetime.fromisoformat(clock),
+        transport=httpx.MockTransport(handler),
+    )
+    assert result.status == "ready" and len(calls) == 1
+    assert result.data_end.isoformat() == "2026-11-04"
+    assert result.bars[-1].model_dump(mode="json") == {
+        "date": "2026-11-04", "open": 0.386, "close": 0.426, "high": 0.429,
+        "low": 0.382, "volume": 243838000,
+    }
+    assert "未收盘" in " ".join(result.limitations)
+
+
+@pytest.mark.asyncio
+async def test_display_tries_existing_fallback_for_newer_whole_series():
+    def handler(request):
+        if request.url.host == "web.ifzq.gtimg.cn":
+            return httpx.Response(200, json=tencent())
+        return httpx.Response(200, text=sina([
+            {"day": "2026-10-27", "open": "0.751", "close": "0.752", "high": "0.755",
+             "low": "0.750", "volume": "120001"},
+        ]))
+
+    result = await fetch(handler, include_today=True)
+    assert result.source == "sina" and result.status == "ready"
+    assert [bar.date.isoformat() for bar in result.bars] == ["2026-10-27"]
+    assert result.bars[0].volume == 120001  # No cross-source concatenation or lot conversion.
+    assert [item.status for item in result.diagnostics] == ["success", "success"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fallback", ["http_error", "empty", "older", "timeout"])
+async def test_display_keeps_usable_history_when_fallback_cannot_improve_it(monkeypatch, fallback):
+    import asyncio
+
+    async def handler(request):
+        if request.url.host == "web.ifzq.gtimg.cn":
+            return httpx.Response(200, json=tencent())
+        if fallback == "timeout":
+            await asyncio.sleep(0.1)
+        if fallback == "http_error":
+            return httpx.Response(502)
+        rows = [] if fallback == "empty" else [
+            {"day": "2026-10-23", "open": "0.781", "close": "0.749", "high": "0.790",
+             "low": "0.747", "volume": "100"},
+        ]
+        return httpx.Response(200, text=sina(rows))
+
+    monkeypatch.setattr(etf_kline, "TOTAL_TIMEOUT", 0.02)
+    result = await fetch(handler, include_today=True)
+    assert result.status == "ready" and result.source == "tencent"
+    assert result.data_end.isoformat() == "2026-10-26"
+    assert len(result.bars) == 1  # Never fill missing sessions with quote/zero placeholders.
+    assert len(result.diagnostics) == 2
+    if fallback == "timeout":
+        assert result.diagnostics[-1].error_code == "request_timeout"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("rows", [
+    [["2026-10-28", *ROW[1:]]],
+    [["2026-10-27", *ROW[1:]], ["2026-10-27", *ROW[1:]]],
+    [["2026-10-27", "0.781", "0.999", "0.790", "0.747", "100"]],
+])
+async def test_today_permission_does_not_relax_future_order_or_ohlc_validation(rows):
+    def handler(request):
+        if request.url.host == "web.ifzq.gtimg.cn":
+            return httpx.Response(200, json=tencent(rows))
+        return httpx.Response(200, text=sina([]))
+
+    result = await fetch(handler, include_today=True)
+    assert result.status == "unavailable" and not result.bars
+    assert result.diagnostics[0].error_code == "invalid_upstream_payload"

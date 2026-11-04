@@ -66,4 +66,4 @@ async def etf_kline(
             "code": "ETF_NOT_FOUND", "message": "未在当前ETF目录中找到此代码",
             "detail": {"retryable": False},
         }})
-    return await get_etf_kline(identity, days=days)
+    return await get_etf_kline(identity, days=days, include_today=True)

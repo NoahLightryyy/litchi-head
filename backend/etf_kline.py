@@ -34,7 +34,6 @@ SOURCE_TIMEOUT = 4.0
 _slots = asyncio.Semaphore(4)
 _LIMITATIONS = [
     "不复权场内交易价格，不是基金净值；成交量单位为份。",
-    "仅展示北京时间昨日及之前行情，覆盖以返回日期为准；来源见数据标签。",
 ]
 
 
@@ -103,26 +102,37 @@ def _result(
         ),
         source=source, bars=bars, data_start=bars[0].date if bars else None,
         data_end=bars[-1].date if bars else None, diagnostics=diagnostics,
-        limitations=_LIMITATIONS,
+        limitations=[*_LIMITATIONS, (
+            "包含来源已提供的当日日线；未收盘时 OHLC 与成交量仍会变化，覆盖以返回日期为准。"
+            if end == now.date() else
+            "研究使用北京时间昨日及之前日线，覆盖以返回日期为准。"
+        )],
     )
 
 
 async def get_etf_kline(
-    identity: EtfIdentity, days: int = 90, *,
+    identity: EtfIdentity, days: int = 90, *, include_today: bool = False,
     transport: httpx.AsyncBaseTransport | None = None, now: datetime | None = None,
 ) -> EtfKlineDisplay:
-    """Return the first usable source within 10s; no stock defaults or paid calls."""
+    """Display may include today's source bar; research retains completed-day defaults.
+
+    A display source behind today's request may use a newer fallback whole series.
+    Keep the first usable series if fallback fails; never synthesize or merge bars.
+    """
     if not 30 <= days <= 730:
         raise ValueError("ETF daily range must be between 30 and 730 calendar days")
     now = now or datetime.now(SHANGHAI)
     if now.tzinfo is None:
         raise ValueError("ETF daily clock must include timezone")
     now = now.astimezone(SHANGHAI)
-    end = now.date() - timedelta(days=1)
+    end = now.date() - timedelta(days=0 if include_today else 1)
     start = end - timedelta(days=days - 1)
     diagnostics: list[EtfKlineDiagnostic] = []
+    best_bars: list[EtfDailyBar] = []
+    best_source: EtfKlineSource | None = None
 
     async def load() -> EtfKlineDisplay:
+        nonlocal best_bars, best_source
         async with _slots, httpx.AsyncClient(
             transport=transport, timeout=SOURCE_TIMEOUT, follow_redirects=False,
             headers={"User-Agent": "Mozilla/5.0", "Referer": "https://finance.sina.com.cn/"},
@@ -157,8 +167,11 @@ async def get_etf_kline(
                 diagnostics.append(EtfKlineDiagnostic(source=source,
                                                      status="success" if bars else "empty"))
                 if bars:
-                    return _result(identity, now, start, end, diagnostics, bars, source)
-            return _result(identity, now, start, end, diagnostics)
+                    if not best_bars or bars[-1].date > best_bars[-1].date:
+                        best_bars, best_source = bars, source
+                    if not include_today or bars[-1].date == end:
+                        break
+            return _result(identity, now, start, end, diagnostics, best_bars, best_source)
 
     try:
         return await asyncio.wait_for(load(), TOTAL_TIMEOUT)
@@ -169,4 +182,4 @@ async def get_etf_kline(
             EtfKlineDiagnostic(source=source, status="failed", error_code="request_timeout")
             for source in ("tencent", "sina") if source not in attempted
         )
-        return _result(identity, now, start, end, diagnostics)
+        return _result(identity, now, start, end, diagnostics, best_bars, best_source)
