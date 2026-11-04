@@ -22,7 +22,7 @@ from src.data.evidence import (
     EvidenceRequest,
 )
 from src.debate.evidence_gate import EvidenceIncompleteError
-from src.debate.models import DebateResult
+from src.debate.models import AgentAnalysis, DebateResult
 from src.debate.session_store import SqliteDebateSessionStore
 
 
@@ -48,6 +48,10 @@ class _MockDebateResult(DebateResult):
     stock_name: str = "平安银行"
     stock_code: str = "000001"
     question: str = "测试问题"
+    analyses: list[AgentAnalysis] = Field(default_factory=lambda: [AgentAnalysis(
+        agent_name="master.fixture", skill_id="fixture", skill_name="测试流派",
+        rating="", score=50, summary="测试摘要", analysis="测试分析", success=True,
+    )])
     summary: str = "辩论总结"
     consensus: str = "看多"
     confidence: float = 0.75
@@ -386,3 +390,58 @@ def test_history_and_result_survive_store_reopen(client, tmp_path):
     assert client.get("/api/debate/history?stock_code=920344").json()["data"] == []
     assert client.get(f"/api/debate/result/{sid}").json()["data"]["session_id"] == sid
     assert client.get("/api/debate/history?stock_code=bad").status_code == 422
+
+
+@pytest.mark.parametrize("instrument", ["stock", "etf"])
+@pytest.mark.parametrize("kind", ["balance", "unknown", "empty", "partial"])
+def test_failed_analyses_are_not_completed_research(client, instrument, kind):
+    error = (
+        "Error code: 402 - Insufficient Balance secret-upstream"
+        if kind == "balance" else "bad output secret-upstream"
+    )
+    analyses = [AgentAnalysis(
+        agent_name=f"master.{i}", skill_id=str(i), skill_name=str(i), rating="", score=0,
+        summary="", analysis="", success=False, error=error,
+    ) for i in range(5)] if kind != "empty" else []
+    if kind == "partial":
+        analyses[0] = analyses[0].model_copy(update={"success": True, "error": None})
+
+    async def run(inp):
+        return DebateResult(**inp.model_dump(), analyses=analyses)
+
+    engine = AsyncMock()
+    engine.run.side_effect = run
+    with (
+        patch("backend.routers.debate._get_orchestrator", return_value=engine),
+        patch("backend.routers.debate._get_etf_orchestrator", new_callable=AsyncMock,
+              return_value=("测试ETF", engine)),
+        patch("backend.routers.debate._auto_create_retro_record", new_callable=AsyncMock) as retro,
+    ):
+        response = client.post("/api/debate/run", json={
+            "stock_code": "588110" if instrument == "etf" else "000001",
+            "instrument_type": instrument,
+        })
+    if kind == "partial":
+        assert response.status_code == 200
+        return
+    assert response.status_code == 503
+    payload = response.json()["error"]
+    expected_code = "ANALYSIS_BALANCE_INSUFFICIENT" if kind == "balance" else "ANALYSIS_FAILED"
+    assert payload["code"] == expected_code
+    assert payload["detail"]["retryable"] is False
+    assert "secret-upstream" not in str(payload)
+    retro.assert_not_awaited()
+    sid = payload["detail"]["session_id"]
+    assert client.get(f"/api/debate/status/{sid}").json()["data"]["status"] == "failed"
+    history = client.get("/api/debate/history", params={
+        "stock_code": "588110" if instrument == "etf" else "000001",
+        "instrument_type": instrument,
+    }).json()["data"]
+    assert history[0]["status"] == "failed"
+    assert "secret-upstream" not in history[0]["error"]
+    # Preserve diagnostics for inspection, not as a new neutral recommendation.
+    saved = client.get(f"/api/debate/result/{sid}").json()["data"]["analyses"]
+    assert saved == [a.model_dump(mode="json") for a in analyses]
+    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+    codes = schemas["DebateUnavailableError"]["properties"]["code"]["enum"]
+    assert payload["code"] in codes

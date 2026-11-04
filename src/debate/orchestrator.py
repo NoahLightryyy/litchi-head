@@ -2312,7 +2312,9 @@ class DebateOrchestrator:
         )
 
         # 保存决策到记忆存储（不阻塞，方法内部已处理 None 情况）
-        await self._save_decision_to_memory(result)
+        # An empty/all-failed run is not a neutral decision to learn from.
+        if any(analysis.success for analysis in result.analyses):
+            await self._save_decision_to_memory(result)
 
         return result
 

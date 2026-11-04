@@ -980,3 +980,24 @@ def test_active_supplement_reaches_shared_analyst_brief(mock_collector):
     supplement.assert_called_once_with("300893")
     assert "主营安全系统" in result["market_data"]["brief"]
     assert "https://example.com/report" in result["market_data"]["brief"]
+
+
+@pytest.mark.asyncio
+async def test_all_failed_graph_does_not_save_neutral_decision(mock_collector):
+    orch = DebateOrchestrator(
+        data_collector=mock_collector, skill_ids=["buffett"], quote_evidence_service=None,
+    )
+    failed = AgentAnalysis(
+        agent_name="master.buffett", skill_id="buffett", skill_name="测试流派",
+        rating="", score=0, summary="", analysis="", success=False,
+        error="LLM_INSUFFICIENT_BALANCE",
+    )
+    graph = AsyncMock()
+    graph.ainvoke.return_value = {"analyses": {"master.buffett": failed}, "vote_summary": {}}
+    with (
+        patch.object(orch, "_get_graph", return_value=graph),
+        patch.object(orch, "_save_decision_to_memory", new_callable=AsyncMock) as memory,
+    ):
+        result = await orch.run(DebateInput(stock_code="000001"))
+    assert not result.analyses[0].success
+    memory.assert_not_awaited()

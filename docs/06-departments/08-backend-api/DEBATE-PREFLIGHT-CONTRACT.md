@@ -69,3 +69,12 @@ all_quotes有效缓存，失效/空缓存为None，简报沿用“暂无数据�
 - 单进程启动把上次未完成会话标为 failed，error 明示服务重启中断；不自动再次调用模型。此交付不代表 durable queue / 跨进程续算 / 全局并发预算已实现。
 - 个股页默认展示最新完整结果，可选择更早记录；刷新保留历史可见性。新分析期间旧结果须明确标为历史，不能冒充本次输出。失败或超时后可手动选择已完成历史。
 - 旧复盘摘要保留在研究与复盘；只有现存可核验完整结果迁入本库，不从摘要伪造完整结果。
+
+
+## 模型调用失败与空研究（2026-11-04）
+
+- `POST /api/debate/run` 仅在至少一位流派 `success=true` 时返回 completed。全部失败或空 analyses 返回503，持久化 failed，保存失败诊断但不创建复盘/决策记忆。
+- 新增错误码 `ANALYSIS_BALANCE_INSUFFICIENT`（上游明确余额不足）与 `ANALYSIS_FAILED`（无可用分析）；detail 包含 session_id、capability=analysis_service、retryable=false。不自动重试、不替换模型。
+- 部分成功仍可阅读已完成分析，失败条目不算中性票；没有三周期观点仍不制造方向共识。
+- HTTP调用错误不再包装成解析错误。余额错误返回安全标记 `LLM_INSUFFICIENT_BALANCE`，不进入格式纠正或网络重试。
+- 旧 completed 全失败记录不迁移、不改写；消费者按 analyses.success/error 识别为未生成研究，隐藏方向统计与入场计划生成。

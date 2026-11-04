@@ -36,6 +36,7 @@ from typing import Any, Literal
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_deepseek import ChatDeepSeek
+from openai import APIStatusError
 from pydantic import BaseModel, SecretStr
 from tenacity import (
     after_log,
@@ -48,6 +49,7 @@ from tenacity import (
 
 from src.utils.config import settings
 from src.utils.cost_tracker import cost_tracker
+from src.utils.llm_errors import is_balance_error
 from src.utils.logger import AgentLogger
 
 logger = AgentLogger("llm_service")
@@ -481,10 +483,16 @@ class LLMService:
                     if attempt == 0:
                         continue
                 break
-        except Exception as e:
+        except ValueError as e:
             raise ValueError(
                 f"LLM 结构化输出解析失败 for {output_model.__name__}: {e}"
             ) from e
+        except RuntimeError:
+            # Request/billing failures are not output validation failures and
+            # must not enter callers' paid format-correction loops.
+            raise
+        except Exception as e:
+            raise RuntimeError("LLM_REQUEST_FAILED: 模型服务请求失败") from e
 
         raw_response: BaseMessage | None = None
         if isinstance(response, output_model):
@@ -536,7 +544,18 @@ class LLMService:
 
         @retry_decorator
         async def _do_call() -> Any:
-            return await runnable.ainvoke(messages)
+            try:
+                return await runnable.ainvoke(messages)
+            except APIStatusError as exc:
+                # HTTP billing/auth failures are not transient parse errors.
+                # Retain the cause for logs, expose no raw provider body/URL.
+                if is_balance_error(exc):
+                    raise RuntimeError(
+                        "LLM_INSUFFICIENT_BALANCE: 模型服务余额不足"
+                    ) from exc
+                raise RuntimeError(
+                    f"LLM_REQUEST_FAILED: 模型服务请求失败（HTTP {exc.status_code}）"
+                ) from exc
 
         return await _do_call()
 

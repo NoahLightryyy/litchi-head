@@ -147,7 +147,7 @@ class TestLLMService:
             mock_build.assert_called_once_with("deepseek", None)
 
     @pytest.mark.asyncio
-    async def test_invoke_structured_raises_value_error_on_failure(self):
+    async def test_invoke_structured_reports_request_failure(self):
         svc = LLMService()
         mock_llm = MagicMock()
         structured = AsyncMock()
@@ -163,7 +163,7 @@ class TestLLMService:
         class DummyModel(BaseModel):
             x: str
 
-        with pytest.raises(ValueError, match="LLM 结构化输出解析失败"):
+        with pytest.raises(RuntimeError, match="LLM_REQUEST_FAILED"):
             await svc.invoke_structured(
                 prompt="test",
                 output_model=DummyModel,
@@ -634,3 +634,65 @@ async def test_explicit_json_output_is_strict_and_never_regenerates(
     assert '"answer"' in bound.ainvoke.call_args.args[0][0].content
     assert "只分析原资料" in bound.ainvoke.call_args.args[0][0].content
     usage.assert_called_once_with(model, raw, "json-test", "")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method", ["function_calling", "json_mode"])
+async def test_balance_failure_is_not_parse_error_and_not_retried(method):
+    import httpx
+    from openai import APIStatusError
+    from pydantic import BaseModel
+
+    class Output(BaseModel):
+        value: str
+
+    svc = LLMService()
+    runnable = AsyncMock()
+    runnable.ainvoke.side_effect = APIStatusError(
+        "Insufficient Balance secret-upstream",
+        response=httpx.Response(402, request=httpx.Request("POST", "https://example.test")),
+        body={"error": {"type": "insufficient_balance_error"}},
+    )
+    llm = MagicMock()
+    llm.with_structured_output.return_value = runnable
+    llm.bind.return_value = runnable
+    svc._instances["deepseek"] = llm
+    with pytest.raises(RuntimeError, match="LLM_INSUFFICIENT_BALANCE") as failure:
+        await svc.invoke_structured("test", Output, provider="deepseek", output_method=method)
+    runnable.ainvoke.assert_awaited_once()
+    assert "解析失败" not in str(failure.value)
+    assert "secret-upstream" not in str(failure.value)
+
+
+@pytest.mark.asyncio
+async def test_http_failure_is_safe_non_parse_error():
+    import httpx
+    from openai import APIStatusError
+    from pydantic import BaseModel
+
+    class Output(BaseModel):
+        value: str
+
+    svc = LLMService()
+    runnable = AsyncMock()
+    runnable.ainvoke.side_effect = APIStatusError(
+        "secret-upstream", response=httpx.Response(
+            401, request=httpx.Request("POST", "https://example.test")), body={},
+    )
+    llm = MagicMock()
+    llm.with_structured_output.return_value = runnable
+    svc._instances["deepseek"] = llm
+    with pytest.raises(RuntimeError, match="LLM_REQUEST_FAILED") as failure:
+        await svc.invoke_structured("test", Output, provider="deepseek")
+    assert "HTTP 401" in str(failure.value)
+    assert "secret" not in str(failure.value)
+    runnable.ainvoke.assert_awaited_once()
+
+
+def test_balance_classifier_requires_explicit_provider_error():
+    from src.utils.llm_errors import is_balance_error
+
+    for value in [None, "没有共识", "HTTP 402", "unauthorized", "余额可能不足"]:
+        assert not is_balance_error(value)
+    assert is_balance_error("LLM_INSUFFICIENT_BALANCE: 模型服务余额不足")
+    assert is_balance_error("LLM 结构化输出解析失败: Insufficient Balance")

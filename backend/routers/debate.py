@@ -26,6 +26,7 @@ from backend.limiter import limiter
 from backend.stock_identity import resolve_stock_name
 from src.debate.models import DebateResult
 from src.debate.session_store import DebateSessionRecord, SqliteDebateSessionStore
+from src.utils.llm_errors import is_balance_error
 
 if TYPE_CHECKING:
     from src.debate.orchestrator import DebateOrchestrator
@@ -117,7 +118,7 @@ class DebateRequest(BaseModel):
 class DebateUnavailableError(BaseModel):
     code: Literal[
         "ANALYSIS_NOT_CONFIGURED", "EVIDENCE_INCOMPLETE", "ETF_NOT_FOUND",
-        "INSTRUMENT_TYPE_MISMATCH",
+        "INSTRUMENT_TYPE_MISMATCH", "ANALYSIS_BALANCE_INSUFFICIENT", "ANALYSIS_FAILED",
     ]
     message: str
     detail: dict[str, Any]
@@ -354,13 +355,34 @@ async def run_debate(request: Request, req: DebateRequest):
                 ),
             )
         )
+        result_payload = result.model_dump()
+        analyses = result_payload.get("analyses", [])
+        if not any(item.get("success") is True for item in analyses):
+            balance_failed = any(is_balance_error(item.get("error")) for item in analyses)
+            code = "ANALYSIS_BALANCE_INSUFFICIENT" if balance_failed else "ANALYSIS_FAILED"
+            message = (
+                "模型服务余额不足，本次未生成研究结论。请先处理模型账户余额，再手动发起分析。"
+                if balance_failed else
+                "本次没有成功返回的流派分析，未生成研究结论。请查看服务诊断。"
+            )
+            logger.warning("Analysis failed: session=%s code=%s count=%d",
+                           session_id, code, len(analyses))
+            await _save_session(session_id, req, {
+                "status": "failed", "progress": 100, "error": message,
+                "result": result_payload,
+            })
+            return JSONResponse(status_code=503, content={"error": {
+                "code": code, "message": message,
+                "detail": {"session_id": session_id, "retryable": False,
+                           "capability": "analysis_service"},
+            }})
         await _save_session(
             session_id,
             req,
             {
                 "status": "completed",
                 "progress": 100,
-                "result": result.model_dump() if hasattr(result, "model_dump") else result,
+                "result": result_payload,
             },
         )
 

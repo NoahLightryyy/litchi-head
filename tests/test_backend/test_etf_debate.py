@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import HTTPException
 
-from src.debate.models import DebateResult
+from src.debate.models import AgentAnalysis, DebateResult
 from src.debate.session_store import SqliteDebateSessionStore
 
 
@@ -26,7 +26,10 @@ def test_etf_identity_flow_persistence_and_history_separation(client):
         async def run(self, inp):
             assert inp.instrument_type == "etf" and inp.stock_name == "半导体设备ETF广发"
             assert "场内ETF" in inp.question
-            return DebateResult(**inp.model_dump())
+            return DebateResult(**inp.model_dump(), analyses=[AgentAnalysis(
+                agent_name="master.fixture", skill_id="fixture", skill_name="测试流派",
+                rating="", score=50, summary="测试摘要", analysis="测试分析", success=True,
+            )])
 
     with (
         patch(
