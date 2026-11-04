@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from src.data.research_policy import MARKET_RESEARCH_PROMPT
+
 Horizon = Literal["short", "medium", "long"]
 
 
@@ -30,7 +32,7 @@ class HorizonOpinion(BaseModel):
 
 
 def scope_prompt(today: date) -> str:
-    return f"""
+    return MARKET_RESEARCH_PROMPT + f"""
 【必须分别输出三个周期的条件研究】研究起点为北京时间 {today.isoformat()}。
 在 horizons 中恰好输出 short（未来1–5个交易日）、medium（未来1–3个月）、
 long（未来1–3年）各一项。均讨论该区间价格方向相对本次已提供报价的变化可能性，

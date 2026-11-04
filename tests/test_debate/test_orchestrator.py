@@ -87,7 +87,7 @@ class TestGraphConstruction:
         quote_service = MagicMock()
         runtime = SimpleNamespace(service=quote_service)
         with patch(
-            "src.debate.orchestrator.get_realtime_quote_evidence_runtime",
+            "src.debate.orchestrator.get_research_quote_runtime",
             return_value=runtime,
         ):
             orch = DebateOrchestrator(data_collector=mock_collector)

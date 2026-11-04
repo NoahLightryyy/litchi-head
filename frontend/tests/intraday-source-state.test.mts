@@ -69,11 +69,11 @@ function battlefield(
   };
 }
 
-test("single-source state discloses the diagnostic source and lack of cross-verification", () => {
+test("single source is available without warning; provenance and time remain", () => {
   assert.deepEqual(describeIntradaySourceState(battlefield()), {
-    label: "单一数据源 · 腾讯",
-    detail: "未交叉验证 · 数据时间 2026/08/12 10:42（北京时间）",
-    tone: "warning",
+    label: "行情可用 · 腾讯",
+    detail: "数据时间 2026/08/12 10:42（北京时间）",
+    tone: "available",
   });
 });
 
@@ -169,8 +169,8 @@ test("unavailable and incomplete diagnostics do not invent a source or data time
       }),
     ),
     {
-      label: "单一数据源 · 来源待确认",
-      detail: "未交叉验证 · 数据时间暂不可用",
+      label: "行情可用 · 来源待确认",
+      detail: "数据时间暂不可用",
       tone: "warning",
     },
   );

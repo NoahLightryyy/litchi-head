@@ -14,7 +14,7 @@ export function RawDailyChart({code, zoom, period = "daily"}: {code:string; zoom
       <span className="py-1">腾讯 · {period === "daily" ? "备用日线" : `日线聚合${label}`}</span>
       <details className="ml-auto max-w-lg py-1">
         <summary className="cursor-pointer text-accent-blue">数据说明</summary>
-        <p className="mt-2 leading-relaxed">原前复权{label}当前不可用，使用腾讯单源历史日线，尚未交叉验证。不复权保留当日实际成交价格，除权除息可能形成价格跳空；不与前复权序列拼接，仅展示已结束交易日。</p>
+        <p className="mt-2 leading-relaxed">原前复权{label}当前不可用，使用腾讯历史日线。不复权保留当日实际成交价格，除权除息可能形成价格跳空；不与前复权序列拼接，仅展示已结束交易日。</p>
       </details>
     </div>
     {query.isPending ? <p role="status">正在获取备用{label}…</p> : query.isError ? <p role="alert">备用{label}也未取得有效数据，请稍后重试。</p> : <>

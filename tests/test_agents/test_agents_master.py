@@ -11,6 +11,7 @@ import pytest
 
 from src.agents.base import AgentContext, AgentResult
 from src.agents.master_agent import MasterAgent
+from src.data.research_policy import MARKET_RESEARCH_PROMPT
 from src.debate.models import AgentAnalysis
 from src.memory.skill_disk import SkillDisk
 
@@ -186,6 +187,7 @@ class TestMasterAgentRunWithMockLLM:
             call_args, call_kwargs = mock_llm.call_args
             prompt = call_kwargs.get("prompt", call_args[0] if call_args else "")
             assert "安全边际" in prompt
+            assert MARKET_RESEARCH_PROMPT in prompt
 
             # 验证返回结果包含分析内容
             assert result.success is True

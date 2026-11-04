@@ -5,6 +5,7 @@ import type {
 } from "@/lib/types/stock";
 
 export type IntradaySourceTone =
+  | "available"
   | "verified"
   | "warning"
   | "conflict"
@@ -201,9 +202,9 @@ export function describeIntradaySourceState(
       };
     case "single_source":
       return {
-        label: `单一数据源 · ${canonicalSourceName(data) ?? "来源待确认"}`,
-        detail: `未交叉验证 · ${time}`,
-        tone: "warning",
+        label: `行情可用 · ${canonicalSourceName(data) ?? "来源待确认"}`,
+        detail: time,
+        tone: data.as_of && canonicalSourceName(data) ? "available" : "warning",
       };
     case "source_conflict":
       return {

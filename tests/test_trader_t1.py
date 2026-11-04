@@ -21,7 +21,7 @@ def disable_default_quote_evidence_gate(
 ) -> None:
     """Trader unit tests use synthetic data and must not call live quote sources."""
     monkeypatch.setattr(
-        "src.debate.orchestrator.get_realtime_quote_evidence_runtime",
+        "src.debate.orchestrator.get_research_quote_runtime",
         lambda: type("TestRuntime", (), {"service": None})(),
     )
 

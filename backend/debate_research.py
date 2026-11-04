@@ -59,7 +59,7 @@ async def collect_research_context(code: str) -> str:
         bounded("公司主营及最近年报、半年报原文节选", fetch_evidence(code)),
         bounded("合并财务事实及同期比较", asyncio.to_thread(get_fundamental_research, code)),
         bounded("最近90天公司新闻与公告目录", collect_display(code, 90)),
-        bounded("双源历史日线及MA/RSI/MACD/KDJ", asyncio.to_thread(get_technical_research, code)),
+        bounded("可用历史日线及MA/RSI/MACD/KDJ", asyncio.to_thread(get_technical_research, code)),
         saved_interpretation(),
     )
     return (

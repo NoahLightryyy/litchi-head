@@ -120,7 +120,7 @@ Content-Type: application/json
 
 - `price_points[].timestamp + close` 绘制分钟价格折线，不从单价点推造 OHLC；
 - `verification_status` 区分 `multi_source_verified`、`single_source`、
-  `source_conflict`、`unavailable`；单源和冲突只做持续可见提醒，不阻断可用数据；
+  `source_conflict`、`unavailable`；单源显示中性的“行情可用”与来源/时间，真实冲突仍持续提醒，不遮挡可用数据；
 - `source_diagnostics[]` 展示数据商名称、获取时间、检查点数量、状态和原始错误；
 - `snapshot.session_vwap` 展示为 VWAP（成交量加权平均价），
   `relative_volume` 必须同时展示历史样本天数；
@@ -368,7 +368,7 @@ ws://localhost:8000/ws/quotes?codes=000001,300750
 
 `GET /stocks/{code}/quote`冻结契约d60d1fd，见[单股报价展示契约](../../06-departments/08-backend-api/QUOTE-DISPLAY-CONTRACT.md)。
 不再拉全市场后过滤；复用东财/新浪现有单股适配器与腾讯日线qt报价。source=eastmoney|sina|tencent、single_source标记；turnover_rate/fund_flow/market_cap允许null。2026-10-27兼容增量冻结见d9866de及同一报价契约。
-QuoteCard显示名称、价格、真实北京时间日期、来源及未交叉验证；未知增强字段显示“—”。
+QuoteCard显示名称、价格、真实北京时间日期、来源及行情可用状态（单源不是告警）；未知增强字段显示“—”。
 
 ### 2026-10-06 休市研究说明
 
@@ -516,3 +516,11 @@ StockDiscovery共享，保留最近20条去重关键词；提交/打开结果才
 - `useStockQuote`将200/null视作该次查询失败（无自动密集重试，保留30秒轮询与显式按钮）；React Query保留同代码上次成功报价，页面另显“刷新未成功”及原始报价时间。没有历史报价才显示空态；不同代码旧数据不显示。
 - QuoteCard显示腾讯实际来源及上游时间，不将日线收盘或当前电脑时间补作报价。
 - 英文词典同步删除旧“名称与报价同时丢失”文案。与前轮搜索恢复相互独立。
+
+
+### 普通研究单源规则（2026-10-27）
+
+API 字段与 `single_source` 枚举保持不变。来源数不等于风险或置信度；分时单源使用
+`available` 中性样式而非 `verified`，身份/时间缺失仍告警。三周期观点共享一条规则说明。
+旧限制文案只移除精确匹配的独立单源句，原文在“旧口径”折叠项保留；方向、统计分母、
+分数和数据库记录不变。不得把一句话同时含有的价格冲突/过期/财务缺失删掉。

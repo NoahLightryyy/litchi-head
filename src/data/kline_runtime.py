@@ -417,7 +417,7 @@ class RawDailyKlineEvidenceService:
             for result in results
             if result.status is SourceStatus.SUCCESS_DATA and result.items
         ]
-        if len(successful) < 2:
+        if not successful:
             return results
 
         now = self._safe_now_utc("expected-date validation")

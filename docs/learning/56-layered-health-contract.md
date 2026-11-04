@@ -100,3 +100,21 @@ const degraded = value.status !== "ok" || summary.failing_endpoints > 0
 `frontend/lib/intraday-recovery.ts::requireIntradayDisplay()` 对不可用信封抛出带诊断的错误；React Query保持同query key的last-good数据，UI同时显示刷新失败与原交易日期。不能将旧数据变成新时间。首次没有last-good时，`useFiveDayDisplay` 复用现有五日分钟接口，只截取真实最后交易日；既不合成分钟，也不提升研究证据等级。两个分钟路径都无数据才默认展示日 K，手选标签不受影响。
 
 **自己试试（5分钟）**：运行 `node --test tests/intraday-recovery*.test.mts`（frontend目录）。真实QueryClient测试先放成功序列，再返回usable=false，检查缓存仍是原对象且状态为error；换证券代码后必须没有前一只股票的缓存。把测试now改为下一天，备用记录必须标历史，不能称当日。
+
+
+## 同一份数据，不同消费者的门槛（2026-10-27）
+
+展示允许单源、研究却仍要求双源，会造成“看得到但不能分析”的产品矛盾。不是改一行
+警告就能修复：`src/data/research_policy.py` 把普通研究策略与严格审计策略分离，
+`src/data/quote_runtime.py`、`backend/technical_research.py` 按消费者传入的策略判断。
+有效数据的数量门槛可以变，身份/有效价格/时点等数据质量检查不能一起丢掉。
+不同更新时间的报价选择最新可比组，而不是一概认定冲突；同刻真实价差仍明确处理。
+
+模型和页面也属于消费者：各研究阶段共用提示；旧生成内容不自动成为当前规则。
+`frontend/lib/market-source-policy.ts` 只整理独立旧警告，保留原文和评分，避免“改规则”
+被偷换成“把旧看跌改成看涨”。
+
+自己试试（5分钟）：运行 `pytest tests/test_data/test_market_research_policy.py -q`，
+分别让仅新浪/东财/腾讯成功，检查完整研究仍可得；再把价格改为0、时点改到未来或
+制造同刻价差，确认质量检查没被绕过。前端 `market-source-policy.test.mts` 证明混合
+风险句不被误删。全程使用夹具，不产生模型费用。

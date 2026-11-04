@@ -67,7 +67,7 @@ backend/
 | POST | `/api/v1/evidence/news/aggregate` | 东方财富实时 + 新浪滚动缓存并发新闻证据信封 | ✅ |
 | POST | `/api/v1/evidence/quotes/aggregate` | 东方财富 + 新浪直连行情证据信封 | ✅ |
 | POST | `/api/v1/evidence/intraday/battlefield` | 双源分钟对账、影子历史限制、20日正式量能基线与逐源诊断 | ✅ |
-| POST | `/api/debate/run` | 触发 AI 辩论；新闻或实时行情证据不完整时 503 且零 LLM | ✅ |
+| POST | `/api/debate/run` | 触发 AI 研究；有效行情单源可用，缺失资料注明范围，真实身份/价格冲突等仍阻断 | ✅ |
 | GET | `/api/debate/status/{id}` | 辩论状态查询 | ✅ |
 | GET | `/api/debate/result/{id}` | 辩论结果获取 | ✅ |
 | GET | `/api/trust/report/{name}` | 信任度报告 | ✅ |
@@ -81,12 +81,12 @@ backend/
 - **惰性导入**：`debate.py` 用 `_get_orchestrator()` 懒加载，避免 Windows torch crash
 - **生产数据源**：`lifespan` 启动时自动调用 `config.setup_production_source()`，支持 `LITCHI_DATASOURCE` 环境变量
 - **行情聚合限流**：`LITCHI_RATE_LIMIT_QUOTE_AGGREGATE`，默认每 IP 6 次/分钟
-- **默认失败关闭**：直接构造 `DebateOrchestrator()` 也自动启用实时行情门禁
+- **研究行情策略**：默认 `DebateOrchestrator()` 与 API 均使用任一有效源；严格审计聚合 API 独立保留双源要求，不是研究准入门槛
 - **K 线目标契约**：完整历史日 K 与盘中实时/分时/`PROVISIONAL` 今日状态分栏；
-  当日日 K 未收盘本身不阻塞 AI（TD-069 待实现）
+  当日日 K 未收盘本身不阻塞研究；技术补证任一有效日线源可计算指标
 - **新闻滚动采集**：启动后立即采集新浪元数据，默认每 300 秒轮询；SQLite 路径
   `data/evidence/news.db`，可用 `LITCHI_NEWS_DATABASE` 与
-  `LITCHI_NEWS_POLL_SECONDS` 配置。首次启动需连续积累 3 天后才满足辩论门禁。
+  `LITCHI_NEWS_POLL_SECONDS` 配置。未覆盖完整 3 天只披露资料范围，不据此推断没有新闻；不再整体阻断有限信息研究。
   轮询值低于 60 秒会拒绝启动；后台任务异常退出时健康检查返回 `degraded`。
 
 ## 响应格式

@@ -20,7 +20,7 @@ export function FiveDayChart({code, zoom}: {code: string; zoom: SemanticZoom}) {
       {(data.days.length < 5 || data.incomplete_days.length > 0 || data.missing_days.length > 0) &&
         <p role="status" className="text-xs text-accent-gold">来源记录不完整：{data.days.length < 5 ? `仅返回 ${data.days.length} 日；` : ""}{data.incomplete_days.length ? `分钟不完整 ${data.incomplete_days.join("、")}；` : ""}{data.missing_days.length ? `缺交易日 ${data.missing_days.join("、")}` : ""}只画已返回的点。</p>}
       <IntradayLineChart points={data.points} multiDay zoom={zoom} reference={quote.data} />
-      <p className="text-xs text-text-muted">日期标记分隔交易日；休市时间压缩，跨日连线仅连接端点，不代表夜间成交。单源价格尚未交叉验证。</p>
+      <p className="text-xs text-text-muted">日期标记分隔交易日；休市时间压缩，跨日连线仅连接端点，不代表夜间成交。来源与行情时间见图表标签。</p>
     </>}
   </div>;
 }

@@ -1,7 +1,7 @@
 """Display-only A-share snapshots from the existing Tencent RAW daily service.
 
 Only qt is quote evidence: daily bars and HTTP receipt time never stand in for it.
-This adapter is not registered with the realtime debate/trading evidence gate.
+Research reuses this adapter with identity/time validation; execution registration is unchanged.
 """
 
 from __future__ import annotations

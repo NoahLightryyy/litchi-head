@@ -1,4 +1,4 @@
-"""Dual-source completed RAW daily history and reproducible research indicators.
+"""Available-source completed RAW daily history and reproducible research indicators.
 
 Research context only: this does not replace adjusted-price or trading gates.
 """
@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field
 from backend.indicators import calc_all, calc_kdj
 from src.data.evidence import EvidenceCapability, EvidenceEnvelope, EvidenceRequest
 from src.data.kline import RawDailyBar
-from src.data.kline_runtime import KLINE_RAW_EVIDENCE_POLICY, get_raw_daily_kline_runtime
+from src.data.kline_runtime import get_raw_daily_kline_runtime
+from src.data.research_policy import RESEARCH_KLINE_POLICY
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def build_technical_research(code: str, envelope: EvidenceEnvelope) -> Technical
     if not envelope.complete or not envelope.items:
         logger.warning("Technical research unavailable: code=%s sources=%s",
                        code, result.diagnostics)
-        result.limitations.append("双源日线未通过完整性校验，本次不计算指标。")
+        result.limitations.append("未取得通过校验的日线，本次不计算指标；原因见来源诊断。")
         return result
     bars = sorted([RawDailyBar.model_validate(item) for item in envelope.items],
                   key=lambda bar: bar.trade_date)
@@ -87,7 +88,7 @@ def get_technical_research(code: str) -> TechnicalResearch:
     now = datetime.now(ZoneInfo("Asia/Shanghai"))
     request = EvidenceRequest(capability=EvidenceCapability.KLINE, stock_code=code,
                               start_at=now - timedelta(days=240), end_at=now - timedelta(days=1))
-    envelope = get_raw_daily_kline_runtime().service.collect(request, KLINE_RAW_EVIDENCE_POLICY)
+    envelope = get_raw_daily_kline_runtime().service.collect(request, RESEARCH_KLINE_POLICY)
     result = build_technical_research(code, envelope)
     logger.info("Technical research: code=%s status=%s bars=%s sources=%s",
                 code, result.status, len(result.bars), result.sources)

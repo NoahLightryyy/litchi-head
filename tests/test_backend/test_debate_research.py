@@ -40,7 +40,7 @@ async def test_company_facts_are_fetched_even_when_news_fails() -> None:
     assert "安全系统研发生产" in result and "https://example.com/source" in result
     assert "已尝试补证但未取得有效资料" in result and "利润表未取得" in result
     assert "不改变交易准入" in result
-    assert "双源历史日线及MA/RSI/MACD/KDJ" in result and "RSI14" in result
+    assert "可用历史日线及MA/RSI/MACD/KDJ" in result and "RSI14" in result
 
 
 @pytest.mark.asyncio

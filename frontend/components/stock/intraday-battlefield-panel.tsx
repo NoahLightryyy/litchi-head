@@ -33,6 +33,7 @@ interface IntradayBattlefieldPanelProps {
 }
 
 const TONE_STYLES: Record<IntradaySourceState["tone"], string> = {
+  available: "border-bg-tertiary bg-bg-secondary text-text-secondary",
   verified: "border-accent-green/35 bg-accent-green/10 text-accent-green",
   warning: "border-accent-gold/35 bg-accent-gold/10 text-accent-gold",
   conflict: "border-accent-red/35 bg-accent-red/10 text-accent-red",
@@ -215,7 +216,7 @@ function PricePanel({ code }: IntradayBattlefieldPanelProps) {
   const requestError = describeIntradayRequestError(query.error);
   const sourceState: IntradaySourceState = unavailable
     ? session
-      ? { label: "备用分时 · 腾讯", detail: `单源 · ${session.day}`, tone: "warning" }
+      ? { label: "备用分时 · 腾讯", detail: `行情时间 · ${session.day}`, tone: session.isToday ? "available" : "warning" }
       : { label: backup.isPending ? "正在尝试备用分时" : "分钟数据暂未取得", detail: "当日接口未取得数据", tone: "unavailable" }
     : query.data
     ? describeIntradaySourceState(query.data)

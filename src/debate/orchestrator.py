@@ -73,10 +73,10 @@ from src.data.kline_business import (  # noqa: E402
 from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote  # noqa: E402
 from src.data.news_runtime import NEWS_EVIDENCE_POLICY, NEWS_WINDOW  # noqa: E402
 from src.data.quote_runtime import (  # noqa: E402
-    REALTIME_QUOTE_EVIDENCE_POLICY,
     RealtimeQuoteEvidenceService,
-    get_realtime_quote_evidence_runtime,
+    get_research_quote_runtime,
 )
+from src.data.research_policy import MARKET_RESEARCH_PROMPT, RESEARCH_QUOTE_POLICY  # noqa: E402
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
 from src.debate.evidence_gate import EvidenceIncompleteError  # noqa: E402
 from src.debate.kline_context import (  # noqa: E402
@@ -342,7 +342,7 @@ def collect_data_node(
         )
         quote_evidence_envelope = quote_evidence_service.collect(
             quote_request,
-            REALTIME_QUOTE_EVIDENCE_POLICY,
+            RESEARCH_QUOTE_POLICY,
         )
         if not quote_evidence_envelope.complete:
             if _must_block_reasoning(quote_evidence_envelope):
@@ -692,7 +692,7 @@ async def _run_single_analyst(
         raw = cast(AnalystReport, await llm_service.invoke_structured(
             prompt=enhanced,
             output_model=AnalystReport,
-            system_prompt=persona.system_prompt,
+            system_prompt=persona.system_prompt + "\n" + MARKET_RESEARCH_PROMPT,
             agent_name=f"analyst.{persona.analyst_type}",
             session_id=session_id,
         ))
@@ -970,7 +970,7 @@ async def _run_review_for_master(
         raw = cast(RebuttalAnalysis, await llm_service.invoke_structured(
             prompt=review_prompt,
             output_model=RebuttalAnalysis,
-            system_prompt=system_prompt,
+            system_prompt=system_prompt + "\n" + MARKET_RESEARCH_PROMPT,
             agent_name=f"master.{skill.skill_id}",
             session_id=session_id,
         ))
@@ -1102,7 +1102,7 @@ async def _run_independent_review(
         raw = cast(IndependentReview, await llm_service.invoke_structured(
             prompt=review_prompt,
             output_model=IndependentReview,
-            system_prompt=system_prompt,
+            system_prompt=system_prompt + "\n" + MARKET_RESEARCH_PROMPT,
             agent_name="independent_reviewer",
             session_id=session_id,
         ))
@@ -1761,7 +1761,7 @@ class DebateOrchestrator:
         self.prepared_research = prepared_research
         self.news_evidence_service = news_evidence_service
         self.quote_evidence_service = (
-            get_realtime_quote_evidence_runtime().service
+            get_research_quote_runtime().service
             if quote_evidence_service is _DEFAULT_QUOTE_EVIDENCE_SERVICE
             else cast(
                 RealtimeQuoteEvidenceService | None,
