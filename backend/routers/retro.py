@@ -213,6 +213,12 @@ async def refresh_pending():
                 updated += 1
             except Exception:
                 errors += 1
+                logger.warning(
+                    "刷新复盘结果失败: record=%s code=%s",
+                    record.record_id,
+                    record.stock_code,
+                    exc_info=True,
+                )
                 continue
 
         return {
