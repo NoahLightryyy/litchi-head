@@ -28,6 +28,10 @@
 
 ## 对应源码
 
-- `src/debate/orchestrator.py` — LangGraph StateGraph 编排
+- `src/debate/orchestrator.py` — `DebateOrchestrator`：建图、运行、记忆写入与反思（2026-11-16 起只保留编排类与再导出）
+- `src/debate/graph_state.py` — `DebateState` 与证据限制辅助函数
+- `src/debate/collection.py` — 数据采集节点与采集后路由
+- `src/debate/participants.py` — 分析师 / 策略师 / 同侪复核 / 独立评审的单体执行函数
+- `src/debate/graph_nodes.py` — 各轮节点工厂、偏差报告、加权聚合
 - `src/debate/models.py` — 辩论数据模型
 - `src/agents/master_agent.py` — 通用 MasterAgent

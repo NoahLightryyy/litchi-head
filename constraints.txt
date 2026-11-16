@@ -3,7 +3,7 @@
 #   ruff / pyright 通过，Python 2450 passed。
 # 用法：pip install -e ".[dev]" -c constraints.txt
 # 背景：akshare 1.20.x 移除了 stock_zh_a_hist / stock_individual_fund_flow，
-#       不加约束的全新安装会让 K 线和资金流向失效（见 TD-086）。
+#       不加约束的全新安装会让 K 线和资金流向失效（见 TD-093）。
 # 升级流程：改这里的版本 → python scripts/check.py --full 全绿 → 再提交。
 
 adata==2.9.5

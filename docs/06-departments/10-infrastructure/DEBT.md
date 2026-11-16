@@ -17,6 +17,7 @@ department: 基础设施部
 | TD-008 | cost_tracker 价格硬编码 | 🟢 low | 代码质量 | 📋 待评估 |
 | TD-055 | 价格硬编码（与 TD-008 同源） | 🟢 low | 代码质量 | 📋 待评估 |
 | TD-070 | 测试依赖存在已弃用接口警告 | 🟢 low | 依赖维护 | 📋 待评估 |
+| TD-094 | Windows 一键启动脚本（`start.bat` / `scripts/start.ps1` / `stop.bat`）未在真机验证；macOS 脚本的前端构建与启动段也只做过静态检查 | 🟢 low | 测试缺口 | 📋 待真机验证 |
 
 ### TD-070 测试依赖存在已弃用接口警告
 
@@ -51,6 +52,7 @@ department: 基础设施部
 
 | ID | 标题 | 修复日期 | 修复说明 |
 |:---|:-----|:--------|:---------|
+| TD-093 | Python 依赖无版本锁：akshare 1.20.x 移除 `stock_zh_a_hist` 等接口，全新安装与 CI 失效 | 2026-11-16 | 新增 `constraints.txt`（143 个已验证版本），akshare 限制 `<1.20`，CI/Docker/Makefile/README 统一带 `-c constraints.txt` |
 | TD-009 | CI 迁移 GitHub Actions | 2026-06-06 | 创建 ci.yml |
 | TD-011 | Pyright extraPaths 硬编码 | 2026-06-05 | 移除硬编码路径 |
 | TD-012 | LLM 参数硬编码 | 2026-06-07 | LLMConfig 参数化 |
