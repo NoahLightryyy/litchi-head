@@ -43,9 +43,9 @@ def isolate_live_review_calls():
     from src.debate.models import IndependentReview, RebuttalAnalysis
 
     with (
-        patch("src.debate.orchestrator._run_independent_review",
+        patch("src.debate.graph_nodes._run_independent_review",
               new_callable=AsyncMock, return_value=IndependentReview()),
-        patch("src.debate.orchestrator._run_review_for_master",
+        patch("src.debate.graph_nodes._run_review_for_master",
               new_callable=AsyncMock,
               return_value=RebuttalAnalysis(agent_name="master.test")),
     ):
@@ -268,7 +268,7 @@ class TestMasterRoundNode:
             confidence=0.85,
         )
         with patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -317,7 +317,7 @@ class TestMasterRoundNode:
             latency_ms=120000.0,
         )
         with patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=failed_analysis,
         ):
@@ -670,11 +670,11 @@ class TestDebateOrchestratorRun:
             confidence=0.8,
         )
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ), patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -737,11 +737,11 @@ class TestDebateOrchestratorRun:
         )
 
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ) as analyst, patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ) as master:
@@ -776,11 +776,11 @@ class TestDebateOrchestratorRun:
             confidence=0.75,
         )
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ), patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -812,11 +812,11 @@ class TestDebateOrchestratorRun:
             confidence=0.9,
         )
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ), patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -849,11 +849,11 @@ class TestDebateOrchestratorRun:
             confidence=0.85,
         )
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ), patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -916,7 +916,7 @@ class TestDP007InformationIsolation:
         node_fn = make_analyst_round_node([mock_analyst])
 
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=MagicMock(
                 analyst_type="fundamental",

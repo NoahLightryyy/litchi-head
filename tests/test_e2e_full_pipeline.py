@@ -83,7 +83,7 @@ class TestE2EFullPipeline:
         )
 
         with patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_agent_analysis,
         ):
@@ -138,7 +138,7 @@ class TestE2EFullPipeline:
         )
 
         with patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_agent_analysis,
         ):
@@ -192,7 +192,7 @@ class TestE2EFullPipeline:
         )
 
         with patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_agent_analysis,
         ):
@@ -250,7 +250,7 @@ class TestE2EFullPipeline:
             return failed_analysis
 
         with patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             side_effect=_side_effect,
         ):
@@ -277,7 +277,7 @@ class TestE2EFullPipeline:
         )
 
         with patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_agent_analysis,
         ):

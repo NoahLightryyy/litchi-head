@@ -138,7 +138,7 @@ def test_collection_brief_uses_closing_quote_and_preserves_transaction_stop():
     real_selection = closing_research_quotes(
         env, datetime.fromisoformat("2026-10-06T16:00:00+08:00")
     )
-    with patch("src.debate.orchestrator.closing_research_quotes", return_value=real_selection):
+    with patch("src.debate.collection.closing_research_quotes", return_value=real_selection):
         result = collect_data_node(
             {"debate_input": {"stock_code": "920344", "stock_name": "三元基因"}},
             collector,

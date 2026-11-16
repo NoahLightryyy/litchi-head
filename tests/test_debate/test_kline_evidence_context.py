@@ -54,9 +54,9 @@ AS_OF = datetime(2026, 8, 4, 10, 1, tzinfo=SHANGHAI)
 def isolate_live_review_calls() -> Iterator[None]:
     """Evidence tests must never call a paid model using local credentials."""
     with (
-        patch("src.debate.orchestrator._run_independent_review",
+        patch("src.debate.graph_nodes._run_independent_review",
               new_callable=AsyncMock, return_value=IndependentReview()),
-        patch("src.debate.orchestrator._run_review_for_master",
+        patch("src.debate.graph_nodes._run_review_for_master",
               new_callable=AsyncMock,
               return_value=RebuttalAnalysis(agent_name="master.test")),
     ):
@@ -353,11 +353,11 @@ async def test_complete_result_reaches_llm_and_persists_version_reference() -> N
     )
 
     with patch(
-        "src.debate.orchestrator._run_single_analyst",
+        "src.debate.graph_nodes._run_single_analyst",
         new_callable=AsyncMock,
         return_value=_analyst_report(),
     ) as analyst, patch(
-        "src.debate.orchestrator._run_single_master",
+        "src.debate.graph_nodes._run_single_master",
         new_callable=AsyncMock,
         return_value=_master_analysis(),
     ):
@@ -389,11 +389,11 @@ async def test_retryable_kline_failure_runs_research_but_skips_execution_chain()
     )
 
     with patch(
-        "src.debate.orchestrator._run_single_analyst",
+        "src.debate.graph_nodes._run_single_analyst",
         new_callable=AsyncMock,
         return_value=_analyst_report(),
     ) as analyst, patch(
-        "src.debate.orchestrator._run_single_master",
+        "src.debate.graph_nodes._run_single_master",
         new_callable=AsyncMock,
         return_value=_master_analysis(),
     ) as master:
@@ -418,10 +418,10 @@ async def test_corrupted_kline_failure_invokes_no_analyst_or_master_llm() -> Non
     )
 
     with patch(
-        "src.debate.orchestrator._run_single_analyst",
+        "src.debate.graph_nodes._run_single_analyst",
         new_callable=AsyncMock,
     ) as analyst, patch(
-        "src.debate.orchestrator._run_single_master",
+        "src.debate.graph_nodes._run_single_master",
         new_callable=AsyncMock,
     ) as master, pytest.raises(EvidenceIncompleteError) as raised:
         await orchestrator.run(DebateInput(stock_code="000001"))

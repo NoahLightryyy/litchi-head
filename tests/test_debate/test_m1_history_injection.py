@@ -246,7 +246,7 @@ class TestHistoryInjection:
         mock_result.confidence = 0.8
 
         with patch(
-            "src.debate.orchestrator.MasterAgent",
+            "src.debate.participants.MasterAgent",
             new_callable=MagicMock,
         ) as mock_master:
             mock_agent = AsyncMock()
@@ -293,7 +293,7 @@ class TestHistoryInjection:
         mock_result.confidence = 0.5
 
         with patch(
-            "src.debate.orchestrator.MasterAgent",
+            "src.debate.participants.MasterAgent",
             new_callable=MagicMock,
         ) as mock_master:
             mock_agent = AsyncMock()
@@ -367,17 +367,17 @@ class TestHistoryInjection:
         # mock _run_single_master 验证 history_context 被传递
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ) as mock_run,
             patch(
-                "src.debate.orchestrator._run_review_for_master",
+                "src.debate.graph_nodes._run_review_for_master",
                 new_callable=AsyncMock,
                 return_value=RebuttalAnalysis(agent_name="master.mock"),
             ),
             patch(
-                "src.debate.orchestrator._run_independent_review",
+                "src.debate.graph_nodes._run_independent_review",
                 new_callable=AsyncMock,
                 return_value=IndependentReview(),
             ),
@@ -561,17 +561,17 @@ class TestMemoryResilience:
 
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ),
             patch(
-                "src.debate.orchestrator._run_review_for_master",
+                "src.debate.graph_nodes._run_review_for_master",
                 new_callable=AsyncMock,
                 return_value=RebuttalAnalysis(agent_name="master.mock"),
             ),
             patch(
-                "src.debate.orchestrator._run_independent_review",
+                "src.debate.graph_nodes._run_independent_review",
                 new_callable=AsyncMock,
                 return_value=IndependentReview(),
             ),
@@ -619,17 +619,17 @@ class TestMemoryResilience:
 
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ),
             patch(
-                "src.debate.orchestrator._run_review_for_master",
+                "src.debate.graph_nodes._run_review_for_master",
                 new_callable=AsyncMock,
                 return_value=RebuttalAnalysis(agent_name="master.mock"),
             ),
             patch(
-                "src.debate.orchestrator._run_independent_review",
+                "src.debate.graph_nodes._run_independent_review",
                 new_callable=AsyncMock,
                 return_value=IndependentReview(),
             ),
@@ -708,17 +708,17 @@ class TestFullFlowWithMemory:
 
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ),
             patch(
-                "src.debate.orchestrator._run_review_for_master",
+                "src.debate.graph_nodes._run_review_for_master",
                 new_callable=AsyncMock,
                 return_value=RebuttalAnalysis(agent_name="master.mock"),
             ),
             patch(
-                "src.debate.orchestrator._run_independent_review",
+                "src.debate.graph_nodes._run_independent_review",
                 new_callable=AsyncMock,
                 return_value=IndependentReview(),
             ),
@@ -775,17 +775,17 @@ class TestFullFlowWithMemory:
 
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ),
             patch(
-                "src.debate.orchestrator._run_review_for_master",
+                "src.debate.graph_nodes._run_review_for_master",
                 new_callable=AsyncMock,
                 return_value=RebuttalAnalysis(agent_name="master.mock"),
             ),
             patch(
-                "src.debate.orchestrator._run_independent_review",
+                "src.debate.graph_nodes._run_independent_review",
                 new_callable=AsyncMock,
                 return_value=IndependentReview(),
             ),
@@ -832,17 +832,17 @@ class TestFullFlowWithMemory:
 
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ),
             patch(
-                "src.debate.orchestrator._run_review_for_master",
+                "src.debate.graph_nodes._run_review_for_master",
                 new_callable=AsyncMock,
                 return_value=RebuttalAnalysis(agent_name="master.mock"),
             ),
             patch(
-                "src.debate.orchestrator._run_independent_review",
+                "src.debate.graph_nodes._run_independent_review",
                 new_callable=AsyncMock,
                 return_value=IndependentReview(),
             ),

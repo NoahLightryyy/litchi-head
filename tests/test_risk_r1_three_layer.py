@@ -634,7 +634,7 @@ class TestOrchestratorWithRisk:
             return factories[output_model]()
 
         with patch(
-            "src.debate.orchestrator.llm_service.invoke_structured",
+            "src.debate.participants.llm_service.invoke_structured",
             new_callable=AsyncMock,
             side_effect=structured_response,
         ):
@@ -754,7 +754,7 @@ class TestBackwardCompatibility:
         review_response.aggregation_recommendation = ""
 
         with patch(
-            "src.debate.orchestrator.llm_service.invoke_structured",
+            "src.debate.participants.llm_service.invoke_structured",
             new_callable=AsyncMock,
             side_effect=[
                 analyst_response,  # x4 analysts

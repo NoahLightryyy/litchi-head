@@ -372,7 +372,7 @@ class TestRunSingleMasterDirection:
         """direction 从 analysis_raw 正确提取到 AgentAnalysis"""
         market_data = {"brief": "市场平稳", "quote": None, "quotes": [], "klines": [], "news": []}
 
-        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+        with patch("src.debate.participants.MasterAgent") as mock_master:
             agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             agent_instance.run_safe.return_value = MagicMock(
@@ -406,7 +406,7 @@ class TestRunSingleMasterDirection:
         """无效 direction 被规范化为 Neutral"""
         market_data = {"brief": "", "quote": None, "quotes": [], "klines": [], "news": []}
 
-        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+        with patch("src.debate.participants.MasterAgent") as mock_master:
             agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             agent_instance.run_safe.return_value = MagicMock(
@@ -440,7 +440,7 @@ class TestRunSingleMasterDirection:
         """缺失 direction 字段默认 Neutral"""
         market_data = {"brief": "", "quote": None, "quotes": [], "klines": [], "news": []}
 
-        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+        with patch("src.debate.participants.MasterAgent") as mock_master:
             agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             agent_instance.run_safe.return_value = MagicMock(
@@ -474,7 +474,7 @@ class TestRunSingleMasterDirection:
         """分析失败时 direction 为 Neutral"""
         market_data = {"brief": "", "quote": None, "quotes": [], "klines": [], "news": []}
 
-        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+        with patch("src.debate.participants.MasterAgent") as mock_master:
             agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             agent_instance.run_safe.return_value = MagicMock(
@@ -704,7 +704,7 @@ class TestDirectionFullIntegration:
                     # Mock 分析师层 + LLM 层
                     with (
                         patch(
-                            "src.debate.orchestrator._run_single_analyst",
+                            "src.debate.graph_nodes._run_single_analyst",
                             new_callable=AsyncMock,
                             return_value=mock_analyst_report,
                         ),
@@ -870,7 +870,7 @@ class TestDirectionBackwardCompatibility:
     async def test_debate_orchestrator_no_knowledge_of_direction(self):
         """orchestrator 的 _run_single_master 在无 direction 时默认 Neutral"""
         market_data = {"brief": "", "quote": None, "quotes": [], "klines": [], "news": []}
-        with patch("src.debate.orchestrator.MasterAgent") as mock_master:
+        with patch("src.debate.participants.MasterAgent") as mock_master:
             agent_instance = mock_master.return_value
             agent_instance.run_safe = AsyncMock()
             # 模拟不含 direction 的旧版 LLM 输出
