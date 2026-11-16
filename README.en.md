@@ -83,7 +83,7 @@ git clone https://github.com/NoahLightryyy/litchi-head.git
 cd litchi-head
 python -m venv .venv
 source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -e ".[dev]" -c constraints.txt
 cp .env.example .env      # PowerShell: Copy-Item .env.example .env
 
 # Store credentials interactively in the OS credential manager.
@@ -94,7 +94,9 @@ corepack prepare pnpm@10.33.0 --activate
 pnpm --dir frontend install --frozen-lockfile
 ```
 
-Start two terminals from the repository root:
+**One-click start (recommended for daily use).** Double-click `start.command` on macOS or `start.bat` on Windows. The launcher checks Python/Node, installs dependencies on first run (pinned by `constraints.txt`), builds the frontend, starts both services and opens the browser; on failure it prints the cause and the log location. On Windows, `stop.bat` stops the services.
+
+For development, start two terminals from the repository root:
 
 ```bash
 # Terminal 1, with the Python environment activated

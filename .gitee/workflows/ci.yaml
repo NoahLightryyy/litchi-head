@@ -26,7 +26,7 @@ stages:
         pythonVersion: '3.12'
         commands:
           - pip install --upgrade pip
-          - pip install -e ".[dev]"
+          - pip install -e ".[dev]" -c constraints.txt
           - ruff check .
           - pyright src/
           - pytest -v --tb=short

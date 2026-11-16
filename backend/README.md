@@ -14,11 +14,11 @@
 ## 快速启动
 
 ```bash
-# 安装依赖（首次）
-pip install -r requirements.txt
+# 安装依赖（首次，在仓库根目录执行）
+pip install -e ".[dev]" -c constraints.txt
 
-# 启动开发服务器
-uvicorn main:app --reload --port 8000
+# 启动开发服务器（在仓库根目录执行）
+python -m uvicorn backend.main:app --reload --port 8000
 
 # API 文档
 # → http://localhost:8000/docs
@@ -36,7 +36,6 @@ backend/
 ├── main.py              # FastAPI 入口 + CORS + 异常处理 + 健康检查
 ├── config.py            # 生产数据源配置（adata / akshare 自动切换）
 ├── indicators.py        # 技术指标离线计算（MA/RSI/MACD/布林带，纯 Python）
-├── requirements.txt     # fastapi + uvicorn + sse-starlette + adata
 └── routers/
     ├── __init__.py
     ├── market.py        # /api/market/* — 指数 / 板块 / 板块详情 / AI 简报（TD-020 ✅）

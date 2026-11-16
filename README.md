@@ -83,7 +83,7 @@ git clone https://github.com/NoahLightryyy/litchi-head.git
 cd litchi-head
 python -m venv .venv
 source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -e ".[dev]" -c constraints.txt
 cp .env.example .env      # PowerShell: Copy-Item .env.example .env
 
 # 交互式写入系统凭据管理器，不把密钥提交到仓库
@@ -94,7 +94,9 @@ corepack prepare pnpm@10.33.0 --activate
 pnpm --dir frontend install --frozen-lockfile
 ```
 
-在仓库根目录分别启动两个终端：
+**一键启动（推荐日常使用）。** macOS 双击 `start.command`，Windows 双击 `start.bat`。脚本会检查 Python/Node、首次自动安装依赖（按 `constraints.txt` 锁定版本）、构建前端、启动服务并打开浏览器；失败时给出原因和日志位置。Windows 停止服务用 `stop.bat`。
+
+开发调试时可在仓库根目录分别启动两个终端：
 
 ```bash
 # 终端 1（已激活 Python 环境）

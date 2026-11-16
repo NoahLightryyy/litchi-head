@@ -35,10 +35,10 @@ dependencies = [
     "keyring>=25.0",     # 系统凭据管理器集成
 
     # 金融数据
-    "akshare>=1.14",
+    "akshare>=1.14,<1.20",  # 1.20.x 移除 stock_zh_a_hist 等接口，见 constraints.txt
     "adata>=2.9.0",
 
-    # 后端服务（原 backend/requirements.txt，已合并至此）
+    # 后端服务
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.34.0",
     "slowapi>=0.1.9",
@@ -55,10 +55,6 @@ dev = [
     "pre-commit>=3.0",
     "ipython>=8.0",
     "pyright>=1.1.380",
-]
-frontend = [
-    "streamlit>=1.35",
-    "plotly>=5.22",
 ]
 docs = [
     "mkdocs>=1.6",
