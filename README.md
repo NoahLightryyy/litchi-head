@@ -1,11 +1,3 @@
-> 2026-11-04 辩论故障修复：模型余额不足与市场证据不足分开显示；全失败任务不再显示方向共识、生成计划或记作成功复盘。旧研究只读保留，账户余额仍需持有人处理。见 `docs/04-changelog/logs/2026-11-04/2026-11-04-debate-balance-failure.md`。
-
-> 2026-11-04 ETF日线修复：展示包含来源已提供的当日OHLCV，盘中注明尚未收盘；不再强制截到昨天。研究默认日线范围不变。详见 `docs/04-changelog/logs/2026-11-04/2026-11-04-etf-current-day.md`。
-
-> 2026-11-04 ETF搜索修复：支持“半导体广发”“广发半导体”等主题与管理人组合，不必记住目录名称顺序；结果仍使用真实基金名称/代码。验收见 `docs/04-changelog/logs/2026-11-04/2026-11-04-etf-search.md`。
-
-> 2026-11-04 普通股票研究补充：现有腾讯日线通道接入当前前复权指标，成交量按原始股数对比前5/20日均量。单源有效即可用，数据齐全不代表买入条件已满足。旧研究不自动重算，不触发付费模型；详见 `docs/04-changelog/logs/2026-11-04/2026-11-04-adjusted-volume.md`。
-
 # Litchi Head · 荔枝头
 
 **面向 A 股研究的多智能体平台，将市场数据、证据校验与交叉评审连接成可追溯的分析流程。**
@@ -14,27 +6,22 @@
 
 Python · LangGraph · Pydantic · FastAPI · Next.js · TypeScript
 
-2026-10-27 本地修复：行情研究统一为“一个有效来源即可使用”，不再将单源本身列作风险；仍校验价格、标的、时间及真实冲突。历史分析不自动重算，不更改原评分或方向。仅本地工作树，未推送。[验收记录](docs/04-changelog/logs/2026-10-27/2026-10-27-single-source-research.md)
-
 ## 项目概览
 
 Litchi Head 是一个可本地运行的全栈 AI 研究系统。用户可以从市场、板块、股票或 ETF 进入研究，查看行情与财务信息、追踪政策证据，并通过多智能体分析、同侪复核和风控审阅获得结构化研究结果。
 
 项目关注的技术问题是：**如何让多智能体分析依赖可检查的数据，并在证据不足、外部服务失败或任务中断时保持行为可解释？** 为此，系统将数据来源、类型契约、任务状态和模型输出纳入同一条处理链路。
 
-已交付的工程成果包括 LangGraph 编排引擎、多源数据校验、可恢复研究任务、Web 应用与自动化验证。2026-10-22 集成验收记录为 **2,451 项 Python 测试、160 项前端测试通过**；Python 3.12/3.13 与前端 [CI 均通过](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194)。[验收记录](docs/04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md)
+已交付的工程成果包括 LangGraph 编排引擎、多源数据校验、可恢复研究任务、Web 应用与自动化验证。2026-11-17 本地复验为 **2,827 项 Python 测试、331 项前端测试通过**（按 `constraints.txt` 锁定依赖，Linux / Python 3.12）；[复验记录](docs/04-changelog/logs/2026-11-17/2026-11-17-merge-and-etf-catalog.md)。合并后的 GitHub CI 以 [Actions 页面](https://github.com/NoahLightryyy/litchi-head/actions) 为准，上一次通过的集成快照是 [2026-10-22](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194)。
 
-2026-10-27 本地体验改进：自选支持一键关注和通俗提醒，报价与历史研究时间分别展示；股票目录不可用时可按完整代码恢复公司身份。仅 `codex/market-availability` 本地预览，未推送。[工作记录](docs/04-changelog/logs/2026-10-27/2026-10-27-plain-watchlist.md)
+## 近期更新
 
-2026-10-27 政策新闻新增综合解读，先解释股价和产业影响、再展开依据，后续辩论复用同一份资料。用户授权一次重验后，300916的12条近期报道生成3条主线，浏览器与保存复用通过。[验收边界](docs/04-changelog/logs/2026-10-27/2026-10-27-policy-synthesis.md)
+- **2026-11-17 合并与海外可用性。** 此前只在本地预览的 `codex/market-availability` 已合入，仓库回到单一主线。系统 DNS 解析不了行情域名时（海外网络常见）自动改用备用解析；ETF 目录在来源自报总数与实际条数小幅不符时不再整体拒绝，改为接受并在搜索结果上方披露；模型服务连接中断时先等待重试，仍失败则写明是断网而不是笼统的请求失败。[记录](docs/04-changelog/logs/2026-11-17/2026-11-17-merge-and-etf-catalog.md)
+- **2026-11-16 收尾。** 依赖版本锁定到 `constraints.txt`，新增 macOS / Windows 一键启动与停止脚本，辩论编排器拆分为五个模块。[记录](docs/04-changelog/logs/2026-11-16/2026-11-16-v1-stabilize.md)
+- **2026-11-04。** 模型余额不足与市场证据不足分开显示，全部流派失败的任务不再给出方向共识或计入复盘（[记录](docs/04-changelog/logs/2026-11-04/2026-11-04-debate-balance-failure.md)）；ETF 日线包含来源已提供的当日数据（[记录](docs/04-changelog/logs/2026-11-04/2026-11-04-etf-current-day.md)）；ETF 搜索支持主题与管理人任意顺序组合（[记录](docs/04-changelog/logs/2026-11-04/2026-11-04-etf-search.md)）；普通股票研究接入前复权指标与成交量对比（[记录](docs/04-changelog/logs/2026-11-04/2026-11-04-adjusted-volume.md)）。
+- **2026-10-27。** 行情研究统一为一个有效来源即可使用（[记录](docs/04-changelog/logs/2026-10-27/2026-10-27-single-source-research.md)）；自选一键关注与通俗提醒（[记录](docs/04-changelog/logs/2026-10-27/2026-10-27-plain-watchlist.md)）；政策新闻综合解读（[记录](docs/04-changelog/logs/2026-10-27/2026-10-27-policy-synthesis.md)）；技术指标复用备用日线（[记录](docs/04-changelog/logs/2026-10-27/2026-10-27-technical-indicators.md)）；复盘自动更新历史收盘变化（[记录](docs/04-changelog/logs/2026-10-27/2026-10-27-retro-and-sector-summary.md)）；个股报价与分时在部分来源故障时恢复显示（[报价](docs/04-changelog/logs/2026-10-27/2026-10-27-stock-quote-recovery.md)、[分时](docs/04-changelog/logs/2026-10-27/2026-10-27-intraday-recovery.md)）。
 
-2026-10-27 技术指标已复用备用日线；300750实测160个交易日可计算，并纠正均线多空排列方向。仅本地预览。[验收记录](docs/04-changelog/logs/2026-10-27/2026-10-27-technical-indicators.md)
-
-2026-10-27 复盘自动更新历史收盘变化，名称可进入股票详情；行业榜单提供通俗总结和近期背景。北交所历史数据覆盖仍有限。[验收记录](docs/04-changelog/logs/2026-10-27/2026-10-27-retro-and-sector-summary.md)
-
-2026-10-27 个股详情恢复：股票名称独立于报价；现有腾讯日线响应的报价快照加入展示回退，有一个合格源就显示并保留数据时间。002885京泉华浏览器验收通过，外部东财/新浪故障仍保留诊断。[验收记录](docs/04-changelog/logs/2026-10-27/2026-10-27-stock-quote-recovery.md)
-
-2026-10-27 分时恢复：当日接口不可用时复用已有五日分钟，刷新失败保留同股旧图与真实交易时间；无分钟时默认日 K，不把日线冒充分时。[工作记录](docs/04-changelog/logs/2026-10-27/2026-10-27-intraday-recovery.md)
+更早的记录见 [工作日志索引](docs/04-changelog/logs/README.md)。
 
 ## 界面预览
 
@@ -69,12 +56,15 @@ ETF 详情现可查看三位价格的日/周/月 K 线并启动完整多轮辩�
 
 | 技术问题 | 实现方式 | 代码入口 |
 |---|---|---|
-| 多角色分析如何保持结构一致？ | 使用 LangGraph 状态图组织分析、互评、独立评审与风控，以 Pydantic 校验跨模块数据 | [编排引擎](src/debate/orchestrator.py) · [类型模型](src/debate/models.py) |
+| 多角色分析如何保持结构一致？ | 使用 LangGraph 状态图组织分析、互评、独立评审与风控，以 Pydantic 校验跨模块数据 | [编排引擎](src/debate/orchestrator.py) · [节点](src/debate/graph_nodes.py) · [类型模型](src/debate/models.py) |
 | 数据冲突或过期时如何控制分析？ | 记录行情与新闻来源、时间与诊断；关键身份或价格冲突阻断分析，覆盖缺口允许带范围说明的研究 | [证据服务](src/data/evidence_service.py) · [门禁](src/debate/evidence_gate.py) |
 | 如何区分盘中状态与历史日线？ | 分离完成日线与临时盘中数据，实现 RAW 数据审计、公司行动与复权核验组件 | [K 线契约](src/data/kline_business.py) · [复权核验](src/data/kline_adjustment.py) |
 | 长耗时研究如何恢复和追踪？ | 以 SQLite 保存政策研究任务，关联归档材料与引用，执行预算检查并保留失败状态 | [研究运行时](backend/policy_research.py) · [运行时测试](tests/test_backend/test_policy_research_runtime.py) |
 | 如何避免语言模型承担金额运算？ | 将研究生成与 Decimal 单笔买入计算分离，以类型契约校验账户、费用和权限上下文 | [本金预览](backend/capital_preview.py) · [契约测试](tests/test_backend/test_policy_capital_contract.py) |
 | 如何将系统交付给用户？ | 通过 FastAPI 与 Next.js 实现行情、图表、研究状态、失败诊断和任务恢复，并以 CI 验证前后端 | [API](backend/main.py) · [Web 应用](frontend/) · [CI 配置](.github/workflows/ci.yml) |
+| 海外网络解析不了行情域名怎么办？ | 系统解析失败时才通过 HTTPS 向公共解析服务查询，按 TTL 缓存，丢弃私有地址，使用情况计入数据源健康统计 | [备用解析](src/utils/dns_fallback.py) · [测试](tests/test_utils/test_dns_fallback.py) |
+| 模型调用失败如何说清原因？ | 区分余额不足、连接中断、响应超时与输出校验失败；连接中断在同一次调用内等待重试，失败任务不冒充研究结论 | [LLM 适配层](src/utils/llm.py) · [错误分类](src/utils/llm_errors.py) |
+| 换一台机器还能跑出同样的结果吗？ | 依赖版本锁定，CI、Docker 与启动脚本使用同一份约束；一键脚本负责环境检查、安装、构建与启动 | [版本约束](constraints.txt) · [macOS 启动](start.command) · [Windows 启动](scripts/start.ps1) |
 
 ## 系统架构
 
@@ -98,11 +88,11 @@ FastAPI API ←→ Next.js Web 界面
 
 **工程验证。** 2026-10-22 集成快照中，Python 测试 2,451 项通过、7 项跳过、19 项排除；前端 160 项通过，生产构建通过。CI 包含 Ruff、Pyright、Python 3.12/3.13 测试与覆盖率检查，以及前端测试、类型检查和构建。数字对应该快照，可通过 [验收记录](docs/04-changelog/logs/2026-10-22/2026-10-22-remaining-integration.md) 和 [CI 运行](https://github.com/NoahLightryyy/litchi-head/actions/runs/39772044194) 核查。
 
-2026-11-17 合并 `codex/market-availability` 后复验（按 `constraints.txt` 锁定依赖，Linux / Python 3.12）：Ruff、Pyright 通过，Python 2,821 项通过、8 项跳过，前端 329 项通过；[合并记录](docs/04-changelog/logs/2026-11-17/2026-11-17-merge-and-etf-catalog.md)、[收尾记录](docs/04-changelog/logs/2026-11-16/2026-11-16-v1-stabilize.md)。
+2026-11-17 合并 `codex/market-availability` 后复验（按 `constraints.txt` 锁定依赖，Linux / Python 3.12）：Ruff、Pyright 通过，Python 2,827 项通过、8 项跳过，前端 331 项通过；[合并记录](docs/04-changelog/logs/2026-11-17/2026-11-17-merge-and-etf-catalog.md)、[收尾记录](docs/04-changelog/logs/2026-11-16/2026-11-16-v1-stabilize.md)。
 
 **研究评估。** 已实现 [E0 离线评测的采样、运行与结果存储](src/backtest/e0/)，并保存 [六题研究烟测及原始记录](docs/02-requirements/differentiation/SMOKE_RESULT_2026-10-18.md)。后者用于检查研究流程：样本小、调用预算不同，因此不用于推断多智能体优于单模型。后续对照设计见 [Baseline 与影子验证计划](docs/02-requirements/DECISION_BASELINE_AND_SHADOW_VALIDATION.md)。
 
-**适用范围。** 本项目用于研究辅助与人工审阅，交易模块提供计划和仓位计算，未连接券商自动下单。完整生产数据血缘、连续影子验证与真实结果上的置信度校准仍在推进；测试成绩不代表投资收益。AI 草图是明确标注的未核验推断，不能作为真实公司关系证据。
+**适用范围。** 本项目用于研究辅助与人工审阅，交易模块提供计划和仓位计算，未连接券商自动下单。完整生产数据血缘、连续影子验证与真实结果上的置信度校准仍在推进；测试成绩不代表投资收益。AI 草图是明确标注的未核验推断，不能作为真实公司关系证据。人工核验的政策证据包目前只覆盖 3 个示例标的（板块 BK0917、股票 688012、ETF 512480），其余标的的“已核验证据与 AI 深入研究”会说明不可用。
 
 ## 本地运行
 
@@ -125,6 +115,8 @@ pnpm --dir frontend install --frozen-lockfile
 ```
 
 **一键启动（推荐日常使用）。** macOS 双击 `start.command`，Windows 双击 `start.bat`。脚本会检查 Python/Node、首次自动安装依赖（按 `constraints.txt` 锁定版本）、构建前端、启动服务并打开浏览器；失败时给出原因和日志位置。停止服务：macOS 双击 `stop.command`，Windows 双击 `stop.bat`。
+
+在海外网络使用时不需要改系统 DNS：后端启动时会启用备用域名解析，只在系统解析失败时介入，可用 `LITCHI_DNS_FALLBACK=0` 关闭。从海外连接国内行情源仍可能较慢或偶发超时。
 
 开发调试时可在仓库根目录分别启动两个终端：
 
