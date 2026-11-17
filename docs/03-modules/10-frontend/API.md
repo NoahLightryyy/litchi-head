@@ -120,7 +120,7 @@ Content-Type: application/json
 
 - `price_points[].timestamp + close` 绘制分钟价格折线，不从单价点推造 OHLC；
 - `verification_status` 区分 `multi_source_verified`、`single_source`、
-  `source_conflict`、`unavailable`；单源和冲突只做持续可见提醒，不阻断可用数据；
+  `source_conflict`、`unavailable`；单源显示中性的“行情可用”与来源/时间，真实冲突仍持续提醒，不遮挡可用数据；
 - `source_diagnostics[]` 展示数据商名称、获取时间、检查点数量、状态和原始错误；
 - `snapshot.session_vwap` 展示为 VWAP（成交量加权平均价），
   `relative_volume` 必须同时展示历史样本天数；
@@ -128,9 +128,17 @@ Content-Type: application/json
   网络错误不得猜测具体是哪家数据商失败。
 
 前端每 30 秒轮询，查询在 15 秒后视为陈旧。已有可用数据刷新失败时保留最后一次可用画面，
-常驻标红“刷新失败”和最后成功时间，避免短暂网络波动把图清空或把旧图冒充当前数据。
+常驻标红“刷新失败”和最后成功交易日期/时刻（北京时间），避免短暂网络波动把图清空或把旧图冒充当前数据。HTTP 200但`usable=false`也按刷新失败处理，并保留本次逐源诊断。
 HTTP 边界对上述字段执行运行时契约校验；旧版后端若缺少单源放行字段，页面显示
 “分时接口版本不兼容”，不得让 `undefined` 字段进入组件。
+
+2026-10-27 展示回退（复用冻结契约，不改证据准入）：
+- 首次当日分时失败/空返回时，调用现有 `GET /stocks/{code}/intraday-five-day-display`，按北京时间从已校验的五日序列中截取最后一个真实交易日。与五日标签共享查询键；只传 timestamp/close，不推造累计量、VWAP、OHLC或双源核验状态。
+- 显示“备用分时 · 腾讯”、真实交易日期/最后分钟及单源标签；历史日期明确“非今日实时行情”，不把最近交易日强行叫今日。部分分钟只画已返回点。
+- 当日与备用分钟均失败，默认选择日 K，继续走现有前复权→腾讯不复权日线展示路径；用户手选的时间范围不被自动回退覆盖。日线不是分钟替身。
+- 分时请求20秒、备用请求15秒客户端预算，不自动连续重试；30秒正常轮询。失败保留同代码最后成功画面，切代码重新选择视图。后端任务不因浏览器取消而被声称已终止。
+- 五日刷新失败同样保留已有真实数据并提示旧记录。错误详情仍可展开；不再把运输故障笼统写成“没通过本地结构与时间校验”。
+
 
 ### 信任度
 
@@ -359,8 +367,8 @@ ws://localhost:8000/ws/quotes?codes=000001,300750
 ### 2026-10-06 单股顶部报价恢复
 
 `GET /stocks/{code}/quote`冻结契约d60d1fd，见[单股报价展示契约](../../06-departments/08-backend-api/QUOTE-DISPLAY-CONTRACT.md)。
-不再拉全市场后过滤；复用东财/新浪现有单股适配器。新增source、single_source标记；turnover_rate/fund_flow/market_cap允许null。
-QuoteCard显示名称、价格、真实北京时间日期、来源及未交叉验证；未知增强字段显示“—”。
+不再拉全市场后过滤；复用东财/新浪现有单股适配器与腾讯日线qt报价。source=eastmoney|sina|tencent、single_source标记；turnover_rate/fund_flow/market_cap允许null。2026-10-27兼容增量冻结见d9866de及同一报价契约。
+QuoteCard显示名称、价格、真实北京时间日期、来源及行情可用状态（单源不是告警）；未知增强字段显示“—”。
 
 ### 2026-10-06 休市研究说明
 
@@ -392,7 +400,8 @@ DebateResult.evidence_limitations 新增 research_note?: string | null，由后�
 也进入辩论研究链路，按公司与时间筛选，不满足完整覆盖/独立验证准入。
 
 2026-10-07：统一搜索与新闻历史库
-- `/api/discovery/search` 同时返回stock/industry/concept，前端根据kind进入股票或板块。
+- `/api/discovery/search` 同时返回stock/industry/concept/etf，前端根据kind进入股票、板块或ETF。
+  ETF支持主题+管理人组合及顺序互换，原名称和代码保留；详细匹配规则见后端部门DISCOVERY-CONTRACT.md。
 - `/api/discovery/gainers` 是新浪沪深A股前20候选及逐只核验的报价时间，不是全市场热度排名。
 - `/api/news-archive` 按时间/渠道/关键词分页检索入库历史，coverage公开逐源边界及缺口；
   后续页携带end_at固定检索上界。见DISCOVERY-CONTRACT.md及NEWS-ARCHIVE-CONTRACT.md。
@@ -490,3 +499,45 @@ StockDiscovery共享，保留最近20条去重关键词；提交/打开结果才
 - 查询切换使用独立 query key 和取消信号；成分股响应校验放在查询函数内，坏数据进入错误态。
 
 - 搜索三条只读请求遇到网络失败、503 或后端明确 TimeoutError 时最多自动重试一次（800ms间隔）；404、422 和契约解析错误不自动重试。成分股重试阶段可见，最终失败仍保留手动重试。
+
+## 2026-10-26 ETF消费者契约
+
+- `GET /api/etfs/{code}/kline?days=730`：直接返回EtfKlineDisplay，bars/date及原始OHLCV，
+  ready/empty/unavailable，.001价步，volume_unit=fund_units。来源诊断可折叠。
+- 原`POST /api/debate/run`、history/status/result新增`instrument_type`；ETF显式etf，旧默认stock。
+  完整字段和错误/重试语义见[ETF辩论契约](../08-backend-api/ETF_DEBATE_CONTRACT.md)，
+  日线见[ETF日线契约](../08-backend-api/ETF_KLINE_CONTRACT.md)。
+- 缓存、历史选择和结果归属同时核对类型与代码；只读刷新不能触发分析；主动运行不自动付费重试。
+
+
+### 2026-10-27 个股身份与报价解耦
+
+- `useStockIdentity(code)`复用股票专用 `/stocks/search?q={code}`，严格同代码且非空名称；不凭ETF/板块或旧页面缓存当公司身份。
+- 顶部、自选、政策资料和辩论显示名共享该身份后备；quote失败不再抹掉已知公司名。
+- `useStockQuote`将200/null视作该次查询失败（无自动密集重试，保留30秒轮询与显式按钮）；React Query保留同代码上次成功报价，页面另显“刷新未成功”及原始报价时间。没有历史报价才显示空态；不同代码旧数据不显示。
+- QuoteCard显示腾讯实际来源及上游时间，不将日线收盘或当前电脑时间补作报价。
+- 英文词典同步删除旧“名称与报价同时丢失”文案。与前轮搜索恢复相互独立。
+
+
+### 普通研究单源规则（2026-10-27）
+
+API 字段与 `single_source` 枚举保持不变。来源数不等于风险或置信度；分时单源使用
+`available` 中性样式而非 `verified`，身份/时间缺失仍告警。三周期观点共享一条规则说明。
+旧限制文案只移除精确匹配的独立单源句，原文在“旧口径”折叠项保留；方向、统计分母、
+分数和数据库记录不变。不得把一句话同时含有的价格冲突/过期/财务缺失删掉。
+
+
+## 股票复权与量能补充（2026-11-04 冻结）
+
+`GET /api/stocks/{code}/technical-research`，code 必须为六位股票代码。
+返回 `TechnicalResearch`（Pydantic/OpenAPI），不使用 data 包装；只读数据，不触发模型、交易或风险默认值。
+
+- `stock_code/status/fetched_at/sources/diagnostics/bars/indicators/price_basis`：原有日线研究；`bars/indicators` 永远为 raw，不改旧调用语义。
+- `adjusted`：`status=available|unavailable`、`price_basis=provider_qfq_current`、`source=tencent`、`fetched_at/data_start/data_end/bar_count/response_hash/indicators/reason/methodology`。请求现有腾讯同一日线端点的 qfq 参数，必须明确返回 qfqday；不得把 day 冒充复权。与原始日线逐日期、身份对齐后独立计算 MA/RSI/MACD/KDJ，精度保留，不拼接 raw。不是官方公司行为审计或历史时点复权。
+- `volume`：`status=available|partial|unavailable`、`data_date/sample_bars/volume_basis=raw_shares/latest_shares/previous5_mean_shares/previous20_mean_shares/ratio_to_previous5/ratio_to_previous20/comparison/methodology`。
+  均值窗口不含最新日，至少6/21根才分别计算；零均值比值为 null。comparison 为 above_both / below_both / equal_both / mixed / insufficient，纯算术比较，不等于买入或反转确认。
+- 只统计已结束交易日，展示资料日期而不是宣称实时。复权失败时 raw/volume 独立可用；已有真实冲突不绕过。
+- 正常和无数据均200（按各子状态处理）；非法代码422；整体30秒超时504；无自动重试。专用池最多2线程。按股票锁合并并发：完整复权结果缓存300秒，部分/空结果30秒，返回深拷贝。
+- 旧研究的生成时间、方向、评分和原限制不改写；新补充卡片明确是另一时点。未来用户手动发起研究时复用补充字段，不因单源否决。
+
+前端消费者：`use-technical-supplement.ts` 使用上述GET和32秒客户端截止，禁用自动重试与窗口聚焦刷新；股票已有研究上方显示补充卡片，ETF不套用。来源有效而量能条件未出现时仍展示数字；旧研究不自动重算。

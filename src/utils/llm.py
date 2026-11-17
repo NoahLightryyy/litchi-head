@@ -28,13 +28,15 @@
     reply = await llm_service.ainvoke("深度分析", llm_config=config)
 """
 
+import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_deepseek import ChatDeepSeek
+from openai import APIStatusError
 from pydantic import BaseModel, SecretStr
 from tenacity import (
     after_log,
@@ -47,6 +49,7 @@ from tenacity import (
 
 from src.utils.config import settings
 from src.utils.cost_tracker import cost_tracker
+from src.utils.llm_errors import is_balance_error
 from src.utils.logger import AgentLogger
 
 logger = AgentLogger("llm_service")
@@ -404,6 +407,7 @@ class LLMService:
         agent_name: str = "unknown",
         session_id: str = "",
         llm_config: LLMConfig | None = None,
+        output_method: Literal["function_calling", "json_mode"] = "function_calling",
     ) -> BaseModel:
         """带结构化输出的 LLM 调用
 
@@ -415,14 +419,42 @@ class LLMService:
             agent_name: Agent 名称（用于费用记录）
             session_id: 会话 ID（用于费用记录）
             llm_config: LLM 调用配置，None 或默认值 = 当前行为
+            output_method: 默认函数调用；json_mode 显式请求完整 JSON 并严格校验
 
         Returns:
             output_model 的实例（已验证）
 
         Raises:
             ValueError: LLM 返回内容无法解析为 output_model
+            RuntimeError: 模型请求失败（包括余额不足），不是输出解析失败
         """
         llm = self.get_llm(provider, llm_config)
+        if output_method == "json_mode":
+            # Explicit opt-in for providers that return no usable tool call. Do not
+            # repair truncated JSON or accept plain prose as a successful result.
+            schema_instruction = (
+                "只输出一个完整 JSON 对象，不要 Markdown 围栏，严格符合以下 JSON Schema：\n"
+                + json.dumps(output_model.model_json_schema(), ensure_ascii=False)
+            )
+            messages = [
+                SystemMessage(content=(system_prompt or "") + "\n" + schema_instruction),
+                HumanMessage(content=prompt),
+            ]
+            raw = await self._call_with_retry(
+                llm.bind(response_format={"type": "json_object"}), messages
+            )
+            if not isinstance(raw, BaseMessage):
+                raise ValueError("LLM JSON 输出不是消息对象")
+            if agent_name != "unknown":
+                _record_usage(llm, raw, agent_name, session_id)
+            if (
+                not isinstance(raw.content, str)
+                or raw.response_metadata.get("finish_reason") == "length"
+            ):
+                raise ValueError("LLM JSON 输出为空、格式异常或被截断")
+            return output_model.model_validate_json(raw.content)
+        if output_method != "function_calling":
+            raise ValueError("不支持的结构化输出方式")
         structured_llm = llm.with_structured_output(output_model, include_raw=True)
 
         messages = []
@@ -452,10 +484,16 @@ class LLMService:
                     if attempt == 0:
                         continue
                 break
-        except Exception as e:
+        except ValueError as e:
             raise ValueError(
                 f"LLM 结构化输出解析失败 for {output_model.__name__}: {e}"
             ) from e
+        except RuntimeError:
+            # Request/billing failures are not output validation failures and
+            # must not enter callers' paid format-correction loops.
+            raise
+        except Exception as e:
+            raise RuntimeError("LLM_REQUEST_FAILED: 模型服务请求失败") from e
 
         raw_response: BaseMessage | None = None
         if isinstance(response, output_model):
@@ -507,7 +545,18 @@ class LLMService:
 
         @retry_decorator
         async def _do_call() -> Any:
-            return await runnable.ainvoke(messages)
+            try:
+                return await runnable.ainvoke(messages)
+            except APIStatusError as exc:
+                # HTTP billing/auth failures are not transient parse errors.
+                # Retain the cause for logs, expose no raw provider body/URL.
+                if is_balance_error(exc):
+                    raise RuntimeError(
+                        "LLM_INSUFFICIENT_BALANCE: 模型服务余额不足"
+                    ) from exc
+                raise RuntimeError(
+                    f"LLM_REQUEST_FAILED: 模型服务请求失败（HTTP {exc.status_code}）"
+                ) from exc
 
         return await _do_call()
 

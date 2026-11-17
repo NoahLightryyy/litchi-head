@@ -98,3 +98,15 @@ else:
 用户可以选择低干扰展示：`frontend/components/macro/market-data-notice.tsx` 使用原生 `details/summary` 默认收起技术诊断，`marketNoticeLabel` 仍把陈旧数据标为“历史数据”，缺失来源标为“部分数据”。顶部状态通过 `frontend/components/shared/backend-status.tsx` 链接到数据状态页；不把降级改为成功。
 
 自己试试：打开历史快照的“查看详情”，确认仍能看到来源失败、行情时间与统计口径；再次收起后，历史状态仍可见。全断网仍保留连接失败和重试入口。
+
+## 2026-10-26｜诚实状态也要有信息层级
+
+partial既可能是请求失败，也可能只是来源口径说明，不能直接画成整屏警告。
+frontend/lib/sector-availability.ts使用现有失败分类、历史状态和已知说明代码判断展示顺序；
+可用新浪榜优先于东财旧行情，但仍标明净流入与服务更新时间，不能叫作已核验实时主力数据。
+frontend/components/macro/market-data-notice.tsx将上次行情及原行情时间只说一次，
+将502和分类说明放在折叠详情。未知限制仍显式提示，不能为降噪隐藏所有错误。
+
+自己试试：打开/industries，比较两来源提示；展开东财详情查看502，再切换行业/概念。
+frontend/tests/sector-availability.test.mts覆盖一类旧行情不污染另一类新行情、
+离线、缺时间、未知限制及两源可用性排序。

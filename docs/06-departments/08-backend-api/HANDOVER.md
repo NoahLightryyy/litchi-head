@@ -1,3 +1,13 @@
+> 2026-11-04 ETF组合搜索：560780目录存在但连续名称匹配导致“半导体广发”漏搜。新增确定性主题/管理人组合匹配，不改变响应结构、名称代码或来源。验收状态见本日etf-search日志。
+
+> 2026-10-27 单股详情续修：已有腾讯日线qt可用但报价未接入，现通过展示专用适配器与有界并发恢复002885报价；公司身份独立于quote。后端契约冻结d9866de，页面实网及回归见 `docs/04-changelog/logs/2026-10-27/2026-10-27-stock-quote-recovery.md`。只读展示不改变实时辩论/交易门禁，无新增供应商、付费调用或推送。
+
+> **2026-10-26 代表企业契约**：chain-companies在既有草图上补充企业，合同993b1db先提交；缓存绑定完整图、目录内容和模型，最多2任务/120秒，失败不覆盖旧成功。使用现有DeepSeek JSON路径、既有公司资料接口与官方资料目录。见本日chain-companies日志。
+
+> **2026-10-26 相关资料产业解读**：新增GET/POST `/api/research/related/interpretation`，独立于正式证据包；资料快照、引用、事件归并及产业影响结构见RELATED_INTERPRETATION_CONTRACT。默认读取不调用模型，显式更新才生成；见本日related-interpretation日志。
+
+> **2026-10-26 ETF补齐**：ETF日线三位精度与腾讯/新浪回退、专用基金资料接入原多轮辩论、类型隔离历史已实现。契约为ETF_KLINE_CONTRACT.md和ETF_DEBATE_CONTRACT.md，位于docs/03-modules/08-backend-api；集成验收见本日etf-chart-debate日志。下文旧脚手架信息为历史记录。
+
 ---
 
 > **2026-10-01 项目集成更新**：现行集成分支 `codex/integration-project-20261001`，未 push。新闻、UA-03、主题云、财务板块、辩论修复及 KR-4A 适配层已聚合。全量闸门 5/5，Python 1939 passed、前端 90 passed、构建通过。预览 3041/8041；生产血缘及 KR-4 运行时注入仍待完成。以下旧测试数字和旧分支状态为历史快照。
@@ -378,3 +388,12 @@ PC-08：牵头冻结证据、约束、任务和错误语义；依赖S2真实样�
 2026-10-18 S2/S3：两组证据及缺口见 `docs/02-requirements/differentiation/S2_EVIDENCE.md`；v1冻结契约见 `docs/03-modules/08-backend-api/policy-capital/CONTRACT.md`。依任务表进入S4/S5，生产接口未上线；最新持仓/客户费用缺失必须显式阻断。
 
 2026-10-18 S4/S5/S6：政策研究任务、确定性单笔计算、三类标的同页面板已接入。后端50项/前端152项通过及浏览器预算/缺项/返回恢复验收。账户费用/权限适配、真实模型质量和组合约束仍待完成，详见 `docs/04-changelog/logs/2026-10-18/2026-10-18-policy-capital-runtime.md`。
+
+## 2026-10-26 同花顺资金备用API
+
+新增/api/discovery/fund-flow/ths，源周期latest/3/5/10/20；真实资金净额、前50、CNY，日期为空且采集时间独立。
+已冻结FundFlowResult并通过前端消费者接线；原东财main_net契约不变。缓存120秒，不复活过期失败数据。
+
+## 2026-10-26 相关政策与资讯检索
+
+分支 `codex/market-availability`，接口契约先提交 `9be63c0`。新增只读 `GET /api/research/related`：名称/代码、ETF主题、股票主营与用户关键词覆盖；复用现有新闻归档和政策原文，不再要求当前标的必须存在静态证据包。现有3个正式包及付费研究/本金校验未扩容。局部来源故障保留可用结果，完整失败和空结果分别表达。详细范围与验收见[日志](../../04-changelog/logs/2026-10-26/2026-10-26-related-policy.md)。

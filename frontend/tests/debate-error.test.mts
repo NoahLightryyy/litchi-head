@@ -11,3 +11,10 @@ test("证据门禁不冒充后端断线，且不暴露原始错误", () => {
   assert.doesNotMatch(debateErrorMessage({code:"ANALYSIS_NOT_CONFIGURED"}), /稍后重试/);
   assert.doesNotMatch(debateErrorMessage({message:"secret upstream URL"}), /secret/);
 });
+
+
+test("balance and total generation failure are not market data failures", () => {
+ assert.match(debateErrorMessage({code:"ANALYSIS_BALANCE_INSUFFICIENT"}),/余额不足/);
+ assert.doesNotMatch(debateErrorMessage({code:"ANALYSIS_BALANCE_INSUFFICIENT"}),/稍后重试|市场证据/);
+ assert.match(debateErrorMessage({code:"ANALYSIS_FAILED"}),/未生成研究结论/);
+});

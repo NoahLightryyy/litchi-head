@@ -66,7 +66,7 @@ from src.data.kline_business import (  # noqa: E402
 )
 from src.data.quote_runtime import (  # noqa: E402
     RealtimeQuoteEvidenceService,
-    get_realtime_quote_evidence_runtime,
+    get_research_quote_runtime,
 )
 from src.debate.analysts import AnalystPersona, get_default_analysts  # noqa: E402
 from src.debate.collection import (  # noqa: E402, F401
@@ -106,6 +106,7 @@ from src.debate.models import (  # noqa: E402
     EvidenceLimitation,
     EvidenceReference,
     IndependentReview,
+    InstrumentResearchContext,
     MirrorReport,
     PeerReviewRound,
     VoteSummary,
@@ -182,6 +183,7 @@ class DebateOrchestrator:
         ),
         kline_business_provider: KlineBusinessProvider | None = None,
         research_supplement: Callable[[str], str] | None = None,
+        prepared_research: InstrumentResearchContext | None = None,
     ):
         """初始化辩论编排器
 
@@ -224,9 +226,10 @@ class DebateOrchestrator:
         self.enable_trust = enable_trust
         self.enable_mirror = enable_mirror
         self.research_supplement = research_supplement
+        self.prepared_research = prepared_research
         self.news_evidence_service = news_evidence_service
         self.quote_evidence_service = (
-            get_realtime_quote_evidence_runtime().service
+            get_research_quote_runtime().service
             if quote_evidence_service is _DEFAULT_QUOTE_EVIDENCE_SERVICE
             else cast(
                 RealtimeQuoteEvidenceService | None,
@@ -250,6 +253,16 @@ class DebateOrchestrator:
                     logger.warning("技能 ID 未找到，已跳过: %s", sid)
         else:
             self.master_skills = self.skill_disk.load_defaults()
+
+        if prepared_research is not None:
+            from src.debate.etf_analysts import ETF_SCOPE_PROMPT
+
+            self.master_skills = [
+                skill.model_copy(update={
+                    "system_prompt": skill.system_prompt + "\n" + ETF_SCOPE_PROMPT,
+                })
+                for skill in self.master_skills
+            ]
 
         # 缓存编译好的图
         self._compiled_graph: Any = None
@@ -275,6 +288,7 @@ class DebateOrchestrator:
                 self.quote_evidence_service,
                 self.kline_business_provider,
                 self.research_supplement,
+                self.prepared_research,
             ),
         )
         graph.set_entry_point("collect_data")
@@ -748,6 +762,7 @@ class DebateOrchestrator:
         result = DebateResult(
             session_id=debate_input.session_id,
             stock_code=debate_input.stock_code,
+            instrument_type=debate_input.instrument_type,
             stock_name=debate_input.stock_name,
             question=debate_input.question,
             analyses=analyses,
@@ -765,7 +780,9 @@ class DebateOrchestrator:
         )
 
         # 保存决策到记忆存储（不阻塞，方法内部已处理 None 情况）
-        await self._save_decision_to_memory(result)
+        # An empty/all-failed run is not a neutral decision to learn from.
+        if any(analysis.success for analysis in result.analyses):
+            await self._save_decision_to_memory(result)
 
         return result
 

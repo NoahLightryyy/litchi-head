@@ -34,9 +34,10 @@ export async function fetchCapitalFlow(code: string): Promise<CapitalFlow[]> {
 /** 技术指标（MA/RSI/MACD/布林带） */
 export async function fetchTechnicalIndicators(
   code: string,
-  period: string = "daily"
+  period: string = "daily",
+  signal?: AbortSignal
 ): Promise<TechnicalIndicators | null> {
-  return api.get(`/stocks/${code}/technical-indicators`, { period });
+  return api.get(`/stocks/${code}/technical-indicators`, { period }, { signal });
 }
 
 /** 个股财务指标（ROE/毛利率/负债率等） */
@@ -57,9 +58,10 @@ export async function fetchIndicators(code: string, signal?: AbortSignal): Promi
 /** 分时曲线、战况与数据源诊断。 */
 export async function fetchIntradayBattlefield(
   code: string,
+  signal?: AbortSignal,
 ): Promise<IntradayBattlefield> {
-  const response: unknown = await api.post("/v1/evidence/intraday/battlefield", {
+  const response: unknown = await api.postRaw("/v1/evidence/intraday/battlefield", {
     symbol: code,
-  });
+  }, { signal });
   return parseIntradayBattlefield(response);
 }

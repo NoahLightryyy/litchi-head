@@ -2,10 +2,9 @@
 
 from fastapi import APIRouter, HTTPException, Path, Query, Response
 
-from backend.news_display import NewsDisplay, NewsDisplayService
+from backend.news_display import NewsDisplay, service
 
 router = APIRouter(prefix="/api/stocks")
-service = NewsDisplayService()
 
 
 @router.get(

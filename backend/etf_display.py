@@ -150,7 +150,7 @@ def fetch_quote(identity: EtfIdentity) -> EtfQuote:
 
 async def detail(identity: EtfIdentity, catalog: EtfCatalog) -> EtfDetail:
     quote = None
-    limitations = ["新浪单源行情，未交叉验证；价格为场内交易价格，不是基金净值。"]
+    limitations = ["来源：新浪。价格为场内交易价格，不是基金净值。"]
     try:
         quote = await asyncio.wait_for(_runner.run(fetch_quote, identity), timeout=10)
     except Exception:

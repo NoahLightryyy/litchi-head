@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { readRetroObservations, observationLabel, type RetroObservation } from "@/lib/retro-observations";
 import {
   BarChart3,
   TrendingUp,
@@ -20,21 +23,30 @@ import type { RetroRecord } from "@/lib/types/retro";
 
 /** 复盘看板主组件 */
 export function RetroBoard() {
-  const [outcomeFilter, setOutcomeFilter] = useState<string>("");
+  const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: records = [], isLoading: recordsLoading, isError: recordsFailed, refetch: retryRecords } = useRetroRecords({
-    outcome: outcomeFilter || undefined,
     limit: 200,
   });
   const { data: summary, isLoading: summaryLoading, isError: summaryFailed, refetch: retrySummary } = useRetroSummary();
   const { mutate: deleteRecord, isError: deleteFailed } = useDeleteRecord();
 
+  const pageCount = Math.max(1, Math.ceil(records.length / 10));
+  const currentPage = Math.min(page, pageCount);
+  const visible = records.slice((currentPage - 1) * 10, currentPage * 10);
+  const observations = useQuery({
+    queryKey: ["retro", "observations", visible.map(r => r.record_id)],
+    queryFn: ({ signal }) => readRetroObservations(visible, AbortSignal.any([signal, AbortSignal.timeout(60_000)])),
+    enabled: visible.length > 0,
+    staleTime: 30_000, refetchInterval: 60_000, retry: false,
+  });
+  const byId = new Map(observations.data?.map(item => [item.record_id, item]));
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">研究记录</h1>
-        <p className="mt-2 text-sm text-text-muted">这里保留 AI 研究与后续市场变化。涨跌幅按辩论价到观察价计算，不是你的账户收益；操作标签不代表已成交。</p>
+        <p className="mt-2 text-sm text-text-muted">打开本页会自动查看研究后的收盘价变化，每分钟检查更新，不用你填写结果。以记录日期起首个可取得收盘价为起点；这段变化不是账户盈亏，也不是研究的最终成绩。</p>
         <p className="mt-1 text-xs text-text-muted">历史评分和置信度保留原始值；当前接口未提供样本有效性和校准证明，暂不以其均值评价研究质量。</p>
       </div>
       {summaryFailed && <div role="alert" className="text-sm text-accent-red">研究统计加载失败。<button className="ml-2 underline" onClick={() => void retrySummary()}>重试统计</button></div>}
@@ -50,15 +62,15 @@ export function RetroBoard() {
         />
         <StatCard
           icon={<CheckCircle2 className="w-4 h-4" />}
-          label="已标记结果"
-          value={summaryFailed ? "加载失败" : summary?.closed_records ?? "-"}
+          label="本页已更新行情"
+          value={observations.data?.filter(item => item.status === "observed").length ?? "-"}
           loading={summaryLoading}
           color="green"
         />
         <StatCard
           icon={<Clock className="w-4 h-4" />}
-          label="待标记结果"
-          value={summaryFailed ? "加载失败" : summary ? summary.total_records - summary.closed_records : "-"}
+          label="本页等后续收盘"
+          value={observations.data?.filter(item => item.status === "waiting").length ?? "-"}
           loading={summaryLoading}
           color="purple"
         />
@@ -71,26 +83,11 @@ export function RetroBoard() {
         />
       </div>
 
-      {/* 操作栏 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-text-muted">筛选:</span>
-          {["", "pending", "correct", "wrong"].map((opt) => (
-            <button
-              key={opt}
-              onClick={() => setOutcomeFilter(opt)}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                outcomeFilter === opt
-                  ? "bg-accent-blue text-white"
-                  : "bg-bg-tertiary text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              {opt === "" ? "全部" : opt === "pending" ? "待判定" : opt === "correct" ? "正确" : "错误"}
-            </button>
-          ))}
-        </div>
-
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-text-muted">
+        <p>每页10条 · 使用已取得的历史日线，通常次日补齐；不复权，分红和除权可能影响比较。</p>
+        <button disabled={observations.isFetching || !visible.length} onClick={() => void observations.refetch()} className="text-accent-blue disabled:opacity-50">{observations.isFetching ? "正在更新行情…" : "更新市场观察"}</button>
       </div>
+      {observations.isError && <p role="alert" className="text-sm text-accent-gold">这次行情没有更新成功；已显示的价格仍对应原来的收盘日期。可以稍后刷新。</p>}
 
       {/* 记录列表 */}
       {recordsLoading ? (
@@ -121,16 +118,18 @@ export function RetroBoard() {
                 <Th>原始置信度</Th>
                 <Th>原始评分</Th>
                 <Th>操作标签</Th>
-                <Th>研究后涨跌幅</Th>
-                <Th>结果</Th>
+                <Th>收盘价变化</Th>
+                <Th>当前观察</Th>
                 <Th className="text-right">操作</Th>
               </tr>
             </thead>
             <tbody>
-              {records.map((record) => (
+              {visible.map((record) => (
                 <RetroRow
                   key={record.record_id}
                   record={record}
+                  observation={byId.get(record.record_id)}
+                  observationFailed={observations.isError}
                   expanded={expandedId === record.record_id}
                   onToggle={() =>
                     setExpandedId(
@@ -142,6 +141,11 @@ export function RetroBoard() {
               ))}
             </tbody>
           </table>
+          <nav aria-label="研究记录分页" className="flex items-center justify-end gap-4 p-4 text-sm">
+            <span>第 {currentPage} / {pageCount} 页 · 已加载 {records.length} 条</span>
+            <button disabled={currentPage <= 1} className="disabled:opacity-40" onClick={() => setPage(currentPage - 1)}>上一页</button>
+            <button disabled={currentPage >= pageCount} className="disabled:opacity-40" onClick={() => setPage(currentPage + 1)}>下一页</button>
+          </nav>
         </div>
       )}
     </div>
@@ -166,13 +170,17 @@ function Th({
 }
 
 /* ── 单行记录 ── */
-function RetroRow({
+export function RetroRow({
   record,
+  observation,
+  observationFailed = false,
   expanded,
   onToggle,
   onDelete,
 }: {
   record: RetroRecord;
+  observation?: RetroObservation;
+  observationFailed?: boolean;
   expanded: boolean;
   onToggle: () => void;
   onDelete: (id: string) => void;
@@ -194,8 +202,10 @@ function RetroRow({
       >
         <td className="px-4 py-3 text-text-muted font-number text-xs">{timeStr}</td>
         <td className="px-4 py-3">
-          <span className="text-text-primary font-medium">{record.stock_code}</span>
-          <span className="text-text-muted ml-1.5 text-xs">{record.stock_name}</span>
+          <Link href={`/stock/${record.stock_code}`} onClick={e => e.stopPropagation()} className="text-accent-blue hover:underline block min-w-24">
+            <span className="block font-medium">{record.stock_code}</span>
+            <span className="text-xs">{record.stock_name}</span>
+          </Link>
         </td>
         <td className="px-4 py-3">
           <ConsensusBadge consensus={record.consensus} />
@@ -214,23 +224,13 @@ function RetroRow({
           {record.user_action ? ({buy:"买入",sell:"卖出",hold:"持有",skip:"跳过"}[record.user_action] ?? record.user_action) : "未记录"}
         </td>
         <td className="px-4 py-3">
-          {record.actual_return_pct !== null ? (
-            <span
-              className={`font-number ${
-                record.actual_return_pct >= 0
-                  ? "text-accent-green"
-                  : "text-accent-red"
-              }`}
-            >
-              {record.actual_return_pct >= 0 ? "+" : ""}
-              {record.actual_return_pct.toFixed(2)}%
-            </span>
-          ) : (
-            <span className="text-text-muted text-xs">待更新</span>
-          )}
+          {observation?.status === "observed" && observation.change_pct != null ? <>
+            <span className={`font-number ${observation.change_pct >= 0 ? "text-accent-green" : "text-accent-red"}`}>{observation.change_pct >= 0 ? "+" : ""}{observation.change_pct.toFixed(2)}%</span>
+            <span className="block text-xs text-text-muted whitespace-nowrap">{observation.baseline_date} →<br />{observation.latest_date}</span>
+          </> : <span className="text-text-muted text-xs">{observation?.status === "waiting" ? "等后续收盘" : observation || observationFailed ? "暂无行情" : "正在查看…"}</span>}
         </td>
-        <td className="px-4 py-3">
-          <OutcomeBadge outcome={record.outcome} />
+        <td className="px-4 py-3 min-w-36 text-xs">
+          {observation?.alignment ? <>{observationLabel[observation.alignment]}<span className="block text-text-muted mt-1">{observation.message}</span></> : observation?.message ?? (observationFailed ? "暂未取得行情" : "正在读取市场观察")}
         </td>
         <td className="px-4 py-3 text-right">
           <button
@@ -248,6 +248,10 @@ function RetroRow({
       {expanded && (
         <tr>
           <td colSpan={9} className="px-6 py-4 bg-bg-secondary/30">
+            {observation && <div className="mb-4 text-sm text-text-muted">
+              <p>{observation.message}</p>
+              {observation.baseline_price != null && <p>起点收盘 {observation.baseline_date}：¥{observation.baseline_price}；最新收盘 {observation.latest_date}：¥{observation.latest_price} · 腾讯 · 不复权</p>}
+            </div>}
             <DetailPanel record={record} />
           </td>
         </tr>
@@ -284,7 +288,8 @@ function DetailPanel({ record }: { record: RetroRecord }) {
                 : "未记录"
             }
           />
-          <DetailRow label="观察价格" value={record.actual_price ? `¥${record.actual_price.toFixed(2)}` : "未更新"} />
+          <DetailRow label="旧观察价格" value={record.actual_price ? `¥${record.actual_price.toFixed(2)}` : "未更新"} />
+          <div>历史人工标记：<OutcomeBadge outcome={record.outcome} /></div>
           <DetailRow label="评级分布" value={formatRatingDist(record.rating_distribution)} />
         </div>
       </div>

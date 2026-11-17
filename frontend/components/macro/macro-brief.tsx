@@ -1,5 +1,6 @@
 "use client";
 
+import { canCollapseIndexDiagnostics } from "@/lib/market-notice";
 import { RefreshCw } from "lucide-react";
 import type { MacroBrief as MacroBriefType } from "@/lib/types/market";
 import type { MarketMeta } from "@/lib/types/market";
@@ -28,7 +29,9 @@ export function MacroBrief({ brief, loading, error, meta, refreshError, onRefres
   }
   return (
     <div className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
-      <MarketDataNotice meta={meta} refreshError={refreshError} />
+      <MarketDataNotice meta={meta} refreshError={refreshError} diagnosticsOnly={!!brief && canCollapseIndexDiagnostics(
+        meta, new Set(meta?.source_diagnostics.filter(item => item.status === "success_data").map(item => item.index_code)).size, refreshError,
+      )} />
 
 
       <p className="text-xs text-text-muted mb-3">按指数行情自动汇总，未调用 AI 分析。</p>

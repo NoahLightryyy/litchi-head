@@ -123,3 +123,11 @@ SqliteDebateSessionStore，确保每次恢复只操作该测试的数据。
 对应项目样例位于docs/02-requirements/differentiation/；这是协议设计，尚未运行。
 自己试试：把资金表的月API费从120改为30，重新算三种本金的费用占比，
 观察为什么服务模式也要按成本承受能力设计。
+
+### 日期缺失不必让阅读界面空白（2026-10-26）
+
+`backend/ths_fund_rankings.py`公开页按净额降序前50解析，万元/亿元先以Decimal换算元。
+source=ths、metric=net_inflow与东财main_net分开；data_as_of=null是真实缺失，fetched_at仅采集时间。
+来源期数标签可以显示，不能推导已核验截止日。展示可用与正式证据资格分别判断，用户已批准这种阅读回退。
+缓存刷新失败保留TTL内数据、原时间与失败提示，不延长TTL，不把陈旧数据写成新数据。
+自己试试：运行tests/test_backend/test_ths_fund_rankings.py，切到3日并核对数据不同且日期仍为空。

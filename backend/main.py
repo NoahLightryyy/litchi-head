@@ -29,6 +29,7 @@ from backend.routers import (
     company_research,
     debate,
     discovery,
+    entry_plan,
     etfs,
     evidence,
     financials,
@@ -36,6 +37,8 @@ from backend.routers import (
     news,
     news_archive,
     policy_research,
+    related_interpretation,
+    related_research,
     retro,
     sector_chain,
     sector_maps,
@@ -203,11 +206,14 @@ app.include_router(news.router)
 app.include_router(news_archive.router)
 app.include_router(financials.router)
 app.include_router(debate.router)
+app.include_router(entry_plan.router)
 app.include_router(trust.router)
 app.include_router(retro.router)
 app.include_router(evidence.router)
 app.include_router(user_actions.router)
 app.include_router(policy_research.router)
+app.include_router(related_research.router)
+app.include_router(related_interpretation.router)
 
 
 def policy_evidence_for_preview(package_id: str) -> EvidencePackage | None:

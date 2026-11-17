@@ -147,7 +147,7 @@ class TestLLMService:
             mock_build.assert_called_once_with("deepseek", None)
 
     @pytest.mark.asyncio
-    async def test_invoke_structured_raises_value_error_on_failure(self):
+    async def test_invoke_structured_reports_request_failure(self):
         svc = LLMService()
         mock_llm = MagicMock()
         structured = AsyncMock()
@@ -163,7 +163,7 @@ class TestLLMService:
         class DummyModel(BaseModel):
             x: str
 
-        with pytest.raises(ValueError, match="LLM 结构化输出解析失败"):
+        with pytest.raises(RuntimeError, match="LLM_REQUEST_FAILED"):
             await svc.invoke_structured(
                 prompt="test",
                 output_model=DummyModel,
@@ -587,3 +587,112 @@ async def test_missing_forced_tool_output_retries_once_without_accepting_prose()
         with pytest.raises(ValueError, match="返回类型不匹配"):
             await service.invoke_structured("probe", Probe)
     assert structured.ainvoke.await_count == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("content,finish_reason,accepted", [
+    ('{"answer":"OK"}', "stop", True),
+    ('', "stop", False),
+    ('普通文字', "stop", False),
+    ('{"answer":"OK"', "stop", False),
+    ('{"answer":"OK"}', "length", False),
+    ('{"wrong":"OK"}', "stop", False),
+])
+async def test_explicit_json_output_is_strict_and_never_regenerates(
+    content, finish_reason, accepted
+):
+    from langchain_core.messages import AIMessage
+    from pydantic import BaseModel
+
+    class Probe(BaseModel):
+        answer: str
+
+    model = MagicMock()
+    bound = AsyncMock()
+    raw = AIMessage(content=content, response_metadata={"finish_reason": finish_reason})
+    bound.ainvoke.return_value = raw
+    model.bind.return_value = bound
+    service = LLMService()
+    with patch.object(service, "get_llm", return_value=model), patch(
+        "src.utils.llm._record_usage"
+    ) as usage:
+        if accepted:
+            result = await service.invoke_structured(
+                "原资料", Probe, system_prompt="只分析原资料", agent_name="json-test",
+                output_method="json_mode",
+            )
+            assert result.answer == "OK"
+        else:
+            with pytest.raises(ValueError):
+                await service.invoke_structured(
+                    "原资料", Probe, system_prompt="只分析原资料", agent_name="json-test",
+                    output_method="json_mode",
+                )
+    model.bind.assert_called_once_with(response_format={"type": "json_object"})
+    model.with_structured_output.assert_not_called()
+    assert bound.ainvoke.await_count == 1
+    assert '"answer"' in bound.ainvoke.call_args.args[0][0].content
+    assert "只分析原资料" in bound.ainvoke.call_args.args[0][0].content
+    usage.assert_called_once_with(model, raw, "json-test", "")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method", ["function_calling", "json_mode"])
+async def test_balance_failure_is_not_parse_error_and_not_retried(method):
+    import httpx
+    from openai import APIStatusError
+    from pydantic import BaseModel
+
+    class Output(BaseModel):
+        value: str
+
+    svc = LLMService()
+    runnable = AsyncMock()
+    runnable.ainvoke.side_effect = APIStatusError(
+        "Insufficient Balance secret-upstream",
+        response=httpx.Response(402, request=httpx.Request("POST", "https://example.test")),
+        body={"error": {"type": "insufficient_balance_error"}},
+    )
+    llm = MagicMock()
+    llm.with_structured_output.return_value = runnable
+    llm.bind.return_value = runnable
+    svc._instances["deepseek"] = llm
+    with pytest.raises(RuntimeError, match="LLM_INSUFFICIENT_BALANCE") as failure:
+        await svc.invoke_structured("test", Output, provider="deepseek", output_method=method)
+    runnable.ainvoke.assert_awaited_once()
+    assert "解析失败" not in str(failure.value)
+    assert "secret-upstream" not in str(failure.value)
+
+
+@pytest.mark.asyncio
+async def test_http_failure_is_safe_non_parse_error():
+    import httpx
+    from openai import APIStatusError
+    from pydantic import BaseModel
+
+    class Output(BaseModel):
+        value: str
+
+    svc = LLMService()
+    runnable = AsyncMock()
+    runnable.ainvoke.side_effect = APIStatusError(
+        "secret-upstream", response=httpx.Response(
+            401, request=httpx.Request("POST", "https://example.test")), body={},
+    )
+    llm = MagicMock()
+    llm.with_structured_output.return_value = runnable
+    svc._instances["deepseek"] = llm
+    with pytest.raises(RuntimeError, match="LLM_REQUEST_FAILED") as failure:
+        await svc.invoke_structured("test", Output, provider="deepseek")
+    assert "HTTP 401" in str(failure.value)
+    assert "secret" not in str(failure.value)
+    runnable.ainvoke.assert_awaited_once()
+
+
+def test_balance_classifier_requires_explicit_provider_error():
+    from src.utils.llm_errors import is_balance_error
+
+    for value in [None, "没有共识", "HTTP 402", "unauthorized", "余额可能不足"]:
+        assert not is_balance_error(value)
+    assert is_balance_error("LLM_INSUFFICIENT_BALANCE: 模型服务余额不足")
+    assert is_balance_error("LLM 结构化输出解析失败: Insufficient Balance")

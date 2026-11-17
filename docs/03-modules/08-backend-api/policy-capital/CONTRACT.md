@@ -40,3 +40,29 @@ v1四个端点已注册到backend.main。政策服务启动/停止显式恢复/�
 本金计算器已经实现、可信服务端上下文测试可返回ready。生产没有账户/完整客户费用核验适配器，默认blocked；前端输入不构成证明。已归档交易规则发布页也不能直接冒充全部委托条款已核验。计算规则按上海日期生效，金额Decimal，费用按分向上取整，精度异常阻断。
 
 前端四类详情页通过ResearchContext共用PolicyCapitalPanel；ETF研究不再依赖行情成功，东方财富板块行情错误时仍可读取独立证据。任务恢复未完成或状态未知时禁止新建付费任务；POST结果未知复用原幂等键。完整持仓/实际费用/账户核验/组合适配与卖出仍未实现。
+
+## 2026-10-26 相关资料只读检索 v1（独立于证据包）
+
+`GET /api/research/related?kind=etf&code=560780&name=半导体设备ETF广发&q=`。
+kind为stock/etf/sector；股票ETF代码6位，板块BK四位或sina原生标识；name最多120字符，是页面名称检索提示，
+不作为服务端已核验身份；q最多80字符，非空时覆盖自动主题词以允许用户修正检索。
+name与q去除首尾空白后原样回显，股票主营补采不改写subject_name，避免前端身份绑定失配。
+手动词支持单字中文（如铜、锂），英文至少两字符；仅分隔符等无法生成词的查询返回带操作提示的422。
+
+冻结模型在 `backend/related_research_contract.py`：
+- schema_version=1、subject_kind/subject_id/subject_name/query回显绑定查询；searched_at仅为检索时间。
+- keywords为term与origin(name/business/expanded/user/code)，最多12词；不调用LLM。
+- data最多12篇，id/title/url/publisher/published_at/excerpt/source/category/relevance/matched_keywords/reason。
+  source为policy_archive/news_archive；category为policy/report，是文本分类，不代表官方文件。
+  relevance为direct（原名称或代码提及）/topic（主题匹配），均不自动生成受益结论或专属验证包。
+- published_at保留来源ISO日期或带时区时间；没有可用发布日期或原链接的记录不伪造补齐。
+- sources记录policy_archive/news_archive/company_profile的ok/unavailable/not_requested，message说明局部故障。
+- status：ready/partial有数据，empty无命中，unavailable资料库均失败；均HTTP200，后者由前端按失败保留同查询旧结果。
+- 全局超时或意外错误HTTP503 `{detail: "相关资料检索暂不可用，请重试。"}`；参数错误422。
+  无后台任务、无自动付费/自动无限重试；仅用户刷新或查询变更触发重试。
+
+范围是现有六渠道近365天已入库报道和已归档政策。原文链接/日期保留；转载按同标题/URL去重，
+最多给政策候选保留4个名额（有多少保留多少）。政策候选要求政策线索与命中词相邻，普通公司通知不单独触发政策分类；
+相关标题优先，同级按发布日期倒序。股票补采既有新浪主营资料，4.5秒预算，失败仍按名称/代码检索；
+归档查询一次OR SQL、4秒SQL上限/600候选/最多12条展示，线程池2线程，总检索等待8秒。
+不会把其他公司的持仓、claims或证据包绑定到当前标的，也不会开放本金执行或付费研究门禁。

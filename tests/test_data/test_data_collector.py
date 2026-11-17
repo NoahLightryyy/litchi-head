@@ -12,8 +12,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.data.collector import HealthStats
-from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote
+from src.data.collector import DataCollector, HealthStats
+from src.data.models import FinancialMetrics, KLine, NewsItem, StockInfo, StockQuote
 
 
 class TestHealthStats:
@@ -134,9 +134,65 @@ class TestGetAllStocks:
         assert result == []
 
     def test_cache_hit_avoids_source_call(self, mock_empty_cache):
-        mock_empty_cache.cache.set("all_stocks", [{"code": "cached"}])
+        mock_empty_cache.cache.set("all_stocks", [StockInfo(code="000001", name="cached")])
         mock_empty_cache._source.get_all_stocks = MagicMock(side_effect=AssertionError("不应调用"))
         mock_empty_cache.get_all_stocks()
+
+    @pytest.mark.parametrize("first", [[], ConnectionError("DNS lookup failed")])
+    def test_unsuccessful_catalog_retries_after_short_cooldown(self, mocker, first):
+        clock = mocker.patch("src.data.cache.time.time", return_value=100.0)
+        stats = HealthStats()
+        mocker.patch("src.data.collector._health_stats", stats)
+        stocks = [StockInfo(code="000001", name="平安银行")]
+        source = MagicMock()
+        source.get_all_stocks.side_effect = [first, stocks]
+        collector = DataCollector(source=source)
+
+        assert collector.get_all_stocks() == []
+        assert collector.cache.get("all_stocks") is None
+        assert collector.get_all_stocks() == []
+        assert collector.cache_hit["all_stocks"] is False
+        assert source.get_all_stocks.call_count == 1
+        current = stats.snapshot()["all_stocks"]
+        assert current["current_status"] == ("failed" if isinstance(first, Exception) else "empty")
+        assert current["total_calls"] == 1
+
+        clock.return_value = 116.0
+        assert collector.get_all_stocks() == stocks
+        assert source.get_all_stocks.call_count == 2
+        recovered = stats.snapshot()["all_stocks"]
+        assert recovered["current_status"] == "healthy"
+        assert recovered["last_error"] is None
+        # Successful data still keeps the normal one-hour TTL.
+        clock.return_value = 3600.0
+        assert collector.get_all_stocks() == stocks
+        assert collector.cache_hit["all_stocks"] is True
+        assert source.get_all_stocks.call_count == 2
+
+    def test_old_empty_success_cache_cannot_block_recovery(self, mock_empty_cache):
+        mock_empty_cache.cache.set("all_stocks", [], ttl=3600)
+        assert len(mock_empty_cache.get_all_stocks()) == 3
+
+    def test_concurrent_catalog_failures_share_one_attempt(self, mocker):
+        started, release = Event(), Event()
+        stats = HealthStats()
+        mocker.patch("src.data.collector._health_stats", stats)
+
+        def fail():
+            started.set()
+            assert release.wait(timeout=2)
+            raise ConnectionError("temporary upstream failure")
+
+        source = MagicMock()
+        source.get_all_stocks.side_effect = fail
+        collector = DataCollector(source=source)
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(collector.get_all_stocks) for _ in range(4)]
+            assert started.wait(timeout=1)
+            release.set()
+            assert [f.result(timeout=2) for f in futures] == [[], [], [], []]
+        assert source.get_all_stocks.call_count == 1
+        assert stats.snapshot()["all_stocks"]["failures"] == 1
 
 
 # ── Tests: get_realtime_quotes ───────────────────────────────────────

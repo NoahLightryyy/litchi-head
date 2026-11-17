@@ -29,7 +29,8 @@ from src.data.models import (
 class DataSource(Protocol):
     """数据源统一接口
 
-    每个方法返回 Pydantic 模型列表，网络异常时返回空列表。
+    每个方法返回 Pydantic 模型列表；旧适配器可能以空列表表示失败，
+    目录适配器可抛出携带部分结果的 PartialStockCatalogError，由 Collector 记录完整性。
     方法签名与 DataCollector 保持一致（不含 cache/health 等横切关注点）。
     """
 

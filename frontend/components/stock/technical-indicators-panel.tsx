@@ -1,5 +1,7 @@
 "use client";
 
+import { useRawDaily } from "@/lib/hooks/use-raw-daily";
+import { movingAverageOrder, rawTechnicalSummary } from "@/lib/technical-summary";
 import { useTechnicalIndicators } from "@/lib/hooks/use-stock";
 import type { TechnicalIndicators } from "@/lib/types/stock";
 
@@ -9,7 +11,11 @@ interface TechnicalIndicatorsPanelProps {
 
 /** 技术指标面板：MA / RSI / MACD / 布林带 */
 export function TechnicalIndicatorsPanel({ code }: TechnicalIndicatorsPanelProps) {
-  const { data, isLoading, error } = useTechnicalIndicators(code);
+  const primary = useTechnicalIndicators(code);
+  const fallback = useRawDaily(code, 240, !primary.isPending && !primary.data);
+  const data = primary.data ?? (fallback.data ? rawTechnicalSummary(fallback.data.bars) : null);
+  const isLoading = !data && (primary.isFetching || fallback.isFetching);
+  const offline = primary.fetchStatus === "paused" || fallback.fetchStatus === "paused";
 
   if (isLoading) {
     return (
@@ -23,18 +29,24 @@ export function TechnicalIndicatorsPanel({ code }: TechnicalIndicatorsPanelProps
     );
   }
 
-  if (error || !data) {
+  if (!data) {
     return (
       <div className="text-center py-8">
         <div className="text-3xl mb-3">📊</div>
-        <p className="text-sm text-text-muted">暂无技术指标数据</p>
-        <p className="text-xs text-text-muted mt-1">需要至少 60 个交易日数据</p>
+        <p className="text-sm text-text-muted">暂时没有取得可计算的日线</p>
+        <p className="text-xs text-text-muted mt-1">{offline ? "当前离线，联网后可重试。" : "主来源和备用日线暂不可用，并非这只股票没有历史数据。"}</p>
+        <button className="mt-3 text-sm text-accent-blue" onClick={() => { void primary.refetch(); void fallback.refetch(); }}>重新读取日线</button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" aria-label="技术指标详情">
+      {!primary.data && fallback.data && <div className="text-sm text-text-secondary">
+        <p>已用图表的备用日线计算 · 腾讯 · 不复权 · {fallback.data.bars.length} 个交易日</p>
+        <p className="mt-1 text-xs">数据截至 {fallback.data.end}。除权除息可能造成价格跳空；样本不足的指标显示 —，不影响其他指标。</p>
+        {fallback.isError && <p role="status">更新未成功，保留上述日期的数据。</p>}
+      </div>}
       {/* 四宫格指标摘要 */}
       <div className="grid grid-cols-2 gap-3">
         <MaCard ma={data.ma} />
@@ -231,22 +243,9 @@ function MaDetail({ ma }: { ma: TechnicalIndicators["ma"] }) {
 
   // 判断排列状态
   const valid = all.filter((a) => a.value != null).map((a) => a.value!);
-  let status = "数据不足";
-  let statusColor = "text-text-muted";
-  if (valid.length >= 3) {
-    const sortedAsc = [...valid].sort((a, b) => a - b);
-    const sortedDesc = [...valid].sort((a, b) => b - a);
-    if (JSON.stringify(valid) === JSON.stringify(sortedAsc)) {
-      status = "多头排列 📈";
-      statusColor = "text-accent-green";
-    } else if (JSON.stringify(valid) === JSON.stringify(sortedDesc)) {
-      status = "空头排列 📉";
-      statusColor = "text-accent-red";
-    } else {
-      status = "交叉整理 🔀";
-      statusColor = "text-accent-gold";
-    }
-  }
+  const order = movingAverageOrder(ma);
+  const status = { bullish: "多头排列 📈", bearish: "空头排列 📉", mixed: "交叉整理 🔀", insufficient: "样本不足，暂不判断排列" }[order];
+  const statusColor = order === "bullish" ? "text-accent-green" : order === "bearish" ? "text-accent-red" : "text-text-muted";
 
   return (
     <div className="p-3 rounded-lg border border-bg-tertiary bg-bg-primary/50">
@@ -279,8 +278,8 @@ function MacdDetail({ macd }: { macd: TechnicalIndicators["macd"] }) {
   const histogramSignal =
     macd.histogram != null
       ? macd.histogram > 0
-        ? { text: "柱线为正，动能增强", color: "text-accent-red" }
-        : { text: "柱线为负，动能减弱", color: "text-accent-green" }
+        ? { text: "柱线为正，DIF 高于 DEA", color: "text-accent-red" }
+        : { text: "柱线不为正，DIF 未高于 DEA", color: "text-accent-green" }
       : null;
 
   return (

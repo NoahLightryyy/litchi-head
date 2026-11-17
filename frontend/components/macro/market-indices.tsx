@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { canCollapseIndexDiagnostics } from "@/lib/market-notice";
 
 import type { MarketIndex, MarketMeta } from "@/lib/types/market";
 import { formatPrice } from "@/lib/utils";
@@ -56,7 +57,7 @@ export function MarketIndices({ indices, loading, error, meta, refreshError, onR
 
   return (
     <>
-      <MarketDataNotice meta={meta} refreshError={refreshError} />
+      <MarketDataNotice meta={meta} refreshError={refreshError} diagnosticsOnly={canCollapseIndexDiagnostics(meta, indices.length, refreshError)} />
       <div className="grid grid-cols-3 gap-4">
         {indices.map((idx) => (
           <MarketIndexCard key={idx.code} index={idx} verifiedSources={idx.cached ? [] : [...new Set(

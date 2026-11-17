@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { marketLimitationsView, MARKET_SOURCE_NOTICE } from "@/lib/market-source-policy";
 import type { AgentAnalysis } from "@/lib/types/debate";
 import { HORIZONS, horizonView, horizonConsensus, horizonDistribution, directionLabel, type Horizon } from "@/lib/research-horizon";
 
@@ -9,7 +10,8 @@ export function HorizonResearch({analyses}: {analyses: AgentAnalysis[]}) {
   useEffect(() => { const timer = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(timer); }, []);
   return <section className="space-y-4 mb-4" aria-label="三周期条件研究">
     <h3 className="font-semibold">短、中、长期分别判断</h3>
-    <p className="text-sm text-text-muted">研究周期从各流派生成时点起算，报价与财报时间见依据。复核日期不是收益承诺；条件发生变化时应提前复核。系统尚未持续监测这些条件。</p>
+    <p className="text-sm text-text-muted" role="note">{MARKET_SOURCE_NOTICE}</p>
+    <p className="text-sm text-text-muted">研究周期从各流派生成时点起算，行情与资料时间见依据。复核日期不是收益承诺；条件发生变化时应提前复核。系统尚未持续监测这些条件。</p>
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {(Object.keys(HORIZONS) as Horizon[]).map(horizon => {
         const distribution = horizonDistribution(analyses, horizon, now);
@@ -32,6 +34,7 @@ export function HorizonResearch({analyses}: {analyses: AgentAnalysis[]}) {
       <summary className="cursor-pointer font-semibold">{HORIZONS[horizon]}<span className="block text-sm font-normal text-text-muted mt-1">{horizonConsensus(analyses,horizon,now)}</span></summary>
       <div className="mt-4 space-y-4">{analyses.map((a,index) => {
         const {opinion,eligible,reason} = horizonView(a,horizon,now);
+        const limitation = marketLimitationsView(opinion?.limitations ?? "");
         return <article key={`${a.agent_name}-${index}`} className="rounded-md bg-bg-primary/50 border border-bg-tertiary p-4 space-y-2 text-sm">
           <div className="flex flex-wrap justify-between gap-2"><h4 className="font-semibold">{a.skill_name || a.agent_name}</h4><span>{eligible ? directionLabel(opinion?.direction) : "暂不形成有效方向"}</span></div>
           <p className="text-xs text-text-muted">{reason}</p>
@@ -42,7 +45,8 @@ export function HorizonResearch({analyses}: {analyses: AgentAnalysis[]}) {
             <h5 className="font-semibold">失效条件</h5><ul className="list-disc pl-5">{opinion.invalidation.map((x,i)=><li key={i}>{x}</li>)}</ul>
             <p><strong>提前复核：</strong>{opinion.review_trigger}</p>
             <h5 className="font-semibold">依据与数据时间</h5><ul className="list-disc pl-5">{opinion.evidence.map((x,i)=><li key={i}>{x}</li>)}</ul>
-            <p><strong>限制：</strong>{opinion.limitations}</p>
+            <p><strong>需要留意：</strong>{limitation.text}</p>
+            {limitation.changed && <details className="text-xs text-text-muted"><summary className="cursor-pointer">原始限制说明（旧口径，单源要求已取消）</summary><p>{limitation.original}</p></details>}
           </>}
         </article>;
       })}</div>

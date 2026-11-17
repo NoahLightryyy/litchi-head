@@ -3,6 +3,7 @@
 import { bindChartZoom, type SemanticZoom } from "@/lib/chart-zoom";
 import { candleChange, historyRange, historyViewport } from "@/lib/chart-navigation";
 import { chartIndicators, type CandleInput, type Value } from "@/lib/chart-indicators";
+import { candlePriceFields, priceSeriesFormat, type PricePrecision } from "@/lib/chart-price";
 import { useEffect, useRef, useState } from "react";
 import { createChart, ColorType, CrosshairMode, type IChartApi, type ISeriesApi, type LogicalRange, type Time } from "lightweight-charts";
 
@@ -11,7 +12,7 @@ const PANELS = ["MACD", "RSI", "KDJ"] as const;
 type Panel = typeof PANELS[number];
 
 /** Vertically aligned panes share dates, zoom and crosshair; no separate price feed. */
-export function CandlestickChart({data,zoom,priceUnit="元",volumeLabel="成交量（股）"}: {data:CandleInput[];zoom?:SemanticZoom;priceUnit?:string;volumeLabel?:string}) {
+export function CandlestickChart({data,zoom,priceUnit="元",volumeLabel="成交量（股）",pricePrecision=2}: {data:CandleInput[];zoom?:SemanticZoom;priceUnit?:string;volumeLabel?:string;pricePrecision?:PricePrecision}) {
   const root=useRef<HTMLDivElement>(null), charts=useRef<IChartApi[]>([]);
   const slider=useRef<HTMLInputElement>(null), rangeLabel=useRef<HTMLSpanElement>(null);
   const viewport=useRef<{data:CandleInput[];range:LogicalRange|null}|null>(null);
@@ -43,12 +44,12 @@ export function CandlestickChart({data,zoom,priceUnit="元",volumeLabel="成交�
         handleScroll:{vertTouchDrag:false,mouseWheel:false},handleScale:{mouseWheel:false},
       });
       if(index===0){
-        const candle=chart.addCandlestickSeries({upColor:"#2f7d5a",downColor:"#b34b43",borderVisible:false,wickUpColor:"#2f7d5a",wickDownColor:"#b34b43",lastValueVisible:false,priceLineVisible:false});
+        const candle=chart.addCandlestickSeries({upColor:"#2f7d5a",downColor:"#b34b43",borderVisible:false,wickUpColor:"#2f7d5a",wickDownColor:"#b34b43",lastValueVisible:false,priceLineVisible:false,priceFormat:priceSeriesFormat(pricePrecision)});
         candle.setData(data.map(r=>({...r,time:r.date as Time})));
         anchors.push(candle);anchorValues.push(data.map(r=>r.close));
       }
       definitions[index].forEach((def,j)=>{
-        const series=def.hist?chart.addHistogramSeries({priceFormat:{type:index===1?"volume":"price"},lastValueVisible:false,priceLineVisible:false}):chart.addLineSeries({color:def.color,lineWidth:1,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:true});
+        const series=def.hist?chart.addHistogramSeries({priceFormat:{type:index===1?"volume":"price"},lastValueVisible:false,priceLineVisible:false}):chart.addLineSeries({color:def.color,lineWidth:1,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:true,...(index===0?{priceFormat:priceSeriesFormat(pricePrecision)}:{})});
         series.setData(data.map((r,i)=>def.values[i]===null?{time:r.date as Time}:{time:r.date as Time,value:def.values[i]!,color:def.hist?(index===1?r.close>=r.open:def.values[i]!>=0)?"#2f7d5a":"#b34b43":def.color}));
         if(index>0&&j===0){anchors.push(series);anchorValues.push(def.values);}
         if(index>1 && panels[index-2]==="RSI")for(const price of [30,70])series.createPriceLine({price,color:"#bcb4a5",lineWidth:1,lineStyle:2,axisLabelVisible:false,title:""});
@@ -71,14 +72,8 @@ export function CandlestickChart({data,zoom,priceUnit="元",volumeLabel="成交�
     const closes = data.map(row => row.close);
     const updateLegends=(i:number)=>legends.forEach((legend,p)=>{
       const change = candleChange(closes, i);
-      const signed = (value:number) => `${value > 0 ? "+" : ""}${value.toFixed(2)}`;
       if (p === 0) {
-        const fields: Record<string, string> = {
-          date: data[i].date, close: data[i].close.toFixed(2),
-          open: data[i].open.toFixed(2), high: data[i].high.toFixed(2), low: data[i].low.toFixed(2),
-          change: change ? `${signed(change.amount)} ${priceUnit}  (${signed(change.percent)}%)` : "—",
-          baseline: change ? "较前一根收盘" : "缺少前收盘价",
-        };
+        const fields = candlePriceFields(data[i], change, priceUnit, pricePrecision);
         legend.querySelectorAll<HTMLElement>("[data-price-field]").forEach(slot => {
           slot.textContent = fields[slot.dataset.priceField!] ?? "—";
         });
@@ -88,7 +83,7 @@ export function CandlestickChart({data,zoom,priceUnit="元",volumeLabel="成交�
           badge.style.backgroundColor = change && change.amount > 0 ? "rgba(47,125,90,0.08)" : change && change.amount < 0 ? "rgba(179,75,67,0.08)" : "rgba(104,115,110,0.08)";
         }
         legend.querySelectorAll<HTMLElement>("[data-indicator-value]").forEach((slot,index) => {
-          slot.textContent = definitions[0][index].values[i]?.toFixed(2) ?? "—";
+          slot.textContent = definitions[0][index].values[i]?.toFixed(pricePrecision) ?? "—";
         });
       } else {
         legend.textContent = `${data[i].date}  ` + definitions[p].map(def =>
@@ -123,7 +118,7 @@ export function CandlestickChart({data,zoom,priceUnit="元",volumeLabel="成交�
     const observer=new ResizeObserver(()=>created.forEach((chart,i)=>chart.applyOptions({width:containers[i].clientWidth})));
     containers.forEach(c=>observer.observe(c));
     return()=>{viewport.current={data,range:created[0].timeScale().getVisibleLogicalRange()};unbind?.();observer.disconnect();created.forEach(chart=>chart.remove());charts.current=[];};
-  },[data,panels,overlay,zoom,priceUnit,volumeLabel]);
+  },[data,panels,overlay,zoom,priceUnit,volumeLabel,pricePrecision]);
   return <section aria-label="K线与联动指标" className="space-y-3">
     <div className="flex flex-wrap items-center gap-2 text-xs">
       <span className="text-text-muted">主图</span>

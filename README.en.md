@@ -6,6 +6,8 @@
 
 Python · LangGraph · Pydantic · FastAPI · Next.js · TypeScript
 
+October 27 local improvements: consolidated policy/news interpretation, automatic dated market observations, and plain-language sector context. BSE historical coverage remains limited; changes are local, not pushed. [Validation](docs/04-changelog/logs/2026-10-27/2026-10-27-retro-and-sector-summary.md)
+
 ## Overview
 
 Litchi Head is a locally runnable, full-stack AI research system. Users can explore markets, sectors, stocks and ETFs, inspect prices and financial data, trace policy evidence, and obtain structured research through specialized agents, peer review and risk assessment.

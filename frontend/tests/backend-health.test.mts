@@ -5,6 +5,8 @@ import {
   DIAGNOSTICS_UNAVAILABLE_MESSAGE,
   classifyBackendProbe,
   normalizeDataSourceDiagnostics,
+  partitionDiagnostics,
+  backendStateLabel,
 } from "../lib/backend-health.ts";
 
 test("健康检查失败时才判定后端未连接", () => {
@@ -14,6 +16,39 @@ test("健康检查失败时才判定后端未连接", () => {
   });
 });
 
+test("混合故障按功能分组，备用指数失败不放大搜索目录故障数量", () => {
+  const checks = {
+    all_stocks: { status: "warn", error: "数据源返回空数据" },
+    "market_index:eastmoney": { status: "fail" },
+    "market_index:sina": { status: "fail" },
+    "market_index:tencent": { status: "pass" },
+  };
+  const grouped = partitionDiagnostics(checks);
+  assert.deepEqual(grouped.issues.map(([name]) => name), ["all_stocks"]);
+  assert.deepEqual(grouped.backupFailures.map(([name]) => name), ["market_index:eastmoney", "market_index:sina"]);
+  assert.equal(checks["market_index:eastmoney"].status, "fail");
+  assert.equal(partitionDiagnostics({ ...checks, "market_index:tencent": { status: "fail" } }).issues.length, 4);
+});
+
+test("价格冲突不能被可用备用来源掩盖，错误码从接口透传到分组", () => {
+  const result = normalizeDataSourceDiagnostics({ status: "degraded", stats: {
+    "market_index:eastmoney": { current_status: "failed", failures: 1, last_error_code: "index_quote_conflict" },
+    "market_index:tencent": { current_status: "healthy", failures: 0 },
+    __summary__: { total_failures: 1, failing_endpoints: 1, empty_endpoints: 0 },
+  } });
+  assert.equal(result?.status, "degraded");
+  assert.equal(result?.checks["market_index:eastmoney"].errorCode, "index_quote_conflict");
+  assert.equal(partitionDiagnostics(result!.checks).issues.length, 1);
+});
+
+test("服务连接与数据受限明确区分", () => {
+  assert.equal(backendStateLabel("degraded", null), "已连接 · 数据受限");
+  assert.equal(backendStateLabel("degraded", DIAGNOSTICS_UNAVAILABLE_MESSAGE), "已连接 · 诊断暂缺");
+  assert.equal(backendStateLabel("connected", null), "已连接");
+  assert.equal(backendStateLabel("disconnected", null), "未连接");
+  assert.equal(backendStateLabel("checking", null), "连接中");
+});
+
 test("健康检查和完整诊断均正常时判定已连接", () => {
   assert.deepEqual(classifyBackendProbe(true, "healthy"), {
     state: "connected",
@@ -21,9 +56,9 @@ test("健康检查和完整诊断均正常时判定已连接", () => {
   });
 });
 
-test("健康检查成功但完整诊断降级时显示黄色状态", () => {
+test("备用源告警不影响连接，实际降级仍显示黄色状态", () => {
   assert.deepEqual(classifyBackendProbe(true, "healthy_with_warnings"), {
-    state: "degraded",
+    state: "connected",
     message: null,
   });
   assert.deepEqual(classifyBackendProbe(true, "degraded"), {
@@ -124,4 +159,22 @@ test("恢复后保留历史失败统计但解除来源故障；空结果和未�
     ...mixed.stats, eastmoney: { failures: 5, current_status: "failed", last_error: "数据源请求失败" },
     __summary__: { total_failures: 17, failing_endpoints: 1, empty_endpoints: 0 },
   } })?.checks, { sina: { status: "pass" }, eastmoney: { status: "fail", error: "数据源请求失败" } });
+});
+
+ test("指数有一个完整可用来源时仅保留诊断；全失败和其他服务失败仍降级", () => {
+  const payload = (sina: string, extra = {}) => ({ status: "degraded", stats: {
+    "market_index:eastmoney": { current_status: "failed", failures: 3, last_error: "数据源请求失败" },
+    "market_index:sina": { current_status: sina, failures: 0 },
+    ...extra,
+    __summary__: { total_failures: 3, failing_endpoints: 1, empty_endpoints: 0 },
+  }});
+  const available = normalizeDataSourceDiagnostics(payload("healthy"));
+  assert.equal(available?.status, "healthy_with_warnings");
+  assert.equal(available?.checks["market_index:eastmoney"].status, "fail");
+  for (const state of ["failed", "empty"]) {
+    assert.equal(normalizeDataSourceDiagnostics(payload(state))?.status, "degraded");
+  }
+  assert.equal(normalizeDataSourceDiagnostics(payload("healthy", {
+    news: { current_status: "failed", failures: 1 },
+  }))?.status, "degraded");
 });

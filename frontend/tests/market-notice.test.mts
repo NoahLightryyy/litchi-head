@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { marketNoticeFacts, marketNoticeLabel } from "../lib/market-notice.ts";
+import { canCollapseIndexDiagnostics, marketNoticeFacts, marketNoticeLabel } from "../lib/market-notice.ts";
 import type { MarketMeta } from "../lib/types/market.ts";
 
 const baseMeta: MarketMeta = {
@@ -64,10 +64,10 @@ test("板块详情折叠仍明确历史状态，不能冒充休市成功", async
     { code: "BOARD_HISTORY_ONLY", message: "历史快照", index_code: null },
     { code: "BOARD_REFRESH_FAILED", message: "行业刷新失败：上游返回 HTTP 502", index_code: null },
   ] };
-  assert.match(boardNoticeSummary(meta)!, /刷新未成功.*历史快照/);
+  assert.match(boardNoticeSummary(meta)!, /更新暂不可用.*上次行情/);
   assert.ok(marketNoticeFacts(meta).includes("行业刷新失败：上游返回 HTTP 502"));
   assert.match(boardNoticeSummary({ ...meta, status: "partial", failed_sources: [] })!, /快照已加载/);
-  assert.match(boardNoticeSummary({ ...meta, status: "partial", failed_sources: [] }, true)!, /刷新未成功/);
+  assert.match(boardNoticeSummary({ ...meta, status: "partial", failed_sources: [] }, true)!, /更新暂不可用/);
   assert.equal(boardNoticeSummary(baseMeta), null);
 });
 
@@ -77,5 +77,17 @@ test("折叠入口保留历史与部分数据状态，诊断全文仍可获取",
   assert.equal(marketNoticeLabel(undefined, true), "历史数据 · 查看详情");
   assert.equal(marketNoticeLabel({ ...baseMeta, status: "success", failed_sources: [], missing_codes: ["399006"] }), "部分数据 · 查看详情");
   assert.equal(marketNoticeLabel(undefined), "来源说明 · 查看详情");
+  assert.deepEqual(marketNoticeFacts(baseMeta), ["失败来源：eastmoney"]);
+});
+
+test("三项指数可用时折叠备用源故障，缺失缓存冲突刷新失败仍突出显示", () => {
+  assert.equal(canCollapseIndexDiagnostics(baseMeta, 3), true);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, limitations: [{code: "INDEX_SINGLE_SOURCE", message: "单源", index_code: "000001"}] }, 3), true);
+  assert.equal(canCollapseIndexDiagnostics(baseMeta, 2), false);
+  assert.equal(canCollapseIndexDiagnostics(baseMeta, 3, true), false);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, status: "stale" }, 3), false);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, cached: true }, 3), false);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, missing_codes: ["399001"] }, 3), false);
+  assert.equal(canCollapseIndexDiagnostics({ ...baseMeta, limitations: [{code: "INDEX_PRICE_CONFLICT", message: "冲突", index_code: "000001"}] }, 3), false);
   assert.deepEqual(marketNoticeFacts(baseMeta), ["失败来源：eastmoney"]);
 });

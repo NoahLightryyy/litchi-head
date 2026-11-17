@@ -100,6 +100,7 @@ def _trim_market_data(market_data: dict) -> dict:
         "brief": market_data.get("brief", ""),
         "industry": market_data.get("industry", ""),
         "chain_position": market_data.get("chain_position", ""),
+        **({"instrument_type": "etf"} if market_data.get("instrument_type") == "etf" else {}),
     }
 
 # ── LangGraph State ──────────────────────────────────────────────

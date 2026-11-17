@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.limiter import limiter
+from backend.routers.chain_companies import router as companies_router
 from backend.routers.chain_draft import router as draft_router
 from src.data.chain_evidence import CATALOG_ROOT, ChainEvidenceMap
 from src.utils.llm import DEFAULT_MODEL, LLMConfig, llm_service
@@ -148,3 +149,4 @@ async def generate_chain_analysis(
         _busy.discard(key)
 
 router.routes.extend(draft_router.routes)
+router.routes.extend(companies_router.routes)

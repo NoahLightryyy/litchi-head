@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, time
+from math import isfinite
 from zoneinfo import ZoneInfo
 
 from src.data.evidence import (
@@ -18,6 +19,7 @@ from src.data.evidence import (
 from src.data.evidence_service import DataEvidenceService
 from src.data.models import StockQuote
 from src.data.providers.quotes import EastmoneyQuoteSource, SinaQuoteSource
+from src.data.providers.tencent_display_quote import TencentDisplayQuoteSource
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 QUOTE_WARNING_SECONDS = 10.0
@@ -64,7 +66,7 @@ def _unusable(
 
 
 class RealtimeQuoteEvidenceService:
-    """Collect two direct quote sources and validate their live agreement."""
+    """Validate individual quotes, then reconcile according to the consumer policy."""
 
     def __init__(
         self,
@@ -94,7 +96,10 @@ class RealtimeQuoteEvidenceService:
             self._validate_source_result(result, request=request, now=now)
             for result in raw.source_results
         ]
-        results = self._validate_pair(results)
+        results = self._validate_pair(
+            results, allow_single=(policy.min_independent_upstreams == 1
+                                   and not policy.required_upstream_ids),
+        )
         assessment = self._registry.assess(policy, results)
         successful_quotes = [
             result.items[0]
@@ -122,6 +127,10 @@ class RealtimeQuoteEvidenceService:
         request: EvidenceRequest,
         now: datetime,
     ) -> SourceResult[StockQuote]:
+        if result.status is SourceStatus.SUCCESS_EMPTY:
+            return _unusable(result, status=SourceStatus.STALE,
+                             error_code="quote_empty",
+                             error_message="Quote source returned no quote")
         if result.status is not SourceStatus.SUCCESS_DATA:
             return result
         if len(result.items) != 1:
@@ -140,6 +149,10 @@ class RealtimeQuoteEvidenceService:
                 error_code="quote_identity_conflict",
                 error_message="Realtime quote code does not match the request",
             )
+        if not quote.name.strip() or not isfinite(quote.price) or quote.price <= 0:
+            return _unusable(result, status=SourceStatus.CONFLICTED,
+                             error_code="quote_suspect",
+                             error_message="Quote identity/price invalid")
         if quote.fetched_at is None or quote.fetched_at.tzinfo is None:
             return _unusable(
                 result,
@@ -182,22 +195,36 @@ class RealtimeQuoteEvidenceService:
     @staticmethod
     def _validate_pair(
         results: list[SourceResult[StockQuote]],
+        *,
+        allow_single: bool = False,
     ) -> list[SourceResult[StockQuote]]:
         successful = [
             result
             for result in results
             if result.status is SourceStatus.SUCCESS_DATA and result.items
         ]
-        if len(successful) != 2:
+        if len(successful) < 2:
             return results
 
-        first_quote = successful[0].items[0]
-        second_quote = successful[1].items[0]
-        assert first_quote.fetched_at is not None
-        assert second_quote.fetched_at is not None
-        skew = abs(
-            (first_quote.fetched_at - second_quote.fetched_at).total_seconds()
-        )
+        quotes = [result.items[0] for result in successful]
+        stamps = [quote.fetched_at for quote in quotes if quote.fetched_at is not None]
+        skew = (max(stamps) - min(stamps)).total_seconds()
+        if skew > QUOTE_PAIRING_SECONDS and allow_single:
+            # Different update times are not contradictory prices. Retain the newest
+            # comparable cohort; strict audit consumers still require paired times.
+            latest = max(stamps)
+            aligned = [result for result in successful
+                       if result.items[0].fetched_at is not None
+                       and (latest - result.items[0].fetched_at).total_seconds()
+                       <= QUOTE_PAIRING_SECONDS]
+            results = [
+                _unusable(result, status=SourceStatus.STALE,
+                          error_code="quote_timestamp_unaligned",
+                          error_message="Older quote excluded from the newest research snapshot")
+                if result in successful and result not in aligned else result
+                for result in results
+            ]
+            return RealtimeQuoteEvidenceService._validate_pair(results)
         if skew > QUOTE_PAIRING_SECONDS:
             return [
                 _unusable(
@@ -211,7 +238,7 @@ class RealtimeQuoteEvidenceService:
                 for result in results
             ]
 
-        price_delta = abs(first_quote.price - second_quote.price)
+        price_delta = max(q.price for q in quotes) - min(q.price for q in quotes)
         if price_delta > QUOTE_PRICE_TICK + 1e-9:
             return [
                 _unusable(
@@ -230,11 +257,13 @@ class RealtimeQuoteEvidenceService:
 class RealtimeQuoteEvidenceRuntime:
     """Own the process-wide direct quote sources and reconciliation service."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, research: bool = False) -> None:
         registry = EvidenceSourceRegistry()
         registry.register(EastmoneyQuoteSource())
         registry.register(SinaQuoteSource())
-        self.service = RealtimeQuoteEvidenceService(registry)
+        if research:
+            registry.register(TencentDisplayQuoteSource())
+        self.service = RealtimeQuoteEvidenceService(registry, max_workers=3 if research else 2)
 
 
 _runtime: RealtimeQuoteEvidenceRuntime | None = None
@@ -247,7 +276,19 @@ def get_realtime_quote_evidence_runtime() -> RealtimeQuoteEvidenceRuntime:
     return _runtime
 
 
+_research_runtime: RealtimeQuoteEvidenceRuntime | None = None
+
+
+def get_research_quote_runtime() -> RealtimeQuoteEvidenceRuntime:
+    """Use existing quote vendors for research without modifying execution evidence."""
+    global _research_runtime
+    if _research_runtime is None:
+        _research_runtime = RealtimeQuoteEvidenceRuntime(research=True)
+    return _research_runtime
+
+
 __all__ = [
+    "get_research_quote_runtime",
     "QUOTE_HARD_FAILURE_SECONDS",
     "QUOTE_PAIRING_SECONDS",
     "QUOTE_PRICE_TICK",

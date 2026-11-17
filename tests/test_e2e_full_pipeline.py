@@ -28,7 +28,7 @@ def disable_default_quote_evidence_gate(
 ) -> None:
     """The synthetic pipeline test explicitly bypasses external quote evidence."""
     monkeypatch.setattr(
-        "src.debate.orchestrator.get_realtime_quote_evidence_runtime",
+        "src.debate.orchestrator.get_research_quote_runtime",
         lambda: type("TestRuntime", (), {"service": None})(),
     )
 

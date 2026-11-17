@@ -20,9 +20,9 @@ from src.data.kline_business import (
 from src.data.models import FinancialMetrics, KLine, NewsItem, StockQuote
 from src.data.news_runtime import NEWS_EVIDENCE_POLICY, NEWS_WINDOW
 from src.data.quote_runtime import (
-    REALTIME_QUOTE_EVIDENCE_POLICY,
     RealtimeQuoteEvidenceService,
 )
+from src.data.research_policy import RESEARCH_QUOTE_POLICY
 from src.debate.graph_state import (
     DebateState,
     _evidence_limitation,
@@ -35,6 +35,9 @@ from src.debate.kline_context import (
     format_kline_business_context,
     kline_evidence_reference,
     kline_failure_limitation,
+)
+from src.debate.models import (
+    InstrumentResearchContext,
 )
 from src.debate.research_evidence import (
     closing_research_quotes,
@@ -54,6 +57,7 @@ def collect_data_node(
     quote_evidence_service: RealtimeQuoteEvidenceService | None = None,
     kline_business_provider: KlineBusinessProvider | None = None,
     research_supplement: Callable[[str], str] | None = None,
+    prepared_research: InstrumentResearchContext | None = None,
 ) -> dict:
     """数据采集节点 —— 从 DataCollector 获取行情 + K线 + 新闻
 
@@ -66,6 +70,31 @@ def collect_data_node(
     """
     inp = state.get("debate_input", {})
     code = inp.get("stock_code", "")
+    if inp.get("instrument_type", "stock") == "etf":
+        if (
+            prepared_research is None
+            or prepared_research.stock_code != code
+            or prepared_research.stock_name != inp.get("stock_name")
+        ):
+            return {
+                "evidence_failure_kind": "detail",
+                "evidence_envelope": {
+                    "capability": "etf_research",
+                    "error_codes": ["instrument_identity_conflict"],
+                },
+                "errors": ["EVIDENCE_INCOMPLETE"],
+            }
+        return {
+            "market_data": {
+                "brief": prepared_research.brief,
+                "industry": prepared_research.industry,
+                "chain_position": "ETF主题与组合",
+                "instrument_type": "etf",
+            },
+            "evidence_limitations": [
+                item.model_dump(mode="json") for item in prepared_research.evidence_limitations
+            ],
+        }
     quote_evidence_envelope: EvidenceEnvelope | None = None
     news_evidence_envelope: EvidenceEnvelope | None = None
     evidence_limitations: list[dict[str, object]] = []
@@ -110,7 +139,7 @@ def collect_data_node(
         )
         quote_evidence_envelope = quote_evidence_service.collect(
             quote_request,
-            REALTIME_QUOTE_EVIDENCE_POLICY,
+            RESEARCH_QUOTE_POLICY,
         )
         if not quote_evidence_envelope.complete:
             if _must_block_reasoning(quote_evidence_envelope):

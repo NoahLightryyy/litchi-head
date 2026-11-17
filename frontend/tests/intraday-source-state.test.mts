@@ -69,11 +69,11 @@ function battlefield(
   };
 }
 
-test("single-source state discloses the diagnostic source and lack of cross-verification", () => {
+test("single source is available without warning; provenance and time remain", () => {
   assert.deepEqual(describeIntradaySourceState(battlefield()), {
-    label: "单一数据源 · 腾讯",
-    detail: "未交叉验证 · 数据时间 10:42",
-    tone: "warning",
+    label: "行情可用 · 腾讯",
+    detail: "数据时间 2026/08/12 10:42（北京时间）",
+    tone: "available",
   });
 });
 
@@ -116,7 +116,7 @@ test("conflict state names the diagnostic canonical source and says sources disa
     ),
     {
       label: "数据源存在分歧 · 当前采用东方财富",
-      detail: "数据源之间存在分歧 · 数据时间 10:42",
+      detail: "数据源之间存在分歧 · 数据时间 2026/08/12 10:42（北京时间）",
       tone: "conflict",
     },
   );
@@ -137,7 +137,7 @@ test("multi-source verification is explicitly identified", () => {
     ),
     {
       label: "多源交叉验证通过",
-      detail: "腾讯 + 东方财富 · 数据时间 10:42",
+      detail: "腾讯 + 东方财富 · 数据时间 2026/08/12 10:42（北京时间）",
       tone: "verified",
     },
   );
@@ -156,7 +156,7 @@ test("unavailable and incomplete diagnostics do not invent a source or data time
     ),
     {
       label: "分时数据暂不可用",
-      detail: "暂无通过本地校验的数据源",
+      detail: "分钟来源暂未提供可用数据",
       tone: "unavailable",
     },
   );
@@ -169,8 +169,8 @@ test("unavailable and incomplete diagnostics do not invent a source or data time
       }),
     ),
     {
-      label: "单一数据源 · 来源待确认",
-      detail: "未交叉验证 · 数据时间暂不可用",
+      label: "行情可用 · 来源待确认",
+      detail: "数据时间暂不可用",
       tone: "warning",
     },
   );

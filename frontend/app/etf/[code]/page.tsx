@@ -1,6 +1,8 @@
 "use client";
 
 import { ResearchContext } from "@/components/research/research-context";
+import { EtfKlinePanel } from "@/components/etf/etf-kline-panel";
+import { DebatePanel } from "@/components/stock/debate-panel";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -26,8 +28,7 @@ export default function EtfPage() {
     </div>
     {!valid ? <p role="alert">ETF代码格式无效</p> : query.isPending ? <p role="status" className="rounded-lg bg-bg-secondary p-6">正在读取ETF身份与行情…</p> : null}
     {query.isError && <p role="alert" className="rounded-lg bg-accent-red/10 p-4 text-accent-red">{query.error.message}{data ? "；以下保留上次成功取得的数据，请留意时间。" : ""}</p>}
-    {valid && <ResearchContext key={code} kind="etf" code={code} name={data?.identity.name ?? code} />}
-    {data && <>
+    {data &&
       <section className="rounded-xl border border-bg-tertiary bg-bg-secondary p-5 space-y-5">
         <div><h2 className="text-sm text-text-muted">场内交易价格 / 元</h2>
           <p className="mt-2 text-4xl font-number">{quote ? price(quote.price) : "—"}</p>
@@ -38,14 +39,27 @@ export default function EtfPage() {
           <p className="text-xs text-text-muted">报价时间：{time(quote.quoted_at)}（北京时间） · 行情简称：{quote.source_name}</p>
         </> : <p role="status" className="text-sm text-text-muted">暂无可核验报价</p>}
         {data.limitations.map(item=><p key={item} className="text-sm leading-6 text-text-muted">{item}</p>)}
+      </section>}
+    {valid && <>
+      <nav aria-label="ETF详情模块" className="flex flex-wrap gap-4 text-sm text-accent-blue">
+        <a href="#etf-kline" className="underline underline-offset-4">K线行情</a>
+        <a href="#etf-debate" className="underline underline-offset-4">AI 辩论</a>
+        <a href="#etf-related" className="underline underline-offset-4">政策与相关资料</a>
+      </nav>
+      <div id="etf-kline"><EtfKlinePanel key={`kline-${code}`} code={code} /></div>
+      <section id="etf-debate" aria-label="ETF 各流派分析与辩论" className="rounded-xl border border-bg-tertiary bg-bg-secondary p-5">
+        <DebatePanel stockCode={code} stockName={data?.identity.name ?? code} instrumentType="etf" />
       </section>
-      <section className="rounded-xl border border-bg-tertiary bg-bg-secondary p-5 space-y-3">
-        <h2 className="font-semibold">基金身份与来源</h2>
+      <div id="etf-related"><ResearchContext key={code} kind="etf" code={code} name={data?.identity.name ?? code} /></div>
+    </>}
+    {data && <details className="rounded-xl border border-bg-tertiary bg-bg-secondary p-5">
+        <summary className="cursor-pointer font-semibold">基金身份与来源</summary>
+        <div className="mt-3 space-y-3">
         <p className="text-sm">{data.identity.name} · {data.identity.symbol} · ETF</p>
         <p className="text-sm text-text-muted">基金身份来自新浪ETF分类目录。报价日期可能早于当前日期，请结合报价时间查看。</p>
         <p className="text-xs text-text-muted">目录采集：{time(data.catalog_fetched_at)}（北京时间）</p>
         <a href={data.source_url} target="_blank" rel="noopener noreferrer" className="inline-block text-sm text-accent-blue underline">查看新浪ETF目录 ↗</a>
-      </section>
-    </>}
+        </div>
+    </details>}
   </div>;
 }

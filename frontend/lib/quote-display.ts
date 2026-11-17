@@ -9,3 +9,8 @@ export function formatQuoteTime(value: string): string {
     hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
   });
 }
+
+
+export function quoteSourceLabel(source?: string): string {
+  return source === "sina" ? "新浪" : source === "eastmoney" ? "东方财富" : source === "tencent" ? "腾讯" : "行情来源";
+}

@@ -14,15 +14,19 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict
 
 from backend.async_utils import run_sync
+from backend.discovery_matching import search_match_rank
 from backend.discovery_rankings import router as rankings_router
 from backend.etf_display import get_catalog
 from backend.routers.stocks import collector
+from backend.ths_fund_rankings import router as ths_funds_router
 from src.data.evidence import EvidenceCapability, EvidenceRequest, SourceStatus
 from src.data.providers.quotes import SHANGHAI, SinaQuoteSource
+from src.data.providers.stock_catalog import PartialStockCatalogError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/discovery")
 router.include_router(rankings_router)
+router.include_router(ths_funds_router)
 
 
 class SearchHit(BaseModel):
@@ -79,10 +83,10 @@ def board_catalog() -> list[SearchHit]:
 
 
 def stock_catalog() -> list[SearchHit]:
-    items = collector.get_all_stocks()
-    if not items:
-        raise ValueError("Stock directory unavailable")
-    return [SearchHit(code=s.code, name=s.name, kind="stock") for s in items]
+    snapshot = collector.get_stock_catalog()
+    if not snapshot.complete:
+        raise PartialStockCatalogError(snapshot)
+    return [SearchHit(code=s.code, name=s.name, kind="stock") for s in snapshot.items]
 
 
 async def etf_catalog() -> list[SearchHit]:
@@ -98,18 +102,26 @@ async def search(q: str = Query("", max_length=80)) -> SearchResult:
     outcomes = await asyncio.gather(run_sync(stock_catalog), run_sync(board_catalog), etf_catalog(),
                                     return_exceptions=True)
     matches: dict[tuple[str, str], SearchHit] = {}
+    ranks: dict[tuple[str, str], int] = {}
     failed = []
     for name, outcome in zip(("股票目录", "板块目录", "ETF目录"), outcomes, strict=True):
-        if isinstance(outcome, BaseException):
+        if isinstance(outcome, PartialStockCatalogError):
+            failed.append(name)
+            outcome = [
+                SearchHit(code=s.code, name=s.name, kind="stock") for s in outcome.snapshot.items
+            ]
+        elif isinstance(outcome, BaseException):
             logger.warning("Discovery source failed: %s %s", name, type(outcome).__name__)
             failed.append(name)
             continue
         for hit in outcome:
-            if (query in hit.code.casefold() or query in hit.name.casefold()
-                    or (query == "etf" and hit.kind == "etf")):
-                matches[(hit.kind, hit.code)] = hit
+            rank = search_match_rank(query, code=hit.code, name=hit.name, kind=hit.kind)
+            if rank is not None:
+                key = (hit.kind, hit.code)
+                matches[key] = hit
+                ranks[key] = rank
     ordered = sorted(matches.values(), key=lambda hit: (
-        not (query == hit.code.casefold() or query == hit.name.casefold()), hit.kind, hit.code))
+        ranks[(hit.kind, hit.code)], hit.kind, hit.code))
     return SearchResult(data=ordered[:100], total=len(ordered), failed_sources=failed)
 
 

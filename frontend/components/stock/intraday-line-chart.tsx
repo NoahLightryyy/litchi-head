@@ -18,6 +18,7 @@ import {
   formatShanghaiChartTime,
   toIntradayLineData,
 } from "@/lib/intraday-source-state";
+import { quoteSourceLabel } from "@/lib/quote-display";
 import { formatIntradayPercent } from "@/lib/intraday-percent";
 import type { IntradayPricePoint } from "@/lib/types/stock";
 
@@ -193,7 +194,7 @@ export function IntradayLineChart({ points, multiDay = false, zoom, reference, r
         time: new Date(row.time*1000).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}),
         price:row.price.toFixed(2), high:row.high.toFixed(2), low:row.low.toFixed(2),
         change:row.amount===null||row.percent===null?"涨跌幅 —":`${signed(row.amount)} 元 (${signed(row.percent)}%)`,
-        baseline:row.previous===null?"缺少该交易日前收盘价":`较前收 ${row.previous.toFixed(2)} · ${reference?.source==="sina"?"新浪":reference?.source==="eastmoney"?"东方财富":"报价源"}`,
+        baseline:row.previous===null?"缺少该交易日前收盘价":`较前收 ${row.previous.toFixed(2)} · ${quoteSourceLabel(reference?.source)}`,
         volume:row.volume===null?"—":row.volume.toLocaleString("zh-CN",{maximumFractionDigits:0}),
       };
       legendRef.current?.querySelectorAll<HTMLElement>("[data-minute-field]").forEach(slot=>{slot.textContent=fields[slot.dataset.minuteField!]??"—";});

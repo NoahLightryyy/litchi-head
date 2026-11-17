@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { runDebate, fetchDebateHistory, fetchDebateResult, fetchTrustReport, fetchTrustLeaderboard } from "@/lib/api/debate";
-import type { DebateResult, DebateRequest } from "@/lib/types/debate";
+import type { DebateResult, DebateRequest, InstrumentType } from "@/lib/types/debate";
+import { debateHistoryKey, debateResultKey } from "@/lib/debate-instrument";
 import {
   INITIAL_DEBATE_REQUEST_STATE,
   advanceDebatePoll,
@@ -34,7 +35,7 @@ export function useRunDebate() {
 }
 
 /* 服务端确认运行时持续读取结果；无运行状态时保留60次轮询兜底。 */
-export function useDebateResult(sessionId: string | null, serverRunning = false) {
+export function useDebateResult(sessionId: string | null, serverRunning = false, instrumentType: InstrumentType = "stock") {
   const pollTrackerRef = useRef({ sessionId, count: 0 });
   const [timedOutSessionId, setTimedOutSessionId] = useState<string | null>(null);
   const MAX_POLLS = 60;
@@ -44,7 +45,7 @@ export function useDebateResult(sessionId: string | null, serverRunning = false)
   }, [sessionId]);
 
   const query = useQuery({
-    queryKey: ["debate", "result", sessionId],
+    queryKey: debateResultKey(sessionId, instrumentType),
     queryFn: () => fetchDebateResult(sessionId!),
     enabled: !!sessionId,
     refetchInterval: (query) => {
@@ -90,10 +91,10 @@ export function useTrustLeaderboard() {
   });
 }
 
-export function useDebateHistory(stockCode: string, offset = 0) {
+export function useDebateHistory(stockCode: string, offset = 0, instrumentType: InstrumentType = "stock") {
   return useQuery({
-    queryKey: ["debate", "history", stockCode, offset],
-    queryFn: () => fetchDebateHistory(stockCode, offset),
+    queryKey: debateHistoryKey(stockCode, instrumentType, offset),
+    queryFn: () => fetchDebateHistory(stockCode, offset, instrumentType),
     refetchInterval: 10_000,
     staleTime: 0,
   });

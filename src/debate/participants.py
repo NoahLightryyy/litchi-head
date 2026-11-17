@@ -12,6 +12,7 @@ from typing import cast
 
 from src.agents.base import AgentContext
 from src.agents.master_agent import MasterAgent
+from src.data.research_policy import MARKET_RESEARCH_PROMPT
 from src.debate.analysts import AnalystPersona
 from src.debate.models import (
     AgentAnalysis,
@@ -170,7 +171,7 @@ async def _run_single_analyst(
         raw = cast(AnalystReport, await llm_service.invoke_structured(
             prompt=enhanced,
             output_model=AnalystReport,
-            system_prompt=persona.system_prompt,
+            system_prompt=persona.system_prompt + "\n" + MARKET_RESEARCH_PROMPT,
             agent_name=f"analyst.{persona.analyst_type}",
             session_id=session_id,
         ))
@@ -448,7 +449,7 @@ async def _run_review_for_master(
         raw = cast(RebuttalAnalysis, await llm_service.invoke_structured(
             prompt=review_prompt,
             output_model=RebuttalAnalysis,
-            system_prompt=system_prompt,
+            system_prompt=system_prompt + "\n" + MARKET_RESEARCH_PROMPT,
             agent_name=f"master.{skill.skill_id}",
             session_id=session_id,
         ))
@@ -572,11 +573,15 @@ async def _run_independent_review(
             "不受任何大师立场影响。如果发现集体偏见或盲点，请明确指出。"
             "你的评审将对最终投票聚合产生直接影响。"
         )
+        if market_data.get("instrument_type") == "etf":
+            from src.debate.etf_analysts import ETF_SCOPE_PROMPT
+
+            system_prompt += "\n" + ETF_SCOPE_PROMPT
 
         raw = cast(IndependentReview, await llm_service.invoke_structured(
             prompt=review_prompt,
             output_model=IndependentReview,
-            system_prompt=system_prompt,
+            system_prompt=system_prompt + "\n" + MARKET_RESEARCH_PROMPT,
             agent_name="independent_reviewer",
             session_id=session_id,
         ))

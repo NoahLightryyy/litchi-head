@@ -23,13 +23,17 @@ export function StockDiscovery({showGainers=false, collapseHistory=false}:{showG
   };
   const keyword=useDebounce(query.trim(),300);
   const results=useQuery({queryKey:["discovery","search",keyword],queryFn:async ()=>parseDiscoveryResults(await api.getRaw<unknown>(`/discovery/search?q=${encodeURIComponent(keyword)}`)),enabled:!!keyword,retry:false,staleTime:60000});
+  const searchAgain = () => {
+    // A changed input is fetched by debounce; never refetch the previous keyword.
+    if (query.trim() && query.trim() === keyword && !results.isFetching) void results.refetch();
+  };
   return <div className="space-y-4">
-    <form onSubmit={event => { event.preventDefault(); remember(query); }} className="flex items-end gap-2">
+    <form onSubmit={event => { event.preventDefault(); remember(query); searchAgain(); }} className="flex items-end gap-2">
     <label className="block flex-1 text-sm text-text-secondary">搜索股票、ETF或板块
       <input maxLength={80} aria-label="搜索股票、ETF或板块" value={query} onChange={event=>setQuery(event.target.value)} placeholder="输入代码、股票/ETF名称或板块，例如：510050"
         className="mt-2 w-full rounded-lg border border-bg-tertiary bg-bg-secondary px-4 py-3 text-text-primary focus:outline-accent-blue"/>
     </label>
-    <button type="submit" disabled={!query.trim()} className="rounded-lg bg-accent-blue px-4 py-3 text-sm text-white disabled:opacity-50">搜索</button>
+    <button type="submit" disabled={!query.trim() || results.isFetching} className="rounded-lg bg-accent-blue px-4 py-3 text-sm text-white disabled:opacity-50">{results.isFetching ? "搜索中…" : "搜索"}</button>
     </form>
     <details open={collapseHistory ? undefined : true} aria-label="搜索历史" className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
       <summary className="cursor-pointer text-sm font-medium select-none">搜索历史 <span className="text-xs text-text-muted">（{history.length}）</span></summary>
@@ -46,8 +50,12 @@ export function StockDiscovery({showGainers=false, collapseHistory=false}:{showG
     </details>
     {!!query.trim() && <section aria-live="polite" className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4">
       {query.trim()!==keyword || results.isLoading ? <p>正在搜索…</p> : results.isError ? <div role="alert">搜索暂时失败。<button onClick={()=>void results.refetch()} className="ml-2 text-accent-blue">重试</button></div> : results.data && <>
-        {!!results.data.failed_sources.length && <p role="status" className="mb-2 text-accent-gold">暂未取得：{results.data.failed_sources.join("、")}，当前结果可能不完整。</p>}
-        <p className="mb-2 text-xs text-text-muted">{results.data.total ? `找到 ${results.data.total} 项，显示前 ${results.data.data.length} 项` : "未找到匹配结果，可尝试证券代码、股票/ETF名称或板块名称。"}</p>
+        {!!results.data.failed_sources.length && <div role="status" className="mb-2 text-accent-gold">
+          <p>{results.data.failed_sources.includes("股票目录") ? (results.data.total ? "股票目录未完整加载，已取得的结果仍可使用。" : "股票目录暂时没加载成功，股票名称搜索可能不完整。") : `暂未取得：${results.data.failed_sources.join("、")}，当前结果可能不完整。`}</p>
+          {results.data.failed_sources.includes("股票目录") && results.data.failed_sources.length > 1 && <p>其他未取得目录：{results.data.failed_sources.filter(source => source !== "股票目录").join("、")}。</p>}
+          <button disabled={results.isFetching} onClick={searchAgain} className="mt-2 text-accent-blue disabled:opacity-50">{results.isFetching ? "搜索中…" : "重新搜索"}</button>
+        </div>}
+        <p className="mb-2 text-xs text-text-muted">{results.data.total ? `找到 ${results.data.total} 项，显示前 ${results.data.data.length} 项` : results.data.failed_sources.length ? "当前资料不完整，不能据此判断没有这只股票或基金。请稍后重新搜索。" : "未找到匹配结果，可尝试证券代码、股票/ETF名称或板块名称。"}</p>
         <div className="max-h-80 overflow-y-auto divide-y divide-bg-tertiary">{results.data.data.map(hit=><Link key={`${hit.kind}:${hit.code}`} onClick={() => remember(keyword)} href={discoveryHref(hit)} className="flex flex-wrap justify-between gap-2 py-3 text-sm hover:text-accent-blue"><span>{hit.name} <span className="text-text-muted">{hit.code}</span></span><span>{labels[hit.kind]}</span></Link>)}</div>
       </>}
     </section>}

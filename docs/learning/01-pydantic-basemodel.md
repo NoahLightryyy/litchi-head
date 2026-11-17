@@ -131,3 +131,14 @@ class AgentMessage(BaseModel):
 ---
 
 **下一篇：[LangGraph StateGraph 编排](02-langgraph-stategraph.md)** — 多个 Agent 怎么串联起来工作
+
+## model_copy 不会重新校验 update（2026-10-26）
+
+`src/agents/master_agent.py` 的补证失败分支曾将字符串 `limitations` 展开成字符列表，
+`model_copy(update=...)` 当时不报错，直到组装 `AgentAnalysis` 才失败。
+修复保持字符串并把原内容截到预留提示长度，总长不超过600；`status=insufficient` 保留。
+验证这种路径要运行真实Agent方法并mock外部调用，再将输出经过目标模型与JSON往返，
+只测试复制表达式无法覆盖后续消费者错误。
+
+自己试试：运行 `pytest tests/test_agents/test_agents_master.py -q`，对照检索失败、复核失败、
+预算不足三个分支；把字符串拼接改回列表，观察输出契约回归如何失败。

@@ -1,3 +1,4 @@
+import { analysisFailureMessage } from "./debate-failure.ts";
 import type { AgentAnalysis } from "./types/debate.ts";
 
 export const HORIZONS = { short: "短期 · 未来 1–5 个交易日", medium: "中期 · 未来 1–3 个月", long: "长期 · 未来 1–3 年" } as const;
@@ -25,7 +26,7 @@ const dateMs = (value: string) => {
 export function horizonView(a: AgentAnalysis, horizon: Horizon, now = new Date()): { opinion: HorizonOpinion | null; eligible: boolean; reason: string } {
   const opinions = a.horizons;
   const missing = (reason: string) => ({opinion: null, eligible:false, reason});
-  if (!a.success) return missing("该流派分析未完成");
+  if (!a.success) return missing(analysisFailureMessage(a.error));
   if (!Array.isArray(opinions) || opinions.length !== 3 || Object.keys(HORIZONS).some(key => opinions.filter(item => item?.horizon === key).length !== 1)) return missing("缺少完整三周期记录，请重新分析；不能从流派名称推断期限");
   const opinion = opinions.find(item => item.horizon === horizon)!;
   if (!["supported","insufficient"].includes(opinion.status) || ![opinion.thesis,opinion.review_trigger,opinion.limitations].every(text) || ![opinion.assumptions,opinion.invalidation,opinion.evidence].every(list)) return missing("条件或证据缺项，不能显示方向结论");
@@ -41,6 +42,10 @@ export function horizonView(a: AgentAnalysis, horizon: Horizon, now = new Date()
 }
 
 export function horizonConsensus(analyses: AgentAnalysis[], horizon: Horizon, now = new Date()): string {
+  if (!analyses.length) return "尚无流派分析，未生成研究结论";
+  const failed = analyses.filter(a => !a.success).length;
+  if (failed === analyses.length) return "本次分析未成功，未生成研究结论";
+  if (failed) return `${failed} 个流派分析未成功，暂不能形成完整共识`;
   if (analyses.length !== 5 || new Set(analyses.map(a=>a.agent_name)).size !== 5 || analyses.some(a=>!horizonView(a,horizon,now).eligible)) return "条件或证据未齐，不形成方向共识";
   const directions = new Set(analyses.map(a=>horizonView(a,horizon,now).opinion?.direction));
   if (directions.size > 1) return "流派存在分歧";

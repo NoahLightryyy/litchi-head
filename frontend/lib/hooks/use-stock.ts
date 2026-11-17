@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchQuote, fetchKline, fetchCapitalFlow, fetchTechnicalIndicators, fetchFinancials, fetchValuation, fetchIndicators, fetchIntradayBattlefield, searchStocks } from "@/lib/api/stocks";
 import { useDebounce } from "./use-debounce";
+import { requireIntradayDisplay } from "@/lib/intraday-recovery";
+import { findStockIdentity } from "@/lib/stock-identity";
 
 /* ── 搜索（300ms 防抖） ── */
 export function useStockSearch(query: string) {
@@ -15,11 +17,28 @@ export function useStockSearch(query: string) {
   });
 }
 
+/** A catalog failure must not prevent quotes, or a quote failure erase known identity. */
+export function useStockIdentity(code: string) {
+  return useQuery({
+    queryKey: ["stocks", code, "identity"],
+    queryFn: async () => findStockIdentity(code, await searchStocks(code)),
+    enabled: /^[0-9]{6}$/.test(code),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
 /* ── 个股行情 ── */
 export function useStockQuote(code: string) {
   return useQuery({
     queryKey: ["stocks", code, "quote"],
-    queryFn: () => fetchQuote(code),
+    queryFn: async () => {
+      const quote = await fetchQuote(code);
+      // Treat empty refreshes as errors so React Query retains same-key last good data.
+      if (!quote || quote.code !== code) throw new Error("报价暂未取得");
+      return quote;
+    },
+    retry: false,
     refetchInterval: 30_000,
     staleTime: 15_000,
     enabled: !!code,
@@ -41,7 +60,8 @@ export function useKline(code: string, period: string = "daily") {
 export function useTechnicalIndicators(code: string, period: string = "daily") {
   return useQuery({
     queryKey: ["stocks", code, "technical-indicators", period],
-    queryFn: () => fetchTechnicalIndicators(code, period),
+    queryFn: ({ signal }) => fetchTechnicalIndicators(code, period, AbortSignal.any([signal, AbortSignal.timeout(15_000)])),
+    retry: false,
     staleTime: 120_000,
     enabled: !!code,
   });
@@ -91,7 +111,9 @@ export function useIndicators(code: string) {
 export function useIntradayBattlefield(code: string) {
   return useQuery({
     queryKey: ["stocks", code, "intraday-battlefield"],
-    queryFn: () => fetchIntradayBattlefield(code),
+    queryFn: async ({ signal }) => requireIntradayDisplay(await fetchIntradayBattlefield(code,
+      AbortSignal.any([signal, AbortSignal.timeout(20000)])), code),
+    retry: false,
     refetchInterval: 30_000,
     staleTime: 15_000,
     enabled: !!code,

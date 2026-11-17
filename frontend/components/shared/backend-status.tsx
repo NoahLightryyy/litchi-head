@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useLocale } from "./locale-provider";
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
@@ -8,6 +7,8 @@ import {
   type DiagnoseResult,
   classifyBackendProbe,
   normalizeDataSourceDiagnostics,
+  partitionDiagnostics,
+  backendStateLabel,
 } from "@/lib/backend-health";
 
 /* ── 后端连接状态 ── */
@@ -51,10 +52,79 @@ async function probeBackend(): Promise<BackendProbe> {
   }
 }
 
+const CHECK_LABELS: Record<string, string> = {
+  all_stocks: "股票搜索目录",
+  "kline:daily": "日 K 线",
+  "kline:weekly": "周 K 线",
+  "kline:monthly": "月 K 线",
+  valuation: "估值数据",
+  quotes: "实时行情",
+  news: "新闻资讯",
+  "market_index:eastmoney": "指数 · 东方财富",
+  "market_index:sina": "指数 · 新浪",
+  "market_index:tencent": "指数 · 腾讯",
+};
+
+/** Global source diagnostics are secondary to the data shown by each page. */
+export function BackendDiagnosticsNotice({
+  degraded,
+  diagnose,
+  message,
+  t,
+}: {
+  degraded: boolean;
+  diagnose: DiagnoseResult | null;
+  message: string | null;
+  t: (text: string) => string;
+}) {
+  if (!degraded && diagnose?.status !== "healthy_with_warnings") return null;
+  const checks = Object.entries(diagnose?.checks ?? {});
+  const { issues, backupFailures } = partitionDiagnostics(diagnose?.checks ?? {});
+  const issueCount = issues.length;
+  const summary = message
+    ? t("数据诊断暂不可用")
+    : degraded
+      ? `${t("数据诊断")} · ${issueCount > 0 ? `${issueCount} ${t("项异常")}` : t("部分异常")}`
+      : t("数据诊断 · 备用来源暂不可用");
+
+  return (
+    <details className="px-4 py-2 text-xs text-text-muted border-b border-bg-tertiary">
+      <summary className="cursor-pointer">
+        <span aria-hidden="true" className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mx-1.5" />
+        {summary}
+        {!message && issues.some(([name]) => name === "all_stocks") && ` · ${t(
+          diagnose?.checks.all_stocks?.errorCode === "STOCK_CATALOG_PARTIAL" ? "股票名称搜索可能不完整" : "股票名称搜索暂不可用")}`}
+        {!message && backupFailures.length > 0 && ` · ${t("指数已使用备用来源")}`}
+      </summary>
+      <div className="mt-2 space-y-2">
+        <p>{t("以下为已访问数据服务的诊断；各页面的数据可用性以对应内容提示为准。")}</p>
+        {message && <p>{t(message)}</p>}
+        {checks.length > 0 && (
+          <ul className="space-y-1">
+            {checks.map(([name, check]) => {
+              const label = CHECK_LABELS[name];
+              const status = check.status === "pass" ? "可用" : check.status === "warn" ? "暂无数据" : "请求失败";
+              const details = [...new Set([check.message, check.error].filter(Boolean))];
+              return (
+                <li key={name}>
+                  {label ? `${t(label)} (${name})` : name}：{t(status)}
+                  {details.length > 0 && ` · ${details.join("；")}`}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </details>
+  );
+}
+
 /* ── 后端状态横幅（页面顶部） ── */
 export function BackendStatusIndicator() {
   const { t } = useLocale();
   const [state, setState] = useState<BackendState>("checking");
+  const [diagnose, setDiagnose] = useState<DiagnoseResult | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   const check = useCallback(async () => {
@@ -62,6 +132,8 @@ export function BackendStatusIndicator() {
       try {
         const result = await probeBackend();
         if (!mountedRef.current) return;
+        setDiagnose(result.diagnose);
+        setMessage(result.message);
         setState(result.state);
         return; // success
       } catch {
@@ -114,9 +186,7 @@ export function BackendStatusIndicator() {
     );
   }
 
-  // 降级详情集中到数据状态页；顶部状态入口持续保留真实状态。
-
-  return null;
+  return <BackendDiagnosticsNotice degraded={state === "degraded"} diagnose={diagnose} message={message} t={t} />;
 }
 
 /* ── 顶部栏右侧连接状态小点 ── */
@@ -168,19 +238,14 @@ export function HeaderStatusDot() {
     disconnected: "bg-red-500",
   }[state];
 
-  const label = {
-    checking: "连接中",
-    connected: "已连接",
-    degraded: message ? "诊断不可用" : "部分异常",
-    disconnected: "未连接",
-  }[state];
+  const label = backendStateLabel(state, message);
 
   const title = t(message ?? label);
 
   return (
-    <Link href="/data-status" className="flex items-center gap-1.5 text-xs text-text-muted hover:text-text-primary" title={title} aria-label={`${t("数据状态")}: ${t(label)}`}>
+    <span className="flex items-center gap-1.5 text-xs text-text-muted" title={title}>
       <span className={`inline-block w-1.5 h-1.5 rounded-full ${dot}`} />
       {t(label)}
-    </Link>
+    </span>
   );
 }
