@@ -66,7 +66,7 @@ def closing_research_quotes(envelope: EvidenceEnvelope, now: datetime) -> Resear
         return ResearchQuotes(note="最近收盘报价来源价格冲突，未用于研究。")
     chosen = max(candidates, key=lambda item: item[1].fetched_at or now)[1]
     sources = sorted({source for source, _ in candidates})
-    count_note = "单源，未交叉验证" if len(sources) == 1 else f"{len(sources)} 源价格一致"
+    count_note = "单源可用" if len(sources) == 1 else f"{len(sources)} 源价格一致"
     assert chosen.fetched_at is not None
     return ResearchQuotes(
         quotes=[chosen],

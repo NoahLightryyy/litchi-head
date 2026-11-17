@@ -132,23 +132,34 @@ class FallbackSource:
                 result = self._primary.get_stock_industry(code)
                 failures[key] = 0
                 self._using_fallback[key] = False
+                logger.info("主数据源恢复，切回主源: endpoint=%s", key)
                 return result
             except Exception:
-                pass
+                logger.debug("主数据源仍未恢复: endpoint=%s", key)
             try:
                 return self._fallback.get_stock_industry(code)
             except Exception:
+                logger.warning("备用数据源也失败: endpoint=%s code=%s", key, code)
                 failures[key] = failures.get(key, 0) + 1
                 return None
         try:
             return self._primary.get_stock_industry(code)
         except Exception:
             failures[key] = failures.get(key, 0) + 1
+            logger.warning(
+                "主数据源失败 (%d/%d): endpoint=%s code=%s",
+                failures[key],
+                self._max_failures,
+                key,
+                code,
+            )
             if failures[key] >= self._max_failures:
                 self._using_fallback[key] = True
+                logger.info("切到备用数据源: endpoint=%s", key)
             try:
                 return self._fallback.get_stock_industry(code)
             except Exception:
+                logger.warning("备用数据源也失败: endpoint=%s code=%s", key, code)
                 return None
 
     # ── 核心切换逻辑 ─────────────────────────────────────────────────

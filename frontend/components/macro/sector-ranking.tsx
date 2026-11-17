@@ -17,12 +17,13 @@ interface SectorRankingProps {
   error?: boolean;
   meta?: MarketMeta;
   refreshError?: boolean;
+  paused?: boolean;
   onRetry?: () => void;
   onSortChange: (sort: string) => void;
 }
 
 /** 板块排行表格 */
-export function SectorRanking({ sectors, loading, error, meta, refreshError, onRetry, onSortChange }: SectorRankingProps) {
+export function SectorRanking({ sectors, loading, error, meta, refreshError, paused, onRetry, onSortChange }: SectorRankingProps) {
   const isSina = sectors.length > 0 && sectors.every((item) => item.source === "sina");
   const flowSort = isSina ? "net_flow" : "fund_flow";
   const heatLabels = { high: "🔥", medium: "📌", low: "—" } as const;
@@ -43,6 +44,10 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
     goToPage(1);
     onSortChange(sort);
   };
+
+  if (paused && !sectors.length) {
+    return <p role="status" className="rounded-lg border border-bg-tertiary bg-bg-secondary p-4 text-sm text-text-muted">网络已断开，联网后继续加载板块行情。</p>;
+  }
 
   if (loading && !sectors.length) {
     return (
@@ -78,7 +83,7 @@ export function SectorRanking({ sectors, loading, error, meta, refreshError, onR
 
   return (
     <>
-      <MarketDataNotice meta={meta} refreshError={refreshError} />
+      <MarketDataNotice meta={meta} refreshError={refreshError} sectors={sectors} paused={paused} />
       <div className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-text-muted">
         <label className="flex items-center gap-2">
           搜索板块

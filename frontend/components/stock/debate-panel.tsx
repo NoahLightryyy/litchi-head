@@ -3,29 +3,37 @@
 import { useState } from "react";
 import { MessageSquare, RefreshCw } from "lucide-react";
 import { useRunDebate, useDebateResult, useDebateHistory } from "@/lib/hooks/use-debate";
-import type { AgentAnalysis, VoteSummary } from "@/lib/types/debate";
+import type { AgentAnalysis, VoteSummary, InstrumentType } from "@/lib/types/debate";
+import { debateInstrumentMatches, debateRequest } from "@/lib/debate-instrument";
 import { debateErrorMessage } from "@/lib/debate-error";
+import { TechnicalSupplementPanel } from "./technical-supplement-panel";
 import { HorizonResearch } from "./horizon-research";
+import { EntryPlanPanel } from "./entry-plan-panel";
 import { AgentAnalysisList } from "./agent-analysis-list";
 import { DEBATE_FAILURE_MESSAGE, DEBATE_TIMEOUT_MESSAGE } from "@/lib/debate-session";
 import { selectDebateView } from "@/lib/debate-history";
-import { debateLimitations } from "@/lib/debate-limitations";
+import { DebateFailureNotice } from "./debate-failure-notice";
+import { DebateDataNotice } from "./debate-data-notice";
 
 interface DebatePanelProps {
   stockCode: string;
   stockName: string;
+  instrumentType?: InstrumentType;
 }
 
 /** AI 辩论面板：触发辩论 → 后端真实调用 → 展示大师分析 → 共识汇总 */
-export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
+export function DebatePanel(props: DebatePanelProps) {
+  return <InstrumentDebatePanel key={`${props.instrumentType ?? "stock"}:${props.stockCode}`} {...props} />;
+}
+function InstrumentDebatePanel({ stockCode, stockName, instrumentType = "stock" }: DebatePanelProps) {
   const { trigger, sessionId, running } = useRunDebate();
   const [error, setError] = useState<string | null>(null);
   const [triggered, setTriggered] = useState(false);
 
   const [selectedHistory, setSelectedHistory] = useState<string | null>(null);
   const [historyOffset, setHistoryOffset] = useState(0);
-  const history = useDebateHistory(stockCode, historyOffset);
-  const records = (history.data ?? []).filter((item) => item.stock_code === stockCode);
+  const history = useDebateHistory(stockCode, historyOffset, instrumentType);
+  const records = (history.data ?? []).filter((item) => debateInstrumentMatches(item, stockCode, instrumentType));
   const {sessionId: effectiveSessionId, historical: viewingHistory} = selectDebateView(
     records, stockCode, selectedHistory, sessionId, triggered,
   );
@@ -33,7 +41,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
   const serverRunning = selectedRecord?.status === "running" || selectedRecord?.status === "queued";
   const serverFailed = selectedRecord?.status === "failed";
   const { data: debateResult, isError: resultQueryFailed, isTimedOut } = useDebateResult(
-    serverFailed ? null : effectiveSessionId, serverRunning,
+    serverFailed ? null : effectiveSessionId, serverRunning, instrumentType,
   );
   const hasActiveRecord = records.some((item) => item.status === "running" || item.status === "queued");
 
@@ -43,9 +51,9 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
     setHistoryOffset(0);
     setTriggered(true);
     try {
-      await trigger({ stock_code: stockCode, question: `${stockName} 投资分析` });
+      await trigger(debateRequest(stockCode, stockName, instrumentType));
     } catch (cause) {
-      setError(debateErrorMessage(cause));
+      setError(debateErrorMessage(cause, instrumentType));
     } finally {
       void history.refetch();
     }
@@ -53,7 +61,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
 
   const resultIdentityMismatch = Boolean(
     effectiveSessionId && debateResult && (debateResult.session_id !== effectiveSessionId
-      || debateResult.stock_code !== stockCode),
+      || !debateInstrumentMatches(debateResult, stockCode, instrumentType)),
   );
   const resultFailed = resultQueryFailed || resultIdentityMismatch;
   const visibleError = (viewingHistory ? null : error)
@@ -65,7 +73,8 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
   );
   const isRunning = (!viewingHistory && running) || awaitingResult;
   const results = !visibleError && (!running || viewingHistory) && effectiveSessionId
-    && debateResult?.stock_code === stockCode
+    && debateInstrumentMatches(debateResult, stockCode, instrumentType)
+    && debateResult
     && debateResult?.session_id === effectiveSessionId && debateResult.vote_summary
     ? {
         voteSummary: debateResult.vote_summary as VoteSummary,
@@ -73,27 +82,30 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       }
     : null;
 
-  const limitations = debateLimitations(debateResult);
+  const hasResearch = results?.analyses.some(a => a.success === true) ?? false;
 
   return (
     <div>
       {/* 头部 */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-text-primary">各流派分析与辩论</h3>
+          <h3 className="text-sm font-semibold text-text-primary">帮你看机会和风险</h3>
           <p className="text-xs text-text-muted mt-0.5">
             {stockName} · 同时研究短期 1–5 个交易日、中期 1–3 个月、长期 1–3 年
           </p>
+          {instrumentType === "etf" && <p className="mt-1 text-xs text-text-muted">围绕 ETF 主题、场内行情和相关资料，沿用各流派分析与交叉审阅。</p>}
         </div>
         <button
           onClick={handleDebate}
-          disabled={running || hasActiveRecord || isRunning}
+          disabled={history.isPending || running || hasActiveRecord || isRunning}
           className="flex items-center gap-2 px-4 py-2 rounded-md bg-accent-blue text-white text-sm font-medium hover:bg-accent-blue/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isRunning ? (
             <><RefreshCw className="w-4 h-4 animate-spin" /> 分析中...</>
+          ) : history.isPending ? (
+            <><RefreshCw className="w-4 h-4 animate-spin" /> 读取记录…</>
           ) : (
-            <><MessageSquare className="w-4 h-4" /> 触发辩论</>
+            <><MessageSquare className="w-4 h-4" /> 帮我看看机会和风险</>
           )}
         </button>
       </div>
@@ -113,7 +125,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
             {records.map((record) => (
               <li key={record.session_id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span>{new Date(record.created_at).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}（北京时间） · {
-                  record.status === "completed" ? "已完成" : record.status === "failed" ? "失败" : "分析中"
+                  record.status === "completed" ? (results && effectiveSessionId === record.session_id ? (hasResearch ? "已完成" : "未生成成功") : "已结束（可查看记录）") : record.status === "failed" ? "失败" : "分析中"
                 }</span>
                 {record.status === "completed" ? (
                   <button className="text-accent-blue" onClick={() => setSelectedHistory(record.session_id)}>
@@ -135,7 +147,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       </section>
       {viewingHistory && selectedRecord && (
         <p className="mb-3 text-xs text-text-muted">
-          历史分析 · {new Date(selectedRecord.created_at).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}（北京时间）。以下为当时的数据与结论。
+          历史分析 · {new Date(selectedRecord.created_at).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"})}（北京时间）。{results && !hasResearch ? "以下为当时的失败记录。" : "以下为当时的数据与结论。"}
         </p>
       )}
 
@@ -169,17 +181,13 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
       {/* 结果 — 来自后端真实辩论数据 */}
       {results && (
         <>
-          {limitations.length > 0 && (
-            <details className="mb-3 text-sm text-text-muted">
-              <summary className="cursor-pointer">本次研究的限制（{limitations.length}）</summary>
-              <ul className="mt-1 space-y-1 list-disc pl-4">
-                {limitations.map((item) => <li key={item}>{item}</li>)}
-              </ul>
-            </details>
-          )}
-          <HorizonResearch analyses={results.analyses} />
+          {!hasResearch && <DebateFailureNotice analyses={results.analyses} />}
+          {hasResearch && debateResult && <EntryPlanPanel result={debateResult} instrumentType={instrumentType} />}
+          {hasResearch && debateResult && <DebateDataNotice key={debateResult.session_id} result={debateResult} />}
+          {instrumentType === "stock" && <TechnicalSupplementPanel stockCode={stockCode} />}
+          {hasResearch && <HorizonResearch analyses={results.analyses} />}
           <details className="rounded-md border border-bg-tertiary p-3">
-            <summary className="cursor-pointer text-sm">原始流派论证（未限定周期的历史方向不作结论）</summary>
+            <summary className="cursor-pointer text-sm">{hasResearch ? "原始流派论证（未限定周期的历史方向不作结论）" : "查看未完成的流派与失败原因"}</summary>
             <AgentAnalysisList analyses={results.analyses} />
           </details>
         </>
@@ -190,7 +198,7 @@ export function DebatePanel({ stockCode, stockName }: DebatePanelProps) {
         <div className="text-center py-8">
           <div className="text-3xl mb-3">🤖</div>
           <p className="text-sm text-text-muted">
-            点击「触发辩论」生成该股各流派分析；成功返回后可逐个展开依据和风险。
+            点击「帮我看看机会和风险」，自动分析{instrumentType === "etf" ? "这只 ETF" : "这只股票"}，不用自己写问题。完成后查看机会、风险和买入前需要等待的条件。
           </p>
         </div>
       )}

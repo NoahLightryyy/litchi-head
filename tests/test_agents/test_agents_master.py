@@ -11,6 +11,8 @@ import pytest
 
 from src.agents.base import AgentContext, AgentResult
 from src.agents.master_agent import MasterAgent
+from src.data.research_policy import MARKET_RESEARCH_PROMPT
+from src.debate.models import AgentAnalysis
 from src.memory.skill_disk import SkillDisk
 
 # ═══════════════════════════════════════════════════════════════════
@@ -185,6 +187,7 @@ class TestMasterAgentRunWithMockLLM:
             call_args, call_kwargs = mock_llm.call_args
             prompt = call_kwargs.get("prompt", call_args[0] if call_args else "")
             assert "安全边际" in prompt
+            assert MARKET_RESEARCH_PROMPT in prompt
 
             # 验证返回结果包含分析内容
             assert result.success is True
@@ -408,3 +411,71 @@ async def test_master_requests_one_followup_and_attaches_retrieval_record(
     assert result.success and invoke.await_count == 2
     retrieve.assert_called_once_with("920344", "三元基因", ["临床"])
     assert "补证原文与时间链接" in result.data["analysis"]["analysis"]
+
+
+@pytest.mark.parametrize("failure", ["retrieval", "review", "budget"])
+async def test_unfinished_followup_preserves_serializable_horizon_gaps(
+    agent_with_skill, make_analysis, failure
+):
+    from src.utils.config import settings
+
+    original_gaps = ["缺少最新临床试验结果", "缺少财务明细；" + "待核验资料" * 118]
+    first = make_analysis(
+        research_queries=["临床"],
+        horizons=[
+            {
+                "horizon": horizon,
+                "status": status,
+                "direction": "Bullish" if status == "supported" else None,
+                "thesis": "需要补充资料再复核",
+                "assumptions": ["后续披露可用"],
+                "invalidation": ["披露不支持原先判断"],
+                "review_on": "2026-10-27",
+                "review_trigger": "公司披露新资料",
+                "evidence": ["已经取得的公告摘要"],
+                "limitations": gap,
+            }
+            for horizon, status, gap in zip(
+                ["short", "medium"], ["supported", "insufficient"], original_gaps
+            )
+        ],
+    )
+    ctx = AgentContext(
+        session_id="unfinished-followup",
+        input_data={"question": "研究三元基因", "stock_code": "920344", "stock_name": "三元基因"},
+    )
+    with (
+        patch(
+            "src.agents.master_agent.llm_service.invoke_structured",
+            new=AsyncMock(side_effect=[first, RuntimeError("复核失败")]),
+        ) as invoke,
+        patch(
+            "src.debate.archive_research.followup_context",
+            side_effect=RuntimeError("检索失败") if failure == "retrieval" else None,
+            return_value="补证原文与时间链接",
+        ) as retrieve,
+        patch.object(settings, "debate_timeout_seconds", 5 if failure == "budget" else 120),
+    ):
+        result = await agent_with_skill.run(ctx)
+
+    assert result.success
+    retrieve.assert_called_once_with("920344", "三元基因", ["临床"])
+    assert invoke.await_count == (2 if failure == "review" else 1)
+    message = "本轮时间预算不足" if failure == "budget" else "补证检索或复核未完成"
+    assert message in result.data["analysis"]["analysis"]
+    for opinion, original_gap in zip(result.data["analysis"]["horizons"], original_gaps):
+        assert opinion["status"] == "insufficient"
+        assert opinion["direction"] is None
+        assert isinstance(opinion["limitations"], str)
+        assert len(opinion["limitations"]) <= 600
+        assert opinion["limitations"].startswith(original_gap[:20])
+        assert "补证尚未完成，需核验后重新研究" in opinion["limitations"]
+
+    converted = AgentAnalysis.model_validate({
+        **result.data["analysis"],
+        "agent_name": agent_with_skill.name,
+        "skill_id": result.data["skill_id"],
+        "skill_name": result.data["skill_name"],
+        "confidence": result.confidence,
+    })
+    assert AgentAnalysis.model_validate_json(converted.model_dump_json()) == converted

@@ -1,6 +1,8 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { canSubmitResearch, decimal, jobStorageKey, packageId, positiveDecimal, parseJob, parseSaved, parsePackage, parsePreview, researchFetch, ResearchApiError, type EvidencePackage, type Job, type Preview, type Subject } from "@/lib/policy-capital";
+import { canSubmitResearch, decimal, jobStorageKey, packageId, positiveDecimal, parseJob, parseSaved, parsePackage, parsePreview, researchFetch, ResearchApiError, sampleSubjectHref, sampleSubjectLabel, VERIFIED_SAMPLE_SUBJECTS, type EvidencePackage, type Job, type Preview, type Subject } from "@/lib/policy-capital";
+import { RelatedResearchPanel } from "./related-research-panel";
 
 type Saved = { jobId?: string; key: string; budget: string };
 const labels = { supported: "有证据支持", inferred: "推断待验证", insufficient: "证据不足", contradicted: "存在反证" };
@@ -50,13 +52,20 @@ function Panel({kind,code,name}: Subject & {name:string}) {
     try{const raw=await researchFetch("/execution-preview",{method:"POST",signal:mutationAbort.current?.signal,body:JSON.stringify({evidence_package_id:pkg.package_id,instrument_kind:kind,symbol:code,market,side:"buy",order_type:"limit",cash_available_cny:money(cash),user_budget_cny:money(allocation),limit_price_cny:money(price),quote_at:quoteAt?new Date(quoteAt).toISOString():null,permission_confirmed:permission?true:null,rules:null,fees:null})});setPreview(parsePreview(raw,pkg.package_id));}catch(e){setPreviewError(e instanceof Error?e.message:"试算失败");}finally{setPreviewBusy(false);}
   }
   const active=job?.status==="queued"||job?.status==="running";
-  return <section aria-label="政策与本金对照" className="rounded-xl border border-bg-tertiary bg-bg-secondary p-5 space-y-4">
-    <header><h2 className="font-semibold">政策与本金对照</h2><p className="text-sm text-text-secondary">{name} · {code} · 当前标的专属证据与约束</p></header>
+  return <section aria-label="政策与相关资料" className="rounded-xl border border-bg-tertiary bg-bg-secondary p-5 space-y-4">
+    <header><h2 className="font-semibold">政策与相关资料</h2></header>
+    <RelatedResearchPanel kind={kind} code={code} name={name} />
+    <details className="border-t border-bg-tertiary pt-4">
+      <summary className="cursor-pointer text-sm font-medium">已核验证据与 AI 深入研究{active ? " · 任务进行中" : ""}</summary>
+      <div className="mt-4 space-y-4">
     {offline&&<p role="alert">当前离线。已暂停任务刷新；恢复网络后继续读取原任务，不会自动重新研究。</p>}
     {loading&&<p role="status">正在核验政策与标的证据…</p>}
     {error&&<p role="alert">{error}</p>}
-    {empty&&<p>当前标的尚无已核验的证据包，不能把其他标的的政策结论套用到本页。</p>}
-    {(error||empty)&&<button className={button} onClick={()=>{setError("");setEmpty(false);setLoading(true);setRevision(v=>v+1);}}>重新读取证据</button>}
+    {empty&&<div className="space-y-2 text-sm">
+      <p>这个标的没有人工核验的证据包，所以这里的证据核验、AI 深入研究和本金预览不可用。这不是加载失败，重试不会改变结果；上方相关资料仍可正常浏览。</p>
+      <p>此功能目前只覆盖 {VERIFIED_SAMPLE_SUBJECTS.length} 个示例标的：{VERIFIED_SAMPLE_SUBJECTS.map((s,i)=><span key={s.code}>{i>0&&"、"}<Link className="text-accent-blue underline" href={sampleSubjectHref(s)}>{sampleSubjectLabel(s)}</Link></span>)}。</p>
+    </div>}
+    {error&&<button className={button} onClick={()=>{setError("");setEmpty(false);setLoading(true);setRevision(v=>v+1);}}>重新读取证据</button>}
     {pkg&&<><article className={box}><h3 className="font-semibold">央视报道与政策原文 · {pkg.status==="partial"?"证据仍有缺口":"声明范围已核验"}</h3><ClaimList claims={pkg.claims}/>
       {pkg.gaps.length>0&&<div><h4>待补证据</h4><ul className="list-disc pl-5">{pkg.gaps.map((g,i)=><li key={i}>{g}</li>)}</ul></div>}
       <details><summary className="cursor-pointer">查看原始来源、定位与日期（{pkg.evidence.length}）</summary><ul className="mt-3 space-y-4">{pkg.evidence.map(e=><li key={e.id}><a className="text-accent-blue underline" href={e.url} target="_blank" rel="noopener noreferrer">{e.title}</a><p className="text-sm">{e.id} · {e.publisher} · 发布 {e.published_date}</p><p className="text-sm">成文 {e.authored_date||"未载明"} · 生效 {e.effective_date||"未核实"} · 检索 {e.retrieved_at}</p><p className="text-sm">定位：{e.locator}</p><p>{e.summary}</p></li>)}</ul></details>
@@ -71,8 +80,13 @@ function Panel({kind,code,name}: Subject & {name:string}) {
       {jobError&&<p role="alert">{jobError}</p>}{saved?.jobId&&<button className={button} onClick={()=>setRevision(v=>v+1)}>刷新原任务</button>}
       {job?.result&&<div className="space-y-3"><ClaimList claims={job.result.claims}/>{([['成立条件',job.result.conditions],['反向证据与风险',job.result.counterarguments],['未解决缺口',job.result.gaps]] as const).map(([title,items])=><div key={title}><h4>{title}</h4><ul className="list-disc pl-5">{items.map((x,i)=><li key={i}>{x}</li>)}</ul></div>)}<p className="text-xs">模型 {job.result.model} · 提示版本 {job.result.prompt_version} · {job.result.generated_at} · 估算费用 ¥{job.result.estimated_cost_cny}</p></div>}
     </article></>}
-    <article className={box}><h3 className="font-semibold">本金执行约束 · 单笔限价买入</h3>{kind==="sector"?<p>板块不能直接交易。请选择相关股票或ETF，再核验账户权限、实际费用与交易规则。</p>:<><p className="text-sm">仅检查单笔资金是否足够，不代表适合持有。本页尚未接入已验证的客户费率与交易规则，缺项时只展示阻断原因，不生成可买数量。</p>
+      </div>
+    </details>
+    <details className="border-t border-bg-tertiary pt-4">
+      <summary className="cursor-pointer text-sm font-medium">本金执行约束 · 单笔限价买入</summary>
+    <article className="mt-4 space-y-3">{kind==="sector"?<p>板块不能直接交易。请选择相关股票或ETF，再核验账户权限、实际费用与交易规则。</p>:<><p className="text-sm">仅检查单笔资金是否足够，不代表适合持有。本页尚未接入已验证的客户费率与交易规则，缺项时只展示阻断原因，不生成可买数量。</p>
       <div className="grid gap-3 sm:grid-cols-2">{([["可用现金（元）",cash,setCash],["本单预算（元）",allocation,setAllocation],["限价（元）",price,setPrice]] as const).map(([label,value,setter])=><label key={label}>{label}<input className={input} disabled={previewBusy} inputMode="decimal" value={value} onChange={e=>{setter(e.target.value);setPreview(null);}}/></label>)}<label>实际报价时间（本机时区）<input className={input} disabled={previewBusy} type="datetime-local" value={quoteAt} onChange={e=>{setQuoteAt(e.target.value);setPreview(null);}}/></label><label>交易市场<select disabled={previewBusy} className={input} value={market} onChange={e=>{setMarket(e.target.value as "SH"|"SZ"|"");setPreview(null);}}><option value="">请选择市场</option><option value="SH">上海</option><option value="SZ">深圳</option></select></label></div>
       <label className="block"><input disabled={previewBusy} type="checkbox" checked={permission} onChange={e=>{setPermission(e.target.checked);setPreview(null);}}/> 我声明已开通该品种交易权限（仍需服务端核验）</label><button className={button} disabled={!pkg||previewBusy||offline} onClick={()=>void calculate()}>{previewBusy?"正在核验…":"核验资金与缺项"}</button>{!pkg&&<p>需先取得当前标的证据包。</p>}{previewError&&<p role="alert">{previewError}</p>}{preview&&<div role="status">{preview.status==="blocked"?<><strong>暂不能给出可买数量</strong><ul className="list-disc pl-5">{preview.gaps.map((g,i)=><li key={i}>{g}</li>)}</ul></>:<p>单笔预算计算：{preview.quantity} 股／份 · 含费金额 ¥{preview.estimated_cost} · 现金余额 ¥{preview.remaining_cash}。仅为预算可负担性核验。</p>}</div>}</>}</article>
+    </details>
   </section>;
 }

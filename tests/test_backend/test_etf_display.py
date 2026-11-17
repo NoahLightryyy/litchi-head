@@ -59,6 +59,74 @@ def test_catalog_checks_count_pagination_and_identity():
     assert snapshot.items[-1].code == "510100"
 
 
+def _catalog_client(reported: int, pages: dict[int, int]):
+    """Mock Sina: `reported` 为自报总数，`pages` 为每页实际返回的行数。"""
+    rows = [
+        {"symbol": f"sh{510000 + i}", "code": str(510000 + i), "name": f"基金{i}"}
+        for i in range(sum(pages.values()))
+    ]
+    offsets, start = {}, 0
+    for number in sorted(pages):
+        offsets[number] = (start, start + pages[number])
+        start += pages[number]
+
+    def handler(request):
+        if "StockCount" in request.url.path:
+            return httpx.Response(200, json=str(reported))
+        begin, end = offsets.get(int(request.url.params["page"]), (0, 0))
+        return httpx.Response(200, json=rows[begin:end])
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_small_reported_count_mismatch_is_accepted_and_disclosed():
+    # 实测形态：新浪自报 938，实际分页一致地返回 927。
+    client = _catalog_client(938, {**{n: 100 for n in range(1, 10)}, 10: 27})
+    with patch.object(provider.httpx, "Client", return_value=client):
+        snapshot = provider.fetch_catalog()
+    assert len(snapshot.items) == 927
+    assert snapshot.reported_count == 938
+    assert snapshot.count_mismatch
+
+
+def test_matching_count_has_no_mismatch():
+    client = _catalog_client(101, {1: 100, 2: 1})
+    with patch.object(provider.httpx, "Client", return_value=client):
+        snapshot = provider.fetch_catalog()
+    assert snapshot.reported_count == 101 and not snapshot.count_mismatch
+
+
+@pytest.mark.parametrize(
+    ("reported", "pages"),
+    [
+        (100, {1: 94}),  # 低于 95% 覆盖：按真实截断拒绝
+        (938, {1: 100}),  # 只有首页：大面积缺失
+        (250, {1: 100, 2: 50, 3: 100}),  # 中间页不满后又有数据：分页不连续
+    ],
+)
+def test_large_or_discontinuous_shortfall_is_still_rejected(reported, pages):
+    with patch.object(provider.httpx, "Client", return_value=_catalog_client(reported, pages)):
+        with pytest.raises(ValueError):
+            provider.fetch_catalog()
+
+
+def test_search_discloses_accepted_count_mismatch(monkeypatch):
+    from backend.routers import discovery
+
+    snapshot = EtfCatalog(items=(IDENTITY,), fetched_at=NOW, reported_count=3)
+    monkeypatch.setattr(discovery, "cached_catalog", lambda: snapshot)
+    assert discovery.etf_catalog_notices() == [
+        "ETF目录：新浪报告 3 只，实际取到 1 只，已显示取到的全部。"
+    ]
+    monkeypatch.setattr(
+        discovery, "cached_catalog",
+        lambda: EtfCatalog(items=(IDENTITY,), fetched_at=NOW, reported_count=1),
+    )
+    assert discovery.etf_catalog_notices() == []
+    monkeypatch.setattr(discovery, "cached_catalog", lambda: None)
+    assert discovery.etf_catalog_notices() == []
+
+
 @pytest.mark.parametrize("mode", ["truncated", "repeat", "extra", "count_changed"])
 def test_incomplete_catalog_is_rejected(mode):
     calls = 0

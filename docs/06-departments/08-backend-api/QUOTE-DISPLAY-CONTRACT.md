@@ -1,12 +1,22 @@
 # 单股顶部报价展示契约（2026-10-06）
 
 GET /api/stocks/{六位代码}/quote：保持data/meta包裹，不再通过全市场列表筛选。
-复用现有EastmoneyQuoteSource，失败后复用SinaQuoteSource；来源身份、正价格、非未来且带时区报价时间验证。
+复用现有东财/新浪单股接口与腾讯日线接口附带的qt报价；来源身份、正价格、非未来且带时区报价时间验证。
 休市报价可显示，真实fetched_at必须保留；这是展示契约，不改变实时AI辩论证据门禁。
 
 data为DisplayQuote或null；open_序列化为open，已有价格/涨跌/成交量等字段保留。
-新增source=eastmoney|sina、verification_status=single_source；未双源核验必须明示。
+新增source=eastmoney|sina|tencent、verification_status=single_source；未双源核验必须明示。
 直连未提供的turnover_rate、fund_flow、market_cap为null，前端显示“—”，不能补0。
-两源失败返回200/data=null，前端沿用已有重新获取报价状态；逐源失败记录日志。
+全部可用通道均失败返回200/data=null，前端沿用已有重新获取报价状态；逐源失败记录日志。
 meta.cached=false，latency_ms为实际耗时。非法代码422；手动重试和现有前端刷新语义不变。
-不新建来源、不引入从分时最后点合成完整报价的逻辑、不借此开放交易/辩论门禁。
+不增加供应商或外部接口，不引入从分时最后点合成完整报价的逻辑、不借此开放交易/辩论门禁。
+
+
+## 2026-10-27 备用报价契约增量（前端消费前冻结）
+
+- `source` 扩展为 `eastmoney | sina | tencent`，其他字段、空值、状态码保持兼容。
+- 腾讯只复用已在RAW日线使用的fqkline接口，取`data[symbol].qt[symbol]`，绝不取`day`最后收盘、HTTP时间或分钟线合成报价。SH/SZ市场、代码、`GP-A`类型、OHLC、涨跌、自带报价时间及量额需通过校验。北交所沿用原东财/新浪路径。
+- 三通道有界并发，先返回一条合格报价，不要求全部成功；`single_source`不变，不声称交叉核验。单次等待最多9秒，进程全局最多6个在途请求，同代码同通道在途复用；容量满时在同一9秒预算内等待空闲槽位，不提前报空，也不无限提交任务。返回超时不强杀网络线程；底层沿用5秒/8秒网络超时。
+- 不持久缓存报价；`meta.cached=false`，复用在途请求不修改`fetched_at`。9秒预算用尽且无合格数据仍返回null。前端按原30秒刷新或显式重试；不自动反复触发AI。
+- 顶部已知公司名称可独立读取现有`GET /stocks/search?q={code}`严格匹配结果；名称不是报价，不能生成价格。报价缺失不阻止已确认身份的自选或资料检索。
+- 实时辩论/交易证据注册表不变；入场计划仍按已有规则附上实际来源及时间，不将新展示通道变成实时许可。

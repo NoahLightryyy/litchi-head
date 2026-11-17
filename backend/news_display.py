@@ -410,3 +410,7 @@ class NewsDisplayService:
             return result
         finally:
             self.pending.pop(key, None)
+
+
+# Shared read-only cache for the news page and related-material retrieval.
+service = NewsDisplayService()

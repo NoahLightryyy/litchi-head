@@ -59,7 +59,7 @@ class TestMasterRoundNodeDP004:
             "calibration_map": {},
         }
 
-    @patch("src.debate.orchestrator._run_single_master")
+    @patch("src.debate.graph_nodes._run_single_master")
     def test_master_round_skips_low_trust(self, mock_run, state_with_trust):
         """信任度低于阈值的应跳过"""
         mock_run.return_value = AgentAnalysis(
@@ -83,7 +83,7 @@ class TestMasterRoundNodeDP004:
         assert "master.high_trust" in analyses
         assert "master.medium_trust" in analyses
 
-    @patch("src.debate.orchestrator._run_single_master")
+    @patch("src.debate.graph_nodes._run_single_master")
     def test_master_round_no_trust_factors(self, mock_run):
         """无 trust_weight_factors 时应正常运行所有大师（默认权重 1.0，均通过阈值）"""
         mock_run.return_value = AgentAnalysis(

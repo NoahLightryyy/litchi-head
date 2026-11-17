@@ -19,7 +19,7 @@ help:
 
 install:
 	pip install --upgrade pip
-	pip install -e ".[dev]"
+	pip install -e ".[dev]" -c constraints.txt
 
 lint:
 	ruff check .

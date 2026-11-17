@@ -32,6 +32,7 @@ class DebateSessionRecord(BaseModel):
 
     session_id: str = Field(min_length=1)
     stock_code: str = Field(min_length=1)
+    instrument_type: Literal["stock", "etf"] = "stock"
     question: str = ""
     status: SessionStatus
     progress: int = Field(ge=0, le=100)
@@ -48,6 +49,8 @@ class DebateSessionRecord(BaseModel):
                 raise ValueError("completed session requires result and progress=100")
             if self.result.stock_code != self.stock_code:
                 raise ValueError("completed result stock_code must match envelope")
+            if self.result.instrument_type != self.instrument_type:
+                raise ValueError("completed result instrument_type must match envelope")
             if self.result.session_id != self.session_id:
                 raise ValueError("completed result session_id must match envelope")
         if self.status == "failed" and not self.error:
@@ -142,7 +145,7 @@ class SqliteDebateSessionStore:
                     connection.execute("BEGIN IMMEDIATE")
                     existing = connection.execute(
                         """
-                        SELECT status, progress, payload_sha256
+                        SELECT status, progress, payload_sha256, stock_code, payload_json
                         FROM debate_sessions
                         WHERE session_id = ?
                         """,
@@ -155,6 +158,9 @@ class SqliteDebateSessionStore:
                             f"terminal session is immutable: {record.session_id}"
                         )
                     if existing is not None:
+                        old_kind = json.loads(existing[4]).get("instrument_type", "stock")
+                        if existing[3] != record.stock_code or old_kind != record.instrument_type:
+                            raise SessionStoreError("session instrument identity cannot change")
                         previous_status = str(existing[0])
                         previous_progress = int(existing[1])
                         allowed = _ALLOWED_TRANSITIONS.get(previous_status, frozenset())
@@ -236,9 +242,12 @@ class SqliteDebateSessionStore:
         limit: int = 50,
         offset: int = 0,
         unfinished: bool = False,
+        instrument_type: Literal["stock", "etf"] | None = None,
     ) -> list[DebateSessionRecord]:
         """Read ordered, integrity-checked history without loading all result bodies."""
-        return await asyncio.to_thread(self._list_sync, stock_code, limit, offset, unfinished)
+        return await asyncio.to_thread(
+            self._list_sync, stock_code, limit, offset, unfinished, instrument_type
+        )
 
     def _list_sync(
         self,
@@ -246,12 +255,16 @@ class SqliteDebateSessionStore:
         limit: int,
         offset: int,
         unfinished: bool,
+        instrument_type: Literal["stock", "etf"] | None,
     ) -> list[DebateSessionRecord]:
         clauses: list[str] = []
         params: list[object] = []
         if stock_code:
             clauses.append("stock_code = ?")
             params.append(stock_code)
+        if instrument_type is not None:
+            clauses.append("COALESCE(json_extract(payload_json, '$.instrument_type'), 'stock') = ?")
+            params.append(instrument_type)
         if unfinished:
             clauses.append("status IN ('queued', 'running')")
         where = " WHERE " + " AND ".join(clauses) if clauses else ""

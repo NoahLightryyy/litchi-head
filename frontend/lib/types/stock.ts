@@ -14,7 +14,7 @@ export interface StockQuote {
   turnover_rate: number | null;
   fund_flow: number | null;
   market_cap: number | null;
-  source?: "eastmoney" | "sina";
+  source?: "eastmoney" | "sina" | "tencent";
   verification_status?: "single_source";
   amount: number;
   fetched_at: string | null;

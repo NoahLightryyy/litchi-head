@@ -29,6 +29,7 @@ from backend.routers import (
     company_research,
     debate,
     discovery,
+    entry_plan,
     etfs,
     evidence,
     financials,
@@ -36,6 +37,8 @@ from backend.routers import (
     news,
     news_archive,
     policy_research,
+    related_interpretation,
+    related_research,
     retro,
     sector_chain,
     sector_maps,
@@ -100,6 +103,18 @@ async def lifespan(app: FastAPI):
     """应用启动/关闭钩子"""
     logger.info("FastAPI 桥接层启动 — http://localhost:8000")
     logger.info("API 文档: http://localhost:8000/docs")
+
+    # 系统 DNS 解析不了行情域名时（海外网络常见）改用备用解析；结果计入数据源健康统计。
+    from src.data.collector import get_health_stats  # noqa: PLC0415
+    from src.utils import dns_fallback  # noqa: PLC0415
+
+    def _record_dns_fallback(host: str, duration_ms: float, error: str | None) -> None:
+        get_health_stats().record_call(
+            "dns_fallback", duration_ms, error=error,
+            error_code="DNS_FALLBACK_UNRESOLVED" if error else None,
+        )
+
+    dns_fallback.install(_record_dns_fallback)
 
     from backend.routers.debate import _session_store  # noqa: PLC0415
 
@@ -203,11 +218,14 @@ app.include_router(news.router)
 app.include_router(news_archive.router)
 app.include_router(financials.router)
 app.include_router(debate.router)
+app.include_router(entry_plan.router)
 app.include_router(trust.router)
 app.include_router(retro.router)
 app.include_router(evidence.router)
 app.include_router(user_actions.router)
 app.include_router(policy_research.router)
+app.include_router(related_research.router)
+app.include_router(related_interpretation.router)
 
 
 def policy_evidence_for_preview(package_id: str) -> EvidencePackage | None:

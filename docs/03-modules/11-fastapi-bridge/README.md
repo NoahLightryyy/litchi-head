@@ -22,7 +22,6 @@
 ```
 backend/
 ├── main.py                 # FastAPI 入口 + CORS + 生命周期
-├── requirements.txt        # 依赖（uvicorn, fastapi, sse-starlette）
 ├── routers/
 │   ├── __init__.py
 │   ├── market.py           # /api/market/*
@@ -36,9 +35,9 @@ backend/
 ## 快速开始
 
 ```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+# 在仓库根目录执行
+pip install -e ".[dev]" -c constraints.txt
+python -m uvicorn backend.main:app --reload --port 8000
 # API 文档: http://localhost:8000/docs
 ```
 

@@ -32,7 +32,7 @@ def disable_default_quote_evidence_gate(
 ) -> None:
     """Risk unit tests use isolated collector fixtures, never live quote sources."""
     monkeypatch.setattr(
-        "src.debate.orchestrator.get_realtime_quote_evidence_runtime",
+        "src.debate.orchestrator.get_research_quote_runtime",
         lambda: type("TestRuntime", (), {"service": None})(),
     )
 
@@ -634,7 +634,7 @@ class TestOrchestratorWithRisk:
             return factories[output_model]()
 
         with patch(
-            "src.debate.orchestrator.llm_service.invoke_structured",
+            "src.debate.participants.llm_service.invoke_structured",
             new_callable=AsyncMock,
             side_effect=structured_response,
         ):
@@ -709,7 +709,14 @@ class TestBackwardCompatibility:
         from src.agents.master_agent import MasterAgent
         from src.debate.orchestrator import DebateOrchestrator
 
-        orch = DebateOrchestrator()
+        collector = MagicMock()
+        collector.get_realtime_quotes.return_value = []
+        collector.get_klines.return_value = []
+        collector.get_news.return_value = []
+        collector.get_financials.return_value = []
+        collector.get_dynamic_indicators.return_value = {}
+        collector.get_cached_market_sentiment.return_value = None
+        orch = DebateOrchestrator(data_collector=collector)
 
         # Mock MasterAgent + 分析师 + 独立评审
         mock_master = AsyncMock()
@@ -754,7 +761,7 @@ class TestBackwardCompatibility:
         review_response.aggregation_recommendation = ""
 
         with patch(
-            "src.debate.orchestrator.llm_service.invoke_structured",
+            "src.debate.participants.llm_service.invoke_structured",
             new_callable=AsyncMock,
             side_effect=[
                 analyst_response,  # x4 analysts

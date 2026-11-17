@@ -95,7 +95,7 @@ class Settings(BaseSettings):
                 if cm_value == current:
                     return "credential_manager"
             except Exception:
-                pass
+                logger.debug("凭据管理器读取失败，继续检查环境变量: %s", env_name, exc_info=True)
 
         # 检查环境变量
         if os.environ.get(env_name) == current:

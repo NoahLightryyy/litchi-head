@@ -306,7 +306,7 @@ class TestReviewRoundNodeBasic:
         skills = [disk.load("buffett"), disk.load("munger"), disk.load("graham")]
 
         with patch(
-            "src.debate.orchestrator._run_review_for_master",
+            "src.debate.graph_nodes._run_review_for_master",
             new_callable=AsyncMock,
             side_effect=mock_rebuttals,
         ):
@@ -367,7 +367,7 @@ class TestReviewRoundNodeBasic:
             RebuttalAnalysis(agent_name="master.graham"),
         ]
         with patch(
-            "src.debate.orchestrator._run_review_for_master",
+            "src.debate.graph_nodes._run_review_for_master",
             new_callable=AsyncMock,
             side_effect=mock_rebuttals,
         ):
@@ -450,7 +450,7 @@ class TestReviewRoundHelpers:
         mock_llm_response.peer_influences = "同行提示了估值风险"
 
         with patch(
-            "src.debate.orchestrator.llm_service.invoke_structured",
+            "src.debate.participants.llm_service.invoke_structured",
             new_callable=AsyncMock,
             return_value=mock_llm_response,
         ):
@@ -481,7 +481,7 @@ class TestReviewRoundHelpers:
         peers = [sample_analyses["master.buffett"]]
 
         with patch(
-            "src.debate.orchestrator.llm_service.invoke_structured",
+            "src.debate.participants.llm_service.invoke_structured",
             new_callable=AsyncMock,
             side_effect=RuntimeError("LLM 调用失败"),
         ):
@@ -823,12 +823,12 @@ class TestFullFlowWithD1:
 
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ),
             patch(
-                "src.debate.orchestrator._run_review_for_master",
+                "src.debate.graph_nodes._run_review_for_master",
                 new_callable=AsyncMock,
                 return_value=mock_rebuttal,
             ),
@@ -890,12 +890,12 @@ class TestFullFlowWithD1:
 
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ),
             patch(
-                "src.debate.orchestrator._run_review_for_master",
+                "src.debate.graph_nodes._run_review_for_master",
                 new_callable=AsyncMock,
                 return_value=mock_rebuttal,
             ),

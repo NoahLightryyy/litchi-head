@@ -5,22 +5,45 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 import time
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from backend.async_utils import run_sync
+from backend.async_utils import BoundedSyncRunner, run_sync
 from backend.intraday_display import FiveDayDisplay, get_five_day_display
 from backend.kline_display import RawDailyDisplay, get_raw_daily_display
 from backend.quote_display import DisplayQuote, get_display_quote
+from backend.related_research import company_context
+from backend.stock_search_contract import (
+    StockSearchError,
+    StockSearchMeta,
+    StockSearchResponse,
+)
+from backend.technical_research import TechnicalResearch, get_technical_research
 from src.data.collector import DataCollector
 from src.data.fundamental_research import FundamentalResearch, get_fundamental_research
+from src.data.models import StockInfo
 
 logger = logging.getLogger("backend.stocks")
 router = APIRouter(prefix="/api/stocks")
 collector = DataCollector()
+technical_runner = BoundedSyncRunner(max_workers=2, thread_name_prefix="technical-research")
+
+
+@router.get("/{code}/technical-research", response_model=TechnicalResearch)
+async def technical_research(code: str = Path(pattern=r"^\d{6}$")) -> TechnicalResearch:
+    """Read-only price/volume supplement. No LLM, trade action or automatic retry."""
+    try:
+        async with asyncio.timeout(30):
+            return await technical_runner.run(get_technical_research, code)
+    except TimeoutError as exc:
+        logger.warning("Technical supplement timeout: %s", code)
+        raise HTTPException(status_code=504, detail="技术资料读取超时，可稍后重试") from exc
 
 
 @router.get("/{code}/kline-raw-display", response_model=RawDailyDisplay)
@@ -32,20 +55,47 @@ async def raw_daily_display(
     return await run_sync(get_raw_daily_display, code, days=days)
 
 
-@router.get("/search")
+@router.get(
+    "/search", response_model=StockSearchResponse, responses={503: {"model": StockSearchError}}
+)
 async def search_stocks(q: str = Query("", description="搜索关键词")):
     """搜索股票"""
     t0 = time.time()
+    q = q.strip()
     if not q:
         return {"data": [], "meta": {"cached": False, "latency_ms": 0}}
-    stocks = await run_sync(collector.get_all_stocks)
-    results = [s.model_dump() for s in stocks if q.upper() in s.code or q in s.name]
+    complete = False
+    try:
+        snapshot = await run_sync(collector.get_stock_catalog)
+        stocks, complete = snapshot.items, snapshot.complete
+    except Exception:
+        logger.exception("Stock directory unavailable during search")
+        stocks = []
+    results = [s for s in stocks if q.upper() in s.code or q in s.name]
+    recovered = False
+    if not results and re.fullmatch(r"\d{6}", q):
+        try:
+            name, _ = await company_context(q)
+            # The profile parser checks stock code and corporate identity, unlike quote alone.
+            try:
+                quote = await run_sync(get_display_quote, q)
+                if quote and quote.name in name:
+                    name = quote.name
+            except Exception:
+                logger.warning("Stock short name unavailable: %s", q, exc_info=True)
+            results = [StockInfo(code=q, name=name)]
+            recovered = True
+        except Exception:
+            logger.warning("Exact stock identity recovery unavailable: %s", q, exc_info=True)
+    if not complete and not results:
+        logger.warning("Stock search has no usable directory or recovered identity")
+        return JSONResponse(status_code=503, content=StockSearchError().model_dump())
     cached = collector.cache_hit.get("all_stocks", False)
     latency = round((time.time() - t0) * 1000)
-    return {
-        "data": results[:20],
-        "meta": {"cached": cached, "latency_ms": latency},
-    }
+    return StockSearchResponse(
+        data=results[:20],
+        meta=StockSearchMeta(cached=False if recovered else cached, latency_ms=latency),
+    )
 
 
 class QuoteDisplayMeta(BaseModel):
@@ -64,7 +114,8 @@ async def get_quote(code: str = Path(pattern=r"^\d{6}$")) -> QuoteDisplayRespons
     started = time.monotonic()
     quote = await run_sync(get_display_quote, code)
     return QuoteDisplayResponse(
-        data=quote, meta=QuoteDisplayMeta(latency_ms=round((time.monotonic() - started) * 1000)),
+        data=quote,
+        meta=QuoteDisplayMeta(latency_ms=round((time.monotonic() - started) * 1000)),
     )
 
 

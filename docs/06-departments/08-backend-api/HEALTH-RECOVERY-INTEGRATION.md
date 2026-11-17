@@ -262,3 +262,15 @@ BK1106恢复214成员；板块自身报价仍不可用，已有partial提示继�
 新增开放式代码 `BOARD_REFRESH_FAILED`，逐类别给出 HTTP 状态、超时、网络失败或
 完整性校验失败的安全描述；不返回原始响应、请求 URL 或任意异常内容。
 恢复 SQLite 历史快照后仍保留此次失败原因，状态仍为 stale，不把休市解释成 HTTP 故障。
+
+
+## 2026-10-27 股票目录恢复契约（既有HTTP结构不变）
+
+AKShare原四市场目录改为独立获取；内部 `StockCatalogSnapshot` 显式携带 `items` 与 `failed_markets`，`complete` 需有数据且无缺失市场。Collector完整成功TTL1小时；失败/部分结果退避15秒，不标成功缓存。
+
+- `GET /api/discovery/search` 沿用 `data/total/failed_sources`：不完整股票目录仍可在data中返回已取得的身份，同时failed_sources含“股票目录”；不能丢弃整份部分结果。目录恢复后移除此失败项，不抹掉历史故障计数。
+- `GET /api/stocks/search` 匹配到可信目录身份时返回200；目录不完整且无匹配继续既有503，不假装是完整目录查无此股。六位代码公司身份恢复逻辑保留，未混入ETF报价推断。
+- `GET /api/health/data-source` 沿用既有字段，目录诊断code为 `STOCK_CATALOG_PARTIAL` / `STOCK_CATALOG_UNAVAILABLE`；前端消费已有开放式last_error_code，不新增HTTP字段。
+- 连接状态与业务可用性分开：后端连通但数据受限不再叫“没连接”；完整指数备用源存在时，其他冗余指数失败不增加业务问题数量，真实价格冲突仍告警。
+
+实网：京泉华名称搜索200且匹配002885；首轮股票目录仅北交所待完成，5224个身份可用；同词重试收取晚到北交所结果后all_stocks转healthy，历史failures保留1。ETF目录仍失败，与股票成功分别展示。没有更换/新增数据源、没有模型调用。详见当日search-data-recovery日志。

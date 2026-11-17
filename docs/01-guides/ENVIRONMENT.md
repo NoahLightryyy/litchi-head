@@ -15,9 +15,9 @@
 | fnm | Windows 用户级 Node 版本管理（推荐） | 1.39.0，默认 Node 24.19.0 |
 | Docker / Make | 可选；Windows 本地开发不要求 | 未安装也可通过闸门 |
 
-Python 依赖从根目录安装：`pip install -e ".[dev]"`。前端依赖在 `frontend/`
+Python 依赖从根目录安装：`pip install -e ".[dev]" -c constraints.txt`。前端依赖在 `frontend/`
 执行 `pnpm install --frozen-lockfile`。Windows 中文控制台运行 Python 工具前建议设置
-`$env:PYTHONUTF8 = "1"`；项目的 `start_dev.ps1` 已包含该设置。
+`$env:PYTHONUTF8 = "1"`；一键启动脚本 `start.bat`（调用 `scripts/start.ps1`）已包含该设置。
 
 ---
 

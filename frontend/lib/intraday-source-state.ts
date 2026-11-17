@@ -5,6 +5,7 @@ import type {
 } from "@/lib/types/stock";
 
 export type IntradaySourceTone =
+  | "available"
   | "verified"
   | "warning"
   | "conflict"
@@ -70,7 +71,8 @@ function canonicalSourceName(data: IntradayBattlefield): string | null {
 }
 
 function dataTime(asOf: string | null): string {
-  return asOf ? `数据时间 ${clockTime(asOf)}` : "数据时间暂不可用";
+  if (asOf && !Number.isFinite(Date.parse(asOf))) return "数据时间格式无效";
+  return asOf ? `数据时间 ${new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(asOf))} ${clockTime(asOf)}（北京时间）` : "数据时间暂不可用";
 }
 
 function availableSourceNames(data: IntradayBattlefield): string[] {
@@ -200,9 +202,9 @@ export function describeIntradaySourceState(
       };
     case "single_source":
       return {
-        label: `单一数据源 · ${canonicalSourceName(data) ?? "来源待确认"}`,
-        detail: `未交叉验证 · ${time}`,
-        tone: "warning",
+        label: `行情可用 · ${canonicalSourceName(data) ?? "来源待确认"}`,
+        detail: time,
+        tone: data.as_of && canonicalSourceName(data) ? "available" : "warning",
       };
     case "source_conflict":
       return {
@@ -213,7 +215,7 @@ export function describeIntradaySourceState(
     case "unavailable":
       return {
         label: "分时数据暂不可用",
-        detail: "暂无通过本地校验的数据源",
+        detail: "分钟来源暂未提供可用数据",
         tone: "unavailable",
       };
   }

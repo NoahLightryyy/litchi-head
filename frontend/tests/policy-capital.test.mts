@@ -14,3 +14,12 @@ test('holdings refuse duplicate symbols and totals above 100',()=>{const evidenc
 test('unknown errors and retry contradictions rejected',()=>{assert.throws(()=>parseJob({job_id:'a',status:'failed',result:null,error:{code:'OTHER',message:'x',retryable:true}},pkg));assert.throws(()=>parseJob({job_id:'a',status:'failed',result:null,error:{code:'BUDGET_EXCEEDED',message:'x',retryable:true}},pkg));});
 
 test('restoring or unknown persisted job can never authorize new billing',()=>{assert.equal(canSubmitResearch(false,null,null),false);assert.equal(canSubmitResearch(true,{jobId:'original'},null),false);assert.equal(canSubmitResearch(true,{jobId:'original'},{job_id:'original',status:'running',result:null,error:null}),false);assert.equal(canSubmitResearch(true,{jobId:'original'},{job_id:'other',status:'failed',result:null,error:{code:'INTERRUPTED',message:'restart',retryable:true}}),false);assert.equal(canSubmitResearch(true,{jobId:'original'},{job_id:'original',status:'failed',result:null,error:{code:'INTERRUPTED',message:'restart',retryable:true}}),true);assert.equal(canSubmitResearch(true,{},null),true);});
+
+test('示例标的清单与后端证据包一致，入口指向各自详情页', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { VERIFIED_SAMPLE_SUBJECTS, sampleSubjectHref, sampleSubjectLabel, packageId } = await import('../lib/policy-capital.ts');
+  const packages = JSON.parse(readFileSync(new URL('../../backend/policy_evidence_data/packages.json', import.meta.url), 'utf8'));
+  assert.deepEqual(VERIFIED_SAMPLE_SUBJECTS.map(packageId).sort(), Object.keys(packages).sort());
+  assert.deepEqual(VERIFIED_SAMPLE_SUBJECTS.map(sampleSubjectHref), ['/sector/BK0917', '/stock/688012', '/etf/512480']);
+  assert.deepEqual(VERIFIED_SAMPLE_SUBJECTS.map(sampleSubjectLabel), ['板块 BK0917', '股票 688012', 'ETF 512480']);
+});

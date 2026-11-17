@@ -14,11 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── 安装项目依赖（利用 Docker 层缓存提速） ─────────────────────
-COPY pyproject.toml README.md ./
+COPY pyproject.toml constraints.txt README.md ./
 COPY src/ ./src/
 
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e ".[dev,frontend]"
+    && pip install --no-cache-dir -e ".[dev]" -c constraints.txt
 
 # ── 默认命令 ─────────────────────────────────────────────────────
 CMD ["python", "-m", "pytest", "-v", "--tb=short"]

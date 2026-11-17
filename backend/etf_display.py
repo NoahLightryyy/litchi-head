@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 BASE = "https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center."
 HEADERS = {"Referer": "https://finance.sina.com.cn/", "User-Agent": "Mozilla/5.0"}
 PAGE_SIZE = 100
+# 来源自报总数可能与实际列表不一致；实际条数低于该比例视为真实截断并拒绝。
+MIN_REPORTED_COVERAGE = 0.95
 _cache: tuple[float, EtfCatalog] | None = None
 _cache_lock = threading.Lock()
 _runner = BoundedSyncRunner(max_workers=2, thread_name_prefix="etf-display")
@@ -79,17 +81,34 @@ def fetch_catalog() -> EtfCatalog:
 
         with ThreadPoolExecutor(max_workers=4) as pool:
             chunks = list(pool.map(page, range(1, pages + 1)))
-        for number, chunk in enumerate(chunks):
-            expected = min(PAGE_SIZE, count - number * PAGE_SIZE)
-            if len(chunk) != expected:
+        # 分页必须连续：出现不满页之后不允许再有数据，否则是中途截断。
+        short_page_seen = False
+        for chunk in chunks:
+            if short_page_seen and chunk:
                 raise ValueError("ETF directory truncated")
+            if len(chunk) < PAGE_SIZE:
+                short_page_seen = True
         items = [item for chunk in chunks for item in chunk]
         symbols = [item.symbol for item in items]
-        if len(set(symbols)) != count or len({item.code for item in items}) != count:
+        if (
+            not items
+            or len(set(symbols)) != len(items)
+            or len({item.code for item in items}) != len(items)
+        ):
             raise ValueError("ETF directory repeats identities")
         if symbols != sorted(symbols) or page(pages + 1) or _count(client) != count:
             raise ValueError("ETF directory changed during collection")
-        return EtfCatalog(items=tuple(items), fetched_at=datetime.now(SHANGHAI))
+        # 来源自报总数与实际列表可以有小幅差异（实测新浪报 938、实际 927）；
+        # 列表自身一致时接受并披露，差异过大仍按截断拒绝。
+        if len(items) < math.ceil(count * MIN_REPORTED_COVERAGE):
+            raise ValueError("ETF directory truncated")
+        if len(items) != count:
+            logger.warning(
+                "ETF directory count mismatch accepted: reported=%s actual=%s", count, len(items)
+            )
+        return EtfCatalog(
+            items=tuple(items), fetched_at=datetime.now(SHANGHAI), reported_count=count
+        )
 
 
 def catalog_snapshot() -> EtfCatalog:
@@ -100,6 +119,14 @@ def catalog_snapshot() -> EtfCatalog:
         result = fetch_catalog()
         _cache = (time.monotonic(), result)
         return result
+
+
+def cached_catalog() -> EtfCatalog | None:
+    """Return the in-memory catalog without triggering a fetch."""
+    cache = _cache  # 不加锁：抓取期间锁被长时间持有，这里只读一次引用
+    if cache and time.monotonic() - cache[0] < 3600:
+        return cache[1]
+    return None
 
 
 async def get_catalog() -> EtfCatalog:
@@ -150,7 +177,7 @@ def fetch_quote(identity: EtfIdentity) -> EtfQuote:
 
 async def detail(identity: EtfIdentity, catalog: EtfCatalog) -> EtfDetail:
     quote = None
-    limitations = ["新浪单源行情，未交叉验证；价格为场内交易价格，不是基金净值。"]
+    limitations = ["来源：新浪。价格为场内交易价格，不是基金净值。"]
     try:
         quote = await asyncio.wait_for(_runner.run(fetch_quote, identity), timeout=10)
     except Exception:

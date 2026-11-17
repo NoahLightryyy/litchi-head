@@ -15,8 +15,12 @@ pytest 共享配置 —— 测试基座 (TD-004)
         assert result.success
 """
 
+import os
 import sys
 from pathlib import Path
+
+# 测试进程不安装备用域名解析：否则模拟的 DNS 失败会触发真实的公共解析请求。
+os.environ.setdefault("LITCHI_DNS_FALLBACK", "0")
 
 # 确保项目根目录在 sys.path 中（src 布局的标准做法）
 _project_root = str(Path(__file__).resolve().parent.parent)

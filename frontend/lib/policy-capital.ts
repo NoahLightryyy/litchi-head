@@ -69,3 +69,18 @@ export function canSubmitResearch(restored: boolean, saved: { jobId?: string } |
   if (!saved?.jobId) return true;
   return job?.job_id === saved.jobId && (job.status === "succeeded" || job.status === "failed");
 }
+
+// 人工核验的证据包目前只有这三个（backend/policy_evidence_data/packages.json）。
+// 增删证据包时同步修改这里，tests/policy-capital.test.mts 会核对两边一致。
+export const VERIFIED_SAMPLE_SUBJECTS: readonly Subject[] = [
+  { kind: "sector", code: "BK0917" },
+  { kind: "stock", code: "688012" },
+  { kind: "etf", code: "512480" },
+];
+export function sampleSubjectHref(subject: Subject): string {
+  return `/${subject.kind}/${subject.code}`;
+}
+export function sampleSubjectLabel(subject: Subject): string {
+  return `${{ sector: "板块", stock: "股票", etf: "ETF" }[subject.kind]} ${subject.code}`;
+}
+

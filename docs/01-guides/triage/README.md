@@ -1,3 +1,5 @@
+> 2026-11-04：若五流派均失败却显示“条件或证据未齐”，先只读检查 analyses[].success/error；明确 Insufficient Balance/HTTP402 是模型账户故障，不是行情证据不足。不要刷新采集或反复付费生成；见[辩论失败契约](../../06-departments/08-backend-api/DEBATE-PREFLIGHT-CONTRACT.md#模型调用失败与空研究2026-11-04)。
+
 # 🚑 技术急救手册
 
 > **出问题先翻这里。** 扫一眼症状速查表，定位到对应分类文件。
@@ -12,6 +14,8 @@
 你看到什么报错 → 看这列 | → 去这个分类
 :---|:---|:---
 `resolve_stock_name` 超时 / `ANALYSIS_NOT_CONFIGURED` | 辩论启动前置依赖或模型配置缺失 | [辩论前置契约](../../06-departments/08-backend-api/DEBATE-PREFLIGHT-CONTRACT.md)
+`Structured tool output missing` / `期望 ... 实际 NoneType` | HTTP 成功但结构化输出不可用 | [LLM 结构化输出](llm-structured-output.md)
+`finish_reason=length` / JSON 截断或缺字段 | 输出未完整结束，禁止修补后当成功 | [LLM 结构化输出](llm-structured-output.md)
 `RemoteProtocolError` / AKShare `ProxyError` | 东方财富断连与 Windows 注册表代理 | [首页实测与限制](../../06-departments/08-backend-api/HEALTH-RECOVERY-INTEGRATION.md#实网上游证据与未解决限制)
 `Recv failure: Connection was reset` | git push 网络问题 | [🌐 Git 网络](git-network.md)
 `Could not connect to server` | git push 连不上 | [🌐 Git 网络](git-network.md)
@@ -50,6 +54,7 @@
 | 🧪 类型检查 | [type-checking.md](type-checking.md) | pandas/import 位置/Pydantic |
 | 🌐 Git Bash 兼容 | [git-bash-compat.md](git-bash-compat.md) | DNS/cURL/Python3/编码/路径交叉问题 |
 | 📄 官方 PDF 解析 | [official-pdf-parsing.md](official-pdf-parsing.md) | 重复表格幂等、修订版、完整标题归链 |
+| LLM 结构化输出 | [llm-structured-output.md](llm-structured-output.md) | 工具输出缺失、显式 JSON 模式、完整性与引用校验 |
 
 ---
 

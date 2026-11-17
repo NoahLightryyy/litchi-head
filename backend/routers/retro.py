@@ -5,11 +5,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+
+from backend.retro_observation_contract import RetroObservation, RetroObservationsResponse
+from backend.retro_observations import observe
 
 logger = logging.getLogger("backend.retro")
 router = APIRouter(prefix="/api/retro")
@@ -20,11 +25,13 @@ router = APIRouter(prefix="/api/retro")
 
 class ActionUpdateRequest(BaseModel):
     """更新用户操作"""
+
     action: str  # buy / sell / hold / skip
 
 
 class OutcomeUpdateRequest(BaseModel):
     """兼容字段：记录市场观察结果，不代表真实账户盈亏。"""
+
     return_pct: float
     price: float
 
@@ -40,6 +47,7 @@ def _get_store():
     global _store
     if _store is None:
         from src.retro.store import RetroStore  # noqa: PLC0415
+
         _store = RetroStore()
     return _store
 
@@ -107,6 +115,43 @@ async def list_records(
         raise HTTPException(status_code=500, detail="查询复盘记录失败")
 
 
+@router.get("/observations", response_model=RetroObservationsResponse)
+async def market_observations(
+    record_ids: str = Query(min_length=1, max_length=700),
+) -> RetroObservationsResponse:
+    ids = record_ids.split(",")
+    if (
+        not 1 <= len(ids) <= 10
+        or len(ids) != len(set(ids))
+        or any(not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", item) for item in ids)
+    ):
+        raise HTTPException(status_code=422, detail="一次可读取1至10条不同的研究记录")
+    try:
+        store = _get_store()
+        records = await asyncio.gather(*(store.get(record_id) for record_id in ids))
+    except Exception:
+        logger.exception("读取市场观察记录失败")
+        raise HTTPException(status_code=500, detail="研究记录暂时无法读取，请稍后重试")
+
+    async def one(record_id: str, record: object) -> RetroObservation:
+        if record is None:
+            return RetroObservation(
+                record_id=record_id,
+                stock_code="",
+                status="not_found",
+                message="这条研究记录已不存在。",
+            )
+        from src.retro.models import RetroRecord  # noqa: PLC0415
+
+        return await observe(RetroRecord.model_validate(record))
+
+    return RetroObservationsResponse(
+        data=await asyncio.gather(
+            *(one(record_id, record) for record_id, record in zip(ids, records, strict=True))
+        )
+    )
+
+
 @router.get("/summary")
 async def get_summary():
     """获取复盘聚合统计"""
@@ -124,9 +169,7 @@ async def get_summary():
                 "avg_confidence": summary.avg_confidence,
                 "avg_score": summary.avg_score,
                 "last_record_at": (
-                    summary.last_record_at.isoformat()
-                    if summary.last_record_at
-                    else None
+                    summary.last_record_at.isoformat() if summary.last_record_at else None
                 ),
             }
         }
@@ -213,6 +256,12 @@ async def refresh_pending():
                 updated += 1
             except Exception:
                 errors += 1
+                logger.warning(
+                    "刷新复盘结果失败: record=%s code=%s",
+                    record.record_id,
+                    record.stock_code,
+                    exc_info=True,
+                )
                 continue
 
         return {

@@ -253,7 +253,7 @@ class TestReviewReportNodeBasic:
         )
 
         with patch(
-            "src.debate.orchestrator._run_independent_review",
+            "src.debate.graph_nodes._run_independent_review",
             new_callable=AsyncMock,
             return_value=mock_review,
         ):
@@ -338,7 +338,7 @@ class TestReviewReportNodeBasic:
         )
 
         with patch(
-            "src.debate.orchestrator._run_independent_review",
+            "src.debate.graph_nodes._run_independent_review",
             new_callable=AsyncMock,
             return_value=mock_review,
         ):
@@ -383,7 +383,7 @@ class TestIndependentReviewHelpers:
         mock_llm_response.aggregation_recommendation = "加权采纳"
 
         with patch(
-            "src.debate.orchestrator.llm_service.invoke_structured",
+            "src.debate.participants.llm_service.invoke_structured",
             new_callable=AsyncMock,
             return_value=mock_llm_response,
         ):
@@ -438,7 +438,7 @@ class TestIndependentReviewHelpers:
         mock_llm_response.aggregation_recommendation = ""
 
         with patch(
-            "src.debate.orchestrator.llm_service.invoke_structured",
+            "src.debate.participants.llm_service.invoke_structured",
             new_callable=AsyncMock,
             return_value=mock_llm_response,
         ):
@@ -461,7 +461,7 @@ class TestIndependentReviewHelpers:
         successful = [a for a in sample_analyses.values() if a.success]
 
         with patch(
-            "src.debate.orchestrator.llm_service.invoke_structured",
+            "src.debate.participants.llm_service.invoke_structured",
             new_callable=AsyncMock,
             side_effect=RuntimeError("LLM 调用失败"),
         ):
@@ -843,17 +843,17 @@ class TestFullFlowWithD3:
 
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ),
             patch(
-                "src.debate.orchestrator._run_review_for_master",
+                "src.debate.graph_nodes._run_review_for_master",
                 new_callable=AsyncMock,
                 return_value=mock_rebuttal,
             ),
             patch(
-                "src.debate.orchestrator._run_independent_review",
+                "src.debate.graph_nodes._run_independent_review",
                 new_callable=AsyncMock,
                 return_value=mock_review,
             ),
@@ -921,12 +921,12 @@ class TestFullFlowWithD3:
 
         with (
             patch(
-                "src.debate.orchestrator._run_single_master",
+                "src.debate.graph_nodes._run_single_master",
                 new_callable=AsyncMock,
                 return_value=mock_analysis,
             ),
             patch(
-                "src.debate.orchestrator._run_independent_review",
+                "src.debate.graph_nodes._run_independent_review",
                 new_callable=AsyncMock,
                 return_value=mock_review,
             ),

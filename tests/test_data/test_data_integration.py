@@ -36,9 +36,8 @@ skip_no_eastmoney = pytest.mark.skipif(
 def _akshare_any_available() -> bool:
     """检查是否有任一 akshare API 可用（用于股票列表测试）"""
     try:
-        import akshare as ak
-        df = ak.stock_info_a_code_name()
-        return len(df) > 0
+        from src.data.collector import DataCollector
+        return bool(DataCollector().get_stock_catalog().items)
     except Exception:
         return False
 

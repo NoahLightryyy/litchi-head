@@ -172,7 +172,7 @@ async def measure():
     )
 
     with patch(
-        "src.debate.orchestrator._run_single_master",
+        "src.debate.graph_nodes._run_single_master",
         new_callable=AsyncMock,
         return_value=mock_analysis,
     ):
@@ -219,7 +219,7 @@ async def measure():
     )
 
     with patch(
-        "src.debate.orchestrator._run_single_master",
+        "src.debate.graph_nodes._run_single_master",
         new_callable=AsyncMock,
         return_value=mock_analysis,
     ):

@@ -29,3 +29,9 @@ export function parseFiveDay(value: unknown, symbol: string): FiveDayDisplay {
   if ((v.status === "partial") !== (v.points.length > 0) || seenDays.size !== v.days.length) return fail();
   return v;
 }
+
+/** Empty 200 responses must not erase the same-symbol last successful chart. */
+export function requireFiveDayDisplay(data: FiveDayDisplay): FiveDayDisplay {
+  if (data.status !== "partial" || !data.points.length) throw new Error(data.error_code || "五日分钟记录暂未取得");
+  return data;
+}

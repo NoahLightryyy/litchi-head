@@ -32,3 +32,14 @@ test("partial views remain visible without converting missing evidence into neut
  assert.equal(horizonDistribution([agent(),agent()],"short",now).eligible,0);
  assert.equal(horizonDistribution([],"short",now).total,0);
 });
+
+
+test("failed generation is not incomplete investment evidence", () => {
+ const all=Array.from({length:5},(_,i)=>({...agent(String(i)),success:false,error:"LLM 结构化输出解析失败: Insufficient Balance secret"}));
+ assert.match(horizonConsensus(all,"short",now),/分析未成功/);
+ assert.doesNotMatch(horizonConsensus(all,"short",now),/条件或证据未齐/);
+ assert.match(horizonView(all[0],"short",now).reason,/余额不足/);
+ all[0].success=true;
+ assert.match(horizonConsensus(all,"short",now),/4.*分析未成功/);
+ assert.equal(horizonView(all[0],"short",now).eligible,true);
+});

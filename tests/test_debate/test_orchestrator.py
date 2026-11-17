@@ -43,9 +43,9 @@ def isolate_live_review_calls():
     from src.debate.models import IndependentReview, RebuttalAnalysis
 
     with (
-        patch("src.debate.orchestrator._run_independent_review",
+        patch("src.debate.graph_nodes._run_independent_review",
               new_callable=AsyncMock, return_value=IndependentReview()),
-        patch("src.debate.orchestrator._run_review_for_master",
+        patch("src.debate.graph_nodes._run_review_for_master",
               new_callable=AsyncMock,
               return_value=RebuttalAnalysis(agent_name="master.test")),
     ):
@@ -87,7 +87,7 @@ class TestGraphConstruction:
         quote_service = MagicMock()
         runtime = SimpleNamespace(service=quote_service)
         with patch(
-            "src.debate.orchestrator.get_realtime_quote_evidence_runtime",
+            "src.debate.orchestrator.get_research_quote_runtime",
             return_value=runtime,
         ):
             orch = DebateOrchestrator(data_collector=mock_collector)
@@ -268,7 +268,7 @@ class TestMasterRoundNode:
             confidence=0.85,
         )
         with patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -317,7 +317,7 @@ class TestMasterRoundNode:
             latency_ms=120000.0,
         )
         with patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=failed_analysis,
         ):
@@ -670,11 +670,11 @@ class TestDebateOrchestratorRun:
             confidence=0.8,
         )
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ), patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -737,11 +737,11 @@ class TestDebateOrchestratorRun:
         )
 
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ) as analyst, patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ) as master:
@@ -776,11 +776,11 @@ class TestDebateOrchestratorRun:
             confidence=0.75,
         )
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ), patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -812,11 +812,11 @@ class TestDebateOrchestratorRun:
             confidence=0.9,
         )
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ), patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -849,11 +849,11 @@ class TestDebateOrchestratorRun:
             confidence=0.85,
         )
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=mock_analyst_report,
         ), patch(
-            "src.debate.orchestrator._run_single_master",
+            "src.debate.graph_nodes._run_single_master",
             new_callable=AsyncMock,
             return_value=mock_analysis,
         ):
@@ -916,7 +916,7 @@ class TestDP007InformationIsolation:
         node_fn = make_analyst_round_node([mock_analyst])
 
         with patch(
-            "src.debate.orchestrator._run_single_analyst",
+            "src.debate.graph_nodes._run_single_analyst",
             new_callable=AsyncMock,
             return_value=MagicMock(
                 analyst_type="fundamental",
@@ -980,3 +980,24 @@ def test_active_supplement_reaches_shared_analyst_brief(mock_collector):
     supplement.assert_called_once_with("300893")
     assert "主营安全系统" in result["market_data"]["brief"]
     assert "https://example.com/report" in result["market_data"]["brief"]
+
+
+@pytest.mark.asyncio
+async def test_all_failed_graph_does_not_save_neutral_decision(mock_collector):
+    orch = DebateOrchestrator(
+        data_collector=mock_collector, skill_ids=["buffett"], quote_evidence_service=None,
+    )
+    failed = AgentAnalysis(
+        agent_name="master.buffett", skill_id="buffett", skill_name="测试流派",
+        rating="", score=0, summary="", analysis="", success=False,
+        error="LLM_INSUFFICIENT_BALANCE",
+    )
+    graph = AsyncMock()
+    graph.ainvoke.return_value = {"analyses": {"master.buffett": failed}, "vote_summary": {}}
+    with (
+        patch.object(orch, "_get_graph", return_value=graph),
+        patch.object(orch, "_save_decision_to_memory", new_callable=AsyncMock) as memory,
+    ):
+        result = await orch.run(DebateInput(stock_code="000001"))
+    assert not result.analyses[0].success
+    memory.assert_not_awaited()

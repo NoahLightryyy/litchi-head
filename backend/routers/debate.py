@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -24,7 +24,12 @@ from backend.config import (
 )
 from backend.limiter import limiter
 from backend.stock_identity import resolve_stock_name
+from src.debate.models import DebateResult
 from src.debate.session_store import DebateSessionRecord, SqliteDebateSessionStore
+from src.utils.llm_errors import is_balance_error, is_network_error
+
+if TYPE_CHECKING:
+    from src.debate.orchestrator import DebateOrchestrator
 
 logger = logging.getLogger("backend.debate")
 router = APIRouter(prefix="/api/debate")
@@ -106,17 +111,51 @@ class DebateRequest(BaseModel):
     """辩论请求"""
 
     stock_code: str = Field(pattern=r"^[0-9]{6}$")
+    instrument_type: Literal["stock", "etf"] = "stock"
     question: str = ""
 
 
 class DebateUnavailableError(BaseModel):
-    code: Literal["ANALYSIS_NOT_CONFIGURED", "EVIDENCE_INCOMPLETE"]
+    code: Literal[
+        "ANALYSIS_NOT_CONFIGURED", "EVIDENCE_INCOMPLETE", "ETF_NOT_FOUND",
+        "INSTRUMENT_TYPE_MISMATCH", "ANALYSIS_BALANCE_INSUFFICIENT", "ANALYSIS_FAILED",
+        "ANALYSIS_NETWORK_UNAVAILABLE",
+    ]
     message: str
     detail: dict[str, Any]
 
 
 class DebateUnavailableResponse(BaseModel):
     error: DebateUnavailableError
+
+
+class DebateRunData(BaseModel):
+    session_id: str
+    status: Literal["completed"]
+    stock_code: str
+    instrument_type: Literal["stock", "etf"]
+
+
+class DebateRunResponse(BaseModel):
+    data: DebateRunData
+    meta: dict[str, int]
+
+
+class DebateStatusData(BaseModel):
+    status: Literal["queued", "running", "completed", "failed", "not_found", "unknown"]
+    progress: int
+    session_id: str | None = None
+    stock_code: str | None = None
+    instrument_type: Literal["stock", "etf"] | None = None
+    error: str | None = None
+
+
+class DebateStatusResponse(BaseModel):
+    data: DebateStatusData
+
+
+class DebateResultResponse(BaseModel):
+    data: DebateResult | None
 
 
 # ── 惰性导入 ──────────────────────────────────────────────────
@@ -127,14 +166,45 @@ def _get_orchestrator():
     from backend.debate_research import supplement_research
     from src.data.news_runtime import get_news_evidence_runtime  # noqa: PLC0415
     from src.data.quote_runtime import (  # noqa: PLC0415
-        get_realtime_quote_evidence_runtime,
+        get_research_quote_runtime,
     )
     from src.debate.orchestrator import DebateOrchestrator  # noqa: PLC0415
 
     return DebateOrchestrator(
         research_supplement=supplement_research,
         news_evidence_service=get_news_evidence_runtime().service,
-        quote_evidence_service=get_realtime_quote_evidence_runtime().service,
+        quote_evidence_service=get_research_quote_runtime().service,
+    )
+
+
+async def _get_etf_orchestrator(code: str) -> tuple[str, DebateOrchestrator]:
+    """Resolve ETF identity and collect its own inputs before using the same debate graph."""
+    from backend.etf_display import get_catalog
+    from backend.etf_research import NoUsableEtfResearchError, collect_etf_research
+    from src.debate.etf_analysts import get_etf_analysts
+    from src.debate.orchestrator import DebateOrchestrator
+
+    try:
+        async with asyncio.timeout(30):
+            catalog = await get_catalog()
+            identity = next((item for item in catalog.items if item.code == code), None)
+            if identity is None:
+                raise HTTPException(404, "未在ETF目录中找到该代码，ETF辩论未启动。")
+            context = await collect_etf_research(identity, catalog)
+    except HTTPException:
+        raise
+    except NoUsableEtfResearchError as exc:
+        raise HTTPException(
+            503, "ETF行情、日线和相关资料均暂不可用，分析未启动，请稍后重试。"
+        ) from exc
+    except Exception as exc:
+        logger.exception("ETF research preparation failed: code=%s", code)
+        raise HTTPException(503, "ETF资料准备暂时失败，请稍后重试。") from exc
+    return identity.name, DebateOrchestrator(
+        analyst_personas=get_etf_analysts(),
+        prepared_research=context,
+        quote_evidence_service=None,
+        news_evidence_service=None,
     )
 
 
@@ -148,6 +218,7 @@ async def _save_session(session_id: str, req: DebateRequest, data: dict[str, Any
         DebateSessionRecord(
             session_id=session_id,
             stock_code=req.stock_code,
+            instrument_type=req.instrument_type,
             question=req.question or "",
             created_at=previous.created_at if previous else datetime.now(UTC),
             updated_at=datetime.now(UTC),
@@ -159,6 +230,7 @@ async def _save_session(session_id: str, req: DebateRequest, data: dict[str, Any
 class DebateHistoryItem(BaseModel):
     session_id: str
     stock_code: str
+    instrument_type: Literal["stock", "etf"] = "stock"
     status: Literal["queued", "running", "completed", "failed"]
     created_at: datetime
     updated_at: datetime
@@ -176,8 +248,11 @@ async def debate_history(
     stock_code: str = Query(pattern=r"^\d{6}$"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    instrument_type: Literal["stock", "etf"] = "stock",
 ):
-    records = await _session_store.list_records(stock_code, limit=limit, offset=offset)
+    records = await _session_store.list_records(
+        stock_code, limit=limit, offset=offset, instrument_type=instrument_type
+    )
     return {"data": [DebateHistoryItem.model_validate(record.model_dump()) for record in records]}
 
 
@@ -188,7 +263,15 @@ def _analysis_is_configured() -> bool:
     return settings.llm_provider == "deepseek" and bool(settings.deepseek_api_key.strip())
 
 
-@router.post("/run", responses={503: {"model": DebateUnavailableResponse}})
+@router.post(
+    "/run",
+    response_model=DebateRunResponse,
+    responses={
+        503: {"model": DebateUnavailableResponse},
+        404: {"model": DebateUnavailableResponse},
+        409: {"model": DebateUnavailableResponse},
+    },
+)
 @limiter.limit(RATE_LIMIT_DEBATE_RUN)
 async def run_debate(request: Request, req: DebateRequest):
     """触发一次辩论"""
@@ -209,11 +292,24 @@ async def run_debate(request: Request, req: DebateRequest):
     await _save_session(session_id, req, {"status": "running", "progress": 0})
 
     try:
-        try:
-            stock_name = await run_sync(resolve_stock_name, req.stock_code)
-        except TimeoutError:
-            logger.warning("Stock identity lookup timed out: symbol=%s", req.stock_code)
-            stock_name = ""
+        orch = None
+        if req.instrument_type == "etf":
+            stock_name, orch = await _get_etf_orchestrator(req.stock_code)
+        else:
+            try:
+                stock_name = await run_sync(resolve_stock_name, req.stock_code)
+            except TimeoutError:
+                logger.warning("Stock identity lookup timed out: symbol=%s", req.stock_code)
+                stock_name = ""
+        if req.instrument_type == "stock" and "ETF" in stock_name.upper():
+            message = "该行情属于ETF，请从ETF页面启动基金分析。"
+            await _save_session(session_id, req, {
+                "status": "failed", "progress": 0, "error": message,
+            })
+            return JSONResponse(status_code=409, content={"error": {
+                "code": "INSTRUMENT_TYPE_MISMATCH", "message": message,
+                "detail": {"retryable": False, "expected_instrument_type": "etf"},
+            }})
         if not stock_name:
             detail = {
                 "capability": "stock_identity",
@@ -241,36 +337,105 @@ async def run_debate(request: Request, req: DebateRequest):
                 },
                 headers={"Retry-After": "300"},
             )
-        orch = _get_orchestrator()
+        orch = orch or _get_orchestrator()
         from src.debate.models import DebateInput  # noqa: PLC0415
 
         result = await orch.run(
             DebateInput(
                 session_id=session_id,
                 stock_code=req.stock_code,
+                instrument_type=req.instrument_type,
                 stock_name=stock_name,
-                question=req.question or "",
+                question=(
+                    f"研究对象：{stock_name}（{req.stock_code}，场内ETF）。"
+                    "分析基金主题、价格趋势、流动性和相关政策，不能将基金当成经营公司，"
+                    "不能从名称推断完整持仓、净值、折溢价或跟踪误差。\n"
+                    + (req.question or "请从各流派分析此ETF的研究价值与风险。")
+                    if req.instrument_type == "etf"
+                    else req.question or ""
+                ),
             )
         )
+        result_payload = result.model_dump()
+        analyses = result_payload.get("analyses", [])
+        if not any(item.get("success") is True for item in analyses):
+            balance_failed = any(is_balance_error(item.get("error")) for item in analyses)
+            network_failed = not balance_failed and any(
+                is_network_error(item.get("error")) for item in analyses
+            )
+            code = (
+                "ANALYSIS_BALANCE_INSUFFICIENT" if balance_failed
+                else "ANALYSIS_NETWORK_UNAVAILABLE" if network_failed
+                else "ANALYSIS_FAILED"
+            )
+            message = (
+                "模型服务余额不足，本次未生成研究结论。请先处理模型账户余额，再手动发起分析。"
+                if balance_failed else
+                "网络连接中断，未能连上模型服务，本次未生成研究结论。请确认网络恢复后手动重新分析。"
+                if network_failed else
+                "本次没有成功返回的流派分析，未生成研究结论。请查看服务诊断。"
+            )
+            logger.warning("Analysis failed: session=%s code=%s count=%d",
+                           session_id, code, len(analyses))
+            await _save_session(session_id, req, {
+                "status": "failed", "progress": 100, "error": message,
+                "result": result_payload,
+            })
+            return JSONResponse(status_code=503, content={"error": {
+                "code": code, "message": message,
+                "detail": {"session_id": session_id, "retryable": False,
+                           "capability": "analysis_service"},
+            }})
         await _save_session(
             session_id,
             req,
             {
                 "status": "completed",
                 "progress": 100,
-                "result": result.model_dump() if hasattr(result, "model_dump") else result,
+                "result": result_payload,
             },
         )
 
         # ── 自动记录复盘 ──────────────────────────────
-        await _auto_create_retro_record(session_id, result, req.stock_code)
+        if req.instrument_type == "stock":
+            await _auto_create_retro_record(session_id, result, req.stock_code)
         return {
-            "data": {"session_id": session_id, "status": "completed"},
+            "data": {
+                "session_id": session_id,
+                "status": "completed",
+                "stock_code": req.stock_code,
+                "instrument_type": req.instrument_type,
+            },
             "meta": {"latency_ms": round((time.time() - t0) * 1000)},
         }
     except Exception as exc:
         from src.debate.evidence_gate import EvidenceIncompleteError  # noqa: PLC0415
 
+        if isinstance(exc, HTTPException) and req.instrument_type == "etf":
+            await _save_session(
+                session_id,
+                req,
+                {
+                    "status": "failed",
+                    "progress": 0,
+                    "error": str(exc.detail),
+                },
+            )
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    "error": {
+                        "code": "ETF_NOT_FOUND"
+                        if exc.status_code == 404
+                        else "EVIDENCE_INCOMPLETE",
+                        "message": str(exc.detail),
+                        "detail": {
+                            "capability": "etf_research",
+                            "retryable": exc.status_code != 404,
+                        },
+                    }
+                },
+            )
         if isinstance(exc, EvidenceIncompleteError):
             detail = exc.detail()
             logger.warning(
@@ -308,7 +473,11 @@ async def run_debate(request: Request, req: DebateRequest):
         raise HTTPException(status_code=500, detail=f"辩论执行失败: {req.stock_code}")
 
 
-@router.get("/status/{session_id:str}")
+@router.get(
+    "/status/{session_id:str}",
+    response_model=DebateStatusResponse,
+    response_model_exclude_unset=True,
+)
 @limiter.limit(RATE_LIMIT_DEBATE_STATUS)
 async def get_debate_status(request: Request, session_id: str):
     """查询辩论状态"""
@@ -319,6 +488,8 @@ async def get_debate_status(request: Request, session_id: str):
     return {
         "data": {
             "session_id": session_id,
+            "stock_code": session.get("stock_code"),
+            "instrument_type": session.get("instrument_type", "stock"),
             "status": session.get("status", "unknown"),
             "progress": session.get("progress", 0),
             "error": session.get("error"),
@@ -326,7 +497,7 @@ async def get_debate_status(request: Request, session_id: str):
     }
 
 
-@router.get("/result/{session_id:str}")
+@router.get("/result/{session_id:str}", response_model=DebateResultResponse)
 @limiter.limit(RATE_LIMIT_DEBATE_RESULT)
 async def get_debate_result(request: Request, session_id: str):
     """获取辩论结果"""

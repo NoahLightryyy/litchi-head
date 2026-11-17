@@ -39,12 +39,14 @@ from src.data.models import (
     ValuationMetrics,
 )
 from src.data.providers import AKShareSource, DataSource
+from src.data.providers.stock_catalog import PartialStockCatalogError, StockCatalogSnapshot
 
 logger = logging.getLogger("data.collector")
 
 # ── 默认 TTL 常量（秒） ──────────────────────────────────────────────
 
 TTL_STOCKS = 3600       # 股票列表：1 小时
+TTL_STOCKS_RETRY = 15   # 目录失败/空结果：短暂退避，不占用成功缓存
 TTL_QUOTES = 30         # 实时行情：30 秒
 TTL_KLINES_DAILY = 300  # 日 K 线：5 分钟
 TTL_NEWS = 120          # 新闻：2 分钟
@@ -236,6 +238,7 @@ class DataCollector:
         self._source = source or DataCollector.default_source or AKShareSource()
         self.cache = cache or DataCache()
         self._cache_hit: dict[str, bool] = {}
+        self._stocks_lock = RLock()
 
     def _cached_or_none(self, key: str):
         """从缓存获取，记录是否命中"""
@@ -251,29 +254,60 @@ class DataCollector:
     # ── 股票信息 ─────────────────────────────────────────────────────
 
     def get_all_stocks(self) -> list[StockInfo]:
-        """获取全部 A 股股票代码和名称
+        """兼容列表入口；搜索调用 get_stock_catalog 同时取得目录完整性。"""
+        return self.get_stock_catalog().items
 
-        Cache TTL: 1 小时
+    def get_stock_catalog(self) -> StockCatalogSnapshot:
+        """获取 A 股身份目录及完整性，不因某交易所故障丢弃可用部分。
+
+        成功缓存 1 小时；失败/空结果仅退避 15 秒，下次请求可重新获取。
 
         Returns:
-            股票信息列表，网络异常时返回空列表
+            目录快照；全部失败时 items 为空，部分失败保留可用身份。
         """
-        cached = self._cached_or_none("all_stocks")
-        if cached is not None:
-            return cached
+        # One upstream attempt per collector, including concurrent search requests.
+        with self._stocks_lock:
+            cached = self._cached_or_none("all_stocks")
+            if cached:
+                return StockCatalogSnapshot(items=cached)
+            # Discard legacy empty success entries instead of waiting their full-hour TTL.
+            self.cache.delete("all_stocks")
+            self._cache_hit["all_stocks"] = False
+            retry = self.cache.get("all_stocks:retry")
+            if isinstance(retry, StockCatalogSnapshot):
+                return retry
 
-        t0 = time.time()
-        try:
-            result = self._source.get_all_stocks()
-            self.cache.set("all_stocks", result, ttl=TTL_STOCKS)
-            _health_stats.record_call(
-                "all_stocks", (time.time() - t0) * 1000, empty=not result,
-            )
-            return result
-        except Exception as e:
-            _health_stats.record_call("all_stocks", (time.time() - t0) * 1000, error=str(e))
-            logger.exception("获取股票列表失败")
-            return []
+            t0 = time.time()
+            try:
+                result = self._source.get_all_stocks()
+                if result:
+                    self.cache.set("all_stocks", result, ttl=TTL_STOCKS)
+                    self.cache.delete("all_stocks:retry")
+                else:
+                    self.cache.set("all_stocks:retry", StockCatalogSnapshot(), ttl=TTL_STOCKS_RETRY)
+                _health_stats.record_call(
+                    "all_stocks", (time.time() - t0) * 1000, empty=not result,
+                )
+                return StockCatalogSnapshot(items=result)
+            except PartialStockCatalogError as e:
+                self.cache.set("all_stocks:retry", e.snapshot, ttl=TTL_STOCKS_RETRY)
+                _health_stats.record_call(
+                    "all_stocks", (time.time() - t0) * 1000,
+                    error=str(e),
+                    error_code=(
+                        "STOCK_CATALOG_PARTIAL" if e.snapshot.items else "STOCK_CATALOG_UNAVAILABLE"
+                    ),
+                )
+                logger.warning(
+                    "Stock catalog incomplete: markets=%s usable=%s",
+                    e.snapshot.failed_markets, len(e.snapshot.items),
+                )
+                return e.snapshot
+            except Exception as e:
+                self.cache.set("all_stocks:retry", StockCatalogSnapshot(), ttl=TTL_STOCKS_RETRY)
+                _health_stats.record_call("all_stocks", (time.time() - t0) * 1000, error=str(e))
+                logger.exception("获取股票列表失败")
+                return StockCatalogSnapshot()
 
     # ── 实时行情 ─────────────────────────────────────────────────────
 
