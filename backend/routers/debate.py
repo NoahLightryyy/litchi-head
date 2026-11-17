@@ -26,7 +26,7 @@ from backend.limiter import limiter
 from backend.stock_identity import resolve_stock_name
 from src.debate.models import DebateResult
 from src.debate.session_store import DebateSessionRecord, SqliteDebateSessionStore
-from src.utils.llm_errors import is_balance_error
+from src.utils.llm_errors import is_balance_error, is_network_error
 
 if TYPE_CHECKING:
     from src.debate.orchestrator import DebateOrchestrator
@@ -119,6 +119,7 @@ class DebateUnavailableError(BaseModel):
     code: Literal[
         "ANALYSIS_NOT_CONFIGURED", "EVIDENCE_INCOMPLETE", "ETF_NOT_FOUND",
         "INSTRUMENT_TYPE_MISMATCH", "ANALYSIS_BALANCE_INSUFFICIENT", "ANALYSIS_FAILED",
+        "ANALYSIS_NETWORK_UNAVAILABLE",
     ]
     message: str
     detail: dict[str, Any]
@@ -359,10 +360,19 @@ async def run_debate(request: Request, req: DebateRequest):
         analyses = result_payload.get("analyses", [])
         if not any(item.get("success") is True for item in analyses):
             balance_failed = any(is_balance_error(item.get("error")) for item in analyses)
-            code = "ANALYSIS_BALANCE_INSUFFICIENT" if balance_failed else "ANALYSIS_FAILED"
+            network_failed = not balance_failed and any(
+                is_network_error(item.get("error")) for item in analyses
+            )
+            code = (
+                "ANALYSIS_BALANCE_INSUFFICIENT" if balance_failed
+                else "ANALYSIS_NETWORK_UNAVAILABLE" if network_failed
+                else "ANALYSIS_FAILED"
+            )
             message = (
                 "模型服务余额不足，本次未生成研究结论。请先处理模型账户余额，再手动发起分析。"
                 if balance_failed else
+                "网络连接中断，未能连上模型服务，本次未生成研究结论。请确认网络恢复后手动重新分析。"
+                if network_failed else
                 "本次没有成功返回的流派分析，未生成研究结论。请查看服务诊断。"
             )
             logger.warning("Analysis failed: session=%s code=%s count=%d",

@@ -696,3 +696,78 @@ def test_balance_classifier_requires_explicit_provider_error():
         assert not is_balance_error(value)
     assert is_balance_error("LLM_INSUFFICIENT_BALANCE: 模型服务余额不足")
     assert is_balance_error("LLM 结构化输出解析失败: Insufficient Balance")
+
+
+def _connection_error():
+    import httpx
+    from openai import APIConnectionError
+
+    return APIConnectionError(request=httpx.Request("POST", "https://example.test"))
+
+
+@pytest.mark.asyncio
+async def test_connection_failure_waits_and_recovers_without_failing(monkeypatch):
+    """短暂断网：等网络恢复后同一次调用成功，不向上报告失败。"""
+    from src.utils import llm as llm_module
+
+    sleeps: list[float] = []
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr(llm_module.asyncio, "sleep", fake_sleep)
+    runnable = AsyncMock()
+    runnable.ainvoke.side_effect = [_connection_error(), _connection_error(), "ok"]
+    assert await LLMService._call_with_retry(runnable, []) == "ok"
+    assert sleeps == [3.0, 6.0]
+    assert runnable.ainvoke.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_connection_failure_reports_network_outage_after_budget(monkeypatch):
+    """一直连不上：用完等待预算后报明确的断网原因，而不是笼统的请求失败。"""
+    from src.utils import llm as llm_module
+
+    now = [0.0]
+
+    async def fake_sleep(seconds):
+        now[0] += seconds
+
+    monkeypatch.setattr(llm_module.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(llm_module.time, "monotonic", lambda: now[0])
+    runnable = AsyncMock()
+    runnable.ainvoke.side_effect = _connection_error()
+    with pytest.raises(RuntimeError, match="LLM_NETWORK_UNAVAILABLE: 网络连接中断") as failure:
+        await LLMService._call_with_retry(runnable, [])
+    assert "example.test" not in str(failure.value)
+    assert 45 <= now[0] <= llm_module.NETWORK_RETRY_BUDGET_SECONDS
+    assert runnable.ainvoke.await_count >= 5
+
+
+@pytest.mark.asyncio
+async def test_request_timeout_is_reported_as_timeout_and_not_waited_on(monkeypatch):
+    import httpx
+    from openai import APITimeoutError
+
+    from src.utils import llm as llm_module
+
+    async def no_sleep(seconds):
+        raise AssertionError("timeout must not enter the network wait loop")
+
+    monkeypatch.setattr(llm_module.asyncio, "sleep", no_sleep)
+    runnable = AsyncMock()
+    runnable.ainvoke.side_effect = APITimeoutError(
+        request=httpx.Request("POST", "https://example.test")
+    )
+    with pytest.raises(RuntimeError, match="LLM_REQUEST_TIMEOUT"):
+        await LLMService._call_with_retry(runnable, [])
+    runnable.ainvoke.assert_awaited_once()
+
+
+def test_network_error_classifier_requires_explicit_code():
+    from src.utils.llm_errors import is_network_error
+
+    assert is_network_error("LLM_NETWORK_UNAVAILABLE: 网络连接中断，未能连上模型服务")
+    assert not is_network_error("LLM_REQUEST_FAILED: 模型服务请求失败")
+    assert not is_network_error(None)
+

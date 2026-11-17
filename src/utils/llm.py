@@ -28,7 +28,9 @@
     reply = await llm_service.ainvoke("深度分析", llm_config=config)
 """
 
+import asyncio
 import json
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -36,7 +38,7 @@ from typing import Any, Literal
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_deepseek import ChatDeepSeek
-from openai import APIStatusError
+from openai import APIConnectionError, APIStatusError, APITimeoutError
 from pydantic import BaseModel, SecretStr
 from tenacity import (
     after_log,
@@ -101,6 +103,13 @@ _RETRYABLE_EXCEPTIONS = (
     TimeoutError,
     ValueError,
 )
+
+
+# 连不上模型服务（断网、休眠后网络未恢复、DNS 失败）时的等待预算。
+# 连接失败的请求不计费，所以多等一会儿只花时间不花钱；到时仍连不上才放弃。
+NETWORK_RETRY_BUDGET_SECONDS = 60.0
+NETWORK_RETRY_FIRST_DELAY_SECONDS = 3.0
+NETWORK_RETRY_MAX_DELAY_SECONDS = 15.0
 
 
 def _build_retry_decorator() -> Any:
@@ -545,18 +554,36 @@ class LLMService:
 
         @retry_decorator
         async def _do_call() -> Any:
-            try:
-                return await runnable.ainvoke(messages)
-            except APIStatusError as exc:
-                # HTTP billing/auth failures are not transient parse errors.
-                # Retain the cause for logs, expose no raw provider body/URL.
-                if is_balance_error(exc):
+            deadline = time.monotonic() + NETWORK_RETRY_BUDGET_SECONDS
+            delay = NETWORK_RETRY_FIRST_DELAY_SECONDS
+            while True:
+                try:
+                    return await runnable.ainvoke(messages)
+                except APIStatusError as exc:
+                    # HTTP billing/auth failures are not transient parse errors.
+                    # Retain the cause for logs, expose no raw provider body/URL.
+                    if is_balance_error(exc):
+                        raise RuntimeError(
+                            "LLM_INSUFFICIENT_BALANCE: 模型服务余额不足"
+                        ) from exc
                     raise RuntimeError(
-                        "LLM_INSUFFICIENT_BALANCE: 模型服务余额不足"
+                        f"LLM_REQUEST_FAILED: 模型服务请求失败（HTTP {exc.status_code}）"
                     ) from exc
-                raise RuntimeError(
-                    f"LLM_REQUEST_FAILED: 模型服务请求失败（HTTP {exc.status_code}）"
-                ) from exc
+                except APITimeoutError as exc:
+                    # 已连上但迟迟没有返回：不在这里反复等待，交给调用方的总超时。
+                    raise RuntimeError("LLM_REQUEST_TIMEOUT: 模型服务响应超时") from exc
+                except APIConnectionError as exc:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= delay:
+                        raise RuntimeError(
+                            "LLM_NETWORK_UNAVAILABLE: 网络连接中断，未能连上模型服务"
+                        ) from exc
+                    logger.warning(
+                        f"模型服务连接失败，{delay:.0f} 秒后重试"
+                        f"（剩余等待 {remaining:.0f} 秒）"
+                    )
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 2, NETWORK_RETRY_MAX_DELAY_SECONDS)
 
         return await _do_call()
 

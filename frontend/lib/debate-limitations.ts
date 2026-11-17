@@ -1,4 +1,4 @@
-import { isBalanceFailure, noResearchMessage } from "./debate-failure.ts";
+import { failureReasonSummary, noResearchMessage } from "./debate-failure.ts";
 
 /** Present the frozen disclosures; never turn a display summary into a trading gate. */
 export interface DebateNoticeInput {
@@ -116,7 +116,7 @@ export function debateLimitations(result: DebateNoticeInput | null | undefined):
   const failed = (result?.analyses ?? []).filter((item) => item.success === false).length;
   if (failed) highlights.push({ label: "分析完成情况", tone: allFailed ? "danger" : "warning",
     message: allFailed ? `${failed} 位分析未成功。${noResearchMessage(analyses)}`
-      : `${analyses.some(a => !a.success && isBalanceFailure(a.error)) ? "模型服务余额不足；" : ""}${failed} 位分析未成功，当前结论只包含已完成的分析。`,
+      : `${failureReasonSummary(analyses)}${failed} 位分析未成功，当前结论只包含已完成的分析。`,
   });
   const priority = { danger: 0, warning: 1, info: 2 };
   highlights.sort((a, b) => priority[a.tone] - priority[b.tone]);

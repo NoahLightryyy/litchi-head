@@ -9,3 +9,9 @@ def is_balance_error(error: object) -> bool:
         r"LLM_INSUFFICIENT_BALANCE|insufficient_balance_error|\binsufficient\s+balance\b",
         str(error or ""), re.IGNORECASE,
     ))
+
+
+def is_network_error(error: object) -> bool:
+    """Only the explicit code counts: a generic request failure is not proof of an outage."""
+    return "LLM_NETWORK_UNAVAILABLE" in str(error or "")
+

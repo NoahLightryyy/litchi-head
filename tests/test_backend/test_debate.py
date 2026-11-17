@@ -393,11 +393,13 @@ def test_history_and_result_survive_store_reopen(client, tmp_path):
 
 
 @pytest.mark.parametrize("instrument", ["stock", "etf"])
-@pytest.mark.parametrize("kind", ["balance", "unknown", "empty", "partial"])
+@pytest.mark.parametrize("kind", ["balance", "network", "unknown", "empty", "partial"])
 def test_failed_analyses_are_not_completed_research(client, instrument, kind):
     error = (
         "Error code: 402 - Insufficient Balance secret-upstream"
-        if kind == "balance" else "bad output secret-upstream"
+        if kind == "balance"
+        else "LLM_NETWORK_UNAVAILABLE: 网络连接中断，未能连上模型服务"
+        if kind == "network" else "bad output secret-upstream"
     )
     analyses = [AgentAnalysis(
         agent_name=f"master.{i}", skill_id=str(i), skill_name=str(i), rating="", score=0,
@@ -426,7 +428,11 @@ def test_failed_analyses_are_not_completed_research(client, instrument, kind):
         return
     assert response.status_code == 503
     payload = response.json()["error"]
-    expected_code = "ANALYSIS_BALANCE_INSUFFICIENT" if kind == "balance" else "ANALYSIS_FAILED"
+    expected_code = {
+        "balance": "ANALYSIS_BALANCE_INSUFFICIENT", "network": "ANALYSIS_NETWORK_UNAVAILABLE",
+    }.get(kind, "ANALYSIS_FAILED")
+    if kind == "network":
+        assert "网络连接中断" in payload["message"]
     assert payload["code"] == expected_code
     assert payload["detail"]["retryable"] is False
     assert "secret-upstream" not in str(payload)

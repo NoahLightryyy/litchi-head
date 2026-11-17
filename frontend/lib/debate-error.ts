@@ -3,6 +3,7 @@ export function debateErrorMessage(error: unknown, instrumentType: "stock" | "et
   if (!error || typeof error !== "object") return "分析请求失败，请稍后重试。";
   const value = error as { code?: unknown; status?: unknown; detail?: unknown };
   if (value.code === "ANALYSIS_BALANCE_INSUFFICIENT") return "模型服务余额不足，本次未生成研究结论。请先处理模型账户余额，再手动发起分析；不会自动重跑。";
+  if (value.code === "ANALYSIS_NETWORK_UNAVAILABLE") return "网络连接中断，未能连上模型服务，本次未生成研究结论。请确认网络恢复后手动重新分析；不会自动重跑。";
   if (value.code === "ANALYSIS_FAILED") return "本次没有成功返回的流派分析，未生成研究结论。请查看服务诊断。";
   if (value.code === "NETWORK_ERROR") return "无法连接分析服务，请检查网络或后端连接。";
   if (value.status === 429) return "分析请求过于频繁，请稍后再试。";
