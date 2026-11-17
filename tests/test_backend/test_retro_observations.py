@@ -144,7 +144,9 @@ async def test_failed_refresh_retains_original_dates_and_single_flights_failures
     failed = original.model_copy(update={"status": SourceStatus.FAILED, "bars": []})
     reader = AsyncMock(return_value=failed)
     monkeypatch.setattr(service, "run_sync", reader)
-    service._cache["300916"] = (0, original)
+    # 用“当前单调时钟 - 301 秒”表示已过期。不能写 0：单调时钟从开机算起，
+    # 刚启动不到 5 分钟的机器（如 CI runner）会把时间戳 0 当成未过期。
+    service._cache["300916"] = (service.time.monotonic() - 301, original)
     result = await service.observe(record())
     assert result.change_pct == 10 and result.latest_date == date(2026, 10, 26)
     assert result.fetched_at == original.fetched_at and "刷新未成功" in result.message
