@@ -140,7 +140,7 @@ department: 基础设施部
 | 分类 | `[environment]` `severity:moderate` `module:runtime` `impact:availability` |
 | 发现日期 | 2026-10-27 |
 | 发现人 | 收尾实网复查 |
-| 状态 | 🟡 外部环境故障待恢复 |
+| 状态 | 🟢 已缓解（2026-11-17）：程序内备用域名解析 `src/utils/dns_fallback.py`，系统解析失败时改走 DoH；外部网络本身未变 |
 | 本金估算 | 待本机网络恢复后轻量确认 |
 | 日利息 | 新行情暂时无法加载 |
 | 实盘影响 | 影响数据可用性，不能把旧快照当成当前行情 |

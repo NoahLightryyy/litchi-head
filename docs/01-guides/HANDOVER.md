@@ -1,6 +1,6 @@
 # 🔄 AI 会话交接文档
 
-> **当前状态（2026-11-17）**：`codex/market-availability`（43 个提交）已合入收尾分支 `chore/v1-stabilize`，此后只保留一条线；功能冻结。依赖已锁定（`constraints.txt`），有 macOS/Windows 一键启动，编排器已拆分。ETF 目录在新浪自报总数与实际条数小幅不一致时不再整体拒绝，改为接受并披露。锁定依赖下 Ruff、Pyright 通过，Python 2798 通过 / 8 跳过，前端 329 通过。未 push；新版本待用户重启服务实测，Windows 启动脚本待真机验证。见 [11-17 日志](../04-changelog/logs/2026-11-17/2026-11-17-merge-and-etf-catalog.md) 与 [11-16 日志](../04-changelog/logs/2026-11-16/2026-11-16-v1-stabilize.md)。
+> **当前状态（2026-11-17）**：`codex/market-availability`（43 个提交）已合入收尾分支 `chore/v1-stabilize`，此后只保留一条线；功能冻结。依赖已锁定（`constraints.txt`），有 macOS/Windows 一键启动，编排器已拆分。ETF 目录在新浪自报总数与实际条数小幅不一致时不再整体拒绝，改为接受并披露。锁定依赖下 Ruff、Pyright 通过，海外网络下系统 DNS 解析不了行情域名时自动改用备用解析。Python 2821 通过 / 8 跳过，前端 329 通过；新版本已在用户 Mac 上启动并实测搜索。未 push；Windows 启动脚本待真机验证。见 [11-17 日志](../04-changelog/logs/2026-11-17/2026-11-17-merge-and-etf-catalog.md) 与 [11-16 日志](../04-changelog/logs/2026-11-16/2026-11-16-v1-stabilize.md)。
 
 <details>
 <summary>历史更新横幅（旧数字与分支状态均为当时快照）</summary>
