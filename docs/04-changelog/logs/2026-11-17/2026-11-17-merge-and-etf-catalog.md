@@ -122,3 +122,13 @@
 1. 重启服务后搜索 “ETF” 确认结果与提示。
 2. `~/.codex/worktrees/market-availability` 仍检出旧分支并在提供服务；确认新版本可用后再决定是否移除该 worktree。
 3. 是否 push、合并到 `main`。
+
+## 追加：证据包空态说明（用户选择方案 1）
+
+用户反馈“已核验证据与 AI 深入研究”像是坏了。实际是人工核验的证据包只有 3 个（板块 BK0917、股票 688012、ETF 512480），
+其他标的的 404 被显示成“尚未配置”，并配了一个不可能生效的“重新读取证据”按钮。
+
+改动（`frontend/components/research/policy-capital-panel.tsx`）：空态写明这不是加载失败、重试无效，
+说明功能只覆盖 3 个示例标的并给出入口；重试按钮只在真正的读取错误时显示。
+示例清单放在 `frontend/lib/policy-capital.ts`，测试核对它与 `backend/policy_evidence_data/packages.json` 一致。
+没有扩大证据包范围，也没有新增模型调用。前端 330 项通过，tsc 与 ESLint 通过。

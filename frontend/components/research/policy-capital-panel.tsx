@@ -1,6 +1,7 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { canSubmitResearch, decimal, jobStorageKey, packageId, positiveDecimal, parseJob, parseSaved, parsePackage, parsePreview, researchFetch, ResearchApiError, type EvidencePackage, type Job, type Preview, type Subject } from "@/lib/policy-capital";
+import { canSubmitResearch, decimal, jobStorageKey, packageId, positiveDecimal, parseJob, parseSaved, parsePackage, parsePreview, researchFetch, ResearchApiError, sampleSubjectHref, sampleSubjectLabel, VERIFIED_SAMPLE_SUBJECTS, type EvidencePackage, type Job, type Preview, type Subject } from "@/lib/policy-capital";
 import { RelatedResearchPanel } from "./related-research-panel";
 
 type Saved = { jobId?: string; key: string; budget: string };
@@ -60,8 +61,11 @@ function Panel({kind,code,name}: Subject & {name:string}) {
     {offline&&<p role="alert">当前离线。已暂停任务刷新；恢复网络后继续读取原任务，不会自动重新研究。</p>}
     {loading&&<p role="status">正在核验政策与标的证据…</p>}
     {error&&<p role="alert">{error}</p>}
-    {empty&&<p>当前标的尚未配置已核验证据包。上方相关资料仍可正常浏览。</p>}
-    {(error||empty)&&<button className={button} onClick={()=>{setError("");setEmpty(false);setLoading(true);setRevision(v=>v+1);}}>重新读取证据</button>}
+    {empty&&<div className="space-y-2 text-sm">
+      <p>这个标的没有人工核验的证据包，所以这里的证据核验、AI 深入研究和本金预览不可用。这不是加载失败，重试不会改变结果；上方相关资料仍可正常浏览。</p>
+      <p>此功能目前只覆盖 {VERIFIED_SAMPLE_SUBJECTS.length} 个示例标的：{VERIFIED_SAMPLE_SUBJECTS.map((s,i)=><span key={s.code}>{i>0&&"、"}<Link className="text-accent-blue underline" href={sampleSubjectHref(s)}>{sampleSubjectLabel(s)}</Link></span>)}。</p>
+    </div>}
+    {error&&<button className={button} onClick={()=>{setError("");setEmpty(false);setLoading(true);setRevision(v=>v+1);}}>重新读取证据</button>}
     {pkg&&<><article className={box}><h3 className="font-semibold">央视报道与政策原文 · {pkg.status==="partial"?"证据仍有缺口":"声明范围已核验"}</h3><ClaimList claims={pkg.claims}/>
       {pkg.gaps.length>0&&<div><h4>待补证据</h4><ul className="list-disc pl-5">{pkg.gaps.map((g,i)=><li key={i}>{g}</li>)}</ul></div>}
       <details><summary className="cursor-pointer">查看原始来源、定位与日期（{pkg.evidence.length}）</summary><ul className="mt-3 space-y-4">{pkg.evidence.map(e=><li key={e.id}><a className="text-accent-blue underline" href={e.url} target="_blank" rel="noopener noreferrer">{e.title}</a><p className="text-sm">{e.id} · {e.publisher} · 发布 {e.published_date}</p><p className="text-sm">成文 {e.authored_date||"未载明"} · 生效 {e.effective_date||"未核实"} · 检索 {e.retrieved_at}</p><p className="text-sm">定位：{e.locator}</p><p>{e.summary}</p></li>)}</ul></details>
