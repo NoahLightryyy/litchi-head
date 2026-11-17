@@ -51,6 +51,12 @@ class EtfDetail(BaseModel):
 class EtfCatalog(BaseModel):
     items: tuple[EtfIdentity, ...]
     fetched_at: datetime
+    # 来源自报的总数；与 len(items) 不同时目录仍可用，但必须向用户披露差异。
+    reported_count: int | None = None
+
+    @property
+    def count_mismatch(self) -> bool:
+        return self.reported_count is not None and self.reported_count != len(self.items)
 
 
 EtfKlineSource = Literal["tencent", "sina"]

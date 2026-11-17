@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict
 from backend.async_utils import run_sync
 from backend.discovery_matching import search_match_rank
 from backend.discovery_rankings import router as rankings_router
-from backend.etf_display import get_catalog
+from backend.etf_display import cached_catalog, get_catalog
 from backend.routers.stocks import collector
 from backend.ths_fund_rankings import router as ths_funds_router
 from src.data.evidence import EvidenceCapability, EvidenceRequest, SourceStatus
@@ -39,6 +39,8 @@ class SearchResult(BaseModel):
     data: list[SearchHit]
     failed_sources: list[str]
     total: int
+    # 目录可用但需要向用户披露的事实（例如来源自报总数与实际条数不一致）。
+    notices: list[str] = []
 
 
 class Gainer(BaseModel):
@@ -94,6 +96,16 @@ async def etf_catalog() -> list[SearchHit]:
     return [SearchHit(code=item.code, name=item.name, kind="etf") for item in snapshot.items]
 
 
+def etf_catalog_notices() -> list[str]:
+    snapshot = cached_catalog()
+    if snapshot is None or not snapshot.count_mismatch:
+        return []
+    return [
+        f"ETF目录：新浪报告 {snapshot.reported_count} 只，实际取到 {len(snapshot.items)} 只，"
+        "已显示取到的全部。"
+    ]
+
+
 @router.get("/search", response_model=SearchResult)
 async def search(q: str = Query("", max_length=80)) -> SearchResult:
     query = q.strip().casefold()
@@ -122,7 +134,10 @@ async def search(q: str = Query("", max_length=80)) -> SearchResult:
                 ranks[key] = rank
     ordered = sorted(matches.values(), key=lambda hit: (
         ranks[(hit.kind, hit.code)], hit.kind, hit.code))
-    return SearchResult(data=ordered[:100], total=len(ordered), failed_sources=failed)
+    return SearchResult(
+        data=ordered[:100], total=len(ordered), failed_sources=failed,
+        notices=[] if "ETF目录" in failed else etf_catalog_notices(),
+    )
 
 
 def fetch_gainers() -> GainersResult:

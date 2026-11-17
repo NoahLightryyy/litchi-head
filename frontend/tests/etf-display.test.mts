@@ -33,3 +33,12 @@ test("搜索ETF跳独立页面，个股与板块入口保持对应类型",()=>{
   assert.equal(discoveryHref({code:"BK1326",name:"半导体设备",kind:"industry"}),"/sector/BK1326");
   assert.throws(()=>parseDiscoveryResults({data:[{code:"../stock/600000",name:"假身份",kind:"etf"}],total:1,failed_sources:[]}));
 });
+
+test("搜索披露说明：旧响应按空处理，新响应原样保留，格式错误拒绝", () => {
+  const base = {data: [{code: "159915", name: "创业板", kind: "etf"}], total: 1, failed_sources: []};
+  assert.deepEqual(parseDiscoveryResults(base).notices, []);
+  const notice = "ETF目录：新浪报告 938 只，实际取到 927 只，已显示取到的全部。";
+  assert.deepEqual(parseDiscoveryResults({...base, notices: [notice]}).notices, [notice]);
+  assert.throws(() => parseDiscoveryResults({...base, notices: [1]}));
+  assert.throws(() => parseDiscoveryResults({...base, notices: "x"}));
+});

@@ -1,5 +1,5 @@
 export type DiscoveryHit = {code: string; name: string; kind: "stock" | "industry" | "concept" | "etf"};
-export type DiscoveryResults = {data: DiscoveryHit[]; total: number; failed_sources: string[]};
+export type DiscoveryResults = {data: DiscoveryHit[]; total: number; failed_sources: string[]; notices?: string[]};
 export function discoveryHref(hit: DiscoveryHit): string {
   return hit.kind === "etf" ? `/etf/${hit.code}` : hit.kind === "stock" ? `/stock/${hit.code}` : `/sector/${hit.code}`;
 }
@@ -13,5 +13,8 @@ export function parseDiscoveryResults(raw: unknown): DiscoveryResults {
       || !["etf","stock","industry","concept"].includes(hit.kind)
       || !(hit.kind === "etf" || hit.kind === "stock" ? /^\d{6}$/ : /^BK\d+$/).test(hit.code)) throw new Error("搜索证券身份无效");
   }
-  return r;
+  // notices 为后加字段：旧后端不返回时按空处理，格式不对则整体拒绝。
+  const notices = (raw as {notices?: unknown}).notices ?? [];
+  if (!Array.isArray(notices) || !notices.every(x => typeof x === "string")) throw new Error("搜索响应无效");
+  return {...r, notices};
 }

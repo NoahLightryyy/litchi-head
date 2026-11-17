@@ -1,6 +1,6 @@
 # 🔄 AI 会话交接文档
 
-> **当前状态（2026-11-16，v1.0 收尾）**：功能冻结。依赖已锁定（`constraints.txt`），新增 macOS/Windows 一键启动，194 处宽泛异常捕获审计完毕，编排器拆分为 5 个模块。锁定依赖下 Ruff、Pyright 通过，Python 2450 通过 / 8 跳过，前端 161 通过。分支 `chore/v1-stabilize` 未 push；Windows 启动脚本待真机验证。见 [本轮日志](../04-changelog/logs/2026-11-16/2026-11-16-v1-stabilize.md)。
+> **当前状态（2026-11-17）**：`codex/market-availability`（43 个提交）已合入收尾分支 `chore/v1-stabilize`，此后只保留一条线；功能冻结。依赖已锁定（`constraints.txt`），有 macOS/Windows 一键启动，编排器已拆分。ETF 目录在新浪自报总数与实际条数小幅不一致时不再整体拒绝，改为接受并披露。锁定依赖下 Ruff、Pyright 通过，Python 2798 通过 / 8 跳过，前端 329 通过。未 push；新版本待用户重启服务实测，Windows 启动脚本待真机验证。见 [11-17 日志](../04-changelog/logs/2026-11-17/2026-11-17-merge-and-etf-catalog.md) 与 [11-16 日志](../04-changelog/logs/2026-11-16/2026-11-16-v1-stabilize.md)。
 
 <details>
 <summary>历史更新横幅（旧数字与分支状态均为当时快照）</summary>

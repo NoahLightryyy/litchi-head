@@ -55,6 +55,7 @@ export function StockDiscovery({showGainers=false, collapseHistory=false}:{showG
           {results.data.failed_sources.includes("股票目录") && results.data.failed_sources.length > 1 && <p>其他未取得目录：{results.data.failed_sources.filter(source => source !== "股票目录").join("、")}。</p>}
           <button disabled={results.isFetching} onClick={searchAgain} className="mt-2 text-accent-blue disabled:opacity-50">{results.isFetching ? "搜索中…" : "重新搜索"}</button>
         </div>}
+        {(results.data.notices ?? []).map(notice => <p key={notice} role="status" className="mb-2 text-xs text-text-muted">{notice}</p>)}
         <p className="mb-2 text-xs text-text-muted">{results.data.total ? `找到 ${results.data.total} 项，显示前 ${results.data.data.length} 项` : results.data.failed_sources.length ? "当前资料不完整，不能据此判断没有这只股票或基金。请稍后重新搜索。" : "未找到匹配结果，可尝试证券代码、股票/ETF名称或板块名称。"}</p>
         <div className="max-h-80 overflow-y-auto divide-y divide-bg-tertiary">{results.data.data.map(hit=><Link key={`${hit.kind}:${hit.code}`} onClick={() => remember(keyword)} href={discoveryHref(hit)} className="flex flex-wrap justify-between gap-2 py-3 text-sm hover:text-accent-blue"><span>{hit.name} <span className="text-text-muted">{hit.code}</span></span><span>{labels[hit.kind]}</span></Link>)}</div>
       </>}
