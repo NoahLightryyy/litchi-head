@@ -154,7 +154,7 @@ if [ "$NEED_BUILD" -eq 1 ]; then
 fi
 
 # ── 6. 启动后端 ────────────────────────────────────────────────
-step "启动后端（端口 $BACKEND_PORT）"
+step "启动后端（端口 ${BACKEND_PORT}）"
 PYTHONUTF8=1 "$PY" -m uvicorn backend.main:app --host 127.0.0.1 --port "$BACKEND_PORT" > "$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 wait_for "$BACKEND_URL" "$BACKEND_PID" 90
@@ -165,7 +165,7 @@ case $? in
 esac
 
 # ── 7. 启动前端 ────────────────────────────────────────────────
-step "启动前端（端口 $FRONTEND_PORT）"
+step "启动前端（端口 ${FRONTEND_PORT}）"
 pnpm_run --dir frontend exec next start --port "$FRONTEND_PORT" >> "$FRONTEND_LOG" 2>&1 &
 FRONTEND_PID=$!
 wait_for "$FRONTEND_URL" "$FRONTEND_PID" 60
