@@ -54,6 +54,7 @@ async function probeBackend(): Promise<BackendProbe> {
 
 const CHECK_LABELS: Record<string, string> = {
   all_stocks: "股票搜索目录",
+  dns_fallback: "备用域名解析",
   "kline:daily": "日 K 线",
   "kline:weekly": "周 K 线",
   "kline:monthly": "月 K 线",
