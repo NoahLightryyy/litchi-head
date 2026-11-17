@@ -99,7 +99,7 @@ corepack prepare pnpm@10.33.0 --activate
 pnpm --dir frontend install --frozen-lockfile
 ```
 
-**One-click start (recommended for daily use).** Double-click `start.command` on macOS or `start.bat` on Windows. The launcher checks Python/Node, installs dependencies on first run (pinned by `constraints.txt`), builds the frontend, starts both services and opens the browser; on failure it prints the cause and the log location. On Windows, `stop.bat` stops the services.
+**One-click start (recommended for daily use).** Double-click `start.command` on macOS or `start.bat` on Windows. The launcher checks Python/Node, installs dependencies on first run (pinned by `constraints.txt`), builds the frontend, starts both services and opens the browser; on failure it prints the cause and the log location. To stop the services, double-click `stop.command` on macOS or `stop.bat` on Windows.
 
 For development, start two terminals from the repository root:
 

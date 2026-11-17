@@ -124,7 +124,7 @@ corepack prepare pnpm@10.33.0 --activate
 pnpm --dir frontend install --frozen-lockfile
 ```
 
-**一键启动（推荐日常使用）。** macOS 双击 `start.command`，Windows 双击 `start.bat`。脚本会检查 Python/Node、首次自动安装依赖（按 `constraints.txt` 锁定版本）、构建前端、启动服务并打开浏览器；失败时给出原因和日志位置。Windows 停止服务用 `stop.bat`。
+**一键启动（推荐日常使用）。** macOS 双击 `start.command`，Windows 双击 `start.bat`。脚本会检查 Python/Node、首次自动安装依赖（按 `constraints.txt` 锁定版本）、构建前端、启动服务并打开浏览器；失败时给出原因和日志位置。停止服务：macOS 双击 `stop.command`，Windows 双击 `stop.bat`。
 
 开发调试时可在仓库根目录分别启动两个终端：
 
