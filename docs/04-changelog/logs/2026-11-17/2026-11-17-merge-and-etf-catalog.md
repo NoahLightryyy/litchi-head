@@ -132,3 +132,17 @@
 说明功能只覆盖 3 个示例标的并给出入口；重试按钮只在真正的读取错误时显示。
 示例清单放在 `frontend/lib/policy-capital.ts`，测试核对它与 `backend/policy_evidence_data/packages.json` 一致。
 没有扩大证据包范围，也没有新增模型调用。前端 330 项通过，tsc 与 ESLint 通过。
+
+## 追加：产业链草图缓存随旧运行目录遗留
+
+用户反馈合并后找不到上下游产业链分析。代码未丢失（`frontend/components/sector/*`、`/api/market/sector/{id}/chain-draft`
+等与 `codex/market-availability` 完全一致），丢的是数据：`chain_drafts` 与 `chain_companies` 的缓存路径相对代码位置，
+之前服务从 `~/.codex/worktrees/market-availability` 运行，AI 生成结果留在了那个目录的 `data/` 下。
+
+已从旧目录复制到当前仓库的 `data/`（均为 git 忽略的本地数据，未重新调用模型）：
+
+- 产业链草图：BK1184 人形机器人、sina:gn_jjzc 基金重仓、sina:gn_cdp 超大盘（后者同名缓存以旧目录较新版本为准，原文件备份在 `data/_backup_20261117/`）；
+- 代表企业：BK1184 人形机器人（6 家）、基金重仓（8 家）；
+- 分时历史：600126、002885 共 15 个文件。
+
+四个草图的缓存键已按现行 `DEFAULT_MODEL` 核对命中。其余板块没有缓存，打开时显示“AI自动绘图 · 待核验”入口，生成需调用付费模型。
